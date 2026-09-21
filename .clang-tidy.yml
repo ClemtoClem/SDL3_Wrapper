@@ -1,0 +1,90 @@
+Checks: '-*,readability-identifier-naming'
+
+WarningsAsErrors: ''
+
+CheckOptions:
+  # Classes / structures
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+
+  # Fonctions / méthodes
+  - key: readability-identifier-naming.FunctionCase
+    value: CamelCase
+  - key: readability-identifier-naming.MethodCase
+    value: CamelCase
+  - key: readability-identifier-naming.ClassMethodCase
+    value: CamelCase
+
+  # Variables locales
+  - key: readability-identifier-naming.VariableCase
+    value: camelBack
+
+  # Paramètres de fonctions
+  - key: readability-identifier-naming.ParameterCase
+    value: camelBack
+
+  # Membres privés
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.PrivateMemberPrefix
+    value: m_
+
+  # Membres protégés
+  - key: readability-identifier-naming.ProtectedMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.ProtectedMemberPrefix
+    value: ""
+
+  # Membres publics
+  - key: readability-identifier-naming.PublicMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.PublicMemberPrefix
+    value: ""
+
+  # Constantes
+  - key: readability-identifier-naming.ConstantCase
+    value: UPPER_CASE
+
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
+
+  - key: readability-identifier-naming.StaticConstantCase
+    value: UPPER_CASE
+
+  - key: readability-identifier-naming.ClassConstantCase
+    value: UPPER_CASE
+
+  # Constexpr
+  - key: readability-identifier-naming.GlobalConstexprVariableCase
+    value: UPPER_CASE
+
+  - key: readability-identifier-naming.ClassConstexprCase
+    value: UPPER_CASE
+
+  # Enum
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+
+  # Namespace
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+
+  # Alias / typedef
+  - key: readability-identifier-naming.TypeAliasCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.TypedefCase
+    value: CamelCase
+
+  # Macros
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+
+  # Templates
+  - key: readability-identifier-naming.TemplateParameterCase
+    value: CamelCase

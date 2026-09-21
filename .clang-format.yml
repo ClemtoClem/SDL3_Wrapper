@@ -1,0 +1,60 @@
+BasedOnStyle: LLVM
+
+Language: Cpp
+Standard: Latest
+
+# ============================================================================
+# Indentation
+# ============================================================================
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Always
+
+# ============================================================================
+# Accolades
+# ============================================================================
+
+BreakBeforeBraces: Attach
+
+# ============================================================================
+# Espacement
+# ============================================================================
+
+ColumnLimit: 100
+
+SpaceBeforeParens: ControlStatements
+SpaceBeforeAssignmentOperators: true
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# ============================================================================
+# Fonctions / blocs courts
+# ============================================================================
+
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortBlocksOnASingleLine: Never
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# ============================================================================
+# Classes / namespaces
+# ============================================================================
+
+AccessModifierOffset: -4
+NamespaceIndentation: None
+
+# ============================================================================
+# Includes
+# ============================================================================
+
+IncludeBlocks: Regroup
+SortIncludes: CaseSensitive
+
+# ============================================================================
+# Commentaires
+# ============================================================================
+
+FixNamespaceComments: true
+ReflowComments: true
