@@ -1,0 +1,56 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct _16
+{
+    packed_float3 _m0;
+    float _m1;
+    float4 _m2;
+    float4 _m3;
+    packed_float3 _m4;
+    float _m5;
+};
+
+struct _49
+{
+    float4 _m0;
+    float _m1;
+    float _m2;
+    float _m3;
+    float _m4;
+};
+
+struct main0_out
+{
+    float4 m_122 [[color(0)]];
+};
+
+struct main0_in
+{
+    float3 m_30 [[user(locn0)]];
+    float3 m_11 [[user(locn1)]];
+    float2 m_93 [[user(locn2)]];
+    float4 m_75 [[user(locn3)]];
+};
+
+fragment main0_out main0(main0_in in [[stage_in]], constant _16& _18 [[buffer(0)]], constant _49& _51 [[buffer(1)]], texture2d<float> _89 [[texture(0)]], sampler _89Smplr [[sampler(0)]])
+{
+    main0_out out = {};
+    float3 _13 = fast::normalize(in.m_11);
+    float3 _25 = fast::normalize(-float3(_18._m0));
+    float4 _77 = _51._m0 * in.m_75;
+    float4 _133;
+    if (_51._m3 > 0.5)
+    {
+        _133 = _77 * _89.sample(_89Smplr, in.m_93);
+    }
+    else
+    {
+        _133 = _77;
+    }
+    out.m_122 = float4(fma(_133.xyz, _18._m3.xyz, (_133.xyz * _18._m2.xyz) * fast::max(dot(_13, _25), 0.0)) + (_18._m2.xyz * (powr(fast::max(dot(_13, fast::normalize(_25 + fast::normalize(float3(_18._m4) - in.m_30))), 0.0), mix(64.0, 4.0, _51._m1)) * (1.0 - _51._m1))), _133.w);
+    return out;
+}
+
