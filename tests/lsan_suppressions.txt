@@ -1,0 +1,30 @@
+# Suppressions LeakSanitizer — fuites internes au backend X11 de SDL3 lui-
+# même (driver Xlib/XRandr, hors de ce dépôt, non actionnables ici), pas du
+# code de ce projet. Repérées une fois le lien réel des sanitizers restauré
+# (voir Makefile: LDFLAGS manquait -fsanitize=undefined,address, tout binaire
+# fraîchement lié échouait silencieusement jusque-là). Câblé via
+# LSAN_OPTIONS=suppressions=... dans le Makefile (cibles check/run-tests et
+# run-<exemple>) ; pour lancer un binaire directement avec les mêmes
+# suppressions : LSAN_OPTIONS=suppressions=tests/lsan_suppressions.txt ./build/bin/<nom>
+leak:X11_GetGlobalContentScale
+leak:X11_InitKeyboard
+# SDL_X11_SetWindowTitle -> libX11's _Xutf8TextListToTextProperty (M31/M32,
+# level_editor_demo): a UTF-8 window title (any non-ASCII character, e.g.
+# the em-dash this repo's own *_demo.cpp titles commonly use) sends
+# SDL3's X11 backend down libX11's Xutf8 conversion path, which leaks 24
+# bytes internally — same "third-party X11 driver, not this repo's code,
+# not actionable here" category as the two entries above.
+leak:SDL_X11_SetWindowTitle
+
+# Constructeurs de bibliothèques chargées dynamiquement (`call_init`, appelé
+# par `_dl_init` sur le chemin `dlopen`) : SDL sonde et charge ses pilotes
+# audio/vidéo à l'initialisation, et certains fuient dans leur PROPRE
+# initialisation statique — repéré sur tests/sdl3_smoke_test_4.cpp (pilote
+# audio, 200 octets en 4 allocations) dont la pile est entièrement
+# dl-open/dl-init, sans un seul cadre de ce dépôt.
+#
+# Portée réelle de cette entrée : elle ne peut masquer QUE des fuites
+# survenant pendant l'exécution des constructeurs d'un objet partagé chargé
+# à l'exécution. Ce dépôt ne produit aucun `.so` et n'appelle jamais `dlopen`
+# lui-même — aucune fuite de son propre code ne peut donc passer par là.
+leak:call_init
