@@ -42,7 +42,11 @@ TEST(Cli, DefaultsAreWindowedWithAudio) {
 	EXPECT_TRUE(options.saveConfig);
 	EXPECT_TRUE(options.romPath.IsEmpty());
 	EXPECT_EQ(options.frames, 0L);
-	EXPECT_EQ(options.configPath, "config.ini");
+	// Vides : résolus au lancement (réglages dans ./saves/emulator_demo/, cf.
+	// config_location.hpp et Settings::stateFilePath).
+	EXPECT_TRUE(options.configPath.IsEmpty());
+	EXPECT_TRUE(options.statePath.IsEmpty());
+	EXPECT_TRUE(options.stateDir.IsEmpty());
 	EXPECT_TRUE(options.directBoot.IsNone());
 	EXPECT_TRUE(options.listRomsDir.IsNone());
 }
@@ -51,7 +55,7 @@ TEST(Cli, ParsesEveryOption) {
 	auto parsed = ParseArgs({"--rom=jeux.zip",		  "--rom-entry=jeu.gba",   "--extract-dir=cache",
 							 "--config=reglages.ini", "--no-save-config",	   "--bios-dir=bios",
 							 "--boot=bios",			  "--arm7-hle",			   "--threaded-2d",	   "--threaded-3d",
-							 "--layout=vertical",	  "--state-path=etat.bin", "--save-dir=saves", "--width=800",
+							 "--layout=vertical",	  "--state-path=etat.bin", "--state-dir=etats", "--save-dir=saves", "--width=800",
 							 "--height=600",		  "--no-audio",			   "--speed=unlimited", "--hide-hud",
 							 "--open=config",		  "--frames=900",		   "--press=120:start:10",
 							 "--press=200:A",		  "--save-state=300",	   "--load-state=450", "--report=r.json",
@@ -71,6 +75,7 @@ TEST(Cli, ParsesEveryOption) {
 	EXPECT_TRUE(options.threaded2D.IsSome() && options.threaded3D.IsSome());
 	EXPECT_TRUE(options.screenLayout.IsSome() && options.screenLayout.Unwrap() == 1);
 	EXPECT_EQ(options.statePath, "etat.bin");
+	EXPECT_EQ(options.stateDir, "etats");
 	EXPECT_EQ(options.saveDir, "saves");
 	EXPECT_EQ(options.windowWidth, 800);
 	EXPECT_EQ(options.windowHeight, 600);

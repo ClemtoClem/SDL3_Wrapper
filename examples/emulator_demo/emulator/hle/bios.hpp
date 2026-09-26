@@ -51,26 +51,26 @@ class Bios {
 
 
 
-class Bios9 : public Bios {
+class NdsBios9 : public Bios {
   public:
-    Bios9(Core *core) : Bios(core, (int(Bios::**)(bool, uint32_t **))swiTable9) {
+    NdsBios9(Core *core) : Bios(core, (int(Bios::**)(bool, uint32_t **))swiTable9) {
     }
 
   private:
-    static int (Bios9::*swiTable9[0x21])(bool, uint32_t **);
+    static int (NdsBios9::*swiTable9[0x21])(bool, uint32_t **);
     int swiDiffUnfilt8(bool cpu, uint32_t **registers);
     int swiDiffUnfilt16(bool cpu, uint32_t **registers);
 };
 
 
 
-class Bios7 : public Bios {
+class NdsBios7 : public Bios {
   public:
-    Bios7(Core *core) : Bios(core, (int(Bios::**)(bool, uint32_t **))swiTable7) {
+    NdsBios7(Core *core) : Bios(core, (int(Bios::**)(bool, uint32_t **))swiTable7) {
     }
 
   private:
-    static int (Bios7::*swiTable7[0x21])(bool, uint32_t **);
+    static int (NdsBios7::*swiTable7[0x21])(bool, uint32_t **);
     int swiSleep(bool cpu, uint32_t **registers);
     int swiSoundBias(bool cpu, uint32_t **registers);
     int swiGetSineTable(bool cpu, uint32_t **registers);

@@ -1,20 +1,20 @@
-#include "emulator/settings.hpp"
+#include "settings.hpp"
 
 #include <algorithm>
 #include <cstring>
 #include <thread>
-#include "emulator/core.hpp"
+#include "core.hpp"
 
 namespace emulator_demo {
 
 Core::Core(RomType type, String path, int id)
-    : id(id), actionReplay(this), bios9(this), bios7(this), cartridgeNds(this), cartridgeGba(this), cp15(this),
+    : id(id), actionReplay(this), ndsBios9(this), ndsBios7(this), cartridgeNds(this), cartridgeGba(this), cp15(this),
       divSqrt(this), dldi(this), dma{Dma(this, 0), Dma(this, 1)}, gpu(this), gpu2D{Gpu2D(this, 0), Gpu2D(this, 1)}, gpu3D(this),
       gpu3DRenderer(this), hleArm7(this), input(this), interpreter{CPU(this, 0), CPU(this, 1)}, ipc(this), memory(this), rtc(this),
       spi(this), spu(this), timers{Timers(this, 0), Timers(this, 1)}, wifi(this) {
-    if (!memory.loadBios9() && (!Settings::getDirectBoot() || (path == "")))
+    if (!memory.loadNdsBios9() && (!Settings::getDirectBoot() || (path == "")))
         { bootError = ERROR_BIOS; return; }
-    if (!memory.loadBios7() && (!Settings::getDirectBoot() || (path == "")))
+    if (!memory.loadNdsBios7() && (!Settings::getDirectBoot() || (path == "")))
         { bootError = ERROR_BIOS; return; }
     if (!spi.loadFirmware() && (!Settings::getDirectBoot() || (path == "")))
         { bootError = ERROR_FIRM; return; }
@@ -205,8 +205,8 @@ void Core::ioState(StateArchive &archive) {
     archive.io(arm7Cycles);
     archive.io(gbaMode);
 
-    bios9.ioState(archive);
-    bios7.ioState(archive);
+    ndsBios9.ioState(archive);
+    ndsBios7.ioState(archive);
     // Les deux cartouches sont toujours sérialisées, même si une seule est
     // pertinente selon le mode courant : cela garde une disposition de
     // l'archive fixe, indépendante de gbaMode.

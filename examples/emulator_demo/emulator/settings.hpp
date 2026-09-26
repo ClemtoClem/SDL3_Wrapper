@@ -18,9 +18,22 @@ struct Setting {
 
 class Settings {
   public:
+    /// Emplacement par défaut du fichier de réglages et des états sauvegardés :
+    /// les sauvegardes des démos vivent dans saves/, séparées des ressources.
+    static constexpr const char *DEFAULT_CONFIG_PATH     = "./saves/emulator_demo/config.ini";
+    static constexpr const char *DEFAULT_STATE_DIRECTORY = "./saves/emulator_demo/states";
+
     static void add(std::vector<Setting> platformSettings);
-    static bool load(String filename = "config.ini");
+    static bool load(String filename = DEFAULT_CONFIG_PATH);
+    /// Écrit les réglages dans getFilename(), en créant son dossier au besoin.
     static bool save();
+    /// Fichier lu par load() et écrit par save().
+    static String getFilename() {
+        return filename;
+    }
+    static void setFilename(String value) {
+        filename = value;
+    }
     static int  getDirectBoot() {
         return directBoot;
     }
@@ -36,14 +49,14 @@ class Settings {
     static int getHighRes3D() {
         return highRes3D;
     }
-    static String getBios9Path() {
-        return bios9Path;
+    static String getNdsBios9Path() {
+        return ndsBios9Path;
     }
-    static String getBios7Path() {
-        return bios7Path;
+    static String getNdsBios7Path() {
+        return ndsBios7Path;
     }
     static String getFirmwarePath() {
-        return firmwarePath;
+        return ndsFirmwarePath;
     }
     static String getGbaBiosPath() {
         return gbaBiosPath;
@@ -93,14 +106,14 @@ class Settings {
     static void setHighRes3D(int value) {
         highRes3D = value;
     }
-    static void setBios9Path(String value) {
-        bios9Path = value;
+    static void setNdsBios9Path(String value) {
+        ndsBios9Path = value;
     }
-    static void setBios7Path(String value) {
-        bios7Path = value;
+    static void setNdsBios7Path(String value) {
+        ndsBios7Path = value;
     }
     static void setFirmwarePath(String value) {
-        firmwarePath = value;
+        ndsFirmwarePath = value;
     }
     static void setGbaBiosPath(String value) {
         gbaBiosPath = value;
@@ -131,6 +144,24 @@ class Settings {
     }
     static void setSaveDirectory(String value) {
         saveDirectory = value;
+    }
+    /// Dossier des états sauvegardés (sauvegarde rapide F5/F9), enregistré
+    /// dans le fichier de réglages. Vide = à côté de la ROM (<rom>.state0).
+    static String getStateDirectory() {
+        return stateDirectory;
+    }
+    static void setStateDirectory(String value) {
+        stateDirectory = value;
+    }
+    /// Fichier d'état d'une ROM : <dossier des états>/<nom de la ROM>.state0,
+    /// ou <rom>.state0 sans dossier. `logicalPath` : la ROM telle que
+    /// l'utilisateur la connaît (à côté de son archive pour une ROM extraite).
+    static String stateFilePath(const String &logicalPath) {
+        if (stateDirectory.IsEmpty())
+            return logicalPath + ".state0";
+        size_t slash = logicalPath.Rfind('/');
+        String name  = (slash == String::NPOS) ? logicalPath : logicalPath.Substr(slash + 1);
+        return (stateDirectory.EndsWith("/") ? stateDirectory : stateDirectory + "/") + name + ".state0";
     }
     /// Déclare que la ROM lue depuis `actualPath` (copie extraite d'une
     /// archive, dans un cache) doit être traitée, pour ses fichiers annexes
@@ -176,13 +207,14 @@ class Settings {
     static int verboseLog;
 
     static String          filename;
-    static String          bios9Path;
-    static String          bios7Path;
-    static String          firmwarePath;
+    static String          ndsBios9Path;
+    static String          ndsBios7Path;
+    static String          ndsFirmwarePath;
     static String          gbaBiosPath;
     static String          sdImagePath;
     static String          logFilePath;
     static String          saveDirectory;
+    static String          stateDirectory;
     static std::vector<std::pair<String, String>> romAliases;
     static std::vector<Setting> settings;
 };

@@ -120,8 +120,10 @@ Result<std::unique_ptr<EmulatorSession>, String> EmulatorSession::Create(const S
 	session->m_logicalPath = rom.LogicalPath();
 	session->m_archive = rom.archive;
 	session->m_metadata = std::move(metadata);
-	session->m_statePath =
-		session->m_options.statePath.IsEmpty() ? session->m_logicalPath + ".state0" : session->m_options.statePath;
+	// Figé au lancement : un dossier changé dans la configuration vaut pour la
+	// ROM suivante (le fil d'émulation lit ce chemin entre deux images).
+	session->m_statePath = session->m_options.statePath.IsEmpty() ? Settings::stateFilePath(session->m_logicalPath)
+																   : session->m_options.statePath;
 	if (session->m_archive.IsSome()) {
 		Settings::registerRomAlias(session->m_bootPath, session->m_logicalPath);
 		SDL_Log("emulator_demo : %s extraite vers %s", rom.DisplayName().CStr(), session->m_bootPath.CStr());
@@ -420,6 +422,9 @@ bool EmulatorSession::SaveStateNow(String &detail) {
 	if (m_audio)
 		m_audio->SetPaused(true);
 	bool ok = false;
+	// Premier état de la session dans ce dossier : il peut ne pas exister.
+	if (size_t slash = m_statePath.Rfind('/'); slash != String::NPOS && slash > 0)
+		(void)sdl3::filesystem::CreateDirectory(m_statePath.Substr(0, slash));
 	if (m_saveStates)
 		ok = m_saveStates->saveState();
 	else if (m_gbcCore)

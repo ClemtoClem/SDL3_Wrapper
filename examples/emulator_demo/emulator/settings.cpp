@@ -6,7 +6,7 @@
 
 namespace emulator_demo {
 
-String Settings::filename = "config.ini";
+String Settings::filename = Settings::DEFAULT_CONFIG_PATH;
 
 int Settings::directBoot   = 1;
 int Settings::fpsLimiter   = 1;
@@ -26,14 +26,15 @@ int Settings::arm7Hle = 0;
 // register" diagnostics can otherwise collapse emulation to ~1 FPS.
 int Settings::verboseLog = 0;
 
-String Settings::bios9Path    = "bios-firmware/nintendo-nintendo-ds/bios9.bin";
-String Settings::bios7Path    = "bios-firmware/nintendo-nintendo-ds/bios7.bin";
-String Settings::firmwarePath = "bios-firmware/nintendo-nintendo-ds/firmware.bin";
-String Settings::gbaBiosPath  = "bios-firmware/nintendo-game-boy-advance/gba_bios.bin";
+String Settings::ndsBios9Path    = "bios-firmware/nintendo-ds/ndsBios9.bin";
+String Settings::ndsBios7Path    = "bios-firmware/nintendo-ds/ndsBios7.bin";
+String Settings::ndsFirmwarePath = "bios-firmware/nintendo-ds/firmware.bin";
+String Settings::gbaBiosPath  = "bios-firmware/nintendo-game-boy-advance/gbaBios.bin";
 String Settings::sdImagePath  = "bios-firmware/sd.img";
 // Empty = file export disabled.
 String Settings::logFilePath  = sdl3::filesystem::BasePath() + "logs/output.txt";
 String Settings::saveDirectory;
+String Settings::stateDirectory = Settings::DEFAULT_STATE_DIRECTORY;
 std::vector<std::pair<String, String>> Settings::romAliases;
 
 
@@ -44,12 +45,12 @@ std::vector<Setting> Settings::settings = {
     // corrupted memory on the very first load()/save() call.
     Setting("directBoot", &directBoot, false),  Setting("fpsLimiter", &fpsLimiter, false),
     Setting("threaded2D", &threaded2D, false),  Setting("threaded3D", &threaded3D, false),
-    Setting("highRes3D", &highRes3D, false),    Setting("bios9Path", &bios9Path, true),
-    Setting("bios7Path", &bios7Path, true),     Setting("firmwarePath", &firmwarePath, true),
+    Setting("highRes3D", &highRes3D, false),    Setting("ndsBios9Path", &ndsBios9Path, true),
+    Setting("ndsBios7Path", &ndsBios7Path, true),     Setting("ndsFirmwarePath", &ndsFirmwarePath, true),
     Setting("gbaBiosPath", &gbaBiosPath, true), Setting("sdImagePath", &sdImagePath, true),
     Setting("logFilePath", &logFilePath, true), Setting("logToConsole", &logToConsole, false),
     Setting("screenLayout", &screenLayout, false), Setting("arm7Hle", &arm7Hle, false),
-    Setting("verboseLog", &verboseLog, false)};
+    Setting("verboseLog", &verboseLog, false), Setting("stateDirectory", &stateDirectory, true)};
 
 void Settings::add(std::vector<Setting> platformSettings) {
     settings.insert(settings.end(), platformSettings.begin(), platformSettings.end());
@@ -86,6 +87,11 @@ bool Settings::load(String filename) {
 }
 
 bool Settings::save() {
+    // Premier enregistrement dans saves/emulator_demo/ : le dossier peut ne
+    // pas encore exister.
+    size_t slash = filename.Rfind('/');
+    if (slash != String::npos && slash > 0)
+        (void)sdl3::filesystem::CreateDirectory(filename.Substr(0, slash));
     auto res = sdl3::IOStream::FromFile(filename, "w");
     if (!res)
         return false;

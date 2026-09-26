@@ -63,7 +63,7 @@ struct FrameSnapshot {
 };
 
 struct SessionOptions {
-	String statePath; ///< vide = <chemin logique>.state0
+	String statePath; ///< vide = Settings::stateFilePath(<chemin logique>)
 	String romEntry;  ///< entrée à lancer si la ROM est une archive (vide = première ROM)
 	String extractDirectory; ///< cache des ROMs extraites (vide = DefaultExtractDirectory())
 	bool threaded = true;

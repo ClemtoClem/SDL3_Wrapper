@@ -53,10 +53,11 @@ private:
 		int screenLayout = 0;
 		int fpsLimiter = 1;
 		int highRes3D = 0;
-		String bios9;
-		String bios7;
+		String ndsBios9;
+		String ndsBios7;
 		String firmware;
 		String gbaBios;
+		String stateDirectory;
 	};
 
 	[[nodiscard]] int PrintRomInfo();

@@ -87,7 +87,9 @@ struct CommandLine {
 	String romEntry;   ///< entrée à lancer quand --rom est une archive (vide = première ROM)
 	String extractDir; ///< cache des ROMs extraites d'archives (vide = dossier de préférences)
 	String archivePassword; ///< mot de passe des archives chiffrées (zip AES, 7z AES)
-	String configPath = "config.ini"; ///< vide = chemins de config.ini
+	/// Fichier de réglages. Vide = celui choisi dans la fenêtre de configuration,
+	/// sinon ./saves/emulator_demo/config.ini (cf. config_location.hpp).
+	String configPath;
 	bool saveConfig = true;
 	String biosDir = "./assets/bios-firmware/";	
 	Option<bool> directBoot = NONE;
@@ -95,7 +97,11 @@ struct CommandLine {
 	Option<bool> threaded2D = NONE;
 	Option<bool> threaded3D = NONE;
 	Option<int> screenLayout = NONE; ///< 0 = horizontal, 1 = vertical
-	String statePath = "./saves/emulator_demo/states/"; ///< vide = <rom>.state0
+	/// Fichier d'état imposé. Vide = <dossier des états>/<rom>.state0.
+	String statePath;
+	/// Dossier des états, pour cette exécution seulement (non enregistré).
+	/// Vide = celui des réglages (défaut ./saves/emulator_demo/states).
+	String stateDir;
 	String saveDir; ///< vide = sauvegardes de cartouche à côté de la ROM
 
 	// ── Fenêtre ──────────────────────────────────────────────────────────────
@@ -144,14 +150,17 @@ struct CommandLine {
 			   "  --rom-entry=NOM         entrée de l'archive à lancer (défaut : première ROM trouvée)\n"
 			   "  --extract-dir=DIR       cache des ROMs extraites (défaut : dossier de préférences SDL)\n"
 			   "  --archive-password=MOT  mot de passe des archives chiffrées (zip AES/ZipCrypto, 7z AES)\n"
-			   "  --config=CHEMIN         fichier de réglages (défaut config.ini)\n"
+			   "  --config=CHEMIN         fichier de réglages (défaut : celui choisi dans la configuration,\n"
+			   "                          sinon ./saves/emulator_demo/config.ini)\n"
 			   "  --no-save-config        ne réécrit pas le fichier de réglages en quittant\n"
-			   "  --bios-dir=DIR          dossier de bios9.bin, bios7.bin, firmware.bin, gba_bios.bin\n"
+			   "  --bios-dir=DIR          dossier de ndsBios9.bin, ndsBios7.bin, firmware.bin, gbaBios.bin\n"
 			   "  --boot=MODE             direct | bios (défaut : config, direct à défaut)\n"
 			   "  --arm7-hle              ARM7 en HLE (NDS sans BIOS ni firmware)\n"
 			   "  --threaded-2d / --threaded-3d  rendu 2D / 3D de la console sur un fil dédié\n"
 			   "  --layout=DISPOSITION    horizontal | vertical (écrans NDS)\n"
-			   "  --state-path=CHEMIN     emplacement de la sauvegarde rapide (défaut <rom>.state0)\n"
+			   "  --state-dir=DIR         dossier des états sauvegardés (défaut : réglages, sinon\n"
+			   "                          ./saves/emulator_demo/states)\n"
+			   "  --state-path=CHEMIN     fichier de la sauvegarde rapide (défaut <dossier des états>/<rom>.state0)\n"
 			   "  --save-dir=DIR          sauvegardes de cartouche (.sav) dans DIR plutôt qu'à côté de la ROM\n"
 			   "                          (recommandé pour les tests : le jeu y écrit pendant l'exécution)\n"
 			   "\n"
@@ -285,6 +294,8 @@ private:
 			biosDir = raw;
 		} else if (key == "--state-path") {
 			statePath = raw;
+		} else if (key == "--state-dir") {
+			stateDir = raw;
 		} else if (key == "--save-dir") {
 			saveDir = raw;
 		} else if (key == "--boot") {

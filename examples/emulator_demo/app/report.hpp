@@ -316,6 +316,7 @@ public:
 	int fpsLimiter = 1;
 	String screenLayout;
 	String saveDirectory;
+	String stateDirectory;
 	std::vector<std::pair<String, bool>> firmwareFiles; ///< (chemin, présent)
 
 	// ── Émulation ────────────────────────────────────────────────────────────
@@ -417,6 +418,7 @@ public:
 		line(String::Format("Limiteur        : %d", fpsLimiter));
 		line(String::Format("Écrans NDS      : %s", screenLayout.CStr()));
 		line(String::Format("Sauvegardes     : %s", saveDirectory.CStr()));
+		line(String::Format("États           : %s", stateDirectory.CStr()));
 		for (const auto &file : firmwareFiles)
 			line(String::Format("  [%s] %s", file.second ? "présent" : "absent ", file.first.CStr()));
 		line(String());
@@ -542,6 +544,7 @@ public:
 		settings->Set("fps_limiter", Node::MakeInt(fpsLimiter));
 		settings->Set("screen_layout", Node::MakeString(screenLayout));
 		settings->Set("save_directory", Node::MakeString(saveDirectory));
+		settings->Set("state_directory", Node::MakeString(stateDirectory));
 		auto firmware = Node::MakeArray();
 		for (const auto &file : firmwareFiles) {
 			auto entry = Node::MakeObject();

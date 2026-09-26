@@ -1,6 +1,6 @@
-#include "emulator/io/aes.hpp"
+#include "aes.hpp"
 
-#include "emulator/core.hpp"
+#include "../core.hpp"
 
 #include <algorithm>
 #include <cstring>

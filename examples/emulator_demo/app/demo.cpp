@@ -8,6 +8,7 @@
 
 #include "../emulator/settings.hpp"
 #include "application.hpp"
+#include "config_location.hpp"
 #include "emulator_session.hpp"
 #include "rom_metadata.hpp"
 #include "rom_source.hpp"
@@ -32,6 +33,7 @@ void EnsureParentDirectory(const String &path) {
 
 Demo::Demo(CommandLine options, String commandLine) : m_options(std::move(options)) {
 	m_report.commandLine = std::move(commandLine);
+	m_options.configPath = app::ResolveConfigPath(m_options.configPath);
 	m_report.configPath = m_options.configPath;
 	app::SetArchivePassword(m_options.archivePassword);
 }
@@ -154,10 +156,11 @@ void Demo::LoadSettings() {
 	m_saved.screenLayout = Settings::getScreenLayout();
 	m_saved.fpsLimiter = Settings::getFpsLimiter();
 	m_saved.highRes3D = Settings::getHighRes3D();
-	m_saved.bios9 = Settings::getBios9Path();
-	m_saved.bios7 = Settings::getBios7Path();
+	m_saved.ndsBios9 = Settings::getNdsBios9Path();
+	m_saved.ndsBios7 = Settings::getNdsBios7Path();
 	m_saved.firmware = Settings::getFirmwarePath();
 	m_saved.gbaBios = Settings::getGbaBiosPath();
+	m_saved.stateDirectory = Settings::getStateDirectory();
 	ApplyOverrides();
 	DescribeSettings();
 }
@@ -177,10 +180,12 @@ void Demo::ApplyOverrides() {
 		(void)sdl3::filesystem::CreateDirectory(m_options.saveDir);
 		Settings::setSaveDirectory(m_options.saveDir);
 	}
+	if (!m_options.stateDir.IsEmpty())
+		Settings::setStateDirectory(m_options.stateDir);
 	if (!m_options.biosDir.IsEmpty()) {
 		// Deux dispositions acceptées : fichiers à plat dans le dossier, ou
 		// rangés par console comme dans les réglages par défaut
-		// (nintendo-nintendo-ds/bios9.bin, nintendo-game-boy-advance/…).
+		// (nintendo-ds/ndsBios9.bin, nintendo-game-boy-advance/…).
 		auto locate = [this](const char *subdirectory, const char *file) {
 			String flat = JoinPath(m_options.biosDir, file);
 			if (sdl3::filesystem::PathInfo(flat).IsSome())
@@ -188,10 +193,10 @@ void Demo::ApplyOverrides() {
 			String nested = JoinPath(JoinPath(m_options.biosDir, subdirectory), file);
 			return sdl3::filesystem::PathInfo(nested).IsSome() ? nested : flat;
 		};
-		Settings::setBios9Path(locate("nintendo-nintendo-ds", "bios9.bin"));
-		Settings::setBios7Path(locate("nintendo-nintendo-ds", "bios7.bin"));
-		Settings::setFirmwarePath(locate("nintendo-nintendo-ds", "firmware.bin"));
-		Settings::setGbaBiosPath(locate("nintendo-game-boy-advance", "gba_bios.bin"));
+		Settings::setNdsBios9Path(locate("nintendo-ds", "ndsBios9.bin"));
+		Settings::setNdsBios7Path(locate("nintendo-ds", "ndsBios7.bin"));
+		Settings::setFirmwarePath(locate("nintendo-ds", "firmware.bin"));
+		Settings::setGbaBiosPath(locate("nintendo-game-boy-advance", "gbaBios.bin"));
 	}
 }
 
@@ -217,11 +222,15 @@ void Demo::RestoreOverridesBeforeSave() {
 		restore(true, Settings::getScreenLayout(), m_options.screenLayout.Unwrap(), m_saved.screenLayout,
 				&Settings::setScreenLayout);
 	if (!m_options.biosDir.IsEmpty()) {
-		Settings::setBios9Path(m_saved.bios9);
-		Settings::setBios7Path(m_saved.bios7);
+		Settings::setNdsBios9Path(m_saved.ndsBios9);
+		Settings::setNdsBios7Path(m_saved.ndsBios7);
 		Settings::setFirmwarePath(m_saved.firmware);
 		Settings::setGbaBiosPath(m_saved.gbaBios);
 	}
+	// --state-dir vaut pour cette exécution ; un dossier choisi depuis dans
+	// la configuration, lui, est enregistré.
+	if (!m_options.stateDir.IsEmpty() && Settings::getStateDirectory() == m_options.stateDir)
+		Settings::setStateDirectory(m_saved.stateDirectory);
 	Settings::setFpsLimiter(m_saved.fpsLimiter);
 	Settings::setHighRes3D(m_saved.highRes3D);
 }
@@ -234,8 +243,11 @@ void Demo::DescribeSettings() {
 	m_report.screenLayout = Settings::getScreenLayout() != 0 ? "empilés" : "côte à côte";
 	m_report.saveDirectory =
 		Settings::getSaveDirectory().IsEmpty() ? String("(à côté de la ROM)") : Settings::getSaveDirectory();
+	m_report.stateDirectory =
+		Settings::getStateDirectory().IsEmpty() ? String("(à côté de la ROM)") : Settings::getStateDirectory();
+	m_report.configPath = Settings::getFilename();
 	m_report.firmwareFiles.clear();
-	for (const String &path : {Settings::getBios9Path(), Settings::getBios7Path(), Settings::getFirmwarePath(),
+	for (const String &path : {Settings::getNdsBios9Path(), Settings::getNdsBios7Path(), Settings::getFirmwarePath(),
 							   Settings::getGbaBiosPath()})
 		m_report.firmwareFiles.emplace_back(path, sdl3::filesystem::PathInfo(path).IsSome());
 }
@@ -386,7 +398,7 @@ int Demo::RunWindowed() {
 		if (m_options.saveConfig) {
 			RestoreOverridesBeforeSave();
 			if (!Settings::save())
-				std::fprintf(stderr, "réglages non enregistrés : %s\n", m_options.configPath.CStr());
+				std::fprintf(stderr, "réglages non enregistrés : %s\n", Settings::getFilename().CStr());
 		}
 	}
 	return exitCode;

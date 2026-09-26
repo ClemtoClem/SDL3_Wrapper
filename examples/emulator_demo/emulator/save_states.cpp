@@ -1,6 +1,6 @@
-#include "emulator/save_states.hpp"
+#include "save_states.hpp"
 
-#include "emulator/state_archive.hpp"
+#include "state_archive.hpp"
 #include "sdl3/iostream.hpp"
 
 #include <cstring>

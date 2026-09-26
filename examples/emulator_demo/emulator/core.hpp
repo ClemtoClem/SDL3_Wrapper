@@ -80,7 +80,7 @@ public:
         switch (error) {
         case ERROR_NONE: return "aucune erreur";
         case ERROR_BIOS: return "BIOS NDS introuvable ou illisible (boot direct ou --arm7-hle pour s'en passer)";
-        case ERROR_GBA_BIOS: return "BIOS GBA (gba_bios.bin) requis : le cœur n'émule pas le BIOS GBA (voir --bios-dir)";
+        case ERROR_GBA_BIOS: return "BIOS GBA (gbaBios.bin) requis : le cœur n'émule pas le BIOS GBA (voir --bios-dir)";
         case ERROR_FIRM: return "firmware introuvable ou illisible";
         case ERROR_ROM: return "ROM introuvable ou illisible";
         }
@@ -141,8 +141,8 @@ public:
     bool dsiMode = false;
 
     ActionReplay actionReplay;
-    Bios9 bios9;
-    Bios7 bios7;
+    NdsBios9 ndsBios9;
+    NdsBios7 ndsBios7;
     CartridgeNds cartridgeNds;
     CartridgeGba cartridgeGba;
     Cp15 cp15;
