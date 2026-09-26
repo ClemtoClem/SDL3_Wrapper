@@ -36,7 +36,8 @@
 #include "ini.hpp"
 #include "json.hpp"
 #include "toml.hpp"
-#include "xml.hpp"
 #include "yaml.hpp"
+#include "xml.hpp"
+#include "html.hpp"
 
 #undef DATA_REGISTER_FORMAT

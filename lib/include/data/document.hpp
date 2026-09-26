@@ -75,6 +75,12 @@ public:
 		return p.IsSome() && *p == c;
 	}
 
+	[[nodiscard]] bool PeekIs(std::initializer_list<char> lst) const noexcept {
+		auto p = Peek();
+		return p.IsSome() &&
+			std::find(lst.begin(), lst.end(), *p) != lst.end();
+	}
+
 	Option<char> Get() noexcept {
 		if (Eof())
 			return NONE;
