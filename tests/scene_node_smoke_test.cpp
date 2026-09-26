@@ -23,8 +23,10 @@ namespace {
 
 constexpr float EPS = 1e-4f;
 
-[[nodiscard]] bool Near(float a, float b, float eps = EPS) { return (a - b) < eps && (b - a) < eps; }
-[[nodiscard]] bool NearVec(const math::FVector3 &a, const math::FVector3 &b, float eps = EPS) {
+[[nodiscard]] bool Near(float a, float b, float eps = EPS) {
+	return (a - b) < eps && (b - a) < eps;
+}
+[[nodiscard]] bool NearVec(const math::FVector3& a, const math::FVector3& b, float eps = EPS) {
 	return Near(a.x, b.x, eps) && Near(a.y, b.y, eps) && Near(a.z, b.z, eps);
 }
 
@@ -157,7 +159,8 @@ TEST(SceneTransform, ChildFollowsParentRotation) {
 	Car car;
 	car.tree.SetLocalPosition(car.frontLeft, {1.f, 0.f, 0.f});
 	// Un quart de tour autour de Y amène +X sur -Z (repère main droite).
-	car.tree.SetLocalRotation(car.car, math::FQuaternion::FromAxisAngle({0.f, 1.f, 0.f}, 1.57079633f));
+	car.tree.SetLocalRotation(car.car,
+							  math::FQuaternion::FromAxisAngle({0.f, 1.f, 0.f}, 1.57079633f));
 	math::FVector3 world = car.tree.GlobalPosition(car.frontLeft);
 	EXPECT_TRUE(Near(world.x, 0.f, 1e-3f));
 	EXPECT_TRUE(Near(world.z, -1.f, 1e-3f));
@@ -224,7 +227,7 @@ TEST(SceneTransform, VisibilityIsInherited) {
 	EXPECT_TRUE(car.tree.IsVisibleInTree(car.mesh));
 	EXPECT_TRUE(car.tree.SetVisible(car.body, false));
 	EXPECT_TRUE(!car.tree.IsVisibleInTree(car.mesh));  // hérité
-	EXPECT_TRUE(car.tree.Get(car.mesh)->visible);      // mais sa visibilité PROPRE est intacte
+	EXPECT_TRUE(car.tree.Get(car.mesh)->visible);	   // mais sa visibilité PROPRE est intacte
 	EXPECT_TRUE(car.tree.IsVisibleInTree(car.engine)); // branche voisine non affectée
 }
 
@@ -324,7 +327,7 @@ TEST(SceneRemove, TheRootCannotBeRemoved) {
 TEST(SceneComponents, NodesCarryTypedComponentsAndFreeProperties) {
 	NodeTree tree;
 	NodeId car = tree.Create(tree.Root(), String("Car"));
-	Node *node = tree.Get(car);
+	Node* node = tree.Get(car);
 
 	Component mesh;
 	mesh.type = String("MeshInstance");
@@ -400,12 +403,15 @@ TEST(SceneDuplicate, RemapsReferencesNestedInsideArraysAndComponents) {
 	NodeId copy = car.tree.Duplicate(car.car);
 	NodeId copiedEngine = car.tree.Resolve(String("Engine"), copy);
 	ASSERT_TRUE(copiedEngine.Valid());
-	const PropertyValue *watch = car.tree.Get(copiedEngine)->ComponentProperty(String("Script"), String("watch"));
+	const PropertyValue* watch =
+		car.tree.Get(copiedEngine)->ComponentProperty(String("Script"), String("watch"));
 	ASSERT_TRUE(watch != nullptr);
 	ASSERT_EQ(watch->AsArray().size(), size_t(2));
 	EXPECT_TRUE(watch->AsArray()[0].AsNodeRef() != car.frontLeft);
-	EXPECT_TRUE(watch->AsArray()[0].AsNodeRef() == car.tree.Resolve(String("Wheels/FrontLeft"), copy));
-	EXPECT_TRUE(watch->AsArray()[1].AsNodeRef() == car.tree.Resolve(String("Wheels/FrontRight"), copy));
+	EXPECT_TRUE(watch->AsArray()[0].AsNodeRef() ==
+				car.tree.Resolve(String("Wheels/FrontLeft"), copy));
+	EXPECT_TRUE(watch->AsArray()[1].AsNodeRef() ==
+				car.tree.Resolve(String("Wheels/FrontRight"), copy));
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -426,7 +432,7 @@ TEST(SceneSerialize, SaveThenLoadRebuildsAnIdenticalTree) {
 	String json = car.tree.EncodeJson();
 	auto reloaded = NodeTree::DecodeJson(json);
 	ASSERT_TRUE(reloaded.IsOk());
-	const NodeTree &back = reloaded.Value();
+	const NodeTree& back = reloaded.Value();
 
 	EXPECT_TRUE(back == car.tree);
 	EXPECT_EQ(back.Size(), car.tree.Size());
@@ -440,7 +446,8 @@ TEST(SceneSerialize, SaveThenLoadRebuildsAnIdenticalTree) {
 }
 
 TEST(SceneSerialize, RejectsAFutureFormatAndAMalformedDocument) {
-	auto tooNew = NodeTree::DecodeJson(String("{\"format\":\"scene.tree\",\"version\":99,\"root\":{}}"));
+	auto tooNew =
+		NodeTree::DecodeJson(String("{\"format\":\"scene.tree\",\"version\":99,\"root\":{}}"));
 	EXPECT_TRUE(tooNew.IsError());
 	auto noRoot = NodeTree::DecodeJson(String("{\"format\":\"scene.tree\",\"version\":1}"));
 	EXPECT_TRUE(noRoot.IsError());
@@ -451,9 +458,9 @@ TEST(SceneSerialize, RejectsAFutureFormatAndAMalformedDocument) {
 TEST(SceneSerialize, RenumbersInsteadOfFailingWhenAFileHasAbsurdIds) {
 	// Fichier écrit à la main : identifiants dupliqués. L'arbre doit se
 	// charger quand même, en renumérotant.
-	String json =
-		String("{\"format\":\"scene.tree\",\"version\":1,\"root\":{\"id\":\"0:0\",\"name\":\"Scene\",\"children\":["
-			   "{\"id\":\"3:0\",\"name\":\"A\"},{\"id\":\"3:0\",\"name\":\"B\"}]}}");
+	String json = String("{\"format\":\"scene.tree\",\"version\":1,\"root\":{\"id\":\"0:0\","
+						 "\"name\":\"Scene\",\"children\":["
+						 "{\"id\":\"3:0\",\"name\":\"A\"},{\"id\":\"3:0\",\"name\":\"B\"}]}}");
 	auto tree = NodeTree::DecodeJson(json);
 	ASSERT_TRUE(tree.IsOk());
 	EXPECT_EQ(tree.Value().Size(), size_t(3));
@@ -489,8 +496,10 @@ TEST(SceneValidate, ReportsAMissingResourceAndAnUnknownType) {
 	mesh.props.Set(String("resource"), PropertyValue::Resource(String("absent.gltf")));
 	tree.Get(id)->SetComponent(std::move(mesh));
 
-	auto exists = [](const String &path) { return path == String("present.gltf"); };
-	auto known = [](const String &type) { return type == String("Node") || type == String("Node3D"); };
+	auto exists = [](const String& path) { return path == String("present.gltf"); };
+	auto known = [](const String& type) {
+		return type == String("Node") || type == String("Node3D");
+	};
 	ValidationReport report = tree.Validate(exists, known);
 	EXPECT_TRUE(!report.Ok());
 	EXPECT_TRUE(report.Format().Contains("ressource introuvable"));
@@ -548,7 +557,8 @@ TEST(SceneTypes, RegistryKnowsBuiltinsAndAcceptsNewTypes) {
 
 	Node node = registry.Make(String("MeshInstance"), String("Body"));
 	EXPECT_TRUE(node.HasComponent(String("Mesh")));
-	EXPECT_TRUE(node.ComponentProperty(String("Mesh"), String("shape"))->AsString() == String("box"));
+	EXPECT_TRUE(node.ComponentProperty(String("Mesh"), String("shape"))->AsString() ==
+				String("box"));
 	EXPECT_TRUE(node.Get(String("cast_shadows"))->AsBool());
 }
 
@@ -599,8 +609,10 @@ TEST(ScenePacked, PacksASubtreeAndInstantiatesItSeveralTimes) {
 
 	// Chaque instance est indépendante : bouger l'une ne bouge pas l'autre.
 	track.SetLocalPosition(first, {100.f, 0.f, 0.f});
-	EXPECT_TRUE(NearVec(track.GlobalPosition(track.Resolve(String("Wheels/FrontLeft"), first)), {100.f, 0.f, 0.f}));
-	EXPECT_TRUE(NearVec(track.GlobalPosition(track.Resolve(String("Wheels/FrontLeft"), second)), {5.f, 0.f, 0.f}));
+	EXPECT_TRUE(NearVec(track.GlobalPosition(track.Resolve(String("Wheels/FrontLeft"), first)),
+						{100.f, 0.f, 0.f}));
+	EXPECT_TRUE(NearVec(track.GlobalPosition(track.Resolve(String("Wheels/FrontLeft"), second)),
+						{5.f, 0.f, 0.f}));
 }
 
 TEST(ScenePacked, InstancesRememberWhereTheyComeFrom) {
@@ -612,7 +624,8 @@ TEST(ScenePacked, InstancesRememberWhereTheyComeFrom) {
 	EXPECT_TRUE(PackedScene::IsInstanceRoot(*track.Get(instance)));
 	EXPECT_TRUE(PackedScene::InstanceSource(*track.Get(instance)) == String("content/Car.tscene"));
 	// Les nœuds INTERNES d'une instance n'en sont pas la racine.
-	EXPECT_TRUE(!PackedScene::IsInstanceRoot(*track.Get(track.Resolve(String("Wheels"), instance))));
+	EXPECT_TRUE(
+		!PackedScene::IsInstanceRoot(*track.Get(track.Resolve(String("Wheels"), instance))));
 }
 
 TEST(ScenePacked, InternalReferencesFollowEachInstance) {
@@ -731,9 +744,11 @@ TEST(ScenePerformance, ScalesToAHundredThousandNodes) {
 		const double copyMs = ms(t0);
 
 		std::printf("%7d nœuds : création %8.2f ms · lecture %7.2f ms · relecture cache %7.2f ms · "
-					"100 déplacements %6.3f ms · copie %7.2f ms · sauvegarde %8.2f ms · chargement %8.2f ms · "
+					"100 déplacements %6.3f ms · copie %7.2f ms · sauvegarde %8.2f ms · chargement "
+					"%8.2f ms · "
 					"chemin %6.3f ms · validation %7.2f ms\n",
-					count, buildMs, firstReadMs, cachedReadMs, moveMs, copyMs, saveMs, loadMs, findMs, validateMs);
+					count, buildMs, firstReadMs, cachedReadMs, moveMs, copyMs, saveMs, loadMs,
+					findMs, validateMs);
 		std::fflush(stdout);
 
 		EXPECT_TRUE(cachedReadMs <= firstReadMs);
@@ -741,4 +756,6 @@ TEST(ScenePerformance, ScalesToAHundredThousandNodes) {
 	}
 }
 
-int main() { return RUN_ALL_TESTS(); }
+int main() {
+	return RUN_ALL_TESTS();
+}

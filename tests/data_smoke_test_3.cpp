@@ -126,4 +126,35 @@ TEST(Json, DecodeUnterminatedStringIsError) {
     EXPECT_TRUE(err.IsSome());
 }
 
+// Un flottant s'écrit sous sa forme la PLUS COURTE qui se relit à
+// l'identique : `1.65`, pas `1.6499999999999999` (ce qu'écrivait la précision
+// max_digits10) — et l'aller-retour reste exact au bit près.
+TEST(Json, FloatsUseTheShortestExactForm) {
+    const double values[] = {1.65, 0.72, 0.1, -3.25, 5.0, 1e-7, 123456.789, 1e300, 0.30000000000000004};
+    for (double value : values) {
+        auto root = Node::MakeArray();
+        root->Push(Node::MakeFloat(value));
+        JsonDocument doc;
+        doc.SetRoot(root);
+        const String text = doc.EncodeStr();
+
+        JsonDocument back;
+        ASSERT_TRUE(back.DecodeStr(text).IsNone());
+        ASSERT_TRUE(back.GetRoot()->At(0) != nullptr);
+        EXPECT_TRUE(back.GetRoot()->At(0)->type == NodeType::FLOAT); // le type survit aussi
+        EXPECT_TRUE(back.GetRoot()->At(0)->floatValue == value);    // exact, pas « proche »
+    }
+    JsonDocument doc;
+    auto root = Node::MakeArray();
+    root->Push(Node::MakeFloat(1.65));
+    root->Push(Node::MakeFloat(0.72));
+    root->Push(Node::MakeFloat(5.0));
+    doc.SetRoot(root);
+    const String text = doc.EncodeStr();
+    EXPECT_TRUE(text.Contains("1.65"));
+    EXPECT_TRUE(text.Contains("0.72"));
+    EXPECT_TRUE(text.Contains("5.0"));
+    EXPECT_FALSE(text.Contains("99999"));
+}
+
 int main() { return RUN_ALL_TESTS(); }

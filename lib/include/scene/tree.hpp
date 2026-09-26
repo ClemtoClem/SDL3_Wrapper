@@ -23,13 +23,14 @@
  * transform monde coûte donc la profondeur du nœud, écrire coûte une
  * affectation, et rien n'est jamais recalculé inutilement.
  */
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-
 #include "../core/core.hpp"
 #include "../data/json.hpp"
 #include "node.hpp"
+
+#include <atomic>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace scene {
 
@@ -64,10 +65,10 @@ class NodePath {
 public:
 	NodePath() = default;
 
-	[[nodiscard]] static NodePath Parse(const String &text) {
+	[[nodiscard]] static NodePath Parse(const String& text) {
 		NodePath path;
 		path.m_absolute = text.StartsWith("/");
-		for (const String &segment : text.Split('/'))
+		for (const String& segment : text.Split('/'))
 			if (!segment.IsEmpty())
 				path.m_segments.push_back(segment);
 		return path;
@@ -75,7 +76,7 @@ public:
 
 	[[nodiscard]] bool IsAbsolute() const noexcept { return m_absolute; }
 	[[nodiscard]] bool IsEmpty() const noexcept { return m_segments.empty(); }
-	[[nodiscard]] const std::vector<String> &Segments() const noexcept { return m_segments; }
+	[[nodiscard]] const std::vector<String>& Segments() const noexcept { return m_segments; }
 
 	[[nodiscard]] String ToString() const {
 		String out(m_absolute ? "/" : "");
@@ -108,14 +109,14 @@ struct ValidationReport {
 	std::vector<ValidationIssue> issues;
 
 	[[nodiscard]] bool Ok() const noexcept {
-		for (const ValidationIssue &issue : issues)
+		for (const ValidationIssue& issue : issues)
 			if (issue.level == IssueLevel::ERROR_LEVEL)
 				return false;
 		return true;
 	}
 	[[nodiscard]] size_t ErrorCount() const noexcept {
 		size_t count = 0;
-		for (const ValidationIssue &issue : issues)
+		for (const ValidationIssue& issue : issues)
 			if (issue.level == IssueLevel::ERROR_LEVEL)
 				++count;
 		return count;
@@ -124,9 +125,10 @@ struct ValidationReport {
 
 	[[nodiscard]] String Format() const {
 		String out;
-		for (const ValidationIssue &issue : issues) {
+		for (const ValidationIssue& issue : issues) {
 			out.Concat(issue.level == IssueLevel::ERROR_LEVEL ? "[erreur] " : "[attention] ");
-			out.Concat(issue.node.Valid() ? String::Format("%s : ", issue.node.ToText().CStr()) : String());
+			out.Concat(issue.node.Valid() ? String::Format("%s : ", issue.node.ToText().CStr())
+										  : String());
 			out.Concat(issue.message);
 			out.Concat("\n");
 		}
@@ -143,9 +145,10 @@ public:
 	/// Un arbre neuf a TOUJOURS une racine (nommée `rootName`) : un arbre
 	/// sans racine obligerait chaque appelant à traiter le cas « scène vide »
 	/// séparément, pour aucun gain.
-	explicit NodeTree(String rootName = String("Scene"), String rootType = String(node_type::NODE)) {
+	explicit NodeTree(String rootName = String("Scene"),
+					  String rootType = String(node_type::NODE)) {
 		m_root = AllocateSlot();
-		Node &node = SlotOf(m_root)->node;
+		Node& node = SlotOf(m_root)->node;
 		node.id = m_root;
 		node.name = std::move(rootName);
 		node.type = std::move(rootType);
@@ -158,22 +161,22 @@ public:
 
 	[[nodiscard]] bool Contains(NodeId id) const noexcept { return SlotOf(id) != nullptr; }
 
-	[[nodiscard]] Node *Get(NodeId id) noexcept {
-		Slot *slot = SlotOf(id);
+	[[nodiscard]] Node* Get(NodeId id) noexcept {
+		Slot* slot = SlotOf(id);
 		return slot ? &slot->node : nullptr;
 	}
-	[[nodiscard]] const Node *Get(NodeId id) const noexcept {
-		const Slot *slot = SlotOf(id);
+	[[nodiscard]] const Node* Get(NodeId id) const noexcept {
+		const Slot* slot = SlotOf(id);
 		return slot ? &slot->node : nullptr;
 	}
 
 	[[nodiscard]] NodeId ParentOf(NodeId id) const noexcept {
-		const Node *node = Get(id);
+		const Node* node = Get(id);
 		return node ? node->parent : NodeId{};
 	}
 
-	[[nodiscard]] const std::vector<NodeId> &ChildrenOf(NodeId id) const noexcept {
-		const Node *node = Get(id);
+	[[nodiscard]] const std::vector<NodeId>& ChildrenOf(NodeId id) const noexcept {
+		const Node* node = Get(id);
 		return node ? node->children : m_noChildren;
 	}
 
@@ -182,7 +185,7 @@ public:
 	[[nodiscard]] std::vector<NodeId> AllNodes() const {
 		std::vector<NodeId> out;
 		out.reserve(m_aliveCount);
-		Traverse(m_root, [&](NodeId id, const Node &) { out.push_back(id); });
+		Traverse(m_root, [&](NodeId id, const Node&) { out.push_back(id); });
 		return out;
 	}
 
@@ -201,18 +204,19 @@ public:
 	/// Insère un nœud déjà rempli (ses `id`/`parent`/`children` sont
 	/// ignorés et réécrits — l'arbre est seul maître des liens).
 	NodeId Add(NodeId parent, Node node, size_t index = NODE_APPEND) {
-		Slot *parentSlot = SlotOf(parent);
+		Slot* parentSlot = SlotOf(parent);
 		if (!parentSlot)
 			return NodeId{};
 		NodeId id = AllocateSlot();
 		parentSlot = SlotOf(parent); // AllocateSlot a pu réallouer le vecteur
-		Slot *slot = SlotOf(id);
+		Slot* slot = SlotOf(id);
 		node.id = id;
 		node.parent = parent;
 		node.children.clear();
 		slot->node = std::move(node);
 		InsertChild(parentSlot->node.children, id, index);
 		Touch(id);
+		TouchStructure();
 		return id;
 	}
 
@@ -222,18 +226,19 @@ public:
 		if (!Contains(id) || id == m_root)
 			return false;
 		NodeId parent = ParentOf(id);
-		if (Slot *parentSlot = SlotOf(parent))
+		if (Slot* parentSlot = SlotOf(parent))
 			EraseChild(parentSlot->node.children, id);
 		std::vector<NodeId> doomed;
-		Traverse(id, [&](NodeId child, const Node &) { doomed.push_back(child); });
+		Traverse(id, [&](NodeId child, const Node&) { doomed.push_back(child); });
 		for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
 			FreeSlot(*it);
+		TouchStructure();
 		return true;
 	}
 
 	/// Vide le sous-arbre de `id` sans supprimer `id`.
 	bool RemoveChildren(NodeId id) {
-		Slot *slot = SlotOf(id);
+		Slot* slot = SlotOf(id);
 		if (!slot)
 			return false;
 		std::vector<NodeId> children = slot->node.children;
@@ -279,17 +284,19 @@ public:
 
 		const math::FMatrix4 worldBefore = GlobalMatrix(child);
 		NodeId oldParent = ParentOf(child);
-		if (Slot *oldSlot = SlotOf(oldParent))
+		if (Slot* oldSlot = SlotOf(oldParent))
 			EraseChild(oldSlot->node.children, child);
 
-		Slot *newSlot = SlotOf(newParent);
+		Slot* newSlot = SlotOf(newParent);
 		InsertChild(newSlot->node.children, child, index);
 		SlotOf(child)->node.parent = newParent;
 		Touch(child);
+		TouchStructure();
 
 		if (mode == ReparentMode::KEEP_GLOBAL) {
 			const math::FMatrix4 parentWorld = GlobalMatrix(newParent);
-			SlotOf(child)->node.transform = Transform::FromMatrix(parentWorld.Inverse() * worldBefore);
+			SlotOf(child)->node.transform =
+				Transform::FromMatrix(parentWorld.Inverse() * worldBefore);
 			Touch(child);
 		}
 		return true;
@@ -298,29 +305,43 @@ public:
 	/// Déplace `child` au rang `index` dans SA fratrie (réordonnancement pur).
 	bool MoveChild(NodeId child, size_t index) {
 		NodeId parent = ParentOf(child);
-		Slot *parentSlot = SlotOf(parent);
+		Slot* parentSlot = SlotOf(parent);
 		if (!parentSlot)
 			return false;
-		std::vector<NodeId> &list = parentSlot->node.children;
+		std::vector<NodeId>& list = parentSlot->node.children;
 		EraseChild(list, child);
 		InsertChild(list, child, index);
+		TouchStructure();
 		return true;
 	}
 
 	// ── Noms et chemins ──────────────────────────────────────────────────────
 
 	bool Rename(NodeId id, String name) {
-		Slot *slot = SlotOf(id);
+		Slot* slot = SlotOf(id);
 		if (!slot)
 			return false;
 		slot->node.name = std::move(name);
+		TouchStructure();
 		return true;
 	}
+
+	/**
+	 * Tampon de STRUCTURE : change à chaque ajout, suppression, reparentage,
+	 * réordonnancement ou renommage (via cette classe). Il est tiré d'un
+	 * compteur global au processus, si bien que deux arbres — ou un arbre et
+	 * une copie — n'ont le même tampon que s'ils sont dans le même état
+	 * structurel : un index externe (noms → identifiants, lignes d'un
+	 * outliner…) se valide donc par une simple comparaison, sans que chaque
+	 * site de mutation ait à penser à l'invalider — et reste juste après une
+	 * annulation qui recopie un ancien arbre.
+	 */
+	[[nodiscard]] uint64_t StructureStamp() const noexcept { return m_structureStamp; }
 
 	/// `base`, `base 2`, `base 3`… : le premier nom libre PARMI LES FRÈRES.
 	/// L'unicité n'est imposée qu'entre frères, parce que c'est tout ce dont
 	/// un chemin a besoin pour être sans ambiguïté.
-	[[nodiscard]] String UniqueChildName(NodeId parent, const String &base) const {
+	[[nodiscard]] String UniqueChildName(NodeId parent, const String& base) const {
 		String wanted = base.IsEmpty() ? String("Node") : base;
 		if (!FindChild(parent, wanted).Valid())
 			return wanted;
@@ -332,19 +353,19 @@ public:
 		return wanted;
 	}
 
-	[[nodiscard]] NodeId FindChild(NodeId parent, const String &name) const noexcept {
+	[[nodiscard]] NodeId FindChild(NodeId parent, const String& name) const noexcept {
 		for (NodeId child : ChildrenOf(parent))
-			if (const Node *node = Get(child); node && node->name == name)
+			if (const Node* node = Get(child); node && node->name == name)
 				return child;
 		return NodeId{};
 	}
 
 	/// Recherche récursive par nom dans le sous-arbre de `from` (parcours
 	/// préfixe, premier trouvé).
-	[[nodiscard]] NodeId FindByName(const String &name, NodeId from = NodeId{}) const {
+	[[nodiscard]] NodeId FindByName(const String& name, NodeId from = NodeId{}) const {
 		NodeId start = from.Valid() ? from : m_root;
 		NodeId found;
-		Traverse(start, [&](NodeId id, const Node &node) {
+		Traverse(start, [&](NodeId id, const Node& node) {
 			if (!found.Valid() && node.name == name)
 				found = id;
 		});
@@ -353,24 +374,25 @@ public:
 
 	/// Résout un chemin (cf. NodePath pour les règles). `base` ne sert qu'aux
 	/// chemins relatifs.
-	[[nodiscard]] NodeId Resolve(const NodePath &path, NodeId base = NodeId{}) const {
+	[[nodiscard]] NodeId Resolve(const NodePath& path, NodeId base = NodeId{}) const {
 		NodeId current = path.IsAbsolute() ? m_root : (base.Valid() ? base : m_root);
 		if (!Contains(current))
 			return NodeId{};
-		const std::vector<String> &segments = path.Segments();
+		const std::vector<String>& segments = path.Segments();
 		size_t first = 0;
 		// `/Scene/Car` comme `/Car` : le premier segment d'un chemin absolu
 		// peut nommer la racine elle-même.
 		if (path.IsAbsolute() && !segments.empty())
-			if (const Node *root = Get(m_root); root && root->name == segments[0])
+			if (const Node* root = Get(m_root); root && root->name == segments[0])
 				first = 1;
 		for (size_t i = first; i < segments.size(); ++i) {
-			const String &segment = segments[i];
+			const String& segment = segments[i];
 			if (segment == ".")
 				continue;
 			if (segment == "..") {
 				NodeId parent = ParentOf(current);
-				current = parent.Valid() ? parent : current; // remonter au-delà de la racine y reste
+				current =
+					parent.Valid() ? parent : current; // remonter au-delà de la racine y reste
 				continue;
 			}
 			current = FindChild(current, segment);
@@ -380,7 +402,7 @@ public:
 		return current;
 	}
 
-	[[nodiscard]] NodeId Resolve(const String &path, NodeId base = NodeId{}) const {
+	[[nodiscard]] NodeId Resolve(const String& path, NodeId base = NodeId{}) const {
 		return Resolve(NodePath::Parse(path), base);
 	}
 
@@ -388,7 +410,7 @@ public:
 	[[nodiscard]] String PathOf(NodeId id) const {
 		if (!Contains(id))
 			return String();
-		std::vector<const Node *> chain;
+		std::vector<const Node*> chain;
 		for (NodeId cur = id; cur.Valid(); cur = ParentOf(cur))
 			chain.push_back(Get(cur));
 		String out;
@@ -404,14 +426,14 @@ public:
 	/// Parcours préfixe (parent avant enfants, enfants dans l'ordre) —
 	/// l'ordre d'affichage et de sérialisation. Itératif : un arbre profond
 	/// ne doit pas dépendre de la pile d'appels.
-	template <typename Visitor> void Traverse(NodeId from, const Visitor &visit) const {
+	template <typename Visitor> void Traverse(NodeId from, const Visitor& visit) const {
 		if (!Contains(from))
 			return;
 		std::vector<NodeId> stack{from};
 		while (!stack.empty()) {
 			NodeId id = stack.back();
 			stack.pop_back();
-			const Node *node = Get(id);
+			const Node* node = Get(id);
 			if (!node)
 				continue;
 			visit(id, *node);
@@ -422,7 +444,7 @@ public:
 
 	[[nodiscard]] std::vector<NodeId> Descendants(NodeId from) const {
 		std::vector<NodeId> out;
-		Traverse(from, [&](NodeId id, const Node &) {
+		Traverse(from, [&](NodeId id, const Node&) {
 			if (id != from)
 				out.push_back(id);
 		});
@@ -432,12 +454,12 @@ public:
 	// ── Transforms ───────────────────────────────────────────────────────────
 
 	[[nodiscard]] Transform LocalTransform(NodeId id) const {
-		const Node *node = Get(id);
+		const Node* node = Get(id);
 		return node ? node->transform : Transform{};
 	}
 
-	bool SetLocalTransform(NodeId id, const Transform &transform) {
-		Slot *slot = SlotOf(id);
+	bool SetLocalTransform(NodeId id, const Transform& transform) {
+		Slot* slot = SlotOf(id);
 		if (!slot)
 			return false;
 		slot->node.transform = transform;
@@ -445,8 +467,8 @@ public:
 		return true;
 	}
 
-	bool SetLocalPosition(NodeId id, const math::FVector3 &position) {
-		Slot *slot = SlotOf(id);
+	bool SetLocalPosition(NodeId id, const math::FVector3& position) {
+		Slot* slot = SlotOf(id);
 		if (!slot)
 			return false;
 		slot->node.transform.position = position;
@@ -454,8 +476,8 @@ public:
 		return true;
 	}
 
-	bool SetLocalRotation(NodeId id, const math::FQuaternion &rotation) {
-		Slot *slot = SlotOf(id);
+	bool SetLocalRotation(NodeId id, const math::FQuaternion& rotation) {
+		Slot* slot = SlotOf(id);
 		if (!slot)
 			return false;
 		slot->node.transform.rotation = rotation;
@@ -463,8 +485,8 @@ public:
 		return true;
 	}
 
-	bool SetLocalScale(NodeId id, const math::FVector3 &scale) {
-		Slot *slot = SlotOf(id);
+	bool SetLocalScale(NodeId id, const math::FVector3& scale) {
+		Slot* slot = SlotOf(id);
 		if (!slot)
 			return false;
 		slot->node.transform.scale = scale;
@@ -474,8 +496,8 @@ public:
 
 	/// Matrice monde : composition de toute la chaîne des parents, mise en
 	/// cache (cf. en-tête du fichier).
-	[[nodiscard]] const math::FMatrix4 &GlobalMatrix(NodeId id) const {
-		const Slot *slot = SlotOf(id);
+	[[nodiscard]] const math::FMatrix4& GlobalMatrix(NodeId id) const {
+		const Slot* slot = SlotOf(id);
 		if (!slot)
 			return m_identity;
 
@@ -486,8 +508,8 @@ public:
 			m_chain.push_back(cur);
 
 		for (auto it = m_chain.rbegin(); it != m_chain.rend(); ++it) {
-			const Node &node = SlotOf(*it)->node;
-			Cache &cache = m_cache[it->index];
+			const Node& node = SlotOf(*it)->node;
+			Cache& cache = m_cache[it->index];
 			if (!node.parent.Valid()) {
 				if (cache.localDirty) {
 					cache.world = node.transform.Matrix();
@@ -496,7 +518,7 @@ public:
 				}
 				continue;
 			}
-			const Cache &parentCache = m_cache[node.parent.index];
+			const Cache& parentCache = m_cache[node.parent.index];
 			if (cache.localDirty || cache.parentEpochSeen != parentCache.worldEpoch) {
 				cache.world = parentCache.world * node.transform.Matrix();
 				cache.parentEpochSeen = parentCache.worldEpoch;
@@ -507,10 +529,12 @@ public:
 		return m_cache[id.index].world;
 	}
 
-	[[nodiscard]] Transform GlobalTransform(NodeId id) const { return Transform::FromMatrix(GlobalMatrix(id)); }
+	[[nodiscard]] Transform GlobalTransform(NodeId id) const {
+		return Transform::FromMatrix(GlobalMatrix(id));
+	}
 
 	[[nodiscard]] math::FVector3 GlobalPosition(NodeId id) const {
-		const math::FMatrix4 &m = GlobalMatrix(id);
+		const math::FMatrix4& m = GlobalMatrix(id);
 		return {m.m[12], m.m[13], m.m[14]};
 	}
 
@@ -518,8 +542,8 @@ public:
 	/// parent. C'est ce dont se servent le manipulateur 3D (qui raisonne en
 	/// monde) et la synchronisation depuis la physique (qui ne connaît que le
 	/// monde).
-	bool SetGlobalTransform(NodeId id, const Transform &world) {
-		const Node *node = Get(id);
+	bool SetGlobalTransform(NodeId id, const Transform& world) {
+		const Node* node = Get(id);
 		if (!node)
 			return false;
 		if (!node->parent.Valid())
@@ -528,7 +552,7 @@ public:
 		return SetLocalTransform(id, Transform::FromMatrix(parentWorld.Inverse() * world.Matrix()));
 	}
 
-	bool SetGlobalPosition(NodeId id, const math::FVector3 &position) {
+	bool SetGlobalPosition(NodeId id, const math::FVector3& position) {
 		Transform world = GlobalTransform(id);
 		world.position = position;
 		return SetGlobalTransform(id, world);
@@ -537,7 +561,7 @@ public:
 	// ── Visibilité ───────────────────────────────────────────────────────────
 
 	bool SetVisible(NodeId id, bool visible) {
-		Slot *slot = SlotOf(id);
+		Slot* slot = SlotOf(id);
 		if (!slot)
 			return false;
 		slot->node.visible = visible;
@@ -549,7 +573,7 @@ public:
 	/// sous-arbres invisibles).
 	[[nodiscard]] bool IsVisibleInTree(NodeId id) const noexcept {
 		for (NodeId cur = id; cur.Valid(); cur = ParentOf(cur))
-			if (const Node *node = Get(cur); !node || !node->visible)
+			if (const Node* node = Get(cur); !node || !node->visible)
 				return false;
 		return true;
 	}
@@ -574,7 +598,7 @@ public:
 			return NodeId{};
 
 		std::vector<NodeId> originals;
-		Traverse(source, [&](NodeId id, const Node &) { originals.push_back(id); });
+		Traverse(source, [&](NodeId id, const Node&) { originals.push_back(id); });
 
 		// Table de correspondance ancien -> neuf. Une recherche linéaire dans
 		// un vecteur suffirait pour une poignée de nœuds, mais dupliquer un
@@ -584,7 +608,7 @@ public:
 		remap.reserve(originals.size());
 		NodeId newRoot;
 		for (NodeId original : originals) {
-			const Node *node = Get(original);
+			const Node* node = Get(original);
 			Node copy = *node;
 			copy.children.clear();
 			NodeId newParent = destination;
@@ -608,12 +632,12 @@ public:
 				return NONE;
 			return Some(found->second);
 		};
-		for (const auto &[from, to] : remap) {
-			Node *copy = Get(to);
-			for (auto &[key, value] : copy->properties.Entries())
+		for (const auto& [from, to] : remap) {
+			Node* copy = Get(to);
+			for (auto& [key, value] : copy->properties.Entries())
 				value.RemapNodeRefs(lookup);
-			for (Component &component : copy->components)
-				for (auto &[key, value] : component.props.Entries())
+			for (Component& component : copy->components)
+				for (auto& [key, value] : component.props.Entries())
 					value.RemapNodeRefs(lookup);
 		}
 		return newRoot;
@@ -632,9 +656,9 @@ public:
 	 * `typeIsKnown` (facultatif) fait de même pour les types de nœuds, qui
 	 * sont déclarés par l'application.
 	 */
-	[[nodiscard]] ValidationReport Validate(
-		const std::function<bool(const String &)> &resourceExists = {},
-		const std::function<bool(const String &)> &typeIsKnown = {}) const {
+	[[nodiscard]] ValidationReport
+	Validate(const std::function<bool(const String&)>& resourceExists = {},
+			 const std::function<bool(const String&)>& typeIsKnown = {}) const {
 		ValidationReport report;
 		auto error = [&](NodeId id, String message) {
 			report.issues.push_back({IssueLevel::ERROR_LEVEL, id, std::move(message)});
@@ -652,11 +676,14 @@ public:
 		while (!stack.empty() && visited <= m_aliveCount) {
 			NodeId id = stack.back();
 			stack.pop_back();
-			const Slot *slot = SlotOf(id);
+			const Slot* slot = SlotOf(id);
 			if (!slot)
 				continue;
 			if (seen[id.index]) {
-				error(id, String("nœud atteint deux fois : l'arbre contient un cycle ou un enfant partagé"));
+				error(
+					id,
+					String(
+						"nœud atteint deux fois : l'arbre contient un cycle ou un enfant partagé"));
 				continue;
 			}
 			seen[id.index] = true;
@@ -666,26 +693,29 @@ public:
 		}
 
 		for (size_t i = 0; i < m_slots.size(); ++i) {
-			const Slot &slot = m_slots[i];
+			const Slot& slot = m_slots[i];
 			if (!slot.alive)
 				continue;
 			NodeId id = slot.node.id;
 			if (!seen[i])
-				error(id, String::Format("nœud « %s » inatteignable depuis la racine", slot.node.name.CStr()));
+				error(id, String::Format("nœud « %s » inatteignable depuis la racine",
+										 slot.node.name.CStr()));
 
 			// 2. Parent existant et cohérent avec la liste d'enfants.
 			if (id != m_root) {
-				const Slot *parent = SlotOf(slot.node.parent);
+				const Slot* parent = SlotOf(slot.node.parent);
 				if (!parent)
-					error(id, String::Format("nœud « %s » : parent inexistant", slot.node.name.CStr()));
+					error(id,
+						  String::Format("nœud « %s » : parent inexistant", slot.node.name.CStr()));
 				else {
 					size_t count = 0;
 					for (NodeId child : parent->node.children)
 						if (child == id)
 							++count;
 					if (count == 0)
-						error(id, String::Format("nœud « %s » : absent de la liste d'enfants de son parent",
-												 slot.node.name.CStr()));
+						error(id, String::Format(
+									  "nœud « %s » : absent de la liste d'enfants de son parent",
+									  slot.node.name.CStr()));
 					else if (count > 1)
 						error(id, String::Format("nœud « %s » : listé %zu fois chez son parent",
 												 slot.node.name.CStr(), count));
@@ -696,25 +726,30 @@ public:
 
 			// 3. Enfants : existants, et se réclamant bien de ce parent.
 			for (NodeId child : slot.node.children) {
-				const Slot *childSlot = SlotOf(child);
+				const Slot* childSlot = SlotOf(child);
 				if (!childSlot)
-					error(id, String::Format("nœud « %s » : enfant inexistant %s", slot.node.name.CStr(),
-											 child.ToText().CStr()));
+					error(id, String::Format("nœud « %s » : enfant inexistant %s",
+											 slot.node.name.CStr(), child.ToText().CStr()));
 				else if (childSlot->node.parent != id)
-					error(child, String::Format("nœud « %s » : son parent déclaré n'est pas celui qui le liste",
-												childSlot->node.name.CStr()));
+					error(child,
+						  String::Format(
+							  "nœud « %s » : son parent déclaré n'est pas celui qui le liste",
+							  childSlot->node.name.CStr()));
 			}
 
 			// 4. Transform exploitable (un NaN se propage à toute la scène).
-			const Transform &transform = slot.node.transform;
+			const Transform& transform = slot.node.transform;
 			auto finite = [](float v) { return v == v && v < 1e30f && v > -1e30f; };
-			if (!finite(transform.position.x) || !finite(transform.position.y) || !finite(transform.position.z) ||
-				!finite(transform.scale.x) || !finite(transform.scale.y) || !finite(transform.scale.z) ||
-				!finite(transform.rotation.x) || !finite(transform.rotation.y) || !finite(transform.rotation.z) ||
-				!finite(transform.rotation.w))
-				error(id, String::Format("nœud « %s » : transform non fini", slot.node.name.CStr()));
+			if (!finite(transform.position.x) || !finite(transform.position.y) ||
+				!finite(transform.position.z) || !finite(transform.scale.x) ||
+				!finite(transform.scale.y) || !finite(transform.scale.z) ||
+				!finite(transform.rotation.x) || !finite(transform.rotation.y) ||
+				!finite(transform.rotation.z) || !finite(transform.rotation.w))
+				error(id,
+					  String::Format("nœud « %s » : transform non fini", slot.node.name.CStr()));
 			if (transform.scale.x == 0.f || transform.scale.y == 0.f || transform.scale.z == 0.f)
-				warn(id, String::Format("nœud « %s » : échelle nulle sur un axe", slot.node.name.CStr()));
+				warn(id, String::Format("nœud « %s » : échelle nulle sur un axe",
+										slot.node.name.CStr()));
 
 			// 5. Nom vide (le doublon entre frères est vérifié plus bas, une
 			//    seule fois par PARENT : le faire ici comparerait chaque nœud
@@ -725,15 +760,17 @@ public:
 
 			// 6. Type connu.
 			if (typeIsKnown && !typeIsKnown(slot.node.type))
-				warn(id, String::Format("type de nœud inconnu « %s » (conservé tel quel)", slot.node.type.CStr()));
+				warn(id, String::Format("type de nœud inconnu « %s » (conservé tel quel)",
+										slot.node.type.CStr()));
 
 			// 7. Références et ressources, propriétés du nœud comme des
 			//    composants.
-			auto checkValue = [&](const PropertyValue &value) {
+			auto checkValue = [&](const PropertyValue& value) {
 				value.VisitNodeRefs([&](NodeId target) {
 					if (target.Valid() && !Contains(target))
-						error(id, String::Format("nœud « %s » : référence vers un nœud disparu (%s)",
-												 slot.node.name.CStr(), target.ToText().CStr()));
+						error(id,
+							  String::Format("nœud « %s » : référence vers un nœud disparu (%s)",
+											 slot.node.name.CStr(), target.ToText().CStr()));
 				});
 				if (resourceExists && value.Type() == PropertyType::RESOURCE) {
 					String path = value.AsString();
@@ -742,26 +779,28 @@ public:
 												 slot.node.name.CStr(), path.CStr()));
 				}
 			};
-			for (const auto &[key, value] : slot.node.properties.Entries())
+			for (const auto& [key, value] : slot.node.properties.Entries())
 				checkValue(value);
-			for (const Component &component : slot.node.components)
-				for (const auto &[key, value] : component.props.Entries())
+			for (const Component& component : slot.node.components)
+				for (const auto& [key, value] : component.props.Entries())
 					checkValue(value);
 		}
 
 		// 8. Noms partagés entre frères : une passe par parent.
-		for (const Slot &slot : m_slots) {
+		for (const Slot& slot : m_slots) {
 			if (!slot.alive || slot.node.children.empty())
 				continue;
 			std::unordered_set<String> names;
 			names.reserve(slot.node.children.size());
 			for (NodeId child : slot.node.children) {
-				const Node *node = Get(child);
+				const Node* node = Get(child);
 				if (!node || node->name.IsEmpty())
 					continue;
 				if (!names.insert(node->name).second)
-					warn(child, String::Format("nom « %s » partagé avec un frère : les chemins deviennent ambigus",
-											   node->name.CStr()));
+					warn(child,
+						 String::Format(
+							 "nom « %s » partagé avec un frère : les chemins deviennent ambigus",
+							 node->name.CStr()));
 			}
 		}
 		return report;
@@ -780,7 +819,7 @@ public:
 		return root;
 	}
 
-	[[nodiscard]] static Result<NodeTree, String> FromJson(const data::NodePtr &json) {
+	[[nodiscard]] static Result<NodeTree, String> FromJson(const data::NodePtr& json) {
 		if (!json || !json->IsObject())
 			return Err(String("arbre : objet JSON attendu"));
 		auto version = json->Get("version");
@@ -808,7 +847,7 @@ public:
 		bool duplicates = false;
 		std::unordered_set<uint32_t> seen;
 		seen.reserve(flat.size());
-		for (const Node &node : flat) {
+		for (const Node& node : flat) {
 			if (!node.id.Valid()) {
 				duplicates = true; // identifiant absent : renumérotation
 				break;
@@ -853,7 +892,8 @@ public:
 					return Err(String("arbre : parent introuvable pendant la lecture"));
 				NodeId parent = found->second;
 				Node node = flat[i];
-				created = keepIds ? tree.AddAt(parent, std::move(node), wanted) : tree.Add(parent, std::move(node));
+				created = keepIds ? tree.AddAt(parent, std::move(node), wanted)
+								  : tree.Add(parent, std::move(node));
 				if (!created.Valid())
 					return Err(String("arbre : identifiant de fichier inutilisable"));
 			}
@@ -867,12 +907,12 @@ public:
 					return NONE;
 				return Some(found->second);
 			};
-			for (const auto &[from, to] : remap) {
-				Node *node = tree.Get(to);
-				for (auto &[key, value] : node->properties.Entries())
+			for (const auto& [from, to] : remap) {
+				Node* node = tree.Get(to);
+				for (auto& [key, value] : node->properties.Entries())
 					value.RemapNodeRefs(lookup);
-				for (Component &component : node->components)
-					for (auto &[key, value] : component.props.Entries())
+				for (Component& component : node->components)
+					for (auto& [key, value] : component.props.Entries())
 						value.RemapNodeRefs(lookup);
 			}
 		}
@@ -886,7 +926,7 @@ public:
 		return document.EncodeStr();
 	}
 
-	[[nodiscard]] static Result<NodeTree, String> DecodeJson(const String &text) {
+	[[nodiscard]] static Result<NodeTree, String> DecodeJson(const String& text) {
 		data::JsonDocument document;
 		auto error = document.DecodeStr(text);
 		if (error.IsSome())
@@ -898,7 +938,7 @@ public:
 
 	/// Égalité STRUCTURELLE : mêmes nœuds, mêmes liens, mêmes contenus, dans
 	/// le même ordre. Utilisé par les tests d'aller-retour.
-	[[nodiscard]] bool operator==(const NodeTree &other) const {
+	[[nodiscard]] bool operator==(const NodeTree& other) const {
 		if (m_aliveCount != other.m_aliveCount)
 			return false;
 		std::vector<NodeId> mine = AllNodes();
@@ -910,7 +950,7 @@ public:
 				return false;
 		return true;
 	}
-	[[nodiscard]] bool operator!=(const NodeTree &other) const { return !(*this == other); }
+	[[nodiscard]] bool operator!=(const NodeTree& other) const { return !(*this == other); }
 
 private:
 	struct Slot {
@@ -929,16 +969,16 @@ private:
 		bool localDirty = true;
 	};
 
-	[[nodiscard]] Slot *SlotOf(NodeId id) noexcept {
+	[[nodiscard]] Slot* SlotOf(NodeId id) noexcept {
 		if (!id.Valid() || id.index >= m_slots.size())
 			return nullptr;
-		Slot &slot = m_slots[id.index];
+		Slot& slot = m_slots[id.index];
 		return (slot.alive && slot.generation == id.generation) ? &slot : nullptr;
 	}
-	[[nodiscard]] const Slot *SlotOf(NodeId id) const noexcept {
+	[[nodiscard]] const Slot* SlotOf(NodeId id) const noexcept {
 		if (!id.Valid() || id.index >= m_slots.size())
 			return nullptr;
-		const Slot &slot = m_slots[id.index];
+		const Slot& slot = m_slots[id.index];
 		return (slot.alive && slot.generation == id.generation) ? &slot : nullptr;
 	}
 
@@ -952,7 +992,7 @@ private:
 			m_slots.push_back(Slot{});
 			m_cache.push_back(Cache{});
 		}
-		Slot &slot = m_slots[index];
+		Slot& slot = m_slots[index];
 		slot.alive = true;
 		slot.node = Node{};
 		m_cache[index] = Cache{};
@@ -966,7 +1006,7 @@ private:
 		if (!wanted.Valid())
 			return NodeId{};
 		ReserveSlots(wanted.index + 1);
-		Slot &slot = m_slots[wanted.index];
+		Slot& slot = m_slots[wanted.index];
 		if (slot.alive)
 			return NodeId{};
 		DetachFromFreeList(wanted.index);
@@ -984,13 +1024,14 @@ private:
 		NodeId id = AllocateSlotAt(wanted);
 		if (!id.Valid())
 			return NodeId{};
-		Slot *slot = SlotOf(id);
+		Slot* slot = SlotOf(id);
 		node.id = id;
 		node.parent = parent;
 		node.children.clear();
 		slot->node = std::move(node);
 		InsertChild(SlotOf(parent)->node.children, id, NODE_APPEND);
 		Touch(id);
+		TouchStructure();
 		return id;
 	}
 
@@ -1054,7 +1095,7 @@ private:
 	}
 
 	void FreeSlot(NodeId id) {
-		Slot *slot = SlotOf(id);
+		Slot* slot = SlotOf(id);
 		if (!slot)
 			return;
 		slot->alive = false;
@@ -1067,19 +1108,26 @@ private:
 
 	/// Marque le transform monde de `id` à recalculer. O(1) : les descendants
 	/// s'en aperçoivent par comparaison d'époque (cf. en-tête).
+	/// Nouveau tampon de structure, unique au processus (cf. StructureStamp).
+	[[nodiscard]] static uint64_t NextStructureStamp() noexcept {
+		static std::atomic<uint64_t> counter{0};
+		return counter.fetch_add(1, std::memory_order_relaxed) + 1;
+	}
+	void TouchStructure() noexcept { m_structureStamp = NextStructureStamp(); }
+
 	void Touch(NodeId id) const {
 		if (id.Valid() && id.index < m_cache.size())
 			m_cache[id.index].localDirty = true;
 	}
 
-	static void InsertChild(std::vector<NodeId> &list, NodeId child, size_t index) {
+	static void InsertChild(std::vector<NodeId>& list, NodeId child, size_t index) {
 		if (index >= list.size())
 			list.push_back(child);
 		else
 			list.insert(list.begin() + ptrdiff_t(index), child);
 	}
 
-	static void EraseChild(std::vector<NodeId> &list, NodeId child) {
+	static void EraseChild(std::vector<NodeId>& list, NodeId child) {
 		for (size_t i = 0; i < list.size(); ++i)
 			if (list[i] == child) {
 				list.erase(list.begin() + ptrdiff_t(i));
@@ -1088,7 +1136,7 @@ private:
 	}
 
 	[[nodiscard]] data::NodePtr NodeToJson(NodeId id) const {
-		const Node *node = Get(id);
+		const Node* node = Get(id);
 		if (!node)
 			return data::Node::MakeObject();
 		data::NodePtr json = node->ToJson();
@@ -1102,8 +1150,8 @@ private:
 	}
 
 	/// Aplatit l'arbre JSON en (nœud, parent d'origine) dans l'ordre préfixe.
-	static void CollectJson(const data::NodePtr &json, NodeId parent, std::vector<Node> &flat,
-							std::vector<NodeId> &parents) {
+	static void CollectJson(const data::NodePtr& json, NodeId parent, std::vector<Node>& flat,
+							std::vector<NodeId>& parents) {
 		if (!json || !json->IsObject())
 			return;
 		Node node = Node::FromJson(json);
@@ -1116,10 +1164,12 @@ private:
 
 	std::vector<Slot> m_slots;
 	mutable std::vector<Cache> m_cache;
-	mutable std::vector<NodeId> m_chain; ///< tampon de GlobalMatrix (évite une allocation par appel)
+	mutable std::vector<NodeId>
+		m_chain; ///< tampon de GlobalMatrix (évite une allocation par appel)
 	uint32_t m_freeHead = ~0u;
 	size_t m_aliveCount = 0;
 	NodeId m_root;
+	uint64_t m_structureStamp = NextStructureStamp();
 	std::vector<NodeId> m_noChildren; ///< renvoyé par ChildrenOf pour un identifiant inconnu
 	math::FMatrix4 m_identity = math::FMatrix4::Identity();
 };

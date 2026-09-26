@@ -170,6 +170,46 @@ struct UiTheme {
 		return t;
 	}
 
+	/// Thème « atelier » des éditeurs de jeu (Godot, Unity, Unreal) : gris
+	/// neutres sans teinte, contraste modéré, un seul bleu pour la sélection
+	/// et le focus. Là où `Dark()` est bleuté et contrasté pour une
+	/// application, `Studio()` s'efface derrière le contenu — une vue 3D, du
+	/// code — qui doit rester ce que l'œil voit en premier.
+	[[nodiscard]] static UiTheme Studio() {
+		UiTheme t;
+		auto grey = [](int v, int a = 255) { return sdl3::FColor{v / 255.f, v / 255.f, v / 255.f, a / 255.f}; };
+		t.fontSize = 14.f;
+		t.panelBg = grey(40);
+		t.text = grey(214);
+		t.muted = grey(142);
+		t.track = grey(58);
+		t.fill = sdl3::FColor{66 / 255.f, 118 / 255.f, 196 / 255.f, 1.f};
+		t.thumb = sdl3::FColor{98 / 255.f, 146 / 255.f, 214 / 255.f, 1.f};
+		t.border = grey(24);
+		t.fieldBg = grey(28);
+		t.accent = sdl3::FColor{84 / 255.f, 140 / 255.f, 222 / 255.f, 1.f};
+		const sdl3::FColor hover = grey(64);
+		const sdl3::FColor focus = t.accent;
+		const sdl3::FColor selection{46 / 255.f, 88 / 255.f, 150 / 255.f, 1.f};
+		t.button = MakeWidgetColors(grey(52), hover, grey(36), t.fill, grey(22), focus, t.text);
+		t.toggle = MakeWidgetColors(grey(30), hover, grey(30), t.fill, grey(20), focus, t.text);
+		t.checkbox = t.toggle;
+		t.slider = MakeWidgetColors(t.track, t.thumb, t.fill, t.fill, sdl3::FColor{}, sdl3::FColor{}, t.text);
+		t.input = MakeWidgetColors(t.fieldBg, t.muted, focus, sdl3::FColor::WHITE(), grey(20), focus, t.text);
+		t.dragValue = MakeWidgetColors(t.fieldBg, grey(36), focus, t.fill, grey(20), focus, t.text);
+		t.radio = t.toggle;
+		t.scrollbar = MakeWidgetColors(grey(34), grey(88), grey(110), grey(88), sdl3::FColor{}, sdl3::FColor{}, t.text);
+		t.knob = t.toggle;
+		t.combo = MakeWidgetColors(t.fieldBg, grey(36), t.thumb, selection, grey(20), focus, t.text);
+		t.listbox = MakeWidgetColors(sdl3::FColor{}, grey(52), t.thumb, selection, grey(20), focus, t.text);
+		t.expander = MakeWidgetColors(grey(46), grey(54), grey(46), grey(46), sdl3::FColor{}, sdl3::FColor{}, t.text);
+		t.tabs = MakeWidgetColors(grey(32), hover, grey(32), grey(40), sdl3::FColor{}, t.accent, t.text);
+		t.spinner = t.accent;
+		t.badgeBg = sdl3::FColor{196 / 255.f, 62 / 255.f, 52 / 255.f, 1.f};
+		t.badgeText = sdl3::FColor::WHITE();
+		return t;
+	}
+
 	/// Thème « verre » Frutiger Aero (Windows 7) : `glassDefault=true` fait
 	/// que `panel()`/`button()`/`popup()` (cf. leurs corps) attachent un
 	/// style `UiStyle::glassPanel()`/`glassButton()` inline au lieu de leur
@@ -295,6 +335,10 @@ public:
 		Item().margin = m;
 		return *this;
 	}
+	/// Même marge sur les quatre côtés — symétrique de `Pad(float)`, qui
+	/// existait déjà ; son absence obligeait à écrire `Margin(math::Sides{0})`
+	/// pour la valeur la plus courante.
+	WidgetBuilder &Margin(float m) { return Margin(math::Sides(m)); }
 	WidgetBuilder &AlignSelf(CrossAlign a) {
 		Item().alignSelf = Some(a);
 		return *this;
@@ -448,6 +492,47 @@ public:
 		StyleMut().SetTextColor(c);
 		return *this;
 	}
+	// ── Débordement du texte (cf. TextOverflow, components.hpp) ─────────────
+	//
+	// Ces cinq méthodes décrivent CE QUI ARRIVE quand la chaîne est plus large
+	// que le widget. Aucune ne contraint la largeur : un widget libre s'étend
+	// toujours jusqu'à son texte. Elles n'agissent qu'une fois la largeur
+	// bornée — par `W(...)`, par `MaxSize(...)` ou par l'étirement du parent.
+
+	/// Mode générique (les quatre raccourcis ci-dessous sont plus lisibles).
+	WidgetBuilder &TextOverflowMode(ui::TextOverflow mode) {
+		OverflowMut().mode = mode;
+		return *this;
+	}
+
+	/// Rogne au bord du widget — le comportement par défaut, explicité.
+	WidgetBuilder &TextClip() { return TextOverflowMode(ui::TextOverflow::CLIP); }
+
+	/// Rogne en terminant par « … ».
+	WidgetBuilder &TextEllipsis() { return TextOverflowMode(ui::TextOverflow::ELLIPSIS); }
+
+	/// Barre de défilement horizontale quand le texte ne tient pas.
+	WidgetBuilder &TextScroll() { return TextOverflowMode(ui::TextOverflow::SCROLL); }
+
+	/// Retour automatique à la ligne, avec l'alignement demandé
+	/// (`TextAlign::Justify` répartit l'espace entre les mots). Le widget
+	/// grandit en hauteur ; bornez-la (`H(...)`, `MaxSize`) pour obtenir à la
+	/// place une barre de défilement verticale.
+	WidgetBuilder &TextWrap(ui::TextAlign align = ui::TextAlign::Left) {
+		StyleMut().SetTextAlign(align);
+		return TextOverflowMode(ui::TextOverflow::WRAP);
+	}
+
+	/// Défilement automatique aller-retour. `speed` en pixels par seconde,
+	/// `pause` en secondes à chaque extrémité.
+	WidgetBuilder &TextMarquee(float speed = 40.f, float pause = 1.f) {
+		UiTextOverflow &o = OverflowMut();
+		o.speed = speed;
+		o.pause = pause;
+		o.mode = ui::TextOverflow::MARQUEE;
+		return *this;
+	}
+
 	WidgetBuilder &TextAlign(TextAlign a) {
 		StyleMut().SetTextAlign(a);
 		return *this;
@@ -517,6 +602,40 @@ public:
 		return *this;
 	}
 
+	// ── UiInputArea en éditeur de code ───────────────────────────────────────
+
+	/// Mode « éditeur de code » d'un UiInputArea en un appel : chasse fixe,
+	/// numéros de ligne, ligne du curseur surlignée, et coloration si
+	/// `highlighter` est fourni. Sans effet sur les autres widgets.
+	WidgetBuilder &CodeEditor(UiSyntaxHighlighter highlighter = nullptr) {
+		if (inputArea.IsSome()) {
+			inputArea->monospace = true;
+			inputArea->lineNumbers = true;
+			inputArea->highlightCurrentLine = true;
+			inputArea->followTail = false;
+			inputArea->highlighter = std::move(highlighter);
+		}
+		return *this;
+	}
+	/// Gouttière de numéros de ligne (UiInputArea).
+	WidgetBuilder &LineNumbers(bool enabled = true) {
+		if (inputArea.IsSome())
+			inputArea->lineNumbers = enabled;
+		return *this;
+	}
+	/// Police à chasse fixe (UiInputArea, cf. Ui::RegisterMonospaceFont).
+	WidgetBuilder &Monospace(bool enabled = true) {
+		if (inputArea.IsSome())
+			inputArea->monospace = enabled;
+		return *this;
+	}
+	/// Coloration syntaxique ligne par ligne (UiInputArea).
+	WidgetBuilder &Highlighter(UiSyntaxHighlighter highlighter) {
+		if (inputArea.IsSome())
+			inputArea->highlighter = std::move(highlighter);
+		return *this;
+	}
+
 	// ── Callbacks ────────────────────────────────────────────────────────────
 
 	WidgetBuilder &OnClick(std::function<void()> fn) {
@@ -536,6 +655,12 @@ public:
 		return *this;
 	}
 	WidgetBuilder &onTextChange(std::function<void(const String &)> fn) {
+		Callbacks().onTextChange = std::move(fn);
+		return *this;
+	}
+	/// Notifié à CHAQUE modification du texte d'un UiInput/UiInputArea
+	/// (frappe, collage, effacement) — un filtre de recherche « en direct ».
+	WidgetBuilder &OnTextChange(std::function<void(const String &)> fn) {
 		Callbacks().onTextChange = std::move(fn);
 		return *this;
 	}
@@ -610,6 +735,12 @@ public:
 			world->AddComponent(e, std::move(*calendar));
 		if (resizeHandle.IsSome())
 			world->AddComponent(e, std::move(*resizeHandle));
+		if (textOverflow.IsSome())
+			world->AddComponent(e, std::move(*textOverflow));
+		if (dragPayload.IsSome())
+			world->AddComponent(e, std::move(*dragPayload));
+		if (dropTarget.IsSome())
+			world->AddComponent(e, std::move(*dropTarget));
 		if (image.IsSome())
 			world->AddComponent(e, std::move(*image));
 		if (viewport3d.IsSome())
@@ -742,6 +873,32 @@ public:
 	/// reçoit la notification `onReorder(fromIndex, toIndex)` (cf.
 	/// UiCallbacks — à poser sur le conteneur via `.onReorder()`, pas sur la
 	/// ligne elle-même).
+	/// Fait de ce widget une SOURCE de glisser-déposer transportant `id`
+	/// (cf. UiDragPayload, interaction.hpp).
+	WidgetBuilder &DragPayload(String kind, int64_t id) {
+		dragPayload = Some(UiDragPayload{std::move(kind), id, false});
+		return *this;
+	}
+
+	/// Fait de ce widget une CIBLE de dépôt. `accepts` vide = tout accepter.
+	WidgetBuilder &DropTarget(String accepts = String()) {
+		dropTarget = Some(UiDropTarget{std::move(accepts), false});
+		return *this;
+	}
+
+	/// Notifié au dépôt sur CE widget, avec l'identifiant de la source.
+	WidgetBuilder &OnDrop(std::function<void(int64_t)> fn) {
+		Callbacks().onDrop = std::move(fn);
+		return *this;
+	}
+
+	/// Notifié au clic DROIT sur ce widget (position écran du pointeur) —
+	/// typiquement pour ouvrir un menu contextuel via `Ui::OpenPopupAt`.
+	WidgetBuilder &OnContextMenu(std::function<void(float, float)> fn) {
+		Callbacks().onContextMenu = std::move(fn);
+		return *this;
+	}
+
 	WidgetBuilder &Reorderable() {
 		reorderable = Some(UiReorderable{});
 		return *this;
@@ -1018,6 +1175,9 @@ private:
 	Option<UiSelectable> selectable = NONE;
 	Option<UiTreeNode> treeNode = NONE;
 	Option<UiReorderable> reorderable = NONE;
+	Option<UiTextOverflow> textOverflow = NONE;
+	Option<UiDragPayload> dragPayload = NONE;
+	Option<UiDropTarget> dropTarget = NONE;
 	Option<UiSelection> selection = NONE;
 	Option<UiMenuBarItem> menuBarItem = NONE;
 	Option<UiMenuItem> menuItem = NONE;
@@ -1078,6 +1238,12 @@ private:
 		if (style.IsNone())
 			style = Some(UiStyle{});
 		return *style;
+	}
+
+	UiTextOverflow &OverflowMut() {
+		if (textOverflow.IsNone())
+			textOverflow = Some(UiTextOverflow{});
+		return *textOverflow;
 	}
 
 	/// Nom de la classe de défauts thémés correspondant au type de widget
@@ -1465,7 +1631,10 @@ public:
 		sv.Name(svName).Size(160.f, 160.f).OnChange([resync](float) { resync(); });
 		WidgetBuilder hue = HueSlider(hsv.h);
 		hue.Name(hueName).Size(160.f, 16.f).OnChange([resync](float) { resync(); });
-		WidgetBuilder alpha = AlphaSlider(float(initial.a) / 255.f, sdl3::FColor{initial.r, initial.g, initial.b, 255});
+		// `FColor` est déjà en [0, 1] : l'ancienne division par 255 (vestige
+		// de sdl3::Color) ouvrait le sélecteur sur un alpha quasi nul, et la
+		// PREMIÈRE retouche rendait la couleur transparente.
+		WidgetBuilder alpha = AlphaSlider(initial.a, sdl3::FColor{initial.r, initial.g, initial.b, 1.f});
 		alpha.Name(alphaName).Size(160.f, 16.f).OnChange([resync](float) { resync(); });
 		WidgetBuilder preview = ColorSwatch(initial);
 		preview.Name(swatchName).Size(28.f, 28.f);
@@ -1487,7 +1656,7 @@ public:
 					comp.Unwrap()->hue = parsed.h;
 			if (auto e = FindByName(*world, alphaName); e.IsSome())
 				if (auto comp = world->GetComponent<UiAlphaSlider>(e.Unwrap()); comp.IsSome())
-					comp.Unwrap()->alpha = float(c.a) / 255.f;
+					comp.Unwrap()->alpha = c.a; // FColor : déjà en [0, 1]
 			resync();
 		});
 
@@ -1581,15 +1750,26 @@ public:
 		itemBuilder.Parent(bar);
 		ecs::Entity itemEntity = itemBuilder.Spawn();
 
-		WidgetBuilder popupBuilder = Popup();
-		popupBuilder.Column().Gap(1.f).Pad(math::Sides{4.f}).WAuto().HAuto();
-		popupBuilder.OverlayOrder(10);
+		WidgetBuilder popupBuilder = MenuPopup(10);
 		popupBuilder.Children(std::forward<Builders>(items)...);
 		ecs::Entity popupEntity = popupBuilder.Spawn();
 
 		if (auto mb = world->GetComponent<UiMenuBarItem>(itemEntity); mb.IsSome())
 			mb.Unwrap()->menuPopup = popupEntity;
 		return popupEntity;
+	}
+
+	/// Menu contextuel : un popup de menu SANS entrée de barre, à ouvrir au
+	/// clic droit via `ui::OpenPopupAt` (cf. WidgetBuilder::OnContextMenu).
+	/// Mêmes items que `Menu()` — `MenuItem(...)` pour une action, puis
+	/// `SubMenu(popupRetourné, ...)` pour une entrée à sous-menu (qui se
+	/// déploie à droite, et se referme avec toute la chaîne au clic d'une
+	/// feuille). Retourne l'entité du POPUP, racine indépendante comme celle
+	/// de `Menu()` : c'est ce qui lui permet d'apparaître par-dessus tout.
+	template <typename... Builders> ecs::Entity ContextMenu(Builders &&...items) {
+		WidgetBuilder popupBuilder = MenuPopup(10);
+		popupBuilder.Children(std::forward<Builders>(items)...);
+		return popupBuilder.Spawn();
 	}
 
 	/// Entrée de menu AVEC sous-menu : comme `menu()`, mais l'item déclencheur
@@ -1609,9 +1789,7 @@ public:
 		itemBuilder.Parent(parentPopup);
 		ecs::Entity itemEntity = itemBuilder.Spawn();
 
-		WidgetBuilder popupBuilder = Popup();
-		popupBuilder.Column().Gap(1.f).Pad(math::Sides{4.f}).WAuto().HAuto();
-		popupBuilder.OverlayOrder(11);
+		WidgetBuilder popupBuilder = MenuPopup(11);
 		popupBuilder.Children(std::forward<Builders>(items)...);
 		ecs::Entity popupEntity = popupBuilder.Spawn();
 
@@ -1992,6 +2170,27 @@ public:
 		return b;
 	}
 
+	/// Popup de MENU (déroulant de barre, menu contextuel, sous-menu), dessiné
+	/// comme la liste d'un combo ouvert : un seul fond (celui des champs),
+	/// un liseré d'accent, et des entrées en lignes pleine largeur SANS
+	/// espacement ni fond propre au repos — seule la ligne survolée se
+	/// détache (cf. RenderSystem, UiMenuItem). Thème verre : le panneau
+	/// « verre » habituel.
+	[[nodiscard]] WidgetBuilder MenuPopup(int overlayOrder) {
+		WidgetBuilder b(*world, *layout);
+		b.Fixed().Hidden();
+		b.popupState = Some(UiPopupState{});
+		if (theme.glassDefault)
+			b.Style(UiStyle::GlassPanel(theme.panelBg));
+		else
+			b.Bg(theme.combo.bgNormal.a > 0.f ? theme.combo.bgNormal : theme.fieldBg)
+				.BorderColor(theme.combo.borderFocus)
+				.Radius(4.f);
+		b.Column().Gap(0.f).Pad(math::Sides{0.f, MENU_POPUP_PAD_Y}).WAuto().HAuto();
+		b.OverlayOrder(overlayOrder);
+		return b;
+	}
+
 	/// Boîte de dialogue modale, centrée, avec fond assombri qui bloque tout
 	/// le reste de l'interface tant qu'elle est ouverte (cf.
 	/// InputSystem::OpenModal/closeModal — Échap la referme). `content` est
@@ -2046,7 +2245,8 @@ private:
 		sheet.Define("root-selectable", StyleFromColors(theme.listbox).SetBordersRadius(4.f));
 		sheet.Define("root-treenode", StyleFromColors(theme.listbox).SetBordersRadius(4.f));
 		sheet.Define("root-menubaritem", StyleFromColors(theme.listbox).SetBordersRadius(4.f));
-		sheet.Define("root-menuitem", StyleFromColors(theme.listbox).SetBordersRadius(4.f));
+		// Entrées de menu = lignes de la liste d'un combo (mêmes couleurs).
+		sheet.Define("root-menuitem", StyleFromColors(theme.combo).SetBordersRadius(0.f));
 		sheet.Define("root-table", StyleFromColors(theme.listbox).SetBordersRadius(4.f));
 		sheet.Define("root-plot", UiStyle{}.SetBg(theme.fieldBg).SetBorderColor(theme.border).SetBordersRadius(4.f)
 									   .SetBgChecked(theme.accent));

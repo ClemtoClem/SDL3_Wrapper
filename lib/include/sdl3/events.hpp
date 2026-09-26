@@ -352,6 +352,21 @@ enum class EventType : Uint32 {
 
 struct Event {
     SDL_Event raw{};
+    /// Vrai une fois l'évènement traité par un consommateur qui en réclame
+    /// l'exclusivité (ex. le champ de saisie qui a le focus pour une frappe) :
+    /// les destinataires suivants (autres widgets, raccourcis de
+    /// l'application, caméra…) doivent alors l'ignorer. Cf. Consume().
+    bool consumed = false;
+
+    // ── Consommation ──────────────────────────────────────────────────────────
+
+    /// Marque l'évènement comme utilisé : il ne doit plus être traité par un
+    /// autre widget ni un autre processus.
+    void Consume() noexcept { consumed = true; }
+    /// Rend l'évènement de nouveau disponible (un consommateur qui l'avait
+    /// réclamé y renonce).
+    void Release() noexcept { consumed = false; }
+    [[nodiscard]] bool IsConsumed() const noexcept { return consumed; }
 
     // ── Common ────────────────────────────────────────────────────────────────
 

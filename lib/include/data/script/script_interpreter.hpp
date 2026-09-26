@@ -49,56 +49,116 @@ namespace data::script {
 // Environment
 // ============================================================================
 
+/// Nature d'une liaison — décide des droits (cf. DeclKind, script_ast.hpp).
+enum class BindingKind : uint8_t { VAR, LET, CONST, FUNCTION };
+
+/// Une liaison nom → valeur. `initialized == false` : liaison HISSÉE mais pas
+/// encore atteinte (`let`/`const` avant leur ligne, la « zone morte ») — la
+/// lire ou l'affecter est une erreur. `host` : posée par l'application
+/// (`editor`, `math`…), qu'un script ne peut pas redéclarer.
+struct Binding {
+	String name;
+	Value value;
+	BindingKind kind = BindingKind::VAR;
+	bool initialized = true;
+	bool host = false;
+};
+
 /// Portée lexicale : une liste de liaisons + un parent. Recherche linéaire
 /// (même raison que MapObject, cf. script_value.hpp — une portée compte
 /// quelques variables).
+///
+/// Une portée de FONCTION (corps de fonction, programme, espace de noms)
+/// reçoit les `var` ; une portée de BLOC (`{ }`, tour de boucle) reçoit les
+/// `let`/`const` (cf. Interpreter::Hoist).
 class Environment : public std::enable_shared_from_this<Environment> {
 public:
 	Environment() = default;
-	explicit Environment(std::shared_ptr<Environment> parent) : m_parent(std::move(parent)) {}
+	explicit Environment(std::shared_ptr<Environment> parent, bool functionScope = false)
+		: m_parent(std::move(parent)), m_functionScope(functionScope) {}
 
+	/// Définit (ou redéfinit) une liaison `var` initialisée — la forme des
+	/// valeurs posées par l'hôte et des paramètres.
 	void Define(const String &name, Value value) {
-		for (auto &slot : m_slots) {
-			if (slot.first == name) {
-				slot.second = std::move(value);
-				return;
+		Binding &binding = Declare(name, BindingKind::VAR, true);
+		binding.value = std::move(value);
+	}
+
+	/// Crée — ou remplace — la liaison `name` de CETTE portée.
+	Binding &Declare(const String &name, BindingKind kind, bool initialized) {
+		for (Binding &binding : m_bindings) {
+			if (binding.name == name) {
+				binding.kind = kind;
+				binding.initialized = initialized;
+				return binding;
 			}
 		}
-		m_slots.emplace_back(name, std::move(value));
+		m_bindings.push_back(Binding{name, Value::Nil(), kind, initialized, false});
+		return m_bindings.back();
+	}
+
+	/// Liaison de CETTE portée seulement.
+	[[nodiscard]] Binding *Local(const String &name) noexcept {
+		for (Binding &binding : m_bindings)
+			if (binding.name == name)
+				return &binding;
+		return nullptr;
+	}
+
+	/// Liaison visible depuis cette portée (elle-même puis ses parentes).
+	[[nodiscard]] Binding *Lookup(const String &name) noexcept {
+		for (Environment *env = this; env; env = env->m_parent.get())
+			if (Binding *binding = env->Local(name))
+				return binding;
+		return nullptr;
 	}
 
 	/// Cherche dans cette portée puis les parentes. `nullptr` si absente —
 	/// jamais d'erreur ici : c'est l'appelant qui décide si une variable
 	/// absente est une erreur (lecture) ou non (test d'existence).
 	[[nodiscard]] Value *Find(const String &name) noexcept {
-		for (Environment *env = this; env; env = env->m_parent.get())
-			for (auto &slot : env->m_slots)
-				if (slot.first == name)
-					return &slot.second;
-		return nullptr;
+		Binding *binding = Lookup(name);
+		return binding ? &binding->value : nullptr;
 	}
+
+	enum class AssignResult : uint8_t { OK, UNKNOWN, CONSTANT, UNINITIALIZED };
 
 	/// Affecte une variable EXISTANTE (dans cette portée ou une parente).
-	/// `false` si elle n'existe nulle part — l'appelant en fait une erreur
-	/// « variable inconnue », ce qui évite les fautes de frappe créant
+	/// Jamais de création implicite : une faute de frappe ne crée pas
 	/// silencieusement un global (le piège classique de Lua).
-	bool Assign(const String &name, Value value) {
-		if (Value *slot = Find(name)) {
-			*slot = std::move(value);
-			return true;
-		}
-		return false;
+	AssignResult Assign(const String &name, Value value) {
+		Binding *binding = Lookup(name);
+		if (!binding)
+			return AssignResult::UNKNOWN;
+		if (!binding->initialized)
+			return AssignResult::UNINITIALIZED;
+		if (binding->kind == BindingKind::CONST)
+			return AssignResult::CONSTANT;
+		binding->value = std::move(value);
+		return AssignResult::OK;
 	}
 
-	[[nodiscard]] const std::vector<std::pair<String, Value>> &Slots() const noexcept { return m_slots; }
+	[[nodiscard]] bool IsFunctionScope() const noexcept { return m_functionScope; }
+
+	/// Portée de fonction la plus proche (elle-même si elle en est une) —
+	/// là où vivent les `var`.
+	[[nodiscard]] Environment *FunctionScope() noexcept {
+		Environment *env = this;
+		while (env && !env->m_functionScope && env->m_parent)
+			env = env->m_parent.get();
+		return env;
+	}
+
+	[[nodiscard]] const std::vector<Binding> &Bindings() const noexcept { return m_bindings; }
 
 	/// Vide les liaisons — utilisé UNIQUEMENT pour casser les cycles de
 	/// fermeture à la destruction de l'interpréteur (cf. en-tête du fichier).
-	void ClearBindings() noexcept { m_slots.clear(); }
+	void ClearBindings() noexcept { m_bindings.clear(); }
 
 private:
-	std::vector<std::pair<String, Value>> m_slots;
+	std::vector<Binding> m_bindings;
 	std::shared_ptr<Environment> m_parent;
+	bool m_functionScope = false;
 };
 
 // ============================================================================
@@ -118,7 +178,7 @@ struct ExecOutcome {
 
 class Interpreter {
 public:
-	Interpreter() : m_globals(std::make_shared<Environment>()) {
+	Interpreter() : m_globals(std::make_shared<Environment>(nullptr, true)) {
 		m_environments.push_back(m_globals);
 		InstallStandardLibrary();
 	}
@@ -151,7 +211,13 @@ public:
 
 	// ── Globales et fonctions natives ────────────────────────────────────────
 
-	void SetGlobal(const String &name, Value value) { m_globals->Define(name, std::move(value)); }
+	/// Pose une globale de l'HÔTE : un script peut la lire et la réaffecter,
+	/// pas la redéclarer par `let`/`const`.
+	void SetGlobal(const String &name, Value value) {
+		Binding &binding = m_globals->Declare(name, BindingKind::VAR, true);
+		binding.value = std::move(value);
+		binding.host = true;
+	}
 
 	[[nodiscard]] Option<Value> GetGlobal(const String &name) const {
 		// Find() est non-const par nature (retourne un slot modifiable) ;
@@ -173,24 +239,52 @@ public:
 		native->fn = std::move(fn);
 		native->minArity = minArity;
 		native->maxArity = maxArity;
-		m_globals->Define(name, Value::Native(std::move(native)));
+		SetGlobal(name, Value::Native(std::move(native)));
 	}
 
-	/// Regroupe plusieurs natives sous une table globale (`scene.spawn(...)`)
-	/// — la forme qu'utilise l'éditeur pour ranger son API hôte par domaine.
-	void RegisterNamespacedNative(const String &table, const String &name, int minArity, int maxArity, NativeFn fn) {
-		Value *slot = m_globals->Find(table);
-		if (!slot || !slot->IsMap()) {
-			m_globals->Define(table, Value::EmptyMap());
-			slot = m_globals->Find(table);
-		}
+	/// Espace de noms de l'hôte `name` (créé au premier appel) — c'est là que
+	/// l'application range son API par domaine (`editor.`, `scene.`, `math.`).
+	/// Ses membres sont des CONSTANTES : un script ne peut pas remplacer
+	/// `editor.log` par accident.
+	[[nodiscard]] std::shared_ptr<NamespaceObject> HostNamespace(const String &name) {
+		if (Binding *existing = m_globals->Local(name); existing && existing->value.IsNamespace())
+			return existing->value.AsNamespace();
+		auto ns = std::make_shared<NamespaceObject>();
+		ns->name = name;
+		ns->scope = MakeEnvironment(nullptr, true);
+		Binding &binding = m_globals->Declare(name, BindingKind::CONST, true);
+		binding.value = Value::Namespace(ns);
+		binding.host = true;
+		return ns;
+	}
+
+	/// Pose une constante dans un espace de noms de l'hôte (`math.pi`).
+	void RegisterNamespaceConstant(const String &ns, const String &name, Value value) {
+		Binding &binding = HostNamespace(ns)->scope->Declare(name, BindingKind::CONST, true);
+		binding.value = std::move(value);
+		binding.host = true;
+	}
+
+	/// Range une native dans un espace de noms de l'hôte (`scene.spawn(...)`).
+	void RegisterNamespacedNative(const String &ns, const String &name, int minArity, int maxArity, NativeFn fn) {
 		auto native = std::make_shared<NativeObject>();
-		native->name = String::Format("%s.%s", table.CStr(), name.CStr());
+		native->name = String::Format("%s.%s", ns.CStr(), name.CStr());
 		native->fn = std::move(fn);
 		native->minArity = minArity;
 		native->maxArity = maxArity;
-		if (slot && slot->IsMap() && slot->AsMap())
-			slot->AsMap()->SetKey(name, Value::Native(std::move(native)));
+		RegisterNamespaceConstant(ns, name, Value::Native(std::move(native)));
+	}
+
+	/// Membre `member` de l'espace de noms `ns` (NONE si l'un ou l'autre
+	/// n'existe pas) — lecture côté hôte.
+	[[nodiscard]] Option<Value> GetNamespaceMember(const String &ns, const String &member) const {
+		Option<Value> space = GetGlobal(ns);
+		if (space.IsNone() || !space.Unwrap().IsNamespace() || !space.Unwrap().AsNamespace())
+			return NONE;
+		const Binding *binding = space.Unwrap().AsNamespace()->scope->Local(member);
+		if (!binding || !binding->initialized)
+			return NONE;
+		return Some(binding->value);
 	}
 
 	// ── Exécution ────────────────────────────────────────────────────────────
@@ -208,8 +302,15 @@ public:
 		return RunProgram(*m_program);
 	}
 
+	/// Exécute un programme dans les globales. Ses déclarations de premier
+	/// niveau sont HISSÉES d'abord ; les `let`/`const` d'un programme déjà
+	/// exécuté dans cet interpréteur sont redéclarables par le suivant (la
+	/// console de l'éditeur rejoue un même extrait — comme une console de
+	/// navigateur).
 	[[nodiscard]] Result<Value, ScriptError> RunProgram(const Program &program) {
 		m_steps = 0;
+		if (auto hoisted = Hoist(program.statements, m_globals, true, nullptr); hoisted.IsSome())
+			return Err(hoisted.Unwrap());
 		for (const StmtPtr &stmt : program.statements) {
 			if (!stmt)
 				continue;
@@ -266,9 +367,11 @@ public:
 												  int(maxCallDepth)),
 								   line, column));
 
-		auto frame = MakeEnvironment(fn->closure ? fn->closure : m_globals);
+		auto frame = MakeEnvironment(fn->closure ? fn->closure : m_globals, true);
 		for (size_t i = 0; i < fn->def->params.size(); ++i)
 			frame->Define(fn->def->params[i], args[i]);
+		if (auto hoisted = Hoist(fn->def->body, frame, true, fn->def.get()); hoisted.IsSome())
+			return Err(hoisted.Unwrap());
 
 		++m_callDepth;
 		for (const StmtPtr &stmt : fn->def->body) {
@@ -318,8 +421,9 @@ public:
 private:
 	// ── Environnements ───────────────────────────────────────────────────────
 
-	[[nodiscard]] std::shared_ptr<Environment> MakeEnvironment(std::shared_ptr<Environment> parent) {
-		auto env = std::make_shared<Environment>(std::move(parent));
+	[[nodiscard]] std::shared_ptr<Environment> MakeEnvironment(std::shared_ptr<Environment> parent,
+															   bool functionScope = false) {
+		auto env = std::make_shared<Environment>(std::move(parent), functionScope);
 		// Purge amortie des entrées mortes : sans elle, le registre grossirait
 		// indéfiniment pour un script appelé à chaque image.
 		if (m_environments.size() >= m_environmentPurgeThreshold) {
@@ -374,23 +478,15 @@ private:
 					return Err(value.Error());
 				return Ok(ExecOutcome{});
 			}
-			case StmtKind::LET: {
-				const auto &s = static_cast<const LetStmt &>(stmt);
-				Value initial = Value::Nil();
-				if (s.initializer) {
-					auto value = Eval(*s.initializer, env);
-					if (value.IsError())
-						return Err(value.Error());
-					initial = value.Unwrap();
-				}
-				env->Define(s.name, std::move(initial));
-				return Ok(ExecOutcome{});
-			}
+			case StmtKind::LET:
+				return ExecDeclaration(static_cast<const LetStmt &>(stmt), env);
 			case StmtKind::ASSIGN:
 				return ExecAssign(static_cast<const AssignStmt &>(stmt), env);
 			case StmtKind::BLOCK: {
 				const auto &s = static_cast<const BlockStmt &>(stmt);
 				auto scope = MakeEnvironment(env);
+				if (auto hoisted = Hoist(s.statements, scope, false, nullptr); hoisted.IsSome())
+					return Err(hoisted.Unwrap());
 				for (const StmtPtr &child : s.statements) {
 					if (!child)
 						continue;
@@ -422,9 +518,12 @@ private:
 				auto fn = std::make_shared<FunctionObject>();
 				fn->def = s.def;
 				fn->closure = env;
-				env->Define(s.def->name, Value::Function(std::move(fn)));
+				Binding &binding = env->Declare(s.def->name, BindingKind::FUNCTION, true);
+				binding.value = Value::Function(std::move(fn));
 				return Ok(ExecOutcome{});
 			}
+			case StmtKind::NAMESPACE:
+				return ExecNamespace(static_cast<const NamespaceStmt &>(stmt), env);
 			case StmtKind::RETURN: {
 				const auto &s = static_cast<const ReturnStmt &>(stmt);
 				ExecOutcome outcome;
@@ -476,10 +575,24 @@ private:
 		switch (target.kind) {
 			case ExprKind::IDENTIFIER: {
 				const auto &e = static_cast<const IdentifierExpr &>(target);
-				if (!env->Assign(e.name, std::move(value)))
-					return Some(ScriptError(String::Format("variable inconnue `%s` (manque-t-il un `let` ?)",
-														   e.name.CStr()),
-											target.line, target.column));
+				switch (env->Assign(e.name, std::move(value))) {
+					case Environment::AssignResult::OK:
+						return NONE;
+					case Environment::AssignResult::UNKNOWN:
+						return Some(ScriptError(String::Format("variable inconnue `%s` (manque-t-il un `let` ?)",
+															   e.name.CStr()),
+												target.line, target.column));
+					case Environment::AssignResult::CONSTANT: {
+						const Binding *binding = env->Lookup(e.name);
+						const bool space = binding && binding->value.IsNamespace();
+						return Some(ScriptError(String::Format(space ? "`%s` est un espace de noms : réaffectation impossible"
+																	 : "`%s` est une constante : réaffectation impossible",
+															   e.name.CStr()),
+												target.line, target.column));
+					}
+					case Environment::AssignResult::UNINITIALIZED:
+						return Some(DeadZoneError(e.name, target.line, target.column));
+				}
 				return NONE;
 			}
 			case ExprKind::INDEX: {
@@ -497,6 +610,8 @@ private:
 				auto object = Eval(*e.object, env);
 				if (object.IsError())
 					return Some(object.Error());
+				if (object.Value().IsNamespace())
+					return Some(ReadOnlyNamespaceError(object.Value(), e.name, target.line, target.column));
 				if (!object.Value().IsMap() || !object.Value().AsMap())
 					return Some(ScriptError(String::Format("`.%s` attend une table, trouvé `%s`", e.name.CStr(),
 														   object.Value().TypeName()),
@@ -512,6 +627,8 @@ private:
 
 	[[nodiscard]] static Option<ScriptError> AssignIndexed(const Value &object, const Value &index, Value value,
 														   int line, int column) {
+		if (object.IsNamespace())
+			return Some(ReadOnlyNamespaceError(object, index.ToDisplayString(), line, column));
 		if (object.IsList() && object.AsList()) {
 			if (!index.IsNumber())
 				return Some(ScriptError(String::Format("index de liste numérique attendu, trouvé `%s`",
@@ -588,7 +705,7 @@ private:
 				return Err(over.Unwrap());
 
 			auto scope = MakeEnvironment(env);
-			scope->Define(stmt.variable, item);
+			scope->Declare(stmt.variable, BindingKind::LET, true).value = item;
 
 			auto outcome = ExecStmt(*stmt.body, scope);
 			if (outcome.IsError())
@@ -615,8 +732,11 @@ private:
 				return Ok(Value::Nil());
 			case ExprKind::IDENTIFIER: {
 				const auto &e = static_cast<const IdentifierExpr &>(expr);
-				if (Value *slot = env->Find(e.name))
-					return Ok(*slot);
+				if (Binding *binding = env->Lookup(e.name)) {
+					if (!binding->initialized)
+						return Err(DeadZoneError(e.name, expr.line, expr.column));
+					return Ok(binding->value);
+				}
 				return Err(ScriptError(String::Format("variable inconnue `%s`", e.name.CStr()), expr.line,
 									   expr.column));
 			}
@@ -701,6 +821,8 @@ private:
 				auto object = Eval(*e.object, env);
 				if (object.IsError())
 					return object;
+				if (object.Value().IsNamespace())
+					return ReadNamespaceMember(object.Value(), e.name, expr.line, expr.column);
 				if (!object.Value().IsMap() || !object.Value().AsMap())
 					return Err(ScriptError(String::Format("`.%s` attend une table, trouvé `%s`", e.name.CStr(),
 														  object.Value().TypeName()),
@@ -734,6 +856,8 @@ private:
 
 	[[nodiscard]] static Result<Value, ScriptError> ReadIndexed(const Value &object, const Value &index, int line,
 																int column) {
+		if (object.IsNamespace())
+			return ReadNamespaceMember(object, index.ToDisplayString(), line, column);
 		if (object.IsList() && object.AsList()) {
 			if (!index.IsNumber())
 				return Err(ScriptError(String::Format("index de liste numérique attendu, trouvé `%s`",
@@ -851,6 +975,216 @@ private:
 	}
 
 	void InstallStandardLibrary();
+
+	// ── Portées : hissage, déclarations, espaces de noms ─────────────────────
+
+	[[nodiscard]] static ScriptError DeadZoneError(const String &name, int line, int column) {
+		return ScriptError(String::Format("`%s` est utilisée avant sa déclaration (zone morte d'un `let`/`const`)",
+										  name.CStr()),
+						   line, column);
+	}
+
+	[[nodiscard]] static ScriptError ReadOnlyNamespaceError(const Value &ns, const String &member, int line,
+															int column) {
+		return ScriptError(String::Format("`%s.%s` : les membres d'un espace de noms se modifient depuis son bloc "
+										  "`namespace`, pas du dehors",
+										  ns.AsNamespace() ? ns.AsNamespace()->name.CStr() : "?", member.CStr()),
+						   line, column);
+	}
+
+	/// Lecture `ns.membre` : liaisons vivantes de l'espace de noms, SANS
+	/// remonter à ses portées parentes (un membre est ce qu'il déclare).
+	[[nodiscard]] static Result<Value, ScriptError> ReadNamespaceMember(const Value &ns, const String &member, int line,
+																		int column) {
+		const std::shared_ptr<NamespaceObject> &space = ns.AsNamespace();
+		Binding *binding = space && space->scope ? space->scope->Local(member) : nullptr;
+		if (!binding)
+			return Err(ScriptError(String::Format("l'espace de noms `%s` n'a pas de membre `%s`",
+												  space ? space->name.CStr() : "?", member.CStr()),
+								   line, column));
+		if (!binding->initialized)
+			return Err(DeadZoneError(member, line, column));
+		return Ok(binding->value);
+	}
+
+	/// Noms des `var` d'une liste d'instructions, blocs imbriqués compris —
+	/// mais PAS ceux des fonctions ni des espaces de noms imbriqués, qui sont
+	/// leurs propres portées de fonction.
+	static void CollectVars(const std::vector<StmtPtr> &statements, std::vector<String> &out) {
+		for (const StmtPtr &stmt : statements)
+			if (stmt)
+				CollectVars(*stmt, out);
+	}
+	static void CollectVars(const Stmt &stmt, std::vector<String> &out) {
+		switch (stmt.kind) {
+			case StmtKind::LET: {
+				const auto &s = static_cast<const LetStmt &>(stmt);
+				if (s.declKind == DeclKind::VAR)
+					out.push_back(s.name);
+				break;
+			}
+			case StmtKind::BLOCK:
+				CollectVars(static_cast<const BlockStmt &>(stmt).statements, out);
+				break;
+			case StmtKind::IF: {
+				const auto &s = static_cast<const IfStmt &>(stmt);
+				if (s.thenBranch)
+					CollectVars(*s.thenBranch, out);
+				if (s.elseBranch)
+					CollectVars(*s.elseBranch, out);
+				break;
+			}
+			case StmtKind::WHILE:
+				if (const auto &s = static_cast<const WhileStmt &>(stmt); s.body)
+					CollectVars(*s.body, out);
+				break;
+			case StmtKind::FOR_IN:
+				if (const auto &s = static_cast<const ForInStmt &>(stmt); s.body)
+					CollectVars(*s.body, out);
+				break;
+			default:
+				break;
+		}
+	}
+
+	/**
+	 * Hissage des déclarations de `statements` dans la portée `env`, AVANT
+	 * leur exécution :
+	 *  - `let`/`const` du niveau courant : liaison créée NON initialisée (la
+	 *    lire avant sa ligne = erreur de zone morte) ;
+	 *  - `fn` du niveau courant : définie tout de suite (appelable avant sa
+	 *    ligne, comme en JS) ;
+	 *  - si `env` est une portée de FONCTION : tous les `var` du corps, blocs
+	 *    imbriqués compris, initialisés à `nil`.
+	 * `def` (facultatif) garde en cache la liste des `var` d'une fonction.
+	 */
+	[[nodiscard]] Option<ScriptError> Hoist(const std::vector<StmtPtr> &statements,
+											const std::shared_ptr<Environment> &env, bool functionBody,
+											const FunctionDef *def) {
+		for (const StmtPtr &stmt : statements) {
+			if (!stmt)
+				continue;
+			if (stmt->kind == StmtKind::LET) {
+				const auto &s = static_cast<const LetStmt &>(*stmt);
+				if (s.declKind == DeclKind::VAR)
+					continue;
+				if (Binding *existing = env->Local(s.name); existing && existing->host)
+					return Some(ScriptError(String::Format("`%s` est un nom réservé par l'application : "
+														   "choisissez un autre nom",
+														   s.name.CStr()),
+											s.line, s.column));
+				env->Declare(s.name, s.declKind == DeclKind::CONST ? BindingKind::CONST : BindingKind::LET, false);
+			} else if (stmt->kind == StmtKind::FUNCTION) {
+				const auto &s = static_cast<const FunctionStmt &>(*stmt);
+				if (Binding *existing = env->Local(s.def->name);
+					existing && existing->host && existing->kind == BindingKind::CONST)
+					return Some(ScriptError(String::Format("`%s` est un nom réservé par l'application",
+														   s.def->name.CStr()),
+											s.line, s.column));
+				auto fn = std::make_shared<FunctionObject>();
+				fn->def = s.def;
+				fn->closure = env;
+				Binding &binding = env->Declare(s.def->name, BindingKind::FUNCTION, true);
+				binding.value = Value::Function(std::move(fn));
+			} else if (stmt->kind == StmtKind::NAMESPACE) {
+				const auto &s = static_cast<const NamespaceStmt &>(*stmt);
+				Binding *existing = env->Local(s.name);
+				if (existing && existing->host && !existing->value.IsNamespace())
+					return Some(ScriptError(String::Format("`%s` est un nom réservé par l'application", s.name.CStr()),
+											s.line, s.column));
+				// Un espace de noms déjà ouvert se ROUVRE (et s'étend) : on ne le
+				// remet pas en zone morte.
+				if (!existing || !existing->value.IsNamespace())
+					env->Declare(s.name, BindingKind::CONST, false);
+			}
+		}
+		if (!functionBody)
+			return NONE;
+
+		std::vector<String> localVars;
+		const std::vector<String> *vars = &localVars;
+		if (def) {
+			if (!def->hoistComputed) {
+				CollectVars(statements, def->hoistedVars);
+				def->hoistComputed = true;
+			}
+			vars = &def->hoistedVars;
+		} else {
+			CollectVars(statements, localVars);
+		}
+		for (const String &name : *vars)
+			if (!env->Local(name))
+				env->Declare(name, BindingKind::VAR, true); // initialisé à nil
+		return NONE;
+	}
+
+	/// `var` / `let` / `const` rencontrés à l'exécution.
+	[[nodiscard]] Result<ExecOutcome, ScriptError> ExecDeclaration(const LetStmt &s,
+																   const std::shared_ptr<Environment> &env) {
+		Value initial = Value::Nil();
+		if (s.initializer) {
+			auto value = Eval(*s.initializer, env);
+			if (value.IsError())
+				return Err(value.Error());
+			initial = value.Unwrap();
+		}
+		if (s.declKind == DeclKind::VAR) {
+			// Vers la portée de FONCTION la plus proche (déjà hissé là).
+			Environment *target = env->FunctionScope();
+			Binding *binding = target->Local(s.name);
+			if (!binding)
+				binding = &target->Declare(s.name, BindingKind::VAR, true);
+			if (binding->kind == BindingKind::LET || binding->kind == BindingKind::CONST)
+				return Err(ScriptError(String::Format("`var %s` : le nom est déjà déclaré par `%s` dans cette fonction",
+													  s.name.CStr(), binding->kind == BindingKind::CONST ? "const" : "let"),
+									   s.line, s.column));
+			// Redéclarer un `var` est permis ; sans initialiseur, il garde sa valeur.
+			if (s.initializer)
+				binding->value = std::move(initial);
+			binding->initialized = true;
+			return Ok(ExecOutcome{});
+		}
+		Binding *binding = env->Local(s.name);
+		if (binding && binding->initialized && binding->kind != BindingKind::VAR && !binding->host)
+			return Err(ScriptError(String::Format("`%s` est déjà déclarée dans cette portée", s.name.CStr()), s.line,
+								   s.column));
+		if (!binding)
+			binding = &env->Declare(s.name, BindingKind::LET, false);
+		binding->kind = s.declKind == DeclKind::CONST ? BindingKind::CONST : BindingKind::LET;
+		binding->value = std::move(initial);
+		binding->initialized = true;
+		return Ok(ExecOutcome{});
+	}
+
+	/// `namespace nom { … }` : ouvre (ou rouvre) l'espace de noms puis exécute
+	/// son corps dans SA portée — ce qu'il y déclare en devient les membres.
+	[[nodiscard]] Result<ExecOutcome, ScriptError> ExecNamespace(const NamespaceStmt &s,
+																 const std::shared_ptr<Environment> &env) {
+		std::shared_ptr<NamespaceObject> space;
+		Binding *binding = env->Local(s.name);
+		if (binding && binding->initialized && binding->value.IsNamespace())
+			space = binding->value.AsNamespace();
+		if (!space) {
+			space = std::make_shared<NamespaceObject>();
+			space->name = s.name;
+			space->scope = MakeEnvironment(env, true);
+			Binding &declared = env->Declare(s.name, BindingKind::CONST, true);
+			declared.value = Value::Namespace(space);
+		}
+		if (auto hoisted = Hoist(s.body, space->scope, true, nullptr); hoisted.IsSome())
+			return Err(hoisted.Unwrap());
+		for (const StmtPtr &child : s.body) {
+			if (!child)
+				continue;
+			auto outcome = ExecStmt(*child, space->scope);
+			if (outcome.IsError())
+				return outcome;
+			if (outcome.Value().flow != Flow::NORMAL)
+				return Err(ScriptError(String("`return`/`break`/`continue` interdit dans un espace de noms"),
+									   child->line, child->column));
+		}
+		return Ok(ExecOutcome{});
+	}
 
 	// ── Membres ──────────────────────────────────────────────────────────────
 
@@ -1000,16 +1334,20 @@ inline void Interpreter::InstallStandardLibrary() {
 		return Ok(Value::Number(std::chrono::duration<double>(elapsed).count()));
 	});
 
-	// ── Mathématiques ───────────────────────────────────────────────────────
+	// ── Mathématiques : l'espace de noms `math` ────────────────────────────
+	// Fonctions ET constantes rangées sous `math.` (`math.sin`, `math.pi`)
+	// plutôt que dans les globales, où des noms d'une lettre (`e`, `c`, `g`)
+	// entraient en collision avec les variables des scripts.
 
 	auto unaryMath = [this](const char *name, double (*fn)(double)) {
-		RegisterNative(String(name), 1, 1,
-					   [name, fn](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
-						   auto n = detail::ArgNumber(args, 0, name);
-						   if (n.IsError())
-							   return Err(n.Error());
-						   return Ok(Value::Number(fn(n.Unwrap())));
-					   });
+		const String qualified = String::Format("math.%s", name);
+		RegisterNamespacedNative(String("math"), String(name), 1, 1,
+								 [qualified, fn](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
+									 auto n = detail::ArgNumber(args, 0, qualified.CStr());
+									 if (n.IsError())
+										 return Err(n.Error());
+									 return Ok(Value::Number(fn(n.Unwrap())));
+								 });
 	};
 	unaryMath("abs", [](double v) { return std::fabs(v); });
 	unaryMath("floor", [](double v) { return std::floor(v); });
@@ -1028,77 +1366,67 @@ inline void Interpreter::InstallStandardLibrary() {
 	unaryMath("rad", [](double v) { return v * 3.14159265358979323846 / 180.0; });
 	unaryMath("deg", [](double v) { return v * 180.0 / 3.14159265358979323846; });
 
-	auto registerConstants = [this](const std::vector<std::pair<String, double>>& constants) {
-		for (const auto& constant : constants) {
-			RegisterNative(constant.first, 0, 0, [constant](Interpreter &, std::vector<Value> &) -> Result<Value, ScriptError> {
-				return Ok(Value::Number(constant.second));
-			});
-		}
-	};
-	std::vector<std::pair<String, double>> mathConstants = {
+	// Constantes : des VALEURS (`math.pi`), non des fonctions à appeler.
+	const std::pair<const char *, double> mathConstants[] = {
 		{"pi", 3.14159265358979323846},
 		{"e", 2.71828182845904523536},
-		{"phi", 1.61803398874989484820},   // Nombre d'or
-		{"sqrt2", 1.41421356237309504880}, // Racine de 2
-
-		// --- Extensions Géométriques & Trigonométriques ---
-		{"tau", 6.28318530717958647692},    // 2 * pi (circonférence complète)
-		{"pi_2", 1.57079632679489661923},  // pi / 2 (angle droit en radians)
-		{"pi_4", 0.78539816339744830962},  // pi / 4 (45 degrés en radians)
-		{"ln2", 0.69314718055994530941},   // Logarithme népérien de 2
-		{"ln10", 2.30258509299404568402},  // Logarithme népérien de 10
-		{"sqrt3", 1.73205080756887729352},  // Racine carrée de 3
-		{"inv_pi", 0.31830988618379067154}, // 1 / pi
-
-		// --- Constantes d'Analyse Intermédiaire ---
-		{"euler_mascheroni", 0.57721566490153286060}, // Constante gamma (Euler)
-		{"catalan", 0.91596559417721901505},          // Sommes de séries alternées
-
-		// --- Constantes Physiques Universelles ---
-		{"c", 299792458.0},                  // Vitesse de la lumière dans le vide (m/s)
-		{"g", 9.80665},                      // Accélération de la pesanteur terrestre (m/s²)
-		
-		// --- Relativité & Lumière ---
-		{"c", 299792458.0},                  // Vitesse de la lumière dans le vide (m/s)
-
-		// --- Thermodynamique & Chimie ---
-		{"R", 8.314462618},                  // Constante universelle des gaz parfaits (J mol⁻¹ K⁻¹)
-		{"N_A", 6.02214076e23},              // Nombre d'Avogadro (mol⁻¹)
-		{"k_B", 1.380649e-23},               // Constante de Boltzmann (J/K)
-		{"std_atm", 101325.0},               // Pression atmosphérique standard (Pa)
-
-		// --- Électromagnétisme & Physique Quantique ---
-		{"h", 6.62607015e-34},               // Constante de Planck (J s)
-		{"hbar", 1.054571817e-34},           // Constante de Planck réduite (h / 2pi)
-		{"e_charge", 1.602176634e-19},       // Charge élémentaire de l'électron (C)
-		{"m_e", 9.1093837015e-31}            // Masse de l'électron au repos (kg)
+		{"phi", 1.61803398874989484820},   // nombre d'or
+		{"sqrt2", 1.41421356237309504880}, // racine de 2
+		{"sqrt3", 1.73205080756887729352}, // racine de 3
+		{"tau", 6.28318530717958647692},   // 2π (tour complet)
+		{"pi_2", 1.57079632679489661923},  // π/2 (angle droit)
+		{"pi_4", 0.78539816339744830962},  // π/4 (45°)
+		{"inv_pi", 0.31830988618379067154}, // 1/π
+		{"ln2", 0.69314718055994530941},
+		{"ln10", 2.30258509299404568402},
+		{"euler_mascheroni", 0.57721566490153286060}, // constante γ
+		{"catalan", 0.91596559417721901505},
+		{"inf", HUGE_VAL},
 	};
-	registerConstants(mathConstants);
+	for (const auto &[name, value] : mathConstants)
+		RegisterNamespaceConstant(String("math"), String(name), Value::Number(value));
 
-	RegisterNative("atan2", 2, 2, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
-		auto y = detail::ArgNumber(args, 0, "atan2");
+	// Constantes physiques : un espace de noms à part — ce ne sont pas des
+	// mathématiques, et `physics.c` se lit mieux qu'un `c` global.
+	const std::pair<const char *, double> physicsConstants[] = {
+		{"c", 299792458.0},          // vitesse de la lumière dans le vide (m/s)
+		{"g", 9.80665},              // pesanteur terrestre standard (m/s²)
+		{"R", 8.314462618},          // constante des gaz parfaits (J mol⁻¹ K⁻¹)
+		{"N_A", 6.02214076e23},      // nombre d'Avogadro (mol⁻¹)
+		{"k_B", 1.380649e-23},       // constante de Boltzmann (J/K)
+		{"std_atm", 101325.0},       // pression atmosphérique standard (Pa)
+		{"h", 6.62607015e-34},       // constante de Planck (J s)
+		{"hbar", 1.054571817e-34},   // constante de Planck réduite (h / 2π)
+		{"e_charge", 1.602176634e-19}, // charge élémentaire (C)
+		{"m_e", 9.1093837015e-31},   // masse de l'électron au repos (kg)
+	};
+	for (const auto &[name, value] : physicsConstants)
+		RegisterNamespaceConstant(String("physics"), String(name), Value::Number(value));
+
+	RegisterNamespacedNative(String("math"), String("atan2"), 2, 2, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
+		auto y = detail::ArgNumber(args, 0, "math.atan2");
 		if (y.IsError())
 			return Err(y.Error());
-		auto x = detail::ArgNumber(args, 1, "atan2");
+		auto x = detail::ArgNumber(args, 1, "math.atan2");
 		if (x.IsError())
 			return Err(x.Error());
 		return Ok(Value::Number(std::atan2(y.Unwrap(), x.Unwrap())));
 	});
 
-	RegisterNative("pow", 2, 2, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
-		auto base = detail::ArgNumber(args, 0, "pow");
+	RegisterNamespacedNative(String("math"), String("pow"), 2, 2, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
+		auto base = detail::ArgNumber(args, 0, "math.pow");
 		if (base.IsError())
 			return Err(base.Error());
-		auto exponent = detail::ArgNumber(args, 1, "pow");
+		auto exponent = detail::ArgNumber(args, 1, "math.pow");
 		if (exponent.IsError())
 			return Err(exponent.Error());
 		return Ok(Value::Number(std::pow(base.Unwrap(), exponent.Unwrap())));
 	});
 
-	RegisterNative("min", 1, -1, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
+	RegisterNamespacedNative(String("math"), String("min"), 1, -1, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
 		double best = 0.0;
 		for (size_t i = 0; i < args.size(); ++i) {
-			auto n = detail::ArgNumber(args, i, "min");
+			auto n = detail::ArgNumber(args, i, "math.min");
 			if (n.IsError())
 				return Err(n.Error());
 			double v = n.Unwrap();
@@ -1108,10 +1436,10 @@ inline void Interpreter::InstallStandardLibrary() {
 		return Ok(Value::Number(best));
 	});
 
-	RegisterNative("max", 1, -1, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
+	RegisterNamespacedNative(String("math"), String("max"), 1, -1, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
 		double best = 0.0;
 		for (size_t i = 0; i < args.size(); ++i) {
-			auto n = detail::ArgNumber(args, i, "max");
+			auto n = detail::ArgNumber(args, i, "math.max");
 			if (n.IsError())
 				return Err(n.Error());
 			double v = n.Unwrap();
@@ -1121,48 +1449,48 @@ inline void Interpreter::InstallStandardLibrary() {
 		return Ok(Value::Number(best));
 	});
 
-	RegisterNative("clamp", 3, 3, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
-		auto value = detail::ArgNumber(args, 0, "clamp");
+	RegisterNamespacedNative(String("math"), String("clamp"), 3, 3, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
+		auto value = detail::ArgNumber(args, 0, "math.clamp");
 		if (value.IsError())
 			return Err(value.Error());
-		auto low = detail::ArgNumber(args, 1, "clamp");
+		auto low = detail::ArgNumber(args, 1, "math.clamp");
 		if (low.IsError())
 			return Err(low.Error());
-		auto high = detail::ArgNumber(args, 2, "clamp");
+		auto high = detail::ArgNumber(args, 2, "math.clamp");
 		if (high.IsError())
 			return Err(high.Error());
 		double v = value.Unwrap(), lo = low.Unwrap(), hi = high.Unwrap();
 		return Ok(Value::Number(v < lo ? lo : (v > hi ? hi : v)));
 	});
 
-	RegisterNative("lerp", 3, 3, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
-		auto from = detail::ArgNumber(args, 0, "lerp");
+	RegisterNamespacedNative(String("math"), String("lerp"), 3, 3, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
+		auto from = detail::ArgNumber(args, 0, "math.lerp");
 		if (from.IsError())
 			return Err(from.Error());
-		auto to = detail::ArgNumber(args, 1, "lerp");
+		auto to = detail::ArgNumber(args, 1, "math.lerp");
 		if (to.IsError())
 			return Err(to.Error());
-		auto t = detail::ArgNumber(args, 2, "lerp");
+		auto t = detail::ArgNumber(args, 2, "math.lerp");
 		if (t.IsError())
 			return Err(t.Error());
 		double a = from.Unwrap(), b = to.Unwrap(), k = t.Unwrap();
 		return Ok(Value::Number(a + (b - a) * k));
 	});
 
-	RegisterNative("random", 0, 0, [](Interpreter &vm, std::vector<Value> &) -> Result<Value, ScriptError> {
+	RegisterNamespacedNative(String("math"), String("random"), 0, 0, [](Interpreter &vm, std::vector<Value> &) -> Result<Value, ScriptError> {
 		return Ok(Value::Number(vm.NextRandom()));
 	});
 
-	RegisterNative("random_int", 2, 2, [](Interpreter &vm, std::vector<Value> &args) -> Result<Value, ScriptError> {
-		auto low = detail::ArgNumber(args, 0, "random_int");
+	RegisterNamespacedNative(String("math"), String("random_int"), 2, 2, [](Interpreter &vm, std::vector<Value> &args) -> Result<Value, ScriptError> {
+		auto low = detail::ArgNumber(args, 0, "math.random_int");
 		if (low.IsError())
 			return Err(low.Error());
-		auto high = detail::ArgNumber(args, 1, "random_int");
+		auto high = detail::ArgNumber(args, 1, "math.random_int");
 		if (high.IsError())
 			return Err(high.Error());
 		double lo = std::floor(low.Unwrap()), hi = std::floor(high.Unwrap());
 		if (hi < lo)
-			return Err(Interpreter::MakeError(String("`random_int` : borne haute inférieure à la borne basse")));
+			return Err(Interpreter::MakeError(String("`math.random_int` : borne haute inférieure à la borne basse")));
 		double span = hi - lo + 1.0;
 		return Ok(Value::Number(lo + std::floor(vm.NextRandom() * span)));
 	});
@@ -1334,6 +1662,14 @@ inline void Interpreter::InstallStandardLibrary() {
 	});
 
 	RegisterNative("keys", 1, 1, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
+		// Espace de noms : ses membres initialisés (ce qu'on peut lire).
+		if (args[0].IsNamespace() && args[0].AsNamespace()) {
+			auto members = std::make_shared<ListObject>();
+			for (const Binding &binding : args[0].AsNamespace()->scope->Bindings())
+				if (binding.initialized)
+					members->items.push_back(Value::Str(binding.name));
+			return Ok(Value::List(std::move(members)));
+		}
 		auto map = detail::ArgMap(args, 0, "keys");
 		if (map.IsError())
 			return Err(map.Error());
@@ -1354,6 +1690,10 @@ inline void Interpreter::InstallStandardLibrary() {
 	});
 
 	RegisterNative("has", 2, 2, [](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
+		if (args[0].IsNamespace() && args[0].AsNamespace()) {
+			const Binding *member = args[0].AsNamespace()->scope->Local(args[1].ToDisplayString());
+			return Ok(Value::Boolean(member && member->initialized));
+		}
 		auto map = detail::ArgMap(args, 0, "has");
 		if (map.IsError())
 			return Err(map.Error());

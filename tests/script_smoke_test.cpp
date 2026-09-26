@@ -336,7 +336,7 @@ TEST(ScriptStdlib, RandomIsReproducibleForAGivenSeed) {
 	auto roll = [](uint64_t seed) {
 		Interpreter vm;
 		vm.SetRandomSeed(seed);
-		auto result = vm.Run(StringView("return random() + random() * 100"));
+		auto result = vm.Run(StringView("return math.random() + math.random() * 100"));
 		return result.IsOk() ? result.Value().AsNumber() : -1.0;
 	};
 	EXPECT_EQ(roll(1234), roll(1234));
@@ -492,6 +492,172 @@ TEST(ScriptDataLibrary, ReadFileReturnsNilForAMissingPath) {
 	auto result = vm.Run(StringView("return read_file(\"/chemin/qui/n/existe/pas.sled\")"));
 	ASSERT_TRUE(result.IsOk());
 	EXPECT_TRUE(result.Value().IsNil());
+}
+
+// ============================================================================
+// Portées : var / let / const
+// ============================================================================
+//
+// | forme   | portée              | réaffectation | redéclaration | hissage              |
+// |---------|---------------------|---------------|---------------|----------------------|
+// | `var`   | fonction ou globale | oui           | oui           | oui, vaut nil        |
+// | `let`   | bloc                | oui           | non           | oui, zone morte      |
+// | `const` | bloc                | NON           | non           | oui, zone morte      |
+
+TEST(ScriptScope, VarBelongsToTheFunctionLetAndConstToTheBlock) {
+	// `var` sort du bloc (portée de fonction)…
+	EXPECT_EQ(Number("fn f() { if true { var x = 7 } return x }\nreturn f()"), 7.0);
+	EXPECT_EQ(Number("if true { var y = 3 }\nreturn y"), 3.0); // … ou globale
+	// … `let` et `const`, non.
+	EXPECT_TRUE(EvalError("fn f() { if true { let x = 7 } return x }\nreturn f()").Contains("variable inconnue `x`"));
+	EXPECT_TRUE(EvalError("if true { const k = 1 }\nreturn k").Contains("variable inconnue `k`"));
+	// Un bloc masque sans écraser.
+	EXPECT_EQ(Number("let a = 1\nif true { let a = 2 }\nreturn a"), 1.0);
+	// `var` ne sort pas d'une fonction.
+	EXPECT_TRUE(EvalError("fn f() { var inner = 1 }\nf()\nreturn inner").Contains("variable inconnue `inner`"));
+}
+
+TEST(ScriptScope, OnlyConstRefusesReassignment) {
+	EXPECT_EQ(Number("var a = 1\na = 2\nreturn a"), 2.0);
+	EXPECT_EQ(Number("let b = 1\nb += 4\nreturn b"), 5.0);
+	// Détectée DÈS la compilation, avec la ligne de la déclaration.
+	const String error = EvalError("const c = 1\n\nc = 2");
+	EXPECT_TRUE(error.Contains("`c` est une constante (déclarée ligne 1)"));
+	EXPECT_TRUE(error.StartsWith("3:"));
+	EXPECT_TRUE(EvalError("const c = 1\nc += 1").Contains("constante"));
+	// Et à l'exécution pour ce que l'analyse ne peut pas voir (fermeture).
+	EXPECT_TRUE(EvalError("const k = 1\nfn f() { k = 2 }\nf()").Contains("constante"));
+	// Une constante qui désigne une table : la LIAISON est figée, pas le contenu.
+	EXPECT_EQ(Number("const t = {n: 1}\nt.n = 5\nreturn t.n"), 5.0);
+	// `const` doit être initialisée.
+	EXPECT_TRUE(EvalError("const z").Contains("doit être initialisée"));
+}
+
+TEST(ScriptScope, RedeclarationRulesFollowTheTable) {
+	EXPECT_EQ(Number("var a = 1\nvar a = 2\nreturn a"), 2.0);  // var : permis
+	EXPECT_EQ(Number("var a = 1\nvar a\nreturn a"), 1.0);      // sans valeur, il garde la sienne
+	EXPECT_TRUE(EvalError("let a = 1\nlet a = 2").Contains("déjà déclarée dans cette portée (ligne 1)"));
+	EXPECT_TRUE(EvalError("const a = 1\nconst a = 2").Contains("déjà déclarée"));
+	EXPECT_TRUE(EvalError("let a = 1\nvar a = 2").Contains("déjà déclarée"));
+	EXPECT_TRUE(EvalError("var a = 1\nlet a = 2").Contains("déjà déclarée"));
+	// Un `var` d'un bloc heurte le `let` de la fonction qu'il traverse.
+	EXPECT_TRUE(EvalError("fn f() { let x = 1\n if true { var x = 2 } }").Contains("déjà déclarée"));
+	EXPECT_TRUE(EvalError("fn f(p) { let p = 1 }").Contains("déjà déclarée"));
+	EXPECT_TRUE(EvalError("fn f(p, p) { }").Contains("en double"));
+	// Dans des portées DIFFÉRENTES, aucun conflit.
+	EXPECT_EQ(Number("let a = 1\nfn f() { let a = 2\n return a }\nreturn f() + a"), 3.0);
+}
+
+TEST(ScriptScope, HoistingGivesVarNilAndLetAConstDeadZone) {
+	// `var` hissé : lisible avant sa ligne, et vaut nil.
+	EXPECT_TRUE(Eval("fn f() { let before = v\n var v = 3\n return before }\nreturn f()").IsNil());
+	// `let`/`const` hissés NON initialisés : zone morte.
+	EXPECT_TRUE(EvalError("fn f() { let r = w\n let w = 1 }\nf()").Contains("avant sa déclaration"));
+	EXPECT_TRUE(EvalError("fn f() { k = 2\n const k = 1 }\nf()").Contains("avant sa déclaration"));
+	// Hissé, donc il MASQUE déjà la variable englobante : pas de lecture
+	// silencieuse de l'autre `x`.
+	EXPECT_TRUE(EvalError("let x = 1\nif true { let y = x\n let x = 2 }").Contains("avant sa déclaration"));
+	// Une fonction est hissée ENTIÈRE : appelable avant sa ligne.
+	EXPECT_EQ(Number("return later()\nfn later() { return 42 }"), 42.0);
+	// Une fermeture peut viser un `let` déclaré plus loin, s'il l'est à l'appel.
+	EXPECT_EQ(Number("fn g() { return late }\nlet late = 9\nreturn g()"), 9.0);
+}
+
+TEST(ScriptScope, EachLoopTurnGetsFreshBindings) {
+	// Chaque tour a sa propre variable : les fermetures ne voient pas toutes
+	// la dernière valeur.
+	EXPECT_EQ(Number("let fs = []\nfor i in [1, 2, 3] { push(fs, fn() { return i }) }\nreturn fs[0]() + fs[2]()"), 4.0);
+	// `let` dans le corps : une nouvelle liaison à chaque tour, pas une redéclaration.
+	EXPECT_EQ(Number("let total = 0\nfor i in [1, 2, 3] { let doubled = i * 2\n total += doubled }\nreturn total"), 12.0);
+	EXPECT_EQ(Number("var n = 0\nwhile n < 3 { const step = 1\n n += step }\nreturn n"), 3.0);
+}
+
+TEST(ScriptScope, AConsoleMayReRunTheSameScript) {
+	// La console de l'éditeur rejoue un même extrait dans le même
+	// interpréteur : ses `let`/`const` de premier niveau se redéclarent.
+	Interpreter vm;
+	ASSERT_TRUE(vm.Run(StringView("let count = 1\nconst step = 2")).IsOk());
+	auto again = vm.Run(StringView("let count = 5\nconst step = 3\nreturn count + step"));
+	ASSERT_TRUE(again.IsOk());
+	EXPECT_EQ(again.Value().AsNumber(), 8.0);
+	// Mais pas ce que l'application a posé.
+	vm.SetGlobal(String("shot_dir"), Value::Str(String("/tmp")));
+	auto clash = vm.Run(StringView("let shot_dir = 1"));
+	ASSERT_TRUE(clash.IsError());
+	EXPECT_TRUE(clash.Error().message.Contains("réservé"));
+	EXPECT_TRUE(vm.Run(StringView("shot_dir = \"/autre\"")).IsOk()); // la réaffecter reste permis
+}
+
+// ============================================================================
+// Espaces de noms
+// ============================================================================
+
+TEST(ScriptNamespace, MathIsANamespaceOfFunctionsAndConstants) {
+	EXPECT_EQ(Number("return math.floor(math.pi * 100)"), 314.0);
+	EXPECT_EQ(Number("return math.clamp(7, 0, 5) + math.max(1, 9, 3)"), 14.0);
+	EXPECT_TRUE(Eval("return type(math)").AsString() == "namespace");
+	EXPECT_TRUE(Eval("return has(math, \"tau\") and not has(math, \"nope\")").IsTruthy());
+	EXPECT_EQ(Number("return physics.c"), 299792458.0);
+	// Les anciens globaux n'encombrent plus l'espace global.
+	EXPECT_TRUE(EvalError("return sin(1)").Contains("variable inconnue `sin`"));
+	EXPECT_TRUE(EvalError("return pi()").Contains("variable inconnue `pi`"));
+	// Un nom local court ne heurte plus une constante : `e`, `c`, `g`…
+	EXPECT_EQ(Number("let e = 2\nlet c = 3\nreturn e * c"), 6.0);
+	// Membres inconnus : une erreur qui dit où chercher, pas un nil muet.
+	EXPECT_TRUE(EvalError("return math.nope").Contains("l'espace de noms `math` n'a pas de membre `nope`"));
+}
+
+TEST(ScriptNamespace, NamespacesAreReadOnlyFromOutside) {
+	EXPECT_TRUE(EvalError("math.pi = 3").Contains("espace de noms"));
+	EXPECT_TRUE(EvalError("math[\"sin\"] = 1").Contains("espace de noms"));
+	EXPECT_TRUE(EvalError("math = 1").Contains("espace de noms"));
+	EXPECT_TRUE(EvalError("let math = 1").Contains("réservé"));
+}
+
+TEST(ScriptNamespace, UserNamespacesGroupDeclarationsWithLiveMembers) {
+	const char *source = "namespace geo {\n"
+						 "    const unit = 2\n"
+						 "    let calls = 0\n"
+						 "    fn area(r) {\n"
+						 "        calls += 1\n"
+						 "        return square(r) * unit\n" // appel non qualifié : même portée
+						 "    }\n"
+						 "    fn square(v) { return v * v }\n"   // hissée : utilisable plus haut
+						 "}\n"
+						 "let a = geo.area(3)\n"
+						 "geo.area(1)\n"
+						 "return [a, geo.calls, geo.unit]";
+	Value result = Eval(source);
+	ASSERT_TRUE(result.IsList());
+	EXPECT_EQ(result.AsList()->items[0].AsNumber(), 18.0);
+	EXPECT_EQ(result.AsList()->items[1].AsNumber(), 2.0); // liaison VIVANTE
+	EXPECT_EQ(result.AsList()->items[2].AsNumber(), 2.0);
+	// Modifiable de l'intérieur seulement.
+	EXPECT_TRUE(EvalError("namespace n { let v = 1 }\nn.v = 2").Contains("espace de noms"));
+	// Un `var` reste DANS son espace de noms.
+	EXPECT_TRUE(EvalError("namespace n { var hidden = 1 }\nreturn hidden").Contains("variable inconnue"));
+	// Rouvrir un espace de noms l'étend.
+	EXPECT_EQ(Number("namespace n { const a = 1 }\nnamespace n { const b = 2 }\nreturn n.a + n.b"), 3.0);
+	// Imbriqués.
+	EXPECT_EQ(Number("namespace outer { namespace inner { const x = 5 } }\nreturn outer.inner.x"), 5.0);
+	// Pas de flot de contrôle au niveau d'un espace de noms.
+	EXPECT_TRUE(EvalError("namespace n { return 1 }").Contains("interdit"));
+	EXPECT_TRUE(Eval("namespace n { const a = 1 }\nreturn keys(n)").AsList()->items.size() == 1u);
+}
+
+TEST(ScriptNamespace, HostNamespacesExposeTheApplicationApi) {
+	Interpreter vm;
+	vm.RegisterNamespacedNative(String("game"), String("score"), 0, 0,
+								[](Interpreter &, std::vector<Value> &) -> Result<Value, ScriptError> {
+									return Ok(Value::Number(12.0));
+								});
+	vm.RegisterNamespaceConstant(String("game"), String("version"), Value::Number(3.0));
+	auto result = vm.Run(StringView("return game.score() + game.version"));
+	ASSERT_TRUE(result.IsOk());
+	EXPECT_EQ(result.Value().AsNumber(), 15.0);
+	EXPECT_TRUE(vm.GetNamespaceMember(String("game"), String("version")).IsSome());
+	EXPECT_TRUE(vm.GetNamespaceMember(String("game"), String("absent")).IsNone());
+	EXPECT_TRUE(vm.Run(StringView("game.score = nil")).IsError()); // l'API ne s'écrase pas
 }
 
 int main() { return RUN_ALL_TESTS(); }

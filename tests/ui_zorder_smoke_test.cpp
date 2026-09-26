@@ -92,7 +92,8 @@ struct Overlay {
 	ecs::Entity popup{};
 	ecs::Entity item{};
 };
-static Overlay SpawnMenuOverlay(Harness &h, float x, float y, float w, float wItem, int order = 10) {
+static Overlay SpawnMenuOverlay(Harness& h, float x, float y, float w, float wItem,
+								int order = 10) {
 	auto itemB = h.f.MenuItem("Ouvrir");
 	itemB.Size(wItem, 30.f);
 	auto popupB = h.f.Popup();
@@ -100,7 +101,8 @@ static Overlay SpawnMenuOverlay(Harness &h, float x, float y, float w, float wIt
 	popupB.OverlayOrder(order);
 	Overlay ov;
 	ov.popup = popupB.Children(std::move(itemB)).Spawn();
-	if (auto kids = h.ar.GetComponent<ui::UiChildren>(ov.popup); kids.IsSome() && !kids.Unwrap()->list.empty())
+	if (auto kids = h.ar.GetComponent<ui::UiChildren>(ov.popup);
+		kids.IsSome() && !kids.Unwrap()->list.empty())
 		ov.item = kids.Unwrap()->list[0];
 	ui::OpenPopup(h.ar, h.layout, ov.popup, ecs::Entity{});
 	return ov;
@@ -113,7 +115,9 @@ TEST(UiZOrder, MenuItemOnTopIsTheOnlyWidgetHovered) {
 	Harness h;
 	int buttonClicks = 0, itemClicks = 0;
 	auto btnB = h.f.Button("Jouer");
-	btnB.Anchor(ui::Anchor::TopLeft).Offset(40.f, 40.f).Size(200.f, 40.f).OnClick([&] { buttonClicks++; });
+	btnB.Anchor(ui::Anchor::TopLeft).Offset(40.f, 40.f).Size(200.f, 40.f).OnClick([&] {
+		buttonClicks++;
+	});
 	ecs::Entity btn = btnB.Spawn();
 
 	Overlay ov = SpawnMenuOverlay(h, 40.f, 45.f, 200.f, 200.f);
@@ -138,7 +142,9 @@ TEST(UiZOrder, ButtonStillReactsWhereNothingCoversIt) {
 	Harness h;
 	int buttonClicks = 0;
 	auto btnB = h.f.Button("Jouer");
-	btnB.Anchor(ui::Anchor::TopLeft).Offset(40.f, 40.f).Size(200.f, 40.f).OnClick([&] { buttonClicks++; });
+	btnB.Anchor(ui::Anchor::TopLeft).Offset(40.f, 40.f).Size(200.f, 40.f).OnClick([&] {
+		buttonClicks++;
+	});
 	ecs::Entity btn = btnB.Spawn();
 	SpawnMenuOverlay(h, 40.f, 45.f, 60.f, 60.f); // ne couvre que la gauche du bouton
 	h.Layout();
@@ -175,7 +181,12 @@ TEST(UiZOrder, PointerOverEmptySpaceHasNoTarget) {
 TEST(UiZOrder, AncestorOfTheFrontWidgetStillGetsTheWheel) {
 	Harness h;
 	auto panelB = h.f.Panel();
-	panelB.Anchor(ui::Anchor::TopLeft).Offset(20.f, 20.f).Size(220.f, 100.f).Scrollable().Pad(math::Sides{0.f}).Gap(0.f);
+	panelB.Anchor(ui::Anchor::TopLeft)
+		.Offset(20.f, 20.f)
+		.Size(220.f, 100.f)
+		.Scrollable()
+		.Pad(math::Sides{0.f})
+		.Gap(0.f);
 	ecs::Entity first{};
 	{
 		auto b1 = h.f.Button("A");
@@ -293,8 +304,8 @@ TEST(UiZOrder, OpenComboDropdownBlocksTheWidgetsUnderIt) {
 	ASSERT_TRUE(h.ar.GetComponent<ui::UiComboBox>(combo).Unwrap()->open);
 
 	// (60, 90) : dans la liste déroulante ET dans le bouton.
-	const sdl3::FRect dd =
-		h.ar.GetComponent<ui::UiComboBox>(combo).Unwrap()->DropdownRect(h.ar.GetComponent<ui::UiComputed>(combo).Unwrap()->screen);
+	const sdl3::FRect dd = h.ar.GetComponent<ui::UiComboBox>(combo).Unwrap()->DropdownRect(
+		h.ar.GetComponent<ui::UiComputed>(combo).Unwrap()->screen);
 	ASSERT_TRUE(dd.Contains(sdl3::FPoint{60.f, 90.f}));
 	h.Move(60.f, 90.f);
 	EXPECT_TRUE(h.input.FrontMostWidget() == combo);
@@ -308,7 +319,7 @@ TEST(UiZOrder, OpenComboDropdownBlocksTheWidgetsUnderIt) {
 // La première version reconstruisait l'ordre de dessin À CHAQUE appel :
 // mesuré à 5–7 ms par test sur 1200 widgets en build de debug (-O0 + ASan),
 // soit, avec deux appels par évènement souris, la chute de 60 à 25 images/s
-// observée sur level_editor_demo. L'index n'est donc reconstruit que lorsque
+// observée sur game_editor_demo. L'index n'est donc reconstruit que lorsque
 // la géométrie change (cf. HitTestIndex::Refresh) — ces deux tests verrouillent
 // cette propriété, l'un structurellement (le compteur de reconstructions),
 // l'autre en temps (borne RELATIVE au coût d'une passe de layout, donc
@@ -316,7 +327,7 @@ TEST(UiZOrder, OpenComboDropdownBlocksTheWidgetsUnderIt) {
 // ─────────────────────────────────────────────────────────────────────────
 
 /// UI large : 200 rangées de 5 widgets, comme les listes d'un vrai éditeur.
-static void BuildLargeUi(Harness &h) {
+static void BuildLargeUi(Harness& h) {
 	auto rootB = h.f.Column();
 	rootB.Fixed().Anchor(ui::Anchor::TopLeft).Pad(4).Gap(2).W(ui::Dimension::Px(600)).HAuto();
 	ecs::Entity root = rootB.Spawn();
@@ -324,9 +335,10 @@ static void BuildLargeUi(Harness &h) {
 		h.f.Row()
 			.Gap(4)
 			.Parent(root)
-			.Children(h.f.Label(String("item ").Append(i)),
-					  h.f.Progress(0.f, 1.f, float(i % 100) / 100.f).H(ui::Dimension::Px(6)).GrowW(),
-					  h.f.Button("x").FontSize(10), h.f.Checkbox(i % 2 == 0), h.f.Toggle(i % 3 == 0))
+			.Children(
+				h.f.Label(String("item ").Append(i)),
+				h.f.Progress(0.f, 1.f, float(i % 100) / 100.f).H(ui::Dimension::Px(6)).GrowW(),
+				h.f.Button("x").FontSize(10), h.f.Checkbox(i % 2 == 0), h.f.Toggle(i % 3 == 0))
 			.Spawn();
 	}
 }
@@ -368,7 +380,9 @@ TEST(UiZOrder, IndexIsRebuiltOnlyWhenGeometryOrEntityCountChanges) {
 
 TEST(UiZOrder, DispatchStaysCheapOnALargeUi) {
 	using Clock = std::chrono::steady_clock;
-	auto ms = [](Clock::time_point t0) { return std::chrono::duration<double, std::milli>(Clock::now() - t0).count(); };
+	auto ms = [](Clock::time_point t0) {
+		return std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+	};
 
 	Harness h;
 	BuildLargeUi(h);
@@ -384,7 +398,8 @@ TEST(UiZOrder, DispatchStaysCheapOnALargeUi) {
 	}
 	const double perFrameMs = ms(t0) / N;
 
-	std::cout << "1200 widgets : layout=" << layoutMs << "ms, evenement+tick=" << perFrameMs << "ms\n";
+	std::cout << "1200 widgets : layout=" << layoutMs << "ms, evenement+tick=" << perFrameMs
+			  << "ms\n";
 	// Une passe de layout complète coûte des dizaines de ms ici ; traiter un
 	// évènement doit rester un ordre de grandeur en dessous. Avec la
 	// reconstruction par appel, ce rapport était d'environ 0,4 — il est
@@ -392,4 +407,6 @@ TEST(UiZOrder, DispatchStaysCheapOnALargeUi) {
 	EXPECT_TRUE(perFrameMs < layoutMs * 0.1);
 }
 
-int main() { return RUN_ALL_TESTS(); }
+int main() {
+	return RUN_ALL_TESTS();
+}

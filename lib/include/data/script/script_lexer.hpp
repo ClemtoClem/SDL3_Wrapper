@@ -67,6 +67,9 @@ enum class TokenType : uint8_t {
 
 	// Mots-clés (key word)
 	KW_LET,
+	KW_VAR,
+	KW_CONST,
+	KW_NAMESPACE,
 	KW_FN,
 	KW_IF,
 	KW_ELSE,
@@ -135,6 +138,12 @@ struct Token {
 			return "chaîne";
 		case TokenType::IDENTIFIER:
 			return "identifiant";
+		case TokenType::KW_CONST:
+			return "const";
+		case TokenType::KW_VAR:
+			return "var";
+		case TokenType::KW_NAMESPACE:
+			return "namespace";
 		case TokenType::KW_LET:
 			return "let";
 		case TokenType::KW_FN:
@@ -458,7 +467,8 @@ private:
 			TokenType type;
 		};
 		static constexpr Entry KEYWORDS[] = {
-			{"let", TokenType::KW_LET},           {"var", TokenType::KW_LET},
+			{"const", TokenType::KW_CONST},       {"namespace", TokenType::KW_NAMESPACE},
+			{"let", TokenType::KW_LET},           {"var", TokenType::KW_VAR},
 			{"fn", TokenType::KW_FN},             {"func", TokenType::KW_FN},
 			{"if", TokenType::KW_IF},             {"else", TokenType::KW_ELSE},
 			{"while", TokenType::KW_WHILE},       {"for", TokenType::KW_FOR},

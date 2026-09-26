@@ -693,6 +693,11 @@ public:
 	[[nodiscard]] uint32_t SubmittedDrawCount() const noexcept { return m_submittedDraws; }
 
 	void SetBackgroundColor(sdl3::Color color) noexcept { m_backgroundColor = color; }
+	[[nodiscard]] sdl3::Color BackgroundColor() const noexcept { return m_backgroundColor; }
+	[[nodiscard]] const DirectionalLight &Directional() const noexcept { return m_directionalLight; }
+	[[nodiscard]] const AmbientLight &Ambient() const noexcept { return m_ambientLight; }
+	[[nodiscard]] const std::vector<PointLight> &ActivePointLights() const noexcept { return m_pointLights; }
+	[[nodiscard]] const std::vector<SpotLight> &ActiveSpotLights() const noexcept { return m_spotLights; }
 	void SetCamera(const Camera &camera) noexcept { m_camera = camera; }
 	[[nodiscard]] const Camera &GetCamera() const noexcept { return m_camera; }
 

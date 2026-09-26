@@ -101,7 +101,8 @@ struct Portal {
 	/// World-space position of THIS portal's own surface plane — the
 	/// translation column of `node->WorldMatrix()`.
 	[[nodiscard]] math::FVector3 WorldPlanePos() const noexcept {
-		return node ? node->WorldMatrix().TransformPoint({0.f, 0.f, 0.f}) : math::FVector3{};
+		const math::FVector3 vec = {0.f, 0.f, 0.f};
+		return node ? node->WorldMatrix().TransformPoint(vec) : vec;
 	}
 
 	/// World-space normal of THIS portal's own surface plane — local +Z
@@ -112,7 +113,8 @@ struct Portal {
 	/// authored flat in the XZ plane — the wrong convention for a portal
 	/// surface the camera looks INTO).
 	[[nodiscard]] math::FVector3 WorldPlaneNormal() const noexcept {
-		return node ? node->WorldMatrix().TransformDir({0.f, 0.f, -1.f}).Normalize() : math::FVector3{0.f, 0.f, 1.f};
+		const math::FVector3 vec = {0.f, 0.f, 1.f};
+		return node ? node->WorldMatrix().TransformDir(vec).Normalize() : vec;
 	}
 };
 

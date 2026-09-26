@@ -93,6 +93,24 @@ struct UiViewport3D {
 	/// plutôt que local à Update() pour éviter une réallocation par frame et
 	/// par viewport.
 	std::vector<uint8_t> pixels;
+
+	/// Rendu continu (défaut : chaque image) ou À LA DEMANDE : avec `false`,
+	/// la scène n'est rendue que lorsque `needsRender` est vrai ou que la
+	/// taille change — une vignette de modèle, un aperçu figé ne coûtent
+	/// alors qu'un rendu, pas un par image.
+	bool continuous = true;
+	bool needsRender = true;
+
+	/// Éclairage PROPRE au widget. Sans lui, un viewport rend avec l'éclairage
+	/// courant du Canvas partagé — celui de la scène principale : une vignette
+	/// sortirait noire dans une scène de nuit. Avec lui, l'éclairage du Canvas
+	/// est remplacé le temps de CE rendu, puis restauré.
+	struct Lighting {
+		render3d::DirectionalLight sun;
+		render3d::AmbientLight ambient;
+		sdl3::Color background{0, 0, 0, 255};
+	};
+	Option<Lighting> lighting = NONE;
 };
 
 /// Système dédié (précédent : NodeGraphSystem, nodegraph.hpp) — pas intégré
@@ -126,6 +144,12 @@ public:
 			UiViewport3D &v = *vp.Unwrap();
 			if (!v.root)
 				continue; // widget spawné sans racine de scène : rien à dessiner
+			// Masqué (onglet inactif, panneau caché, mode plein écran qui
+			// cache l'interface) : sa mise en page est figée, son image
+			// invisible — la rendre quand même coûtait un rendu 3D complet
+			// par image pour rien.
+			if (IsHiddenRecursive(world, e))
+				continue;
 
 			auto computed = world.GetComponent<UiComputed>(e);
 			if (computed.IsNone())
@@ -136,13 +160,38 @@ public:
 			if (w == 0 || h == 0)
 				continue; // widget replié/masqué ce frame : pas de taille à rendre
 
+			// Rendu à la demande : rien à refaire tant que ni le contenu ni la
+			// taille n'ont changé.
+			if (!v.continuous && !v.needsRender && v.displayTexture.IsSome() && v.textureWidth == w &&
+				v.textureHeight == h)
+				continue;
+
 			auto sized = v.target.EnsureSize(canvas.Device(), w, h, VIEWPORT3D_COLOR_FORMAT, VIEWPORT3D_DEPTH_FORMAT);
 			if (!sized)
 				continue; // best-effort (cf. en-tête du fichier) : échec GPU, on garde la texture précédente
 
-			auto rendered = render3d::RenderObjectToTexture(canvas, *v.root, v.camera, v.target, v.pixels);
+			bool rendered = false;
+			if (v.lighting.IsSome()) {
+				// Éclairage propre : celui du Canvas est sauvegardé, remplacé
+				// le temps de ce rendu, puis restauré à l'identique.
+				const render3d::DirectionalLight savedSun = canvas.Directional();
+				const render3d::AmbientLight savedAmbient = canvas.Ambient();
+				const sdl3::Color savedBackground = canvas.BackgroundColor();
+				const std::vector<render3d::PointLight> savedPoints = canvas.ActivePointLights();
+				const std::vector<render3d::SpotLight> savedSpots = canvas.ActiveSpotLights();
+				canvas.SetLighting(v.lighting.Value().sun, v.lighting.Value().ambient);
+				canvas.SetBackgroundColor(v.lighting.Value().background);
+				canvas.SetLights({}, {});
+				rendered = bool(render3d::RenderObjectToTexture(canvas, *v.root, v.camera, v.target, v.pixels));
+				canvas.SetLighting(savedSun, savedAmbient);
+				canvas.SetBackgroundColor(savedBackground);
+				canvas.SetLights(savedPoints, savedSpots);
+			} else {
+				rendered = bool(render3d::RenderObjectToTexture(canvas, *v.root, v.camera, v.target, v.pixels));
+			}
 			if (!rendered)
 				continue;
+			v.needsRender = false;
 
 			// Pas de sdl3::Renderer réel sous ce backend (futur backend
 			// non-SDL) : rien de plus à faire, RenderSystem::DrawWidget
@@ -164,7 +213,7 @@ public:
 				// long sur `Renderer::ReadPixels` (render.hpp) : RGBA32 est
 				// l'alias qui garantit [R,G,B,A] quelle que soit
 				// l'endianness. Trouvé en construisant
-				// examples/level_editor/, dont la vitrine de matériaux rend
+				// examples/game_editor/, dont la vitrine de matériaux rend
 				// l'inversion évidente à l'œil.
 				auto created = sdl3::Texture::Create(*nativeRenderer, int(w), int(h), sdl3::PixelFormat::RGBA32);
 				if (!created)

@@ -293,6 +293,131 @@ TEST(PhysicsPortal, TeleportAppliesRotationAndTranslationToPositionVelocityOrien
     EXPECT_TRUE((expectedRotated - actualRotated).Length() < 1e-4f);
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Capsule vs box — the collision a first-person character needs to stand on
+// a floor and be stopped by a wall. It used to be a documented "no contact"
+// stub: a capsule fell straight through every box.
+// ─────────────────────────────────────────────────────────────────────────
+namespace {
+bool Near(float a, float b, float eps = 1e-3f) { return std::abs(a - b) < eps; }
+constexpr float PI = 3.14159265358979323846f;
+} // namespace
+
+TEST(PhysicsCapsuleBox, AStandingCapsuleTouchesTheTopFaceWithOneDownwardContact) {
+    const Box floor{{0.f, 0.f, 0.f}, {5.f, 0.5f, 5.f}};
+    // Segment from y = 0.8 to 1.8, radius 0.35: bottom of the capsule at 0.45,
+    // 0.05 below the top face (0.5).
+    const Capsule capsule{{0.f, 1.3f, 0.f}, 0.5f, 0.35f};
+    Manifold m;
+    ASSERT_TRUE(CollideCapsuleBox(capsule, floor, m));
+    EXPECT_TRUE(Near(m.normal.x, 0.f) && Near(m.normal.y, -1.f) && Near(m.normal.z, 0.f)); // capsule -> box
+    EXPECT_EQ(m.pointCount, 1); // the upper end is far away: no extra point
+    EXPECT_TRUE(Near(m.points[0].penetration, 0.05f));
+    EXPECT_TRUE(Near(m.points[0].worldPoint.y, 0.45f));
+}
+
+TEST(PhysicsCapsuleBox, SeparatedShapesDoNotCollide) {
+    const Box floor{{0.f, 0.f, 0.f}, {5.f, 0.5f, 5.f}};
+    Manifold m;
+    EXPECT_FALSE(CollideCapsuleBox(Capsule{{0.f, 1.5f, 0.f}, 0.5f, 0.35f}, floor, m)); // 0.15 above
+    EXPECT_FALSE(CollideCapsuleBox(Capsule{{7.f, 0.f, 0.f}, 0.5f, 0.35f}, floor, m));  // beside
+}
+
+TEST(PhysicsCapsuleBox, ALyingCapsuleGetsContactsAtBothEnds) {
+    const Box floor{{0.f, 0.f, 0.f}, {5.f, 0.5f, 5.f}};
+    // Lying along X (rotated 90 degrees about Z), resting 0.02 into the face.
+    const Capsule capsule{{0.f, 0.83f, 0.f}, 1.f, 0.35f,
+                          math::FQuaternion::FromAxisAngle({0.f, 0.f, 1.f}, PI * 0.5f)};
+    Manifold m;
+    ASSERT_TRUE(CollideCapsuleBox(capsule, floor, m));
+    EXPECT_TRUE(Near(m.normal.y, -1.f));
+    EXPECT_TRUE(m.pointCount >= 2); // a line contact, not a pivot point
+    float minX = 1e9f, maxX = -1e9f;
+    for (int i = 0; i < m.pointCount; ++i) {
+        minX = std::min(minX, m.points[i].worldPoint.x);
+        maxX = std::max(maxX, m.points[i].worldPoint.x);
+        EXPECT_TRUE(Near(m.points[i].penetration, 0.02f));
+    }
+    EXPECT_TRUE(Near(minX, -1.f) && Near(maxX, 1.f));
+}
+
+TEST(PhysicsCapsuleBox, ArgumentOrderOnlyFlipsTheNormal) {
+    ecs::ArchetypeRegistry registry;
+    const Shape box = Box{{0.f, 0.f, 0.f}, {5.f, 0.5f, 5.f}};
+    const Shape capsule = Capsule{{0.f, 1.3f, 0.f}, 0.5f, 0.35f};
+    Manifold capsuleFirst, boxFirst;
+    ASSERT_TRUE(GenerateManifold(ecs::Entity{}, capsule, ecs::Entity{}, box, capsuleFirst));
+    ASSERT_TRUE(GenerateManifold(ecs::Entity{}, box, ecs::Entity{}, capsule, boxFirst));
+    EXPECT_TRUE(Near(capsuleFirst.normal.y, -1.f)); // A (capsule) -> B (box)
+    EXPECT_TRUE(Near(boxFirst.normal.y, 1.f));      // A (box) -> B (capsule)
+    EXPECT_TRUE(Near(capsuleFirst.points[0].penetration, boxFirst.points[0].penetration));
+}
+
+TEST(PhysicsCapsuleBox, AnInclinedFaceGivesItsOwnNormal) {
+    // Box tilted 30 degrees about Z; a vertical capsule pressed on its top face.
+    const math::FQuaternion tilt = math::FQuaternion::FromAxisAngle({0.f, 0.f, 1.f}, PI / 6.f);
+    const Box ramp{{0.f, 0.f, 0.f}, {5.f, 0.5f, 5.f}, tilt};
+    const math::FVector3 up = tilt.Rotate({0.f, 1.f, 0.f});
+    // Centre of the capsule's LOWER sphere placed 0.3 above the face along
+    // its normal (radius 0.35 : 0.05 of penetration).
+    const math::FVector3 lowerSphere = up * (0.5f + 0.3f);
+    const Capsule capsule{lowerSphere + math::FVector3{0.f, 0.5f, 0.f}, 0.5f, 0.35f};
+    Manifold m;
+    ASSERT_TRUE(CollideCapsuleBox(capsule, ramp, m));
+    EXPECT_TRUE(Near(m.normal.x, -up.x, 1e-2f) && Near(m.normal.y, -up.y, 1e-2f));
+    EXPECT_TRUE(Near(m.points[0].penetration, 0.05f, 1e-2f));
+}
+
+TEST(PhysicsCapsuleBox, ADeeplyEmbeddedCapsuleIsStillPushedOut) {
+    const Box block{{0.f, 0.f, 0.f}, {1.f, 1.f, 1.f}};
+    const Capsule capsule{{0.f, 0.7f, 0.f}, 0.2f, 0.3f}; // segment inside the block
+    Manifold m;
+    ASSERT_TRUE(CollideCapsuleBox(capsule, block, m));
+    EXPECT_TRUE(m.points[0].penetration > 0.3f); // deeper than the radius alone
+    EXPECT_TRUE(Near(m.normal.y, -1.f));          // out through the nearest (top) face
+}
+
+TEST(PhysicsCapsuleBox, ADynamicCapsuleRestsOnTheGroundAndIsStoppedByAWall) {
+    ecs::ArchetypeRegistry registry;
+    World world(registry);
+    (void)registry.SpawnBundle(RigidBody::MakeStatic(Box{{}, {10.f, 0.5f, 10.f}}, {0.f, 0.f, 0.f}));
+    (void)registry.SpawnBundle(RigidBody::MakeStatic(Box{{}, {0.25f, 2.f, 10.f}}, {3.f, 2.f, 0.f}));
+    ecs::Entity body = registry.SpawnBundle(
+        RigidBody::MakeDynamic(Capsule{{}, 0.5f, 0.35f}, {0.f, 3.f, 0.f}, /*mass*/ 70.f, /*restitution*/ 0.f,
+                               /*friction*/ 0.f));
+
+    constexpr float DT = 1.f / 60.f;
+    for (int i = 0; i < 240; ++i)
+        world.Step(DT);
+    RigidBody &rb = registry.GetComponent<RigidBody>(body).Value();
+    // Ground top (0.5) + half height (0.5) + radius (0.35).
+    EXPECT_TRUE(Near(rb.position.y, 1.35f, 0.05f));
+    EXPECT_TRUE(rb.linearVelocity.Length() < 0.1f);
+
+    // Walk into the wall (inner face at x = 2.75) for two seconds.
+    for (int i = 0; i < 120; ++i) {
+        rb.linearVelocity.x = 4.f;
+        world.Step(DT);
+    }
+    EXPECT_TRUE(rb.position.x < 2.75f - 0.35f + 0.05f); // stopped at the wall, not through it
+    EXPECT_TRUE(rb.position.y > 1.2f);                   // still standing on the floor
+}
+
+// Regression — two sign errors of CollideSphereBox found while writing the
+// capsule case: the contact point sat on the FAR side of the sphere, and a
+// sphere whose centre is inside the box got a normal pushing it further in.
+TEST(PhysicsSphereBox, TheContactIsOnTheNearSideAndAnEmbeddedSphereIsPushedOut) {
+    const Box floor{{0.f, 0.f, 0.f}, {5.f, 0.5f, 5.f}};
+    Manifold m;
+    ASSERT_TRUE(CollideSphereBox(Sphere{{0.f, 0.9f, 0.f}, 0.5f}, floor, m));
+    EXPECT_TRUE(Near(m.normal.y, -1.f));                // sphere -> box
+    EXPECT_TRUE(Near(m.points[0].worldPoint.y, 0.4f));  // bottom of the sphere, not its top (1.4)
+
+    ASSERT_TRUE(CollideSphereBox(Sphere{{0.f, 0.4f, 0.f}, 0.2f}, floor, m)); // centre inside, near the top
+    EXPECT_TRUE(Near(m.normal.y, -1.f));                // still sphere -> box: the solver lifts it
+    EXPECT_TRUE(Near(m.points[0].penetration, 0.1f + 0.2f));
+}
+
 int main() {
     return RUN_ALL_TESTS();
 }

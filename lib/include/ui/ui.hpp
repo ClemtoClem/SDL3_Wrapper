@@ -138,7 +138,17 @@ public:
 	[[nodiscard]] UiTheme &Theme() noexcept { return factory.theme; }
 	/// Change le thème à chaud (cf. `UiFactory::SetTheme`) — la nouvelle
 	/// palette s'applique aussi aux widgets déjà à l'écran.
-	void SetTheme(UiTheme theme) { factory.SetTheme(std::move(theme)); }
+	/// Pose le thème : les widgets créés ENSUITE par la fabrique en prennent
+	/// les couleurs, et les barres de défilement automatiques (dessinées par
+	/// RenderSystem, sans widget ni style propre) suivent aussitôt.
+	void SetTheme(UiTheme theme) {
+		render.scrollbarTrack = theme.scrollbar.bgNormal;
+		render.scrollbarThumb = theme.scrollbar.bgHovered;
+		render.tooltipBg = sdl3::FColor{theme.fieldBg.r, theme.fieldBg.g, theme.fieldBg.b, 0.97f};
+		render.tooltipBorder = theme.border;
+		render.tooltipText = theme.text;
+		factory.SetTheme(std::move(theme));
+	}
 	/// Classes CSS-like partagées (raccourci pour `factory().sheet`).
 	[[nodiscard]] UiStyleSheet &Sheet() noexcept { return factory.sheet; }
 
@@ -187,6 +197,11 @@ public:
 	/// Ouvre un popup ancré (non modal, cf. UiFactory::Popup()) — `trigger`
 	/// sert à la fermeture au clic extérieur.
 	void OpenPopup(ecs::Entity popupRoot, ecs::Entity trigger) { ui::OpenPopup(*world, layout, popupRoot, trigger); }
+	/// Ouvre un popup (menu contextuel, cf. UiFactory::ContextMenu) avec son
+	/// coin haut-gauche au point écran donné — typiquement la position reçue
+	/// par `OnContextMenu`. Le popup reste dans la fenêtre (cf.
+	/// LayoutSystem::Run).
+	void OpenPopupAt(ecs::Entity popupRoot, sdl3::FPoint at) { ui::OpenPopupAt(*world, layout, popupRoot, at); }
 	/// Ferme un popup ouvert via `openPopup`.
 	void ClosePopup(ecs::Entity popupRoot) { ui::ClosePopup(*world, layout, popupRoot); }
 	/// Ouvre une boîte de dialogue modale (cf. UiFactory::Modal()) — bloque
@@ -200,9 +215,29 @@ public:
 	/// UiFactory::Icon<E>) sous son nom de famille, pour que les UiIcon s'y
 	/// résolvent au rendu.
 	void RegisterFont(StringView family, sdl3::Font &font) { render.RegisterFont(family, font); }
+	/// Police à chasse fixe des zones de texte en mode éditeur de code (cf.
+	/// UiInputArea::monospace). Doit vivre aussi longtemps que l'interface.
+	void RegisterMonospaceFont(sdl3::Font &font) { render.RegisterMonospaceFont(font); }
 
-	/// Un évènement SDL discret (à appeler depuis la boucle de poll).
-	void HandleEvent(const sdl3::Event &ev) { input.HandleEvent(*world, ev, layout); }
+	/// Un évènement SDL discret (à appeler depuis la boucle de poll), passé
+	/// d'abord à l'interface : s'il la concerne seule (frappe dans le champ
+	/// qui a le focus, Échap qui ferme une modale…), il est marqué consommé
+	/// (sdl3::Event::IsConsumed) et le reste de l'application doit l'ignorer.
+	/// Rend vrai s'il est consommé.
+	bool HandleEvent(sdl3::Event &ev) { return input.HandleEvent(*world, ev, layout); }
+	/// Variante pour un évènement non modifiable : rend seulement l'avis.
+	bool HandleEvent(const sdl3::Event &ev) { return input.HandleEvent(*world, ev, layout); }
+
+	/// Widget qui a le focus clavier (entité invalide sinon).
+	[[nodiscard]] ecs::Entity KeyboardFocus() const { return input.KeyboardFocus(*world); }
+	/// Retire le focus clavier.
+	void ClearKeyboardFocus() { input.ClearKeyboardFocus(*world); }
+	/// Règle de transmission des touches quand un widget a le focus : vrai
+	/// = l'évènement continue vers l'application (cf.
+	/// InputSystem::DefaultKeyPassThrough, utilisée si `rule` est vide).
+	void SetKeyPassThrough(std::function<bool(const sdl3::Event &, ecs::Entity)> rule) {
+		input.keyPassThrough = std::move(rule);
+	}
 
 	/// Mises à jour continues indépendantes des évènements (animations,
 	/// infobulle) — à appeler une fois par frame.

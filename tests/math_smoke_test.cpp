@@ -93,7 +93,7 @@ TEST(MathFrustum, CullsOutsideBoxes) {
 
 // ============================================================================
 // FQuaternion::ToEuler — inverse exact de FromEuler (ajouté pour l'inspecteur
-// de l'éditeur de niveau, cf. memory/project_level_editor_app.md)
+// de l'éditeur de niveau, cf. memory/project_game_editor_app.md)
 // ============================================================================
 
 namespace {

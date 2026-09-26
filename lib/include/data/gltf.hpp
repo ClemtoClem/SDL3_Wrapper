@@ -617,7 +617,7 @@ inline void ReadFloatArray(const NodePtr &node, float *out, size_t count) {
 /// `loadBuffers = false` pour n'inspecter que la structure (lister les
 /// maillages et les textures d'un fichier sans lire les mégaoctets de
 /// géométrie) — c'est ce que fait le navigateur de ressources de
-/// examples/level_editor.
+/// examples/game_editor.
 [[nodiscard]] inline Result<Document, String> LoadFile(const String &path, bool loadBuffers = true) {
 	auto bytes = sdl3::ReadFile(path);
 	if (!bytes)

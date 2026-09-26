@@ -125,7 +125,7 @@ struct UiResizeHandle {
 };
 
 /// Résout UN pas de drag : appelé par InputSystem à chaque frame où le bouton
-/// reste enfoncé sur une poignée déjà latchée (cf. resizeDrag). Pure côté
+/// reste enfoncé sur une poignée déjà verrouillée (cf. resizeDrag). Pure côté
 /// ECS — se contente d'appeler les accesseurs de `h`.
 inline void ResolveResizeDrag(UiResizeHandle &h, float mouseCoord) {
 	float delta = mouseCoord - h.dragStartMouse;
@@ -148,12 +148,44 @@ inline void ResolveResizeDrag(UiResizeHandle &h, float mouseCoord) {
 
 /// Poignée de réordonnancement par glisser vertical : contrairement à
 /// UiResizeHandle (redimensionne 2 panneaux via des accesseurs), ceci DÉPLACE
-/// l'entité elle-même parmi ses frères/soeurs directs (cf. reorderChild() —
+/// l'entité elle-même parmi ses frères/sœurs directs (cf. reorderChild() —
 /// l'ordre du UiChildren du parent EST la vérité, pas un état séparé à
 /// resynchroniser). `dragMoved` (seuil de mouvement, cf. InputSystem::
 /// dispatch()) évite qu'un simple clic de sélection (UiSelectable/
 /// UiTreeNode, souvent posé sur la MÊME entité) ne déclenche un
 /// réordonnancement parasite.
+/**
+ * Glisser-déposer ENTRE widgets (par opposition à UiReorderable, qui ne sait
+ * que réordonner des frères d'une même liste).
+ *
+ * Deux marqueurs : `UiDragPayload` fait d'un widget une SOURCE transportant un
+ * identifiant applicatif, `UiDropTarget` fait d'un widget une CIBLE qui
+ * accepte un certain genre de charge. Au relâchement au-dessus d'une cible
+ * compatible, `UiCallbacks::onDrop` est appelé sur la CIBLE avec l'identifiant
+ * de la source.
+ *
+ * Pourquoi un identifiant applicatif (`int64_t`) et pas l'entité source :
+ * l'entité d'interface est un détail de l'arbre d'UI, reconstruit à chaque
+ * rafraîchissement de panneau ; ce que l'application veut savoir, c'est
+ * « QUOI a été déposé » — un nœud de scène, une ressource, une ligne de
+ * tableau — et c'est elle qui sait traduire cet identifiant.
+ *
+ * `kind` évite les dépôts absurdes (déposer une couleur sur un arbre de
+ * scène) sans que l'application ait à le vérifier elle-même.
+ */
+struct UiDragPayload {
+	String kind;      ///< genre de charge ("node", "asset"…)
+	int64_t id = 0;   ///< identifiant applicatif transporté
+	bool dragging = false; ///< vrai pendant le glissé (permet un rendu estompé)
+};
+
+/// Cible de dépôt. `hovered` est vrai quand un glissé COMPATIBLE la survole —
+/// c'est ce qui permet de la surligner pendant le geste.
+struct UiDropTarget {
+	String accepts;        ///< genre accepté ; vide = tout accepter
+	bool hovered = false;
+};
+
 struct UiReorderable {
 	bool dragging = false;
 	bool dragMoved = false;

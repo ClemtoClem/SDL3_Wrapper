@@ -10,6 +10,8 @@
  *                  cercles) + texte TTF avec cache d'objets sdl3::Text.
  */
 #include <algorithm>
+#include <map>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -45,8 +47,30 @@ namespace ui {
 // puissent jamais diverger.
 // ============================================================================
 
-constexpr float K_SCROLLBAR_THICKNESS = 8.f;
+constexpr float K_SCROLLBAR_THICKNESS = UiRect::SCROLLBAR_THICKNESS;
 constexpr float K_SCROLLBAR_MIN_THUMB = 20.f;
+
+/// Épaisseur de bordure d'un style résolu, telle que RenderSystem la dessine
+/// (contours concentriques d'un pixel, `.top` représentatif des 4 côtés) :
+/// LayoutSystem la réserve dans la boîte, pour que le contenu ne la recouvre
+/// pas et qu'elle ne soit pas rognée.
+[[nodiscard]] inline math::Sides BorderSides(const ResolvedStyle &rs) noexcept {
+	const float bw = float(sdl3::Max(1, int(rs.BordersWidth(math::Sides(1.f)).top)));
+	return math::Sides(bw);
+}
+
+/// Piste verticale : bande réservée au bord droit (cf. UiRect::gutter), qui
+/// s'arrête au-dessus de la piste horizontale.
+[[nodiscard]] inline sdl3::FRect VScrollbarTrackRect(const UiRect &r, const sdl3::FRect &screen) noexcept {
+	return {screen.x + screen.w - K_SCROLLBAR_THICKNESS, screen.y, K_SCROLLBAR_THICKNESS,
+			sdl3::Max(0.f, screen.h - r.gutter.y)};
+}
+
+/// Piste horizontale : bande réservée au bord bas.
+[[nodiscard]] inline sdl3::FRect HScrollbarTrackRect(const UiRect &r, const sdl3::FRect &screen) noexcept {
+	return {screen.x, screen.y + screen.h - K_SCROLLBAR_THICKNESS, sdl3::Max(0.f, screen.w - r.gutter.x),
+			K_SCROLLBAR_THICKNESS};
+}
 
 /// Rect (dans l'espace écran) du pouce vertical, ou un rect vide si pas de
 /// débordement vertical.
@@ -54,12 +78,13 @@ constexpr float K_SCROLLBAR_MIN_THUMB = 20.f;
 	float maxY = r.MaxScroll().y;
 	if (maxY <= 0.f)
 		return {};
-	float trackH = screen.h;
-	float thumbH = sdl3::Max(K_SCROLLBAR_MIN_THUMB, trackH * screen.h / r.ContentSize().y);
+	const sdl3::FRect track = VScrollbarTrackRect(r, screen);
+	float trackH = track.h;
+	float thumbH = sdl3::Max(K_SCROLLBAR_MIN_THUMB, trackH * r.ViewSize().y / r.ContentSize().y);
 	thumbH = sdl3::Min(thumbH, trackH);
 	float t = maxY > 0.f ? r.scroll.y / maxY : 0.f;
-	float thumbY = screen.y + t * (trackH - thumbH);
-	return {screen.x + screen.w - K_SCROLLBAR_THICKNESS, thumbY, K_SCROLLBAR_THICKNESS, thumbH};
+	float thumbY = track.y + t * (trackH - thumbH);
+	return {track.x, thumbY, K_SCROLLBAR_THICKNESS, thumbH};
 }
 
 /// Rect (dans l'espace écran) du pouce horizontal, ou un rect vide si pas de
@@ -68,12 +93,13 @@ constexpr float K_SCROLLBAR_MIN_THUMB = 20.f;
 	float maxX = r.MaxScroll().x;
 	if (maxX <= 0.f)
 		return {};
-	float trackW = screen.w;
-	float thumbW = sdl3::Max(K_SCROLLBAR_MIN_THUMB, trackW * screen.w / r.ContentSize().x);
+	const sdl3::FRect track = HScrollbarTrackRect(r, screen);
+	float trackW = track.w;
+	float thumbW = sdl3::Max(K_SCROLLBAR_MIN_THUMB, trackW * r.ViewSize().x / r.ContentSize().x);
 	thumbW = sdl3::Min(thumbW, trackW);
 	float t = maxX > 0.f ? r.scroll.x / maxX : 0.f;
-	float thumbX = screen.x + t * (trackW - thumbW);
-	return {thumbX, screen.y + screen.h - K_SCROLLBAR_THICKNESS, thumbW, K_SCROLLBAR_THICKNESS};
+	float thumbX = track.x + t * (trackW - thumbW);
+	return {thumbX, track.y, thumbW, K_SCROLLBAR_THICKNESS};
 }
 
 // ============================================================================
@@ -87,6 +113,514 @@ constexpr float K_SCROLLBAR_MIN_THUMB = 20.f;
 
 [[nodiscard]] constexpr float CharWidthApprox(float fontSize) noexcept { return fontSize * 0.55f; }
 [[nodiscard]] constexpr float LineHeightApprox(float fontSize) noexcept { return fontSize * 1.3f; }
+
+// ============================================================================
+// Clip : du rect flottant au rect entier
+// ============================================================================
+
+/**
+ * Convertit un rect de clip flottant en rect entier, bords arrondis VERS
+ * L'EXTÉRIEUR (floor en haut-gauche, ceil en bas-droite).
+ *
+ * L'ancienne forme, `{int(x), int(y), int(w) + 1, int(h) + 1}`, tronquait
+ * l'origine (donc pouvait la remonter d'un pixel) PUIS ajoutait un pixel
+ * plein à la taille : la région autorisée débordait ainsi jusqu'à deux pixels
+ * sur les bords bas et droit. Assez pour qu'un glyphe morde sur la bordure du
+ * widget parent — ce qui se voyait sur les champs de texte.
+ *
+ * Arrondir vers l'extérieur (et non vers l'intérieur) reste le bon choix :
+ * rogner mangerait une ligne de pixels du contenu à CHAQUE niveau
+ * d'imbrication, alors qu'ici le débordement est borné à moins d'un pixel et
+ * ne s'accumule pas (le clip d'un enfant est déjà l'intersection de celui de
+ * son parent).
+ */
+/**
+ * Zone de CONTENU d'un widget encadré : sa boîte moins l'épaisseur de sa
+ * bordure. Le texte d'un champ doit y rester : un cadre dont le trait est
+ * traversé par un glyphe se lit comme un défaut d'affichage, et c'est
+ * exactement ce que montrait le champ de script de l'éditeur (première ligne
+ * coupée en deux par la bordure haute).
+ */
+[[nodiscard]] inline sdl3::FRect InsetRect(const sdl3::FRect &r, float inset) noexcept {
+	return {r.x + inset, r.y + inset, sdl3::Max(0.f, r.w - 2.f * inset), sdl3::Max(0.f, r.h - 2.f * inset)};
+}
+
+/// Marge de confort entre le bord d'un widget et son texte, quand le widget
+/// l'a réservée dans sa mesure (cf. RenderSystem::DrawTextCentered).
+inline constexpr float TEXT_INSET = 8.f;
+
+/**
+ * Abscisse à laquelle poser un texte de largeur `textWidth` dans `box`.
+ *
+ * La marge `inset` suppose que le widget l'a RÉSERVÉE dans sa mesure — c'est
+ * le cas d'un bouton (sa mesure ajoute 24 px), pas d'un `UiLabel`, dont la
+ * boîte fait exactement la largeur du texte. Elle est donc rabotée quand il
+ * n'y a pas la place : le texte ne sort jamais de sa propre boîte, quel que
+ * soit l'alignement.
+ */
+[[nodiscard]] inline float TextOriginX(const sdl3::FRect &box, float textWidth, TextAlign align,
+									   float inset = TEXT_INSET) noexcept {
+	float x = box.x + inset;
+	if (align == TextAlign::Center)
+		x = box.x + (box.w - textWidth) * 0.5f;
+	else if (align == TextAlign::Right)
+		x = box.x + box.w - textWidth - inset;
+	return sdl3::Clamp(x, box.x, box.x + sdl3::Max(0.f, box.w - textWidth));
+}
+
+/// Débordement maximal du halo de lueur « verre » autour d'un widget —
+/// À GARDER ÉGAL au plus grand `outset` de RenderSystem::DrawGlowRing
+/// (1 + (anneaux - 1) x 1,5, plus l'épaisseur du trait). C'est le seul
+/// dessin qui sort de la boîte d'un widget PAR CONCEPTION, et donc la seule
+/// marge que le clip lui accorde.
+inline constexpr float GLOW_MAX_OUTSET = 5.f;
+
+/// Épaisseur de bordure des champs encadrés (cf. DrawRoundedRect).
+inline constexpr float FIELD_BORDER = 1.5f;
+
+[[nodiscard]] inline sdl3::Rect ToClipRect(const sdl3::FRect &r) noexcept {
+	const int x0 = int(sdl3::Floor(r.x));
+	const int y0 = int(sdl3::Floor(r.y));
+	const int x1 = int(sdl3::Ceil(r.x + r.w));
+	const int y1 = int(sdl3::Ceil(r.y + r.h));
+	return sdl3::Rect{x0, y0, x1 > x0 ? x1 - x0 : 0, y1 > y0 ? y1 - y0 : 0};
+}
+
+// ============================================================================
+// Codes d'échappement et caractères de contrôle
+// ============================================================================
+//
+// SDL_ttf ne traite PAS les codes d'échappement de la même façon selon qu'on
+// MESURE ou qu'on DESSINE, et c'est un piège coûteux (mesuré avec DejaVuSans
+// 16 pt, cf. tests/ui_text_metrics_smoke_test.cpp) :
+//
+//     texte        TTF_GetStringSize (mesure)   TTF_Text (dessin)
+//     "abc"                29 x 19                  29 x 19
+//     "abc\nabc"           68 x 19  <-- FAUX        29 x 38  <-- correct
+//     "a\tb"               30 x 19                  30 x 19  (boîte « glyphe manquant »)
+//     "a\r\nb"             40 x 19                  10 x 38
+//
+// Autrement dit : la mesure compte chaque `\n`, `\r` ou `\t` comme un glyphe
+// MANQUANT de ~10 px et reste sur UNE ligne, alors que le rendu, lui, casse
+// bien la ligne sur `\n`. Le layout réservait donc une boîte d'une seule
+// ligne, trop large, dans laquelle le texte débordait par le bas.
+//
+// La réponse tient en deux temps :
+//  1. NormalizeDisplayText() met la chaîne sous une forme où mesure et dessin
+//     ne peuvent plus diverger : `\r\n` et `\r` deviennent `\n`, les
+//     tabulations deviennent des espaces jusqu'au taquet suivant, et les
+//     autres caractères de contrôle (non affichables) disparaissent ;
+//  2. MeasureTextBlock() mesure LIGNE PAR LIGNE : largeur = la plus large,
+//     hauteur = nombre de lignes x hauteur de ligne.
+//
+// Pourquoi des taquets comptés en CARACTÈRES et non en pixels : le rendu d'un
+// libellé est un seul objet TTF_Text ; pour aligner sur des taquets en pixels
+// il faudrait dessiner segment par segment. En développant les tabulations en
+// espaces une fois pour toutes, la mesure et le dessin voient EXACTEMENT la
+// même chaîne — l'alignement est approximatif en police proportionnelle, mais
+// ce qui est réservé correspond toujours à ce qui est dessiné, ce qui est la
+// propriété dont dépend tout le reste du layout.
+
+/// Nombre de CARACTÈRES d'une chaîne UTF-8 (les octets de continuation
+/// 10xxxxxx ne comptent pas). L'heuristique de mesure sans police s'en sert :
+/// compter les octets donnait « Réglages » pour 10 caractères au lieu de 8, et
+/// surestimait donc de 25 % la largeur de tout texte accentué.
+[[nodiscard]] inline size_t CharCount(const String &text) noexcept {
+	size_t count = 0;
+	for (size_t i = 0; i < text.size(); ++i)
+		if ((static_cast<unsigned char>(text[i]) & 0xC0) != 0x80)
+			++count;
+	return count;
+}
+
+/// Largeur d'un taquet de tabulation, en caractères.
+inline constexpr int DEFAULT_TAB_STOP = 4;
+
+// ── Largeur d'affichage des caractères (UTF-8, UTF-16, UTF-32) ─────────────
+//
+// Compter les caractères ne suffit pas à estimer la place d'un texte : un
+// idéogramme ou un émoji occupe DEUX cellules, une marque combinante (accent
+// posé sur la lettre précédente), un sélecteur de variante ou un liant sans
+// chasse n'en occupent AUCUNE. Et hors du plan multilingue de base (émojis…),
+// un caractère pèse quatre octets en UTF-8, deux unités en UTF-16 (paire de
+// substitution) et une seule en UTF-32 : chaque encodage doit être décodé en
+// points de code avant d'être compté.
+
+/// Cellules d'affichage d'un point de code (à la manière de wcwidth) : 0, 1
+/// ou 2.
+[[nodiscard]] constexpr int CodepointCells(char32_t cp) noexcept {
+	if (cp == 0)
+		return 0;
+	// Sans chasse : marques combinantes, liants, sélecteurs de variante.
+	if ((cp >= 0x0300 && cp <= 0x036F) || (cp >= 0x0483 && cp <= 0x0489) || (cp >= 0x0591 && cp <= 0x05BD) ||
+		(cp >= 0x0610 && cp <= 0x061A) || (cp >= 0x064B && cp <= 0x065F) || (cp >= 0x1AB0 && cp <= 0x1AFF) ||
+		(cp >= 0x1DC0 && cp <= 0x1DFF) || (cp >= 0x200B && cp <= 0x200F) || (cp >= 0x2060 && cp <= 0x2064) ||
+		(cp >= 0x20D0 && cp <= 0x20FF) || (cp >= 0xFE00 && cp <= 0xFE0F) || (cp >= 0xFE20 && cp <= 0xFE2F) ||
+		cp == 0xFEFF || (cp >= 0xE0100 && cp <= 0xE01EF))
+		return 0;
+	// Pleine chasse : Hangul, CJK, formes pleine largeur, émojis.
+	if ((cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0x303E) || (cp >= 0x3041 && cp <= 0x33FF) ||
+		(cp >= 0x3400 && cp <= 0x4DBF) || (cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0xA000 && cp <= 0xA4CF) ||
+		(cp >= 0xAC00 && cp <= 0xD7A3) || (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0xFE30 && cp <= 0xFE4F) ||
+		(cp >= 0xFF00 && cp <= 0xFF60) || (cp >= 0xFFE0 && cp <= 0xFFE6) || (cp >= 0x1F300 && cp <= 0x1F64F) ||
+		(cp >= 0x1F680 && cp <= 0x1F6FF) || (cp >= 0x1F900 && cp <= 0x1F9FF) || (cp >= 0x1FA70 && cp <= 0x1FAFF) ||
+		(cp >= 0x20000 && cp <= 0x3FFFD))
+		return 2;
+	return 1;
+}
+
+/// Point de code suivant d'une chaîne UTF-16 (paires de substitution
+/// recombinées ; une moitié isolée vaut U+FFFD), `i` avancé d'autant.
+[[nodiscard]] constexpr char32_t NextUtf16Codepoint(std::u16string_view text, size_t &i) noexcept {
+	const char16_t unit = text[i++];
+	if (unit >= 0xD800 && unit <= 0xDBFF) {
+		if (i < text.size() && text[i] >= 0xDC00 && text[i] <= 0xDFFF) {
+			const char16_t low = text[i++];
+			return 0x10000 + ((char32_t(unit) - 0xD800) << 10) + (char32_t(low) - 0xDC00);
+		}
+		return 0xFFFD;
+	}
+	if (unit >= 0xDC00 && unit <= 0xDFFF)
+		return 0xFFFD;
+	return unit;
+}
+
+/// Nombre de CARACTÈRES (points de code) d'une chaîne UTF-16 : une paire de
+/// substitution compte pour un.
+[[nodiscard]] constexpr size_t CharCount(std::u16string_view text) noexcept {
+	size_t count = 0;
+	for (size_t i = 0; i < text.size(); ++count)
+		(void)NextUtf16Codepoint(text, i);
+	return count;
+}
+
+/// Nombre de caractères d'une chaîne UTF-32 : une unité = un point de code.
+[[nodiscard]] constexpr size_t CharCount(std::u32string_view text) noexcept { return text.size(); }
+
+/// Largeur d'affichage, en cellules, d'une chaîne UTF-8 (cf. CodepointCells).
+[[nodiscard]] inline size_t DisplayCells(const String &text) noexcept {
+	const auto *p = reinterpret_cast<const uint8_t *>(text.c_str());
+	const auto *end = p + text.size();
+	size_t cells = 0;
+	while (p < end)
+		cells += size_t(CodepointCells(char32_t(unicode::DecodeNext(p, end))));
+	return cells;
+}
+
+/// Largeur d'affichage, en cellules, d'une chaîne UTF-16.
+[[nodiscard]] constexpr size_t DisplayCells(std::u16string_view text) noexcept {
+	size_t cells = 0;
+	for (size_t i = 0; i < text.size();)
+		cells += size_t(CodepointCells(NextUtf16Codepoint(text, i)));
+	return cells;
+}
+
+/// Largeur d'affichage, en cellules, d'une chaîne UTF-32.
+[[nodiscard]] constexpr size_t DisplayCells(std::u32string_view text) noexcept {
+	size_t cells = 0;
+	for (char32_t cp : text)
+		cells += size_t(CodepointCells(cp));
+	return cells;
+}
+
+/// Cellules du caractère UTF-8 qui commence à l'octet `i` de `text`.
+[[nodiscard]] inline int CellsAt(const String &text, size_t i) noexcept {
+	const auto *p = reinterpret_cast<const uint8_t *>(text.c_str()) + i;
+	return CodepointCells(char32_t(unicode::DecodeNext(p, reinterpret_cast<const uint8_t *>(text.c_str()) + text.size())));
+}
+
+/// Caractère de contrôle C0 (hors `\n`, `\r`, `\t`, traités à part) ou DEL :
+/// aucun glyphe à dessiner, mais SDL_ttf en dessine une boîte.
+[[nodiscard]] inline bool IsNonPrintableControl(unsigned char c) noexcept {
+	return (c < 0x20 && c != '\n' && c != '\r' && c != '\t') || c == 0x7F;
+}
+
+/**
+ * Forme affichable d'une chaîne : `\r\n` et `\r` normalisés en `\n`,
+ * tabulations développées jusqu'au taquet suivant, autres caractères de
+ * contrôle retirés.
+ *
+ * Les colonnes sont comptées en CARACTÈRES et non en octets : une lettre
+ * accentuée occupe deux octets en UTF-8 mais une seule colonne, et compter
+ * les octets décalerait les taquets d'un texte français.
+ *
+ * Chaîne sans aucun caractère de contrôle (le cas courant) : rendue telle
+ * quelle, sans allocation.
+ */
+[[nodiscard]] inline String NormalizeDisplayText(const String &text, int tabStop = DEFAULT_TAB_STOP) {
+	bool hasControl = false;
+	for (size_t i = 0; i < text.size(); ++i) {
+		const unsigned char c = static_cast<unsigned char>(text[i]);
+		if (c < 0x20 || c == 0x7F) {
+			hasControl = true;
+			break;
+		}
+	}
+	if (!hasControl)
+		return text;
+
+	const int stop = tabStop > 0 ? tabStop : 1;
+	String out;
+	out.Reserve(text.size() + 8);
+	int column = 0;
+	for (size_t i = 0; i < text.size(); ++i) {
+		const unsigned char c = static_cast<unsigned char>(text[i]);
+		if (c == '\r') {
+			// `\r\n` est UN saut de ligne, pas deux ; un `\r` seul (vieux
+			// fichiers Mac, sorties de terminal) en est un aussi.
+			if (i + 1 < text.size() && text[i + 1] == '\n')
+				++i;
+			out.PushBack('\n');
+			column = 0;
+			continue;
+		}
+		if (c == '\n') {
+			out.PushBack('\n');
+			column = 0;
+			continue;
+		}
+		if (c == '\t') {
+			const int spaces = stop - (column % stop);
+			for (int k = 0; k < spaces; ++k)
+				out.PushBack(' ');
+			column += spaces;
+			continue;
+		}
+		if (IsNonPrintableControl(c))
+			continue;
+		out.PushBack(static_cast<char>(c));
+		// Octet de continuation UTF-8 (10xxxxxx) : même caractère, donc même
+		// colonne.
+		if ((c & 0xC0) != 0x80)
+			++column;
+	}
+	return out;
+}
+
+// ── Grille d'un champ éditable ─────────────────────────────────────────────
+//
+// UiInput/UiInputArea placent curseur, sélection et clics sur une grille de
+// cellules de largeur fixe (cf. CharWidthApprox) — une approximation assumée,
+// mais qui doit décrire les MÊMES cellules que ce qui est dessiné. Depuis que
+// le dessin développe les tabulations (cf. NormalizeDisplayText), compter les
+// octets ne suffit plus : une tabulation occupe plusieurs cellules, et un
+// caractère accentué en occupe UNE alors qu'il pèse deux octets.
+
+/// Nombre de cellules occupées par `line` jusqu'à `byteOffset` (exclu).
+[[nodiscard]] inline size_t DisplayColumn(const String &line, size_t byteOffset,
+										  int tabStop = DEFAULT_TAB_STOP) noexcept {
+	const int stop = tabStop > 0 ? tabStop : 1;
+	size_t column = 0;
+	const size_t end = sdl3::Min(byteOffset, line.size());
+	for (size_t i = 0; i < end; ++i) {
+		const unsigned char c = static_cast<unsigned char>(line[i]);
+		if (c == '\t')
+			column += size_t(stop) - (column % size_t(stop));
+		else if (IsNonPrintableControl(c) || c == '\n' || c == '\r')
+			continue; // retiré à l'affichage : n'occupe aucune cellule
+		else if ((c & 0xC0) != 0x80)
+			column += size_t(CellsAt(line, i)); // 2 pour un idéogramme, 0 pour un accent combinant
+	}
+	return column;
+}
+
+/// Largeur d'une ligne entière, en cellules.
+[[nodiscard]] inline size_t DisplayColumns(const String &line, int tabStop = DEFAULT_TAB_STOP) noexcept {
+	return DisplayColumn(line, line.size(), tabStop);
+}
+
+/// Inverse de DisplayColumn : décalage en octets de la cellule `column`.
+///
+/// Retombe toujours sur une frontière de caractère. Une cellule tombant AU
+/// MILIEU d'une tabulation (qui en occupe plusieurs) est ramenée au bord le
+/// plus proche — comme dans n'importe quel éditeur de texte : cliquer juste
+/// après le texte place le curseur avant la tabulation, cliquer près du
+/// caractère suivant le place après.
+[[nodiscard]] inline size_t ColumnToByteOffset(const String &line, size_t column,
+											   int tabStop = DEFAULT_TAB_STOP) noexcept {
+	const int stop = tabStop > 0 ? tabStop : 1;
+	size_t current = 0;
+	size_t i = 0;
+	while (i < line.size()) {
+		// Fin du caractère commencé en `i` (les octets 10xxxxxx en font partie).
+		size_t next = i + 1;
+		while (next < line.size() && (static_cast<unsigned char>(line[next]) & 0xC0) == 0x80)
+			++next;
+
+		const unsigned char c = static_cast<unsigned char>(line[i]);
+		size_t width = size_t(CellsAt(line, i));
+		if (c == '\t')
+			width = size_t(stop) - (current % size_t(stop));
+		else if (IsNonPrintableControl(c) || c == '\n' || c == '\r')
+			width = 0;
+
+		if (column <= current)
+			return i;
+		if (column < current + width)
+			return (column - current) * 2 <= width ? i : next;
+		current += width;
+		i = next;
+	}
+	return line.size();
+}
+
+/// Place occupée par un texte, sauts de ligne compris.
+struct TextMetrics {
+	float width = 0.f;      ///< largeur de la ligne la plus large
+	float height = 0.f;     ///< lineCount * lineHeight
+	float lineHeight = 0.f; ///< hauteur d'UNE ligne
+	size_t lineCount = 1;   ///< toujours >= 1 (une chaîne vide occupe une ligne)
+};
+
+/**
+ * Mesure un texte en tenant compte des codes d'échappement.
+ *
+ * `measureLine` mesure UNE ligne déjà normalisée (c'est le rôle de
+ * `LayoutSystem::measureText`, que les applications remplacent par une vraie
+ * mesure TTF) : découper les lignes ici plutôt que dans chaque application
+ * fait que toutes en profitent sans changer une ligne de leur code.
+ *
+ * La hauteur de ligne retenue est la PLUS GRANDE rendue par `measureLine`
+ * (une ligne vide rend souvent 0) avec repli sur `LineHeightApprox`, pour
+ * qu'un texte se terminant par `\n` réserve bien une ligne de plus.
+ */
+[[nodiscard]] inline TextMetrics
+MeasureTextBlock(const String &text, float fontSize,
+				 const std::function<sdl3::FPoint(const String &, float)> &measureLine,
+				 int tabStop = DEFAULT_TAB_STOP) {
+	TextMetrics metrics;
+	metrics.lineHeight = LineHeightApprox(fontSize);
+	if (!measureLine)
+		return metrics;
+
+	const String normalized = NormalizeDisplayText(text, tabStop);
+	size_t start = 0;
+	float hookHeight = 0.f;
+	metrics.lineCount = 0;
+	while (true) {
+		const size_t nl = normalized.Find('\n', start);
+		const String line = nl == String::npos ? normalized.Substr(start) : normalized.Substr(start, nl - start);
+		const sdl3::FPoint size = measureLine(line, fontSize);
+		metrics.width = sdl3::Max(metrics.width, size.x);
+		hookHeight = sdl3::Max(hookHeight, size.y);
+		++metrics.lineCount;
+		if (nl == String::npos)
+			break;
+		start = nl + 1;
+	}
+	// Hauteur de ligne : celle que la mesure branchée rapporte, et l'
+	// heuristique SEULEMENT si elle n'en rapporte aucune (une ligne vide rend
+	// souvent une hauteur nulle). Prendre le maximum des deux paraîtrait plus
+	// prudent mais serait faux : l'heuristique (1,3 x la taille de police)
+	// dépasse la hauteur réelle d'une police donnée, et la place réservée ne
+	// correspondrait plus à la place dessinée — la propriété même que ce
+	// fichier existe pour garantir.
+	if (hookHeight > 0.f)
+		metrics.lineHeight = hookHeight;
+	metrics.height = metrics.lineHeight * float(metrics.lineCount);
+	return metrics;
+}
+
+// ── Retour automatique à la ligne, mesuré ──────────────────────────────────
+//
+// `WrapText` (plus bas) découpe à la louche, en supposant des caractères de
+// largeur fixe : c'est ce dont un champ de saisie a besoin, parce que sa
+// grille de curseur fonctionne déjà ainsi. Un LIBELLÉ, lui, est dessiné avec
+// la vraie police : le découper au caractère laisserait des lignes trop
+// courtes ou débordantes. D'où cette seconde découpe, qui mesure réellement.
+
+/// Une ligne issue du retour automatique, avec sa largeur mesurée.
+struct WrappedLine {
+	String text;
+	float width = 0.f;
+	/// Vrai pour la dernière ligne d'un paragraphe (elle n'est jamais
+	/// justifiée : étirer les mots d'une fin de phrase la rendrait illisible).
+	bool lastOfParagraph = false;
+};
+
+/**
+ * Découpe `text` en lignes tenant dans `maxWidth`, en coupant AUX ESPACES.
+ *
+ * Un mot plus long que la largeur disponible est coupé au caractère (sinon il
+ * déborderait indéfiniment) ; les sauts de ligne explicites sont respectés,
+ * comme partout ailleurs (cf. NormalizeDisplayText).
+ *
+ * `measureLine` est la mesure d'une ligne, déjà normalisée — la même que
+ * partout (cf. MeasureTextBlock).
+ */
+[[nodiscard]] inline std::vector<WrappedLine>
+WrapTextToWidth(const String &text, float fontSize, float maxWidth,
+				const std::function<sdl3::FPoint(const String &, float)> &measureLine,
+				int tabStop = DEFAULT_TAB_STOP) {
+	std::vector<WrappedLine> lines;
+	if (!measureLine)
+		return lines;
+	const String normalized = NormalizeDisplayText(text, tabStop);
+	auto widthOf = [&](const String &s) { return s.IsEmpty() ? 0.f : measureLine(s, fontSize).x; };
+
+	size_t paraStart = 0;
+	while (true) {
+		const size_t nl = normalized.Find('\n', paraStart);
+		const String paragraph =
+			nl == String::npos ? normalized.Substr(paraStart) : normalized.Substr(paraStart, nl - paraStart);
+
+		String current;
+		size_t i = 0;
+		while (i <= paragraph.size()) {
+			// Mot suivant = jusqu'au prochain espace (inclus : l'espace reste
+			// collé au mot, pour que la largeur mesurée soit celle dessinée).
+			size_t space = paragraph.Find(' ', i);
+			const size_t end = space == String::npos ? paragraph.size() : space + 1;
+			if (i >= paragraph.size())
+				break;
+			const String word = paragraph.Substr(i, end - i);
+			const String candidate = current.IsEmpty() ? word : current + word;
+			if (maxWidth > 0.f && widthOf(candidate) > maxWidth && !current.IsEmpty()) {
+				lines.push_back({current, widthOf(current), false});
+				current = word;
+			} else if (maxWidth > 0.f && widthOf(candidate) > maxWidth) {
+				// Mot seul trop long : coupé au caractère, sur une frontière
+				// UTF-8 valide.
+				String piece;
+				for (size_t k = 0; k < word.size();) {
+					size_t next = k + 1;
+					while (next < word.size() && (static_cast<unsigned char>(word[next]) & 0xC0) == 0x80)
+						++next;
+					const String grown = piece + word.Substr(k, next - k);
+					if (!piece.IsEmpty() && widthOf(grown) > maxWidth) {
+						lines.push_back({piece, widthOf(piece), false});
+						piece = word.Substr(k, next - k);
+					} else {
+						piece = grown;
+					}
+					k = next;
+				}
+				current = piece;
+			} else {
+				current = candidate;
+			}
+			i = end;
+		}
+		lines.push_back({current, widthOf(current), true});
+
+		if (nl == String::npos)
+			break;
+		paraStart = nl + 1;
+	}
+	return lines;
+}
+
+/// Hauteur occupée par `text` replié dans `maxWidth`.
+[[nodiscard]] inline float WrappedHeight(const String &text, float fontSize, float maxWidth,
+										 const std::function<sdl3::FPoint(const String &, float)> &measureLine,
+										 int tabStop = DEFAULT_TAB_STOP) {
+	const std::vector<WrappedLine> lines = WrapTextToWidth(text, fontSize, maxWidth, measureLine, tabStop);
+	float lineHeight = LineHeightApprox(fontSize);
+	if (measureLine)
+		if (const float measured = measureLine(String("Ag"), fontSize).y; measured > 0.f)
+			lineHeight = measured;
+	return lineHeight * float(sdl3::Max(size_t(1), lines.size()));
+}
 
 /// Une ligne affichée (enveloppée ou brute) avec son décalage en octets dans
 /// le texte d'origine — nécessaire pour la navigation clavier (Haut/Bas,
@@ -126,16 +660,26 @@ struct TextLine {
 
 /// Découpe `text` en lignes sur `\n` (UiInputArea : pas de word-wrap, chaque
 /// ligne logique = une ligne affichée).
+[[nodiscard]] inline String StripTrailingReturn(String line) {
+	if (!line.IsEmpty() && line[line.size() - 1] == '\r')
+		return line.Substr(0, line.size() - 1);
+	return line;
+}
+
 [[nodiscard]] inline std::vector<TextLine> SplitLines(const String &text) {
 	std::vector<TextLine> lines;
 	size_t start = 0;
 	while (true) {
 		size_t nl = text.Find('\n', start);
 		if (nl == String::npos) {
-			lines.push_back({start, text.Substr(start)});
+			lines.push_back({start, StripTrailingReturn(text.Substr(start))});
 			break;
 		}
-		lines.push_back({start, text.Substr(start, nl - start)});
+		// `\r` de fin de ligne avalé : un texte collé depuis un fichier CRLF
+		// afficherait sinon une boîte « glyphe manquant » au bout de CHAQUE
+		// ligne. Les décalages restent justes — seul le contenu affiché de la
+		// ligne perd son dernier octet.
+		lines.push_back({start, StripTrailingReturn(text.Substr(start, nl - start))});
 		start = nl + 1;
 	}
 	return lines;
@@ -180,25 +724,24 @@ struct TextLine {
 /// marges (8px/4px) et défilement que le rendu (cf. RenderSystem). Utilisé
 /// pour placer le curseur au clic et pendant un glisser de sélection.
 [[nodiscard]] inline size_t HitTestOffset(const std::vector<TextLine> &lines, const String &text, float fontSize,
-										  const sdl3::FRect &s, const sdl3::FPoint &scroll, float mx, float my) noexcept {
+										  const sdl3::FRect &s, const sdl3::FPoint &scroll, float mx, float my,
+										  int tabStop = DEFAULT_TAB_STOP, float cellWidth = 0.f) noexcept {
 	if (lines.empty())
 		return 0;
 	float lh = LineHeightApprox(fontSize);
-	float cw = CharWidthApprox(fontSize);
+	float cw = cellWidth > 0.f ? cellWidth : CharWidthApprox(fontSize);
 	float relY = my - (s.y + 4.f - scroll.y);
 	int li = int(relY < 0.f ? 0.f : relY / lh);
 	li = int(sdl3::Clamp(float(li), 0.f, float(lines.size() - 1)));
 	const TextLine &line = lines[size_t(li)];
 	float relX = mx - (s.x + 8.f - scroll.x);
 	int col = cw > 0.f ? int(relX / cw + 0.5f) : 0;
-	col = int(sdl3::Clamp(float(col), 0.f, float(line.text.size())));
-	size_t off = line.offset + size_t(col);
-	// Recale sur une frontière de point de code valide (col compte des
-	// octets, pas des points de code — un caractère multi-octet pourrait
-	// sinon retomber au milieu de sa propre séquence UTF-8).
-	while (off > line.offset && off <= text.size() && (uint8_t(text.c_str()[off]) & 0xC0) == 0x80)
-		--off;
-	return off;
+	col = int(sdl3::Clamp(float(col), 0.f, float(DisplayColumns(line.text, tabStop))));
+	// Colonne D'AFFICHAGE -> octet : une tabulation occupe plusieurs cellules
+	// et un caractère accentué une seule pour deux octets, donc l'un n'est pas
+	// l'autre. La conversion retombe toujours sur une frontière de caractère.
+	(void)text;
+	return line.offset + ColumnToByteOffset(line.text, size_t(col), tabStop);
 }
 
 /// Ajuste r.scroll.y au minimum nécessaire pour que la ligne `lineIndex`
@@ -208,12 +751,55 @@ struct TextLine {
 inline void ScrollIntoView(UiRect &r, const UiComputed &c, size_t lineIndex, float fontSize) noexcept {
 	float lh = LineHeightApprox(fontSize);
 	float lineTop = float(lineIndex) * lh;
-	float viewH = sdl3::Max(1.f, c.screen.h - 8.f);
+	(void)c;
+	float viewH = sdl3::Max(1.f, r.ViewSize().y - 8.f);
 	if (lineTop < r.scroll.y)
 		r.scroll.y = lineTop;
 	else if (lineTop + lh > r.scroll.y + viewH)
 		r.scroll.y = lineTop + lh - viewH;
 	r.ClampScroll();
+}
+
+/// Défilement HORIZONTAL minimal pour que la colonne `column` (cellules
+/// d'affichage) reste visible — le pendant de ScrollIntoView pour les lignes
+/// longues d'un éditeur de code, où le texte ne se replie pas.
+inline void ScrollColumnIntoView(UiRect &r, float viewWidth, size_t column, float cellWidth) noexcept {
+	const float x = float(column) * cellWidth;
+	const float margin = cellWidth * 2.f;
+	const float view = sdl3::Max(1.f, viewWidth - 16.f);
+	if (x - margin < r.scroll.x)
+		r.scroll.x = x - margin;
+	else if (x + margin > r.scroll.x + view)
+		r.scroll.x = x + margin - view;
+	r.ClampScroll();
+}
+
+// ── Géométrie d'un UiInputArea (mode éditeur de code) ───────────────────────
+// Une seule définition partagée par la saisie, la mise en page et le rendu :
+// si l'un plaçait le texte autrement que les autres, le clic tomberait à côté
+// du caractère visé.
+
+/// Largeur d'une cellule de caractère : celle mesurée sur la police dessinée
+/// si le rendu l'a publiée, l'approximation sinon.
+[[nodiscard]] inline float AreaCellWidth(const UiInputArea &f, float fontSize) noexcept {
+	return f.cellWidth > 0.f ? f.cellWidth : CharWidthApprox(fontSize);
+}
+
+/// Largeur de la gouttière de numéros (0 sans numéros) : au moins trois
+/// chiffres, pour que la marge ne saute pas en passant de la ligne 99 à 100.
+[[nodiscard]] inline float AreaGutterWidth(const UiInputArea &f, size_t lineCount, float cellWidth) noexcept {
+	if (!f.lineNumbers)
+		return 0.f;
+	size_t digits = 1;
+	for (size_t n = lineCount; n >= 10; n /= 10)
+		++digits;
+	return float(sdl3::Max<size_t>(digits, 3)) * cellWidth + 16.f;
+}
+
+/// Boîte du TEXTE (à droite de la gouttière) — c'est elle, et non le rect du
+/// widget, que reçoivent HitTestOffset/DrawCaret/DrawSelection.
+[[nodiscard]] inline sdl3::FRect AreaTextBox(const sdl3::FRect &screen, float gutter) noexcept {
+	return {screen.x + gutter, screen.y, sdl3::Max(0.f, screen.w - gutter), screen.h};
 }
 
 // ============================================================================
@@ -224,13 +810,50 @@ class LayoutSystem {
 public:
 	/// Mesure du texte (largeur, hauteur). Par défaut : heuristique sans TTF ;
 	/// brancher une vraie mesure via `measureText = ...` quand une Font existe.
-	std::function<sdl3::FPoint(const String &, float fontSize)> measureText = [](const String &s, float fs) -> sdl3::FPoint {
-		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
+	/// Mesure d'UNE ligne (largeur, hauteur). Les sauts de ligne, tabulations
+	/// et caractères de contrôle sont traités en amont par MeasureText() :
+	/// une implémentation branchée ici n'a jamais à s'en soucier.
+	std::function<sdl3::FPoint(const String &, float fontSize)> measureText = [](const String &s,
+																				 float fs) -> sdl3::FPoint {
+		return {float(DisplayCells(s)) * CharWidthApprox(fs), LineHeightApprox(fs)};
 	};
 
 	/// Taille de police racine — base de DimUnit::Rem, et police héritée par
 	/// les widgets sans fontSize propre (UiFactory l'aligne sur son thème).
 	float rootFontSize = 14.f;
+
+	/// Largeur d'un taquet de tabulation, en caractères (cf.
+	/// NormalizeDisplayText).
+	int tabStop = DEFAULT_TAB_STOP;
+
+	/**
+	 * Place occupée par un texte, CODES D'ÉCHAPPEMENT COMPRIS — c'est ce que
+	 * le layout appelle, et non `measureText` directement.
+	 *
+	 * `measureText` reste le point de branchement des applications et ne
+	 * mesure qu'UNE ligne : le découpage en lignes, les tabulations et les
+	 * caractères de contrôle sont traités ici, une fois, pour tout le monde
+	 * (cf. MeasureTextBlock).
+	 */
+	[[nodiscard]] sdl3::FPoint MeasureText(const String &text, float fontSize) const {
+		const TextMetrics metrics = MeasureTextBlock(text, fontSize, measureText, tabStop);
+		return {metrics.width, metrics.height};
+	}
+
+	/// Même mesure pour un texte UTF-16 (paires de substitution comprises).
+	[[nodiscard]] sdl3::FPoint MeasureText(std::u16string_view text, float fontSize) const {
+		return MeasureText(String::FromUtf16(text), fontSize);
+	}
+	/// Même mesure pour un texte UTF-32.
+	[[nodiscard]] sdl3::FPoint MeasureText(std::u32string_view text, float fontSize) const {
+		return MeasureText(String::FromUtf32(text), fontSize);
+	}
+
+	/// Métriques complètes (nombre de lignes, hauteur de ligne) quand la seule
+	/// taille ne suffit pas.
+	[[nodiscard]] TextMetrics MeasureTextMetrics(const String &text, float fontSize) const {
+		return MeasureTextBlock(text, fontSize, measureText, tabStop);
+	}
 
 	void MarkDirty() noexcept { dirty = true; }
 	[[nodiscard]] bool Dirty() const noexcept { return dirty; }
@@ -261,6 +884,13 @@ public:
 			sdl3::FRect screen = pass.rects[root.id].ResolveIn({0.f, 0.f}, screenW, screenH);
 			screen.w = w;
 			screen.h = h;
+			// Un popup racine (menu déroulant, menu contextuel ouvert près d'un
+			// bord) est RAMENÉ dans la fenêtre : ouvert au clic droit tout en
+			// bas de l'écran, il se déploierait sinon hors de vue.
+			if (world.HasComponent<UiPopupState>(root)) {
+				screen.x = sdl3::Clamp(screen.x, 0.f, sdl3::Max(0.f, screenW - w));
+				screen.y = sdl3::Clamp(screen.y, 0.f, sdl3::Max(0.f, screenH - h));
+			}
 			pass.Place(root, screen, full);
 		}
 
@@ -289,6 +919,8 @@ private:
 		std::unordered_map<uint32_t, UiComputed> out;    // résultats
 		std::unordered_map<uint32_t, sdl3::FPoint> newContent; // contenu auto des conteneurs
 		std::unordered_map<uint32_t, sdl3::FPoint> newSizes;   // tailles résolues (scroll)
+		std::unordered_map<uint32_t, sdl3::FPoint> newGutters; // place des barres de défilement
+		std::unordered_map<uint32_t, math::Sides> borders;     // épaisseur de bordure dessinée
 		std::unordered_map<uint32_t, EmBases> fonts;     // bases Em/Pem/Rem par entité
 
 		Pass(LayoutSystem &s, ecs::ArchetypeRegistry &w, float rw, float rh) : sys(s), world(w), rootW(rw), rootH(rh) {}
@@ -299,6 +931,13 @@ private:
 			world.Query<UiItem>([&](ecs::Entity e, UiItem &i) { items[e.id] = i; });
 			world.Query<UiChildren>([&](ecs::Entity e, UiChildren &c) { children[e.id] = c.list; });
 			world.Query<UiHidden>([&](ecs::Entity e, UiHidden &) { hidden.insert(e.id); });
+			// Même règle que RenderSystem::DrawWidget (UiPanel) : une bordure
+			// n'est dessinée — donc n'occupe de place — que si elle a une couleur.
+			world.Query<UiPanel>([&](ecs::Entity e, UiPanel &) {
+				ResolvedStyle rs = GetResolved(world, e);
+				if (rs.HasBorderColor())
+					borders[e.id] = BorderSides(rs);
+			});
 			world.Query<UiRect>([&](ecs::Entity e, UiRect &) {
 				if (!world.HasComponent<UiParent>(e) && !hidden.contains(e.id))
 					roots.push_back(e);
@@ -398,9 +1037,9 @@ private:
 			// Em/Rem, pas de nouvelle résolution ici.
 			float fs = FontsOf(e).em;
 			if (auto l = world.GetComponent<UiLabel>(e); l.IsSome())
-				return sys.measureText(l.Unwrap()->text, fs);
+				return sys.MeasureText(l.Unwrap()->text, fs);
 			if (auto b = world.GetComponent<UiButton>(e); b.IsSome()) {
-				auto t = sys.measureText(b.Unwrap()->text, fs);
+				auto t = sys.MeasureText(b.Unwrap()->text, fs);
 				return {t.x + 24.f, t.y + 14.f};
 			}
 			if (world.HasComponent<UiToggle>(e))
@@ -429,13 +1068,13 @@ private:
 			if (world.HasComponent<UiAlphaSlider>(e))
 				return {160.f, 16.f};
 			if (auto mb = world.GetComponent<UiMenuBarItem>(e); mb.IsSome()) {
-				auto t = sys.measureText(mb.Unwrap()->text, fs);
+				auto t = sys.MeasureText(mb.Unwrap()->text, fs);
 				return {t.x + 20.f, t.y + 12.f};
 			}
 			if (auto mi = world.GetComponent<UiMenuItem>(e); mi.IsSome()) {
-				auto t = sys.measureText(mi.Unwrap()->text, fs);
+				auto t = sys.MeasureText(mi.Unwrap()->text, fs);
 				float shortcutW =
-					mi.Unwrap()->shortcut.IsEmpty() ? 0.f : sys.measureText(mi.Unwrap()->shortcut, fs).x + 20.f;
+					mi.Unwrap()->shortcut.IsEmpty() ? 0.f : sys.MeasureText(mi.Unwrap()->shortcut, fs).x + 20.f;
 				float arrowW = mi.Unwrap()->hasSubmenu ? 16.f : 0.f;
 				return {t.x + 24.f + shortcutW + arrowW, t.y + 12.f};
 			}
@@ -448,7 +1087,7 @@ private:
 			if (world.HasComponent<UiCalendar>(e))
 				return {220.f, 200.f};
 			if (auto rd = world.GetComponent<UiRadio>(e); rd.IsSome()) {
-				auto t = sys.measureText(rd.Unwrap()->text, fs);
+				auto t = sys.MeasureText(rd.Unwrap()->text, fs);
 				return {18.f + (rd.Unwrap()->text.IsEmpty() ? 0.f : 6.f + t.x), sdl3::Max(18.f, t.y)};
 			}
 			if (auto sb = world.GetComponent<UiScrollBar>(e); sb.IsSome())
@@ -464,7 +1103,7 @@ private:
 			if (world.HasComponent<UiSpinner>(e))
 				return {28.f, 28.f};
 			if (auto bd = world.GetComponent<UiBadge>(e); bd.IsSome()) {
-				auto t = sys.measureText(bd.Unwrap()->text, fs);
+				auto t = sys.MeasureText(bd.Unwrap()->text, fs);
 				return {t.x + 14.f, t.y + 4.f};
 			}
 			return rects.at(e.id).size;
@@ -504,7 +1143,66 @@ private:
 				main += flow.gap * SCALE * float(n - 1);
 			float w = (flow.dir == LayoutDir::Column) ? cross : main;
 			float h = (flow.dir == LayoutDir::Column) ? main : cross;
-			return isW ? (w + flow.padding.H() * SCALE) : (h + flow.padding.V() * SCALE);
+			// La bordure s'ajoute au contenu (modèle border-box) : sans elle,
+			// les bords droit/bas d'un conteneur ajusté seraient rognés.
+			const math::Sides BORDER = BorderOf(e);
+			return isW ? (w + flow.padding.H() * SCALE + BORDER.H()) : (h + flow.padding.V() * SCALE + BORDER.V());
+		}
+
+		/// Texte d'un widget textuel (libellé ou bouton) — les deux seuls que
+		/// le retour automatique concerne aujourd'hui.
+		[[nodiscard]] const String *TextOf(ecs::Entity e) const {
+			if (auto l = world.GetComponent<UiLabel>(e); l.IsSome())
+				return &l.Unwrap()->text;
+			if (auto b = world.GetComponent<UiButton>(e); b.IsSome())
+				return &b.Unwrap()->text;
+			return nullptr;
+		}
+
+		/// Hauteur d'un widget à retour automatique replié dans `availableWidth`,
+		/// NONE s'il n'est pas dans ce cas.
+		///
+		/// Cette hauteur ne peut pas être calculée par Measure() : elle dépend
+		/// de la largeur que le widget REÇOIT, connue seulement au placement.
+		[[nodiscard]] Option<float> WrappedHeightOf(ecs::Entity e, float availableWidth) {
+			if (TextOverflowOf(world, e) != TextOverflow::WRAP || availableWidth <= 0.f)
+				return NONE;
+			const String *text = TextOf(e);
+			if (!text || text->IsEmpty())
+				return NONE;
+			return Some(WrappedHeight(*text, FontsOf(e).em, availableWidth, sys.measureText, sys.tabStop));
+		}
+
+		/**
+		 * Taille du CONTENU logique d'un widget textuel qui déborde — ce qui
+		 * fait apparaître, sans une ligne de code de plus, la barre de
+		 * défilement correspondante (cf. UiRect::MaxScroll, l'auto-scrollbar
+		 * de RenderSystem::DrawScrollbars, et la molette/le pouce déjà gérés
+		 * par InputSystem).
+		 *
+		 * NONE pour les autres modes : leur contenu logique EST leur boîte.
+		 */
+		[[nodiscard]] Option<sdl3::FPoint> TextContentSize(ecs::Entity e, const sdl3::FRect &screen) {
+			const TextOverflow mode = TextOverflowOf(world, e);
+			if (mode != TextOverflow::SCROLL && mode != TextOverflow::WRAP)
+				return NONE;
+			const String *text = TextOf(e);
+			if (!text || text->IsEmpty())
+				return NONE;
+			const float fs = FontsOf(e).em;
+			if (mode == TextOverflow::SCROLL) {
+				const float width = sys.MeasureText(*text, fs).x + 2.f * TEXT_INSET;
+				return Some(sdl3::FPoint{width, screen.h});
+			}
+			const float height = WrappedHeight(*text, fs, sdl3::Max(1.f, screen.w - 2.f * TEXT_INSET),
+											   sys.measureText, sys.tabStop);
+			return Some(sdl3::FPoint{screen.w, height});
+		}
+
+		/// Épaisseur de bordure de `e` (zéro sans bordure dessinée).
+		[[nodiscard]] math::Sides BorderOf(ecs::Entity e) const {
+			auto it = borders.find(e.id);
+			return it == borders.end() ? math::Sides{} : it->second;
 		}
 
 		/// Taille intrinsèque de `e` (post-ordre, mémoïsée).
@@ -551,14 +1249,15 @@ private:
 			UiComputed c;
 			c.screen = screen;
 			c.clip = drawClip;
-			// Toujours borné à sa propre boîte : le contenu d'un widget ne doit
-			// jamais s'afficher hors de sa zone absolue. `clipContent` ne
-			// contrôle donc plus QUE le scroll (molette + auto-scrollbar) —
-			// le clip, lui, est inconditionnel. Les enfants détachés
-			// (AttachLayout::Fixed) contournent volontairement ce clip via
-			// leur propre chemin dans place() (voir plus bas).
-			c.childClip = drawClip.Intersection(screen);
+			const sdl3::FPoint PREVIOUS_CONTENT = r.content;
 			c.measured = measured.contains(e.id) ? measured[e.id] : sdl3::FPoint{screen.w, screen.h};
+
+			// Marquee : c'est ici, et seulement ici, qu'on dispose de la vraie
+			// mesure du texte (cf. UiTextOverflow::textWidth).
+			if (auto overflow = world.GetComponent<UiTextOverflow>(e);
+				overflow.IsSome() && overflow.Unwrap()->mode == TextOverflow::MARQUEE)
+				if (const String *text = TextOf(e))
+					overflow.Unwrap()->textWidth = sys.MeasureText(*text, FontsOf(e).em).x;
 
 			auto fit = flows.find(e.id);
 			const bool HAS_FLOW = fit != flows.end();
@@ -568,39 +1267,87 @@ private:
 			// le scale de CE conteneur (cf. EmBases::scale, Phase 0 node-graph).
 			const float SELF_SCALE = FontsOf(e).scale;
 			const math::Sides RAW_PAD = HAS_FLOW ? fit->second.padding : math::Sides{};
-			const math::Sides PAD{RAW_PAD.left * SELF_SCALE, RAW_PAD.top * SELF_SCALE, RAW_PAD.right * SELF_SCALE,
-							RAW_PAD.bottom * SELF_SCALE};
-			sdl3::FRect contentBox{screen.x + PAD.left, screen.y + PAD.top, sdl3::Max(0.f, screen.w - PAD.H()),
-							 sdl3::Max(0.f, screen.h - PAD.V())};
-			c.contentOrigin = {contentBox.x - r.scroll.x, contentBox.y - r.scroll.y};
-			out[e.id] = c;
+			// La bordure fait partie de la boîte : le contenu commence à
+			// l'intérieur, sinon les enfants la recouvrent (cf. BorderOf).
+			const math::Sides BORDER = BorderOf(e);
+			const math::Sides PAD{RAW_PAD.left * SELF_SCALE + BORDER.left, RAW_PAD.top * SELF_SCALE + BORDER.top,
+							RAW_PAD.right * SELF_SCALE + BORDER.right, RAW_PAD.bottom * SELF_SCALE + BORDER.bottom};
+			const sdl3::FRect inner{screen.x + BORDER.left, screen.y + BORDER.top,
+							  sdl3::Max(0.f, screen.w - BORDER.H()), sdl3::Max(0.f, screen.h - BORDER.V())};
 			newSizes[e.id] = {screen.w, screen.h};
 
 			auto kids = VisibleChildren(e);
-			if (kids.empty())
-				return;
-
 			std::vector<ecs::Entity> flowKids, absKids;
 			for (ecs::Entity k : kids)
 				(HAS_FLOW && ItemOf(k).attach == AttachLayout::RELATIVE ? flowKids : absKids).push_back(k);
 
-			if (HAS_FLOW && !flowKids.empty())
-				PlaceLinear(e, fit->second, contentBox, c.contentOrigin, c.childClip, flowKids);
+			// Les barres de défilement occupent leur propre bande (UiRect::
+			// gutter) : le contenu est placé dans ce qui reste. Leur présence
+			// dépend du contenu, lui-même placé dans la boîte réduite — on
+			// part donc de l'état de l'image précédente (le cas stable ne
+			// coûte qu'un passage) et on replace tant que ce choix change.
+			sdl3::FPoint gutter = r.gutter;
+			for (int attempt = 0; attempt < 3; ++attempt) {
+				r.gutter = gutter;
+				sdl3::FRect contentBox{screen.x + PAD.left, screen.y + PAD.top,
+								 sdl3::Max(0.f, screen.w - PAD.H() - gutter.x),
+								 sdl3::Max(0.f, screen.h - PAD.V() - gutter.y)};
+				c.contentOrigin = {contentBox.x - r.scroll.x, contentBox.y - r.scroll.y};
+				// Toujours borné à sa propre boîte (bordure et barres exclues) :
+				// le contenu d'un widget ne doit jamais s'afficher hors de sa
+				// zone, ni sous sa bordure ou ses barres de défilement. Les
+				// enfants détachés (AttachLayout::Fixed) contournent
+				// volontairement ce clip via leur propre chemin plus bas.
+				c.childClip = drawClip.Intersection(sdl3::FRect{inner.x, inner.y, sdl3::Max(0.f, inner.w - gutter.x),
+															   sdl3::Max(0.f, inner.h - gutter.y)});
+				out[e.id] = c;
+				newContent.erase(e.id);
 
-			for (ecs::Entity k : absKids) {
-				auto [w, h] = ResolveSize(k, contentBox.w, contentBox.h);
-				UiRect kr = rects[k.id];
-				kr.size = {w, h};
-				sdl3::FRect ks = kr.ResolveIn(c.contentOrigin, contentBox.w, contentBox.h);
-				ks.w = w;
-				ks.h = h;
-				// Fixed : même position (ancre/offset relatifs au parent), mais
-				// clip élargi à la fenêtre entière — RenderSystem le dessine hors
-				// de l'arbre normal (overlay), donc son clip d'entrée ne doit pas
-				// rester borné à celui, potentiellement étroit, de son parent.
-				bool isFixed = ItemOf(k).attach == AttachLayout::FIXED;
-				Place(k, ks, isFixed ? sdl3::FRect{0.f, 0.f, rootW, rootH} : c.childClip);
+				// Débordement textuel : le contenu logique dépasse la boîte,
+				// d'où la barre de défilement (cf. TextContentSize).
+				if (Option<sdl3::FPoint> textContent = TextContentSize(
+						e, sdl3::FRect{screen.x, screen.y, sdl3::Max(0.f, screen.w - gutter.x),
+									   sdl3::Max(0.f, screen.h - gutter.y)});
+					textContent.IsSome())
+					newContent[e.id] = textContent.Unwrap();
+
+				if (HAS_FLOW && !flowKids.empty())
+					PlaceLinear(e, fit->second, contentBox, c.contentOrigin, c.childClip, flowKids);
+
+				for (ecs::Entity k : absKids) {
+					auto [w, h] = ResolveSize(k, contentBox.w, contentBox.h);
+					UiRect kr = rects[k.id];
+					kr.size = {w, h};
+					sdl3::FRect ks = kr.ResolveIn(c.contentOrigin, contentBox.w, contentBox.h);
+					ks.w = w;
+					ks.h = h;
+					// Fixed : même position (ancre/offset relatifs au parent), mais
+					// clip élargi à la fenêtre entière — RenderSystem le dessine hors
+					// de l'arbre normal (overlay), donc son clip d'entrée ne doit pas
+					// rester borné à celui, potentiellement étroit, de son parent.
+					bool isFixed = ItemOf(k).attach == AttachLayout::FIXED;
+					Place(k, ks, isFixed ? sdl3::FRect{0.f, 0.f, rootW, rootH} : c.childClip);
+				}
+
+				auto content = newContent.find(e.id);
+				// Le contenu d'un conteneur inclut sa bordure (cf. AutoSize).
+				if (content != newContent.end() && HAS_FLOW && !flowKids.empty()) {
+					content->second.x += BORDER.H();
+					content->second.y += BORDER.V();
+				}
+				// Sans contenu calculé ici, celui posé ailleurs (InputSystem
+				// pour les zones de saisie) fait foi.
+				const sdl3::FPoint next = UiRect::GutterFor(
+					content == newContent.end() ? PREVIOUS_CONTENT : content->second, {screen.w, screen.h});
+				if (next.x == gutter.x && next.y == gutter.y)
+					break;
+				gutter = next;
 			}
+			r.gutter = gutter;
+			if (auto content = newContent.find(e.id); content != newContent.end())
+				r.content = content->second;
+			r.ClampScroll();
+			newGutters[e.id] = gutter;
 		}
 
 		void PlaceLinear(ecs::Entity parent, const UiFlow &flow, sdl3::FRect box, sdl3::FPoint origin, sdl3::FRect childClip,
@@ -628,6 +1375,19 @@ private:
 				auto it = ItemOf(k);
 				auto [w, h] = ResolveSize(k, box.w, box.h);
 				auto [wv, hv] = SizeVals(k);
+
+				// Retour automatique dans une COLONNE : la largeur est l'axe
+				// TRANSVERSE, donc déjà connue ici (étirement ou taille
+				// résolue). La hauteur, elle, en découle — c'est le seul
+				// endroit où on puisse la calculer avant de répartir l'espace.
+				if (IS_COL && hv.IsAuto()) {
+					CrossAlign align = it.alignSelf.IsSome() ? it.alignSelf.Unwrap() : flow.align;
+					const float availW = (align == CrossAlign::Stretch && wv.IsAuto())
+											 ? sdl3::Max(0.f, CROSS_SIZE - (it.margin.left + it.margin.right) * SCALE)
+											 : w;
+					if (Option<float> wrapped = WrappedHeightOf(k, availW); wrapped.IsSome())
+						h = ClampOpt(wrapped.Unwrap(), it.minHeight, it.maxHeight);
+				}
 				KidInfo ki{k,
 						   IS_COL ? h : w,
 						   IS_COL ? w : h,
@@ -657,6 +1417,18 @@ private:
 				auto it = ItemOf(ki.e);
 				ki.main = IS_COL ? ClampOpt(v, it.minHeight, it.maxHeight) : ClampOpt(v, it.minWidth, it.maxWidth);
 			}
+
+			// Retour automatique dans une RANGÉE : la largeur est l'axe
+			// PRINCIPAL, donc définitive seulement après la répartition
+			// ci-dessus. La hauteur (axe transverse) n'entre pas dans le
+			// calcul de `used`, elle peut donc être corrigée ici sans rien
+			// invalider.
+			if (!IS_COL)
+				for (auto &ki : infos) {
+					auto it = ItemOf(ki.e);
+					if (Option<float> wrapped = WrappedHeightOf(ki.e, ki.main); wrapped.IsSome())
+						ki.cross = ClampOpt(wrapped.Unwrap(), it.minHeight, it.maxHeight);
+				}
 
 			float used = (infos.size() > 1) ? GAP * float(infos.size() - 1) : 0.f;
 			for (auto &ki : infos)
@@ -743,6 +1515,8 @@ private:
 					r.size = it->second;
 				if (auto it = newContent.find(e.id); it != newContent.end())
 					r.content = it->second;
+				if (auto it = newGutters.find(e.id); it != newGutters.end())
+					r.gutter = it->second;
 				r.ClampScroll();
 			});
 		}
@@ -785,6 +1559,17 @@ inline void OpenPopup(ecs::ArchetypeRegistry &world, LayoutSystem &layout, ecs::
 	layout.MarkDirty();
 }
 
+/// Ouvre un popup ancré au point écran `at` (coin haut-gauche) — menu
+/// contextuel ouvert au clic droit (cf. UiCallbacks::onContextMenu). Sans
+/// déclencheur : n'importe quel clic en dehors du popup le referme.
+inline void OpenPopupAt(ecs::ArchetypeRegistry &world, LayoutSystem &layout, ecs::Entity popupRoot, sdl3::FPoint at) {
+	if (auto r = world.GetComponent<UiRect>(popupRoot); r.IsSome()) {
+		r.Unwrap()->anchor = Anchor::TopLeft;
+		r.Unwrap()->offset = at;
+	}
+	OpenPopup(world, layout, popupRoot, ecs::Entity{});
+}
+
 /// Ferme un popup ancré ouvert via `openPopup`.
 inline void ClosePopup(ecs::ArchetypeRegistry &world, LayoutSystem &layout, ecs::Entity popupRoot) {
 	if (auto ps = world.GetComponent<UiPopupState>(popupRoot); ps.IsSome())
@@ -824,12 +1609,35 @@ inline void PositionPopupBelow(ecs::ArchetypeRegistry &world, ecs::Entity popupR
 	}
 }
 
+/// Marge verticale d'un popup de menu (cf. UiFactory::MenuPopup), au-dessus
+/// de la première entrée et sous la dernière.
+inline constexpr float MENU_POPUP_PAD_Y = 4.f;
+
 /// Comme positionPopupBelow, mais à DROITE de `triggerScreen` — sous-menus
-/// (cf. UiFactory::subMenu()).
+/// (cf. UiFactory::subMenu()). Remonte de la marge et de la bordure du popup
+/// pour que la première entrée du sous-menu soit au niveau de celle qui l'ouvre.
 inline void PositionPopupRightOf(ecs::ArchetypeRegistry &world, ecs::Entity popupRoot, const sdl3::FRect &triggerScreen) {
 	if (auto r = world.GetComponent<UiRect>(popupRoot); r.IsSome()) {
 		r.Unwrap()->anchor = Anchor::TopLeft;
-		r.Unwrap()->offset = {triggerScreen.x + triggerScreen.w, triggerScreen.y};
+		r.Unwrap()->offset = {triggerScreen.x + triggerScreen.w, triggerScreen.y - MENU_POPUP_PAD_Y - 1.f};
+	}
+}
+
+/// Ferme les sous-menus ouverts depuis les entrées de `popup` (et, en
+/// cascade, les leurs) — `popup` lui-même reste ouvert. `keep` : un
+/// sous-menu à épargner (celui qu'on est en train d'ouvrir).
+inline void CloseSubmenusOf(ecs::ArchetypeRegistry &world, LayoutSystem &layout, ecs::Entity popup,
+							ecs::Entity keep = ecs::Entity{}) {
+	std::vector<ecs::Entity> open;
+	if (auto kids = world.GetComponent<UiChildren>(popup); kids.IsSome())
+		for (ecs::Entity item : kids.Unwrap()->list)
+			if (auto mi = world.GetComponent<UiMenuItem>(item); mi.IsSome() && mi.Unwrap()->submenuPopup.Valid() &&
+																mi.Unwrap()->submenuPopup != keep)
+				if (auto ps = world.GetComponent<UiPopupState>(mi.Unwrap()->submenuPopup); ps.IsSome() && ps.Unwrap()->open)
+					open.push_back(mi.Unwrap()->submenuPopup);
+	for (ecs::Entity sub : open) {
+		CloseSubmenusOf(world, layout, sub);
+		ClosePopup(world, layout, sub);
 	}
 }
 
@@ -853,6 +1661,12 @@ inline void CloseMenuChain(ecs::ArchetypeRegistry &world, LayoutSystem &layout, 
 class InputSystem {
 public:
 	float wheelSpeed = 40.f;
+
+	/// Largeur d'un taquet de tabulation, en caractères. À garder égale à
+	/// `LayoutSystem::tabStop` et `RenderSystem::tabStop` : les trois
+	/// décrivent la MÊME grille — ce qui est réservé, ce qui est dessiné, et
+	/// où le clic tombe.
+	int tabStop = DEFAULT_TAB_STOP;
 
 	/// Infobulle courante (à passer à RenderSystem::Run pour l'afficher).
 	struct Tooltip {
@@ -920,9 +1734,163 @@ public:
 	/// ni par une création/destruction d'entité (cf. HitTestIndex::Refresh).
 	[[nodiscard]] HitTestIndex &HitIndex() noexcept { return hitIndex; }
 
-	/// Traite UN évènement SDL. Ne fait rien pour les évènements sans effet
-	/// sur l'UI (clavier hors backspace/entrée, fenêtre, joystick...).
-	void HandleEvent(ecs::ArchetypeRegistry &world, const sdl3::Event &ev, LayoutSystem &layout) {
+	// ── Focus clavier ───────────────────────────────────────────────────────
+	//
+	// Le widget qui a le focus clavier (champ de saisie, zone de texte,
+	// valeur en cours d'édition) reçoit la frappe EN PREMIER. Il en réclame
+	// l'exclusivité — caractères, pavé numérique, flèches, retour arrière,
+	// espace, Entrée, Échap, Ctrl+A/C/V/X/Z/Y… — sauf pour les touches que
+	// la règle de transmission (keyPassThrough) laisse passer au reste de
+	// l'application : par défaut F1 à F24 et les combinaisons Ctrl/Alt/Cmd
+	// qui ne sont pas de l'édition de texte (Ctrl+S, Ctrl+Q…), c'est-à-dire
+	// les raccourcis de l'application.
+
+	/// Règle de transmission : vrai si l'évènement clavier `ev` doit
+	/// CONTINUER vers les autres destinataires alors que `focus` a le focus.
+	/// Vide = DefaultKeyPassThrough.
+	std::function<bool(const sdl3::Event &ev, ecs::Entity focus)> keyPassThrough;
+
+	/// Règle par défaut de keyPassThrough (cf. en-tête de section).
+	[[nodiscard]] static bool DefaultKeyPassThrough(const sdl3::Event &ev) noexcept {
+		if (!ev.IsKeyDown() && !ev.IsKeyUp())
+			return false; // texte saisi, composition IME : toujours au champ
+		const SDL_Keycode key = ev.Keycode();
+		if ((key >= SDLK_F1 && key <= SDLK_F12) || (key >= SDLK_F13 && key <= SDLK_F24))
+			return true;
+		const SDL_Keymod mod = ev.raw.key.mod;
+		// AltGr (Alt droite / MODE) compose des caractères (@, #, {…) : ce
+		// n'est pas un raccourci.
+		const bool command = (mod & (SDL_KMOD_CTRL | SDL_KMOD_LALT | SDL_KMOD_GUI)) != 0 &&
+							 (mod & (SDL_KMOD_RALT | SDL_KMOD_MODE)) == 0;
+		if (!command)
+			return false;
+		switch (key) {
+			// Édition de texte : reste au champ.
+			case SDLK_A:
+			case SDLK_C:
+			case SDLK_V:
+			case SDLK_X:
+			case SDLK_Z:
+			case SDLK_Y:
+			case SDLK_LEFT:
+			case SDLK_RIGHT:
+			case SDLK_UP:
+			case SDLK_DOWN:
+			case SDLK_HOME:
+			case SDLK_END:
+			case SDLK_BACKSPACE:
+			case SDLK_DELETE:
+				return false;
+			default:
+				return true;
+		}
+	}
+
+	/// Widget qui a le focus clavier, entité invalide sinon.
+	[[nodiscard]] ecs::Entity KeyboardFocus(ecs::ArchetypeRegistry &world) const {
+		ecs::Entity focus{};
+		world.Query<UiInput>([&](ecs::Entity e, UiInput &f) {
+			if (f.focused && !focus.Valid())
+				focus = e;
+		});
+		world.Query<UiInputArea>([&](ecs::Entity e, UiInputArea &f) {
+			if (f.focused && !focus.Valid())
+				focus = e;
+		});
+		world.Query<UiDragValue>([&](ecs::Entity e, UiDragValue &d) {
+			if (d.editing && !focus.Valid())
+				focus = e;
+		});
+		if (focus.Valid() && IsHiddenRecursive(world, focus))
+			return ecs::Entity{};
+		return focus;
+	}
+
+	/// Retire le focus clavier (le champ cesse de capter la frappe).
+	void ClearKeyboardFocus(ecs::ArchetypeRegistry &world) const {
+		world.Query<UiInput>([](ecs::Entity, UiInput &f) { f.focused = false; });
+		world.Query<UiInputArea>([](ecs::Entity, UiInputArea &f) { f.focused = false; });
+	}
+
+	/// Vrai si `ev` est réservé au widget `focus` (cf. keyPassThrough ; un
+	/// champ en lecture seule ne réserve que la navigation et la copie).
+	[[nodiscard]] bool ClaimsKey(ecs::ArchetypeRegistry &world, const sdl3::Event &ev, ecs::Entity focus) const {
+		auto ioModeOf = [&world](ecs::Entity e) -> Option<IOMode> {
+			if (auto f = world.GetComponent<UiInput>(e); f.IsSome())
+				return Some(f.Unwrap()->ioMode);
+			if (auto f = world.GetComponent<UiInputArea>(e); f.IsSome())
+				return Some(f.Unwrap()->ioMode);
+			return NONE;
+		};
+		if (!focus.Valid())
+			return false;
+		const bool keyboard = ev.IsKeyDown() || ev.IsKeyUp() || ev.IsTextInput() ||
+							  ev.Type() == uint32_t(sdl3::EventType::TEXT_EDITING);
+		if (!keyboard)
+			return false;
+		if (keyPassThrough ? keyPassThrough(ev, focus) : DefaultKeyPassThrough(ev))
+			return false;
+		// Champ en lecture seule (console, journal) : il ne capte que la
+		// navigation et la copie ; une lettre tapée reste un raccourci.
+		IOMode mode = IOMode::READ_WRITE_COPY_AND_PASTE;
+		if (auto f = ioModeOf(focus); f.IsSome())
+			mode = f.Unwrap();
+		if (IoCanWrite(mode))
+			return true;
+		if (ev.IsTextInput() || ev.Type() == uint32_t(sdl3::EventType::TEXT_EDITING))
+			return false;
+		const bool ctrl = (ev.raw.key.mod & SDL_KMOD_CTRL) != 0;
+		switch (ev.Keycode()) {
+			case SDLK_LEFT:
+			case SDLK_RIGHT:
+			case SDLK_UP:
+			case SDLK_DOWN:
+			case SDLK_HOME:
+			case SDLK_END:
+			case SDLK_PAGEUP:
+			case SDLK_PAGEDOWN:
+			case SDLK_ESCAPE:
+			case SDLK_LSHIFT:
+			case SDLK_RSHIFT:
+				return true;
+			case SDLK_A:
+			case SDLK_C:
+				return ctrl;
+			default:
+				return false;
+		}
+	}
+
+	/// Traite UN évènement SDL et le marque consommé (Event::Consume) s'il
+	/// ne doit pas aller plus loin — frappe captée par le widget qui a le
+	/// focus, Échap qui ferme une modale. L'appelant transmet ensuite le
+	/// même évènement à ses propres traitements, qui ignorent un évènement
+	/// consommé. Un évènement déjà consommé en entrée n'est pas traité.
+	bool HandleEvent(ecs::ArchetypeRegistry &world, sdl3::Event &ev, LayoutSystem &layout) {
+		if (ev.IsConsumed())
+			return true;
+		if (HandleEvent(world, static_cast<const sdl3::Event &>(ev), layout))
+			ev.Consume();
+		return ev.IsConsumed();
+	}
+
+	/// Traite UN évènement SDL ; vrai s'il est consommé (cf. la surcharge
+	/// non-const, qui le marque). Ne fait rien pour les évènements sans effet
+	/// sur l'UI (fenêtre, joystick...).
+	bool HandleEvent(ecs::ArchetypeRegistry &world, const sdl3::Event &ev, LayoutSystem &layout) {
+		if (ev.IsConsumed())
+			return true;
+		const ecs::Entity focus = ev.IsKeyboard() || ev.IsTextInput() ? KeyboardFocus(world) : ecs::Entity{};
+		const bool claimed = ClaimsKey(world, ev, focus);
+		// Échap sur un champ de saisie : le champ rend le focus (un second
+		// Échap fermera la modale, etc.) — la valeur en cours d'édition
+		// (UiDragValue) gère elle-même son annulation dans Dispatch.
+		if (claimed && ev.IsKeyDown(SDLK_ESCAPE) && !world.HasComponent<UiDragValue>(focus)) {
+			ClearKeyboardFocus(world);
+			return true;
+		}
+		const bool modalEscape = !focus.Valid() && ev.IsKeyDown(SDLK_ESCAPE) && !modalStack.empty();
+
 		Frame in;
 		in.down = down;
 		in.rightDown = rightDown;
@@ -971,7 +1939,7 @@ public:
 				in.backspace = true;
 			else if (ev.Keycode() == SDLK_DELETE)
 				in.del = true;
-			else if (ev.Keycode() == SDLK_RETURN)
+			else if (ev.Keycode() == SDLK_RETURN || ev.Keycode() == SDLK_KP_ENTER)
 				in.enter = true;
 			else if (ev.Keycode() == SDLK_LEFT)
 				in.arrowLeft = true;
@@ -993,13 +1961,16 @@ public:
 				in.paste = true;
 			else if (ctrl && ev.Keycode() == SDLK_X)
 				in.cut = true;
+			else if (ctrl && ev.Keycode() == SDLK_A)
+				in.selectAll = true;
 			else
-				return;
+				return claimed;
 		} else {
-			return;
+			return claimed;
 		}
 
 		Dispatch(world, in, layout);
+		return claimed || modalEscape;
 	}
 
 	/// Mises à jour continues indépendantes des évènements discrets : à
@@ -1011,6 +1982,36 @@ public:
 			t.animT += sdl3::Clamp(target - t.animT, -speed, speed);
 		});
 		world.Query<UiSpinner>([&](ecs::Entity, UiSpinner &sp) { sp.angle = sdl3::Fmod(sp.angle + sp.speed * dt, 360.f); });
+
+		// Défilement automatique (TextOverflow::MARQUEE) : aller-retour, avec
+		// une pause à chaque extrémité. L'amplitude est ce qui DÉPASSE de la
+		// boîte — un texte qui tient ne bouge donc pas du tout, sans que
+		// l'appelant ait à désactiver quoi que ce soit.
+		world.Query<UiTextOverflow, UiComputed>([&](ecs::Entity e, UiTextOverflow &o, UiComputed &c) {
+			if (o.mode != TextOverflow::MARQUEE)
+				return;
+			const float travel = sdl3::Max(0.f, o.textWidth - sdl3::Max(1.f, c.screen.w - 2.f * TEXT_INSET));
+			if (travel <= 0.f) {
+				o.offset = 0.f;
+				o.hold = 0.f;
+				o.forward = true;
+				return;
+			}
+			if (o.hold > 0.f) {
+				o.hold -= dt;
+				return;
+			}
+			o.offset += (o.forward ? 1.f : -1.f) * o.speed * dt;
+			if (o.offset >= travel) {
+				o.offset = travel;
+				o.forward = false;
+				o.hold = o.pause;
+			} else if (o.offset <= 0.f) {
+				o.offset = 0.f;
+				o.forward = true;
+				o.hold = o.pause;
+			}
+		});
 		world.Query<UiInput>([&](ecs::Entity, UiInput &f) {
 			if (f.focused)
 				f.blink += dt;
@@ -1032,7 +2033,12 @@ public:
 			float fs = GetResolved(world, e).FontSize(14.f);
 			float innerW = sdl3::Max(1.f, c.screen.w - 16.f); // cf. marge de drawTextCentered (8px de chaque côté)
 			auto lines = WrapText(f.text, fs, innerW);
-			r.content = {c.screen.w, sdl3::Max(c.screen.h, float(lines.size()) * LineHeightApprox(fs) + 8.f)};
+			// Largeur 0 : le texte se replie, il ne déborde jamais en largeur
+			// (la barre verticale loge dans la marge droite de 8 px). Une seule
+			// ligne n'a rien à faire défiler, même si le champ est moins haut
+			// que ligne + marges : pas de barre sur un champ de recherche.
+			r.content = {0.f, lines.size() <= 1 ? 0.f : float(lines.size()) * LineHeightApprox(fs) + 8.f};
+			r.UpdateGutter();
 			ScrollIntoView(r, c, LineIndexOf(lines, f.cursor), fs);
 		});
 
@@ -1044,17 +2050,25 @@ public:
 			r.clipContent = true;
 			float fs = GetResolved(world, e).FontSize(14.f);
 			auto lines = SplitLines(f.text);
+			const float cw = AreaCellWidth(f, fs);
+			const float gutter = AreaGutterWidth(f, lines.size(), cw);
 			float maxLineW = 0.f;
 			for (const TextLine &l : lines)
-				maxLineW = sdl3::Max(maxLineW, float(l.text.size()) * CharWidthApprox(fs));
+				maxLineW = sdl3::Max(maxLineW, float(DisplayColumns(l.text, tabStop)) * cw);
 			bool wasAtBottom = r.MaxScroll().y <= 0.f || r.scroll.y >= r.MaxScroll().y - 1.f;
-			r.content = {maxLineW + 16.f, float(lines.size()) * LineHeightApprox(fs) + 8.f};
+			r.content = {maxLineW + 16.f + gutter, float(lines.size()) * LineHeightApprox(fs) + 8.f};
+			r.UpdateGutter();
 			r.ClampScroll();
 			f.stickToBottom = wasAtBottom;
-			if (f.focused)
-				ScrollIntoView(r, c, LineIndexOf(lines, f.cursor), fs);
-			else if (wasAtBottom)
+			if (f.focused) {
+				const size_t li = LineIndexOf(lines, f.cursor);
+				ScrollIntoView(r, c, li, fs);
+				if (li < lines.size())
+					ScrollColumnIntoView(r, r.ViewSize().x - gutter,
+										 DisplayColumn(lines[li].text, f.cursor - lines[li].offset, tabStop), cw);
+			} else if (wasAtBottom && f.followTail) {
 				r.scroll.y = r.MaxScroll().y;
+			}
 		});
 
 		const float MX = mouseX, MY = mouseY;
@@ -1096,7 +2110,15 @@ public:
 		tooltip.visible = tipE.Valid() && hoverTime >= tooltipDelay && !down;
 		tooltip.text = tipText;
 		tooltip.pos = {MX + 14.f, MY + 20.f};
+
+		NavigateMenus(world, layout, dt);
 	}
+
+	/// Délai de survol (s) avant qu'une entrée de menu déploie son sous-menu
+	/// — ou replie celui d'une voisine : assez court pour paraître immédiat,
+	/// assez long pour traverser en diagonale une entrée voisine sans refermer
+	/// le sous-menu visé.
+	float submenuDelay = 0.2f;
 
 private:
 	float mouseX = 0.f, mouseY = 0.f;
@@ -1115,6 +2137,92 @@ private:
 	bool rightDown = false; ///< cf. Frame::rightDown (UiPlot::boxZooming, Phase 3)
 	ecs::Entity lastTip{};
 	float hoverTime = 0.f;
+	/// Entrée de menu survolée et depuis combien de temps (cf. NavigateMenus).
+	ecs::Entity menuHover{};
+	float menuHoverTime = 0.f;
+
+	/**
+	 * Navigation automatique dans les menus, au survol :
+	 *  - une entrée à sous-menu le déploie à sa droite après `submenuDelay`,
+	 *    et replie celui d'une voisine ;
+	 *  - une entrée simple replie, après le même délai, les sous-menus
+	 *    ouverts depuis son propre popup ;
+	 *  - dans la barre de menus, dès qu'un menu est ouvert, survoler une
+	 *    autre entrée bascule immédiatement sur son menu.
+	 */
+	void NavigateMenus(ecs::ArchetypeRegistry &world, LayoutSystem &layout, float dt) {
+		// Barre de menus.
+		struct BarEntry {
+			ecs::Entity item, popup;
+			sdl3::FRect screen;
+			bool hovered, open;
+		};
+		std::vector<BarEntry> bar;
+		world.Query<UiMenuBarItem, UiComputed>([&](ecs::Entity e, UiMenuBarItem &mb, UiComputed &c) {
+			if (!mb.menuPopup.Valid())
+				return;
+			bool open = false;
+			if (auto ps = world.GetComponent<UiPopupState>(mb.menuPopup); ps.IsSome())
+				open = ps.Unwrap()->open;
+			bar.push_back({e, mb.menuPopup, c.screen, mb.hovered, open});
+		});
+		for (const BarEntry &hovered : bar) {
+			if (!hovered.hovered || hovered.open)
+				continue;
+			bool anotherOpen = false;
+			for (const BarEntry &other : bar)
+				anotherOpen = anotherOpen || (other.open && other.item != hovered.item &&
+											  UiParentOf(world, other.item) == UiParentOf(world, hovered.item));
+			if (!anotherOpen)
+				continue;
+			for (const BarEntry &other : bar)
+				if (other.open && UiParentOf(world, other.item) == UiParentOf(world, hovered.item)) {
+					CloseSubmenusOf(world, layout, other.popup);
+					ClosePopup(world, layout, other.popup);
+				}
+			PositionPopupBelow(world, hovered.popup, hovered.screen);
+			OpenPopup(world, layout, hovered.popup, hovered.item);
+			break;
+		}
+
+		// Entrées de menus déroulants.
+		ecs::Entity hovered{};
+		UiMenuItem hoveredItem;
+		sdl3::FRect hoveredScreen{};
+		world.Query<UiMenuItem, UiComputed>([&](ecs::Entity e, UiMenuItem &mi, UiComputed &c) {
+			if (mi.hovered && !IsHiddenRecursive(world, e)) {
+				hovered = e;
+				hoveredItem = mi;
+				hoveredScreen = c.screen;
+			}
+		});
+		if (hovered != menuHover) {
+			menuHover = hovered;
+			menuHoverTime = 0.f;
+		} else {
+			menuHoverTime += dt;
+		}
+		if (!hovered.Valid() || menuHoverTime < submenuDelay)
+			return;
+		const ecs::Entity popup = NearestPopupAncestor(world, hovered);
+		if (hoveredItem.hasSubmenu && hoveredItem.submenuPopup.Valid()) {
+			bool open = false;
+			if (auto ps = world.GetComponent<UiPopupState>(hoveredItem.submenuPopup); ps.IsSome())
+				open = ps.Unwrap()->open;
+			if (open)
+				return;
+			CloseSubmenusOf(world, layout, popup, hoveredItem.submenuPopup);
+			PositionPopupRightOf(world, hoveredItem.submenuPopup, hoveredScreen);
+			OpenPopup(world, layout, hoveredItem.submenuPopup, hovered);
+		} else if (popup.Valid()) {
+			CloseSubmenusOf(world, layout, popup);
+		}
+	}
+
+	[[nodiscard]] static ecs::Entity UiParentOf(ecs::ArchetypeRegistry &world, ecs::Entity e) {
+		auto p = world.GetComponent<UiParent>(e);
+		return p.IsSome() ? p.Unwrap()->parent : ecs::Entity{};
+	}
 
 	// Drag en cours sur un pouce d'auto-scrollbar (un seul à la fois).
 	ecs::Entity scrollDrag{};
@@ -1140,6 +2248,16 @@ private:
 	// Drag en cours sur une UiDraggable (un seul à la fois, cf.
 	// interaction.hpp — panneaux flottants du "bureau simulé", Phase 9/10).
 	ecs::Entity draggableDrag{};
+
+	// Glisser-déposer ENTRE widgets (cf. UiDragPayload/UiDropTarget,
+	// interaction.hpp). `dragPayloadSource` est armé dès l'enfoncement, mais
+	// le glissé ne commence vraiment qu'après un petit déplacement : sans ce
+	// seuil, un simple clic sur une ligne d'arbre deviendrait un dépôt sur
+	// elle-même, et plus rien ne serait cliquable.
+	ecs::Entity dragPayloadSource{};
+	ecs::Entity dropHover{};
+	float dragPayloadStartX = 0.f, dragPayloadStartY = 0.f;
+	bool dragPayloadMoved = false;
 
 	// Pile des modales ouvertes (cf. openModal/closeModal, public plus bas) —
 	// le sommet bloque tout le reste de l'arbre dans dispatch() (hitOk).
@@ -1205,6 +2323,7 @@ private:
 		bool copy = false;   ///< Ctrl+C
 		bool paste = false;  ///< Ctrl+V
 		bool cut = false;    ///< Ctrl+X
+		bool selectAll = false; ///< Ctrl+A
 		bool arrowLeft = false, arrowRight = false, arrowUp = false, arrowDown = false;
 		bool home = false, end = false;
 		bool shift = false; ///< Maj enfoncée (flèches/Origine/Fin → étend la sélection)
@@ -1280,6 +2399,10 @@ private:
 			changed = true;
 		};
 
+		if (in.selectAll) {
+			selectionAnchor = 0;
+			cursor = text.size();
+		}
 		if (IoCanWrite(mode)) {
 			if (!in.textInput.IsEmpty()) {
 				if (hasSelection())
@@ -1347,7 +2470,8 @@ private:
 		// Échap ferme la modale du sommet de la pile (et seulement elle —
 		// pas les popups non-modaux, qui se ferment au clic extérieur ci-
 		// dessous). N'affecte rien d'autre cette frame.
-		if (in.escape && !modalStack.empty()) {
+		// Un widget qui a le focus clavier garde Échap pour lui (cf. HandleEvent).
+		if (in.escape && !modalStack.empty() && !KeyboardFocus(world).Valid()) {
 			ecs::Entity top = modalStack.back();
 			CloseModal(world, layout, top);
 			return;
@@ -1390,7 +2514,7 @@ private:
 		// popups sont collectés puis fermés hors itération (cf. le même
 		// motif que StyleSystem::Resolve — retirer un composant PENDANT un
 		// Query<T> sur ce même T invaliderait l'itération).
-		if (in.pressed) {
+		if (in.pressed || in.rightPressed) {
 			std::vector<ecs::Entity> toClose;
 			world.Query<UiPopupState, UiComputed>([&](ecs::Entity e, UiPopupState &ps, UiComputed &c) {
 				if (!ps.open || ps.modal)
@@ -1413,6 +2537,31 @@ private:
 			}
 			if (!toClose.empty())
 				layout.MarkDirty();
+		}
+
+		// ── Menu contextuel : le clic DROIT notifie le plus proche porteur
+		// d'`onContextMenu` dans la chaîne de premier plan (la cible, puis ses
+		// ancêtres) — la ligne d'un arbre l'emporte sur le panneau qui la
+		// contient. Un clic droit DANS un popup ouvert ne rouvre rien.
+		if (in.rightPressed) {
+			bool insideOpenPopup = false;
+			for (ecs::Entity a : frontMostChain)
+				if (auto ps = world.GetComponent<UiPopupState>(a); ps.IsSome() && ps.Unwrap()->open)
+					insideOpenPopup = true;
+			if (!insideOpenPopup) {
+				for (ecs::Entity candidate : frontMostChain) {
+					if (!modalStack.empty() && !IsDescendantOrSelf(world, candidate, modalStack.back()))
+						break;
+					auto cb = world.GetComponent<UiCallbacks>(candidate);
+					if (cb.IsNone() || !cb.Unwrap()->onContextMenu)
+						continue;
+					if (IsHiddenRecursive(world, candidate) || IsDisabledRecursive(world, candidate))
+						break;
+					auto fn = cb.Unwrap()->onContextMenu;
+					pending.push_back([fn, MX, MY] { fn(MX, MY); });
+					break;
+				}
+			}
 		}
 
 		// ── ComboBox (en premier : la liste ouverte est un overlay modal) ───
@@ -1589,6 +2738,74 @@ private:
 		}
 
 		// Clic effectif pour tous les widgets suivants.
+		// ── Glisser-déposer entre widgets ───────────────────────────────────
+		// Source et cible sont cherchées dans la CHAÎNE du widget de premier
+		// plan (cf. frontMostChain) : la ligne d'un outliner porte le
+		// marqueur, mais c'est son libellé qui est réellement sous le
+		// curseur — remonter les ancêtres évite d'exiger le marqueur sur
+		// chaque enfant.
+		if (in.pressed && !dragPayloadSource.Valid()) {
+			for (ecs::Entity candidate : frontMostChain)
+				if (world.HasComponent<UiDragPayload>(candidate) && !IsDisabledRecursive(world, candidate)) {
+					dragPayloadSource = candidate;
+					dragPayloadStartX = MX;
+					dragPayloadStartY = MY;
+					dragPayloadMoved = false;
+					break;
+				}
+		}
+		if (dragPayloadSource.Valid() && in.down) {
+			if (sdl3::Abs(MX - dragPayloadStartX) > 4.f || sdl3::Abs(MY - dragPayloadStartY) > 4.f)
+				dragPayloadMoved = true;
+			if (auto payload = world.GetComponent<UiDragPayload>(dragPayloadSource); payload.IsSome())
+				payload.Unwrap()->dragging = dragPayloadMoved;
+
+			ecs::Entity target{};
+			if (dragPayloadMoved) {
+				String payloadKind;
+				if (auto p = world.GetComponent<UiDragPayload>(dragPayloadSource); p.IsSome())
+					payloadKind = p.Unwrap()->kind;
+				for (ecs::Entity candidate : frontMostChain) {
+					auto drop = world.GetComponent<UiDropTarget>(candidate);
+					if (drop.IsNone() || candidate == dragPayloadSource)
+						continue;
+					const String &accepts = drop.Unwrap()->accepts;
+					if (accepts.IsEmpty() || accepts == payloadKind) {
+						target = candidate;
+						break;
+					}
+				}
+			}
+			if (target != dropHover) {
+				if (auto previous = world.GetComponent<UiDropTarget>(dropHover); previous.IsSome())
+					previous.Unwrap()->hovered = false;
+				dropHover = target;
+				if (auto current = world.GetComponent<UiDropTarget>(dropHover); current.IsSome())
+					current.Unwrap()->hovered = true;
+			}
+		}
+		if (in.released && dragPayloadSource.Valid()) {
+			if (dragPayloadMoved && dropHover.Valid()) {
+				int64_t id = 0;
+				if (auto payload = world.GetComponent<UiDragPayload>(dragPayloadSource); payload.IsSome())
+					id = payload.Unwrap()->id;
+				if (auto cb = world.GetComponent<UiCallbacks>(dropHover); cb.IsSome() && cb.Unwrap()->onDrop) {
+					auto fn = cb.Unwrap()->onDrop;
+					pending.push_back([fn, id] { fn(id); });
+				}
+				// Un dépôt n'est pas un clic : sans cela, la ligne survolée
+				// serait AUSSI sélectionnée par le même relâchement.
+				clickConsumed = true;
+			}
+			if (auto payload = world.GetComponent<UiDragPayload>(dragPayloadSource); payload.IsSome())
+				payload.Unwrap()->dragging = false;
+			if (auto drop = world.GetComponent<UiDropTarget>(dropHover); drop.IsSome())
+				drop.Unwrap()->hovered = false;
+			dragPayloadSource = ecs::Entity{};
+			dropHover = ecs::Entity{};
+			dragPayloadMoved = false;
+		}
+
 		const bool PRESSED = in.pressed && !clickConsumed;
 
 		// ── Boutons ─────────────────────────────────────────────────────────
@@ -2121,10 +3338,9 @@ private:
 			mi.hovered = hitOk(e, c);
 			if (PRESSED && mi.hovered) {
 				if (mi.hasSubmenu && mi.submenuPopup.Valid()) {
-					bool open = false;
-					if (auto ps = world.GetComponent<UiPopupState>(mi.submenuPopup); ps.IsSome())
-						open = ps.Unwrap()->open;
-					menuToggles.push_back({mi.submenuPopup, e, c.screen, !open});
+					// Toujours OUVRIR : le survol l'a souvent déjà déployé (cf.
+					// Tick), un clic qui le refermerait surprendrait.
+					menuToggles.push_back({mi.submenuPopup, e, c.screen, true});
 				} else {
 					clickedLeaf.push_back(e);
 				}
@@ -2136,10 +3352,13 @@ private:
 				// menu) ; AVEC déclencheur = un UiMenuItem (donc DANS un
 				// popup existant), à DROITE (sous-menu) — distingué via le
 				// type du composant porté par `t.trigger`.
-				if (world.HasComponent<UiMenuItem>(t.trigger))
+				if (world.HasComponent<UiMenuItem>(t.trigger)) {
+					// Un seul sous-menu déployé par niveau.
+					CloseSubmenusOf(world, layout, NearestPopupAncestor(world, t.trigger), t.popup);
 					PositionPopupRightOf(world, t.popup, t.triggerScreen);
-				else
+				} else {
 					PositionPopupBelow(world, t.popup, t.triggerScreen);
+				}
 				OpenPopup(world, layout, t.popup, t.trigger);
 			} else {
 				ClosePopup(world, layout, t.popup);
@@ -2591,15 +3810,18 @@ private:
 
 			float fs = GetResolved(world, e).FontSize(14.f);
 			auto lines = SplitLines(f.text);
+			const float cw = AreaCellWidth(f, fs);
+			const sdl3::FRect box = AreaTextBox(c.screen, AreaGutterWidth(f, lines.size(), cw));
 
 			if (PRESSED) {
 				f.focused = f.hovered;
 				if (f.focused) {
-					f.cursor = f.selectionAnchor = HitTestOffset(lines, f.text, fs, c.screen, r.scroll, MX, MY);
+					f.cursor = f.selectionAnchor =
+						HitTestOffset(lines, f.text, fs, box, r.scroll, MX, MY, tabStop, cw);
 					textDrag = e;
 				}
 			} else if (textDrag == e && in.down) {
-				f.cursor = HitTestOffset(lines, f.text, fs, c.screen, r.scroll, MX, MY);
+				f.cursor = HitTestOffset(lines, f.text, fs, box, r.scroll, MX, MY, tabStop, cw);
 			}
 			if (in.released && textDrag == e)
 				textDrag = ecs::Entity{};
@@ -2785,6 +4007,9 @@ public:
 	/// comme setTextEngine/registerFont. Sans appel, `prop::Italic` est posé
 	/// sans effet (retombe sur la police normale, cf. drawWidget UiLabel).
 	void RegisterItalicFont(sdl3::Font &font) { italicFont = &font; }
+	/// Police à chasse fixe des UiInputArea en mode `monospace` (éditeur de
+	/// code). Pointeur non-possédant, comme les autres polices.
+	void RegisterMonospaceFont(sdl3::Font &font) { monoFont = &font; }
 	/// Idem pour `prop::Bold` (gras).
 	void RegisterBoldFont(sdl3::Font &font) { boldFont = &font; }
 	/// Idem pour `prop::Bold` ET `prop::Italic` posés ensemble — sans elle,
@@ -2805,6 +4030,11 @@ public:
 	/// sous-arbre — dégradation "gratuite", cf. shader_effect.hpp en-tête.
 	std::unordered_map<ecs::Entity, sdl3::Texture> effectTextures;
 
+	/// Largeur d'un taquet de tabulation, en caractères — à garder d'accord
+	/// avec LayoutSystem::tabStop, sinon ce qui est dessiné n'occupe plus la
+	/// place qui a été réservée.
+	int tabStop = DEFAULT_TAB_STOP;
+
 	// Couleurs des infobulles (indépendantes du thème de la factory).
 	sdl3::FColor tooltipBg{25 / 255.f, 27 / 255.f, 38 / 255.f, 245 / 255.f};
 	sdl3::FColor tooltipBorder{70 / 255.f, 76 / 255.f, 110 / 255.f, 1.f};
@@ -2818,6 +4048,7 @@ public:
 	/// dessinée en overlay avec les listes des combos ouverts.
 	void Run(ecs::ArchetypeRegistry &world, IUiRenderBackend &ren, const InputSystem::Tooltip *tip = nullptr) {
 		ren.SetBlendMode(sdl3::BlendMode::BLEND);
+		m_currentFontSize = 0.f;
 		std::vector<ecs::Entity> roots;
 		world.Query<UiRect>([&](ecs::Entity e, UiRect &) {
 			if (!world.HasComponent<UiParent>(e) && !world.HasComponent<UiHidden>(e))
@@ -2871,9 +4102,23 @@ private:
 	sdl3::Font *italicFont = nullptr;
 	sdl3::Font *boldFont = nullptr;
 	sdl3::Font *boldItalicFont = nullptr;
+	/// Police à chasse fixe (cf. RegisterMonospaceFont) ; la largeur de sa
+	/// cellule est mesurée par taille (cf. m_cellWidths).
+	sdl3::Font *monoFont = nullptr;
 	/// Polices d'icônes additionnelles, indexées par nom de famille logique
 	/// (cf. registerFont / ui::Glyphs::FontFamily). Pointeurs non-possédants.
 	std::unordered_map<String, sdl3::Font *> iconFonts;
+
+	/// Copies redimensionnées des polices (cf. FontAt), par (police, taille en
+	/// quarts de point). Déclarées AVANT les caches de textes : un texte mis en
+	/// forme doit être détruit avant sa police, et les membres sont détruits
+	/// dans l'ordre inverse de leur déclaration.
+	std::map<std::pair<const sdl3::Font *, int>, std::unique_ptr<sdl3::Font>> m_sizedFonts;
+	/// Largeur de cellule mesurée par police à chasse fixe (cf. UiInputArea).
+	std::unordered_map<const sdl3::Font *, float> m_cellWidths;
+	/// Taille de police résolue du widget en cours de dessin (0 = celle de la
+	/// police chargée) — cf. FontAt et DrawWidget.
+	float m_currentFontSize = 0.f;
 
 	struct CachedText {
 		String str;
@@ -2916,7 +4161,41 @@ public:
 		if (c.clip.w <= 0.f || c.clip.h <= 0.f)
 			return;
 
-		ren.SetClipRect(sdl3::Rect{int(c.clip.x), int(c.clip.y), int(c.clip.w) + 1, int(c.clip.h) + 1});
+		// Ce qu'un widget dessine de LUI-MÊME est borné à SA PROPRE boîte
+		// visible, et non au clip hérité de son parent.
+		//
+		// `c.clip` est la région léguée par le parent ; elle ne dit rien de la
+		// boîte du widget. Un widget qui peint son propre contenu (champ de
+		// texte, tableau, liste, tracé) débordait donc librement de lui-même
+		// tant qu'il restait dans son parent : c'est ce qui faisait passer la
+		// dernière ligne d'un éditeur de script SOUS sa bordure, et la
+		// première ligne PAR-DESSUS. `c.childClip`, calculé par le layout
+		// comme `clip ∩ screen`, est exactement « la partie visible de ce
+		// widget » — c'est donc lui qui borne son dessin comme celui de ses
+		// enfants.
+		//
+		// Les widgets qui doivent délibérément déborder (liste déroulante d'un
+		// combo, infobulle, overlays AttachLayout::FIXED) ne passent pas par
+		// ici : ils sont dessinés par des passes séparées de Run(), après un
+		// ClearClipRect().
+		//
+		// La région est RECALCULÉE à partir des deux rects qui font autorité
+		// plutôt que lue dans `c.childClip` — qui vaut exactement la même
+		// chose après une passe de layout, mais reste vide pour un
+		// `UiComputed` rempli à la main (ce que font le système d'effets et
+		// ses tests, qui ne posent que `screen` et `clip`). Lire le champ
+		// faisait alors sortir d'ici sans rien dessiner.
+		//
+		// Une seule exception, explicite : le halo de lueur « verre » est
+		// dessiné HORS de la boîte par conception (cf. DrawGlowRing). Les
+		// widgets qui en portent un reçoivent donc exactement cette marge —
+		// jamais plus, et toujours dans les limites du parent.
+		const float overflow = GetResolved(world, e).HasGlow() ? GLOW_MAX_OUTSET : 0.f;
+		const sdl3::FRect selfClip = c.clip.Intersection(InsetRect(c.screen, -overflow));
+		if (selfClip.w <= 0.f || selfClip.h <= 0.f)
+			return;
+
+		ren.SetClipRect(ToClipRect(selfClip));
 		DrawWidget(world, ren, e, c);
 
 		// UiShaderEffect (M23) avec texture prête : DrawWidget ci-dessus vient
@@ -2938,14 +4217,14 @@ public:
 		// axes) — par-dessus le contenu, bornée au clip de CE widget (déjà
 		// actif ci-dessus), jamais celui, plus large, de ses enfants.
 		if (auto r = world.GetComponent<UiRect>(e); r.IsSome()) {
-			ren.SetClipRect(sdl3::Rect{int(c.clip.x), int(c.clip.y), int(c.clip.w) + 1, int(c.clip.h) + 1});
+			ren.SetClipRect(ToClipRect(selfClip));
 			DrawScrollbars(ren, *r.Unwrap(), c.screen);
 		}
 
 		// Sous-arbre désactivé : voile sombre par-dessus (une seule fois, à la
 		// racine du marqueur UiDisabled).
 		if (world.HasComponent<UiDisabled>(e)) {
-			ren.SetClipRect(sdl3::Rect{int(c.clip.x), int(c.clip.y), int(c.clip.w) + 1, int(c.clip.h) + 1});
+			ren.SetClipRect(ToClipRect(selfClip));
 			ren.SetDrawColor(sdl3::FColor{15/255.f, 15/255.f, 20/255.f, 110/255.f});
 			ren.FillRect(c.screen);
 		}
@@ -2954,6 +4233,9 @@ public:
 private:
 
 	void DrawWidget(ecs::ArchetypeRegistry &world, IUiRenderBackend &ren, ecs::Entity e, const UiComputed &c) {
+		// Taille de texte de CE widget : tout texte qu'il dessine (libellé,
+		// bouton, icône, champ…) passe par DrawFont, qui la respecte.
+		m_currentFontSize = GetResolved(world, e).FontSize(0.f);
 		const sdl3::FRect &s = c.screen;
 
 		if (world.HasComponent<UiPanel>(e)) {
@@ -2966,7 +4248,6 @@ private:
 			math::Corners radius = rs.BordersRadius(math::Corners{});
 			bool hasBorder = rs.HasBorderColor();
 			sdl3::FColor border = rs.BorderColor(sdl3::FColor{});
-			math::Sides borderWidth = rs.BordersWidth(math::Sides(1.f));
 
 			if (grad.IsSome()) {
 				DrawVGradient(ren, s, bg, grad.Unwrap());
@@ -2980,7 +4261,7 @@ private:
 				// `.top` sert de représentatif uniforme — le cas courant
 				// (bordure identique sur les 4 côtés) reste exact ; un
 				// borderWidth non-uniforme n'est pas encore rendu par côté.
-				int bw = sdl3::Max(1, int(borderWidth.top));
+				int bw = int(BorderSides(rs).top);
 				for (int i = 0; i < bw; ++i) {
 					sdl3::FRect br{s.x + float(i), s.y + float(i), s.w - 2.f * float(i), s.h - 2.f * float(i)};
 					if (br.w <= 0.f || br.h <= 0.f)
@@ -3036,6 +4317,10 @@ private:
 			sdl3::Font *f = m_font;
 			if (auto fit = iconFonts.find(icon.font); fit != iconFonts.end())
 				f = fit->second;
+			// La taille d'une icône est la SIENNE (UiIcon::size, en pixels —
+			// points à 72 ppp), pas la taille de texte héritée du parent.
+			if (icon.size > 0.f)
+				m_currentFontSize = icon.size;
 			sdl3::FColor tint = GetResolved(world, e).TextColor(sdl3::FColor::UI_TEXT_PRIMARY());
 			DrawTextCentered(ren, e, icon.glyph, tint, s, TextAlign::Center, f);
 		}
@@ -3097,7 +4382,7 @@ private:
 				ren.FillRect({tx - 2.f, ty - 1.f, tsz.x + 4.f, tsz.y + 2.f});
 			}
 
-			DrawTextCentered(ren, e, text, textColor, s, align, useFont);
+			DrawOverflowText(ren, world, e, text, textColor, s, align, useFont);
 
 			if (needsDecoration) {
 				ren.SetDrawColor(textColor);
@@ -3201,6 +4486,12 @@ private:
 				float innerW = sdl3::Max(1.f, s.w - 16.f);
 				std::vector<TextLine> lines = WrapText(f.text, fs, innerW);
 				float lh = LineHeightApprox(fs);
+				// Contenu (sélection, texte, curseur) borné à l'INTÉRIEUR du
+				// cadre : une ligne partiellement visible en haut ou en bas
+				// d'un champ défilant se coupe net sur le bord au lieu de
+				// chevaucher la bordure.
+				const sdl3::FRect contentClip = c.childClip.Intersection(InsetRect(s, FIELD_BORDER));
+				ren.SetClipRect(ToClipRect(contentClip));
 				DrawSelection(ren, lines, fs, f.cursor, f.selectionAnchor, s, scroll, selColor);
 				float y = s.y + 4.f - scroll.y;
 				for (const TextLine &line : lines) {
@@ -3210,11 +4501,12 @@ private:
 				}
 				if (f.focused && sdl3::Fmod(f.blink, 1.f) < 0.5f)
 					DrawCaret(ren, lines, fs, f.cursor, s, scroll, selColor);
+				ren.SetClipRect(ToClipRect(c.childClip));
 			}
 		}
 
 		if (auto ina = world.GetComponent<UiInputArea>(e); ina.IsSome()) {
-			const UiInputArea &f = *ina.Unwrap();
+			UiInputArea &f = *ina.Unwrap();
 			ResolvedStyle rs = GetResolved(world, e);
 			float fs = rs.FontSize(14.f);
 			sdl3::FColor textColor = rs.TextColor(sdl3::FColor::UI_TEXT_PRIMARY());
@@ -3223,25 +4515,102 @@ private:
 			ren.FillRoundedRect(s, math::Corners(4.f));
 			ren.SetDrawColor(f.focused ? rs.BorderFocus(sdl3::FColor::UI_ACCENT_BLUE_HOVER()) : rs.BorderColor(sdl3::FColor::UI_BORDER_MUTED()));
 			ren.DrawRoundedRect(s, math::Corners(4.f));
+
+			// Police et cellule : en chasse fixe, la largeur de cellule est
+			// MESURÉE sur la police dessinée et publiée dans le composant, pour
+			// que la saisie (clic, glisser) et la mise en page placent le
+			// curseur exactement sous le caractère dessiné.
+			sdl3::Font *areaFont = (f.monospace && monoFont) ? DrawFont(monoFont) : nullptr;
+			if (areaFont) {
+				auto cell = m_cellWidths.find(areaFont);
+				if (cell == m_cellWidths.end())
+					if (auto size = areaFont->Measure(String("0123456789")); size.IsSome())
+						cell = m_cellWidths.emplace(areaFont, float(size.Unwrap().x) / 10.f).first;
+				if (cell != m_cellWidths.end())
+					f.cellWidth = cell->second;
+			}
+			const float cw = AreaCellWidth(f, fs);
+
 			bool empty = f.text.IsEmpty();
-			if (empty) {
+			if (empty && !f.lineNumbers) {
 				DrawTextRaw(ren, f.placeholder, rs.BgHovered(sdl3::FColor::UI_TEXT_MUTED()), s.x + 8.f, s.y + 4.f,
-						   LineHeightApprox(fs));
+						   LineHeightApprox(fs), areaFont);
 			} else {
 				sdl3::FPoint scroll{};
 				if (auto r = world.GetComponent<UiRect>(e); r.IsSome())
 					scroll = r.Unwrap()->scroll;
 				std::vector<TextLine> lines = SplitLines(f.text);
 				float lh = LineHeightApprox(fs);
-				DrawSelection(ren, lines, fs, f.cursor, f.selectionAnchor, s, scroll, selColor);
-				float y = s.y + 4.f - scroll.y;
+				const float gutter = AreaGutterWidth(f, lines.size(), cw);
+				const sdl3::FRect box = AreaTextBox(s, gutter);
+				const size_t cursorLine = LineIndexOf(lines, f.cursor);
+
+				// Gouttière : fond, puis numéros alignés à droite. Elle ne
+				// défile que verticalement, comme dans tout éditeur.
+				if (gutter > 0.f) {
+					const sdl3::FRect gutterRect{s.x, s.y, gutter, s.h};
+					ren.SetClipRect(ToClipRect(c.childClip.Intersection(InsetRect(gutterRect, FIELD_BORDER))));
+					sdl3::FColor muted = rs.BgHovered(sdl3::FColor::UI_TEXT_MUTED());
+					ren.SetDrawColor(sdl3::FColor{0.f, 0.f, 0.f, 0.18f});
+					ren.FillRect(InsetRect(gutterRect, FIELD_BORDER));
+					float y = s.y + 4.f - scroll.y;
+					for (size_t li = 0; li < lines.size(); ++li, y += lh) {
+						if (y + lh < s.y || y > s.y + s.h)
+							continue;
+						String number = String::From(int(li + 1));
+						const float x = s.x + gutter - 8.f - float(number.size()) * cw;
+						DrawTextRaw(ren, number, (f.focused && li == cursorLine) ? textColor : muted, x, y, lh, areaFont);
+					}
+				}
+
+				// Cf. UiInput : le contenu reste dans le cadre (et ici hors de
+				// la gouttière).
+				const sdl3::FRect contentClip = c.childClip.Intersection(InsetRect(box, FIELD_BORDER));
+				ren.SetClipRect(ToClipRect(contentClip));
+				if (f.highlightCurrentLine && f.focused && !lines.empty()) {
+					ren.SetDrawColor(sdl3::FColor{1.f, 1.f, 1.f, 0.05f});
+					ren.FillRect({box.x, box.y + 4.f - scroll.y + float(cursorLine) * lh, box.w, lh});
+				}
+				DrawSelection(ren, lines, fs, f.cursor, f.selectionAnchor, box, scroll, selColor, cw);
+				float y = box.y + 4.f - scroll.y;
+				const float x0 = box.x + 8.f - scroll.x;
+				std::vector<UiTextSpan> spans;
 				for (const TextLine &line : lines) {
-					if (y + lh >= s.y && y <= s.y + s.h)
-						DrawTextRaw(ren, line.text, textColor, s.x + 8.f - scroll.x, y, lh);
+					if (y + lh >= box.y && y <= box.y + box.h) {
+						if (!f.highlighter) {
+							DrawTextRaw(ren, line.text, textColor, x0, y, lh, areaFont);
+						} else {
+							// La coloration travaille sur la ligne AFFICHÉE
+							// (tabulations développées) : un morceau se place
+							// alors à sa colonne, sans recalcul de tabulation
+							// au milieu d'une ligne.
+							const String shown = NormalizeDisplayText(line.text, tabStop);
+							spans.clear();
+							f.highlighter(shown, spans);
+							size_t at = 0;
+							auto emit = [&](size_t from, size_t to, sdl3::FColor color) {
+								if (to <= from)
+									return;
+								const float x = x0 + float(DisplayColumn(shown, from, tabStop)) * cw;
+								DrawTextRaw(ren, shown.Substr(from, to - from), color, x, y, lh, areaFont);
+							};
+							for (const UiTextSpan &span : spans) {
+								const size_t begin = sdl3::Min(span.begin, shown.size());
+								const size_t end = sdl3::Min(span.end, shown.size());
+								if (begin < at || end <= begin)
+									continue; // morceau mal formé : ignoré plutôt que dessiné deux fois
+								emit(at, begin, textColor);
+								emit(begin, end, span.color);
+								at = end;
+							}
+							emit(at, shown.size(), textColor);
+						}
+					}
 					y += lh;
 				}
 				if (f.focused && sdl3::Fmod(f.blink, 1.f) < 0.5f)
-					DrawCaret(ren, lines, fs, f.cursor, s, scroll, selColor);
+					DrawCaret(ren, lines, fs, f.cursor, box, scroll, selColor, cw);
+				ren.SetClipRect(ToClipRect(c.childClip));
 			}
 		}
 
@@ -3351,10 +4720,15 @@ private:
 			if (m.submenuPopup.Valid())
 				if (auto ps = world.GetComponent<UiPopupState>(m.submenuPopup); ps.IsSome())
 					submenuOpen = ps.Unwrap()->open;
-			sdl3::FColor bg = (m.hovered || submenuOpen) ? rs.BgHovered(sdl3::FColor::UI_BORDER_SLATE()) : sdl3::FColor::BLACK();
-			if (bg.a > 0) {
-				ren.SetDrawColor(bg);
-				ren.FillRoundedRect(s, rs.BordersRadius(math::Corners(4.f)));
+			// Rendu d'une ligne de liste de combo (cf. DrawDropdown) : rien au
+			// repos — c'est le fond du popup qui se voit, d'un seul tenant —,
+			// la couleur de sélection du thème, pleine largeur et sans arrondi,
+			// sur l'entrée survolée ou dont le sous-menu est ouvert. L'ancien
+			// fond NOIR opaque par entrée donnait une pile de boutons séparés,
+			// illisible en thème clair.
+			if (m.hovered || submenuOpen) {
+				ren.SetDrawColor(rs.BgChecked(sdl3::FColor::UI_ACCENT_BLUE_DEEP()));
+				ren.FillRect(s);
 			}
 			sdl3::FColor textColor = rs.TextColor(sdl3::FColor::UI_TEXT_PRIMARY());
 			float arrowW = m.hasSubmenu ? 16.f : 0.f;
@@ -3362,7 +4736,8 @@ private:
 			DrawTextCentered(ren, e, m.text, textColor, textBox, TextAlign::Left);
 			if (!m.shortcut.IsEmpty()) {
 				float fs = rs.FontSize(14.f);
-				sdl3::FColor muted = rs.BgHovered(sdl3::FColor{150/255.f, 156/255.f, 178/255.f, 255/255.f});
+				sdl3::FColor muted = textColor;
+				muted.a *= 0.55f;
 				sdl3::FPoint sz = MeasureCached(m.shortcut, fs);
 				DrawTextRaw(ren, m.shortcut, muted, s.x + s.w - arrowW - sz.x - 8.f, s.y, s.h);
 			}
@@ -3421,9 +4796,9 @@ private:
 
 			// ── Corps (lignes visibles seulement — clip resserré) ────────────
 			sdl3::FRect bodyRect{s.x, s.y + t.headerHeight, s.w, sdl3::Max(0.f, s.h - t.headerHeight)};
-			sdl3::FRect inner = c.clip.Intersection(bodyRect);
+			sdl3::FRect inner = c.childClip.Intersection(bodyRect);
 			if (inner.w > 0.f && inner.h > 0.f && t.rowHeight > 0.f && !t.rows.empty()) {
-				ren.SetClipRect(sdl3::Rect{int(inner.x), int(inner.y), int(inner.w) + 1, int(inner.h) + 1});
+				ren.SetClipRect(ToClipRect(inner));
 				int first = sdl3::Max(0, int(t.scroll / t.rowHeight));
 				int last = sdl3::Min(int(t.rows.size()) - 1, int((t.scroll + bodyRect.h) / t.rowHeight));
 				bool selMulti = false;
@@ -3458,7 +4833,7 @@ private:
 					ren.SetDrawColor(rs.BgPressed(sdl3::FColor::UI_ACCENT_BLUE_LIGHT()));
 					ren.FillRoundedRect({s.x + s.w - 6.f, thumbY, 4.f, thumbH}, math::Corners(2.f));
 				}
-				ren.SetClipRect(sdl3::Rect{int(c.clip.x), int(c.clip.y), int(c.clip.w) + 1, int(c.clip.h) + 1});
+				ren.SetClipRect(ToClipRect(c.childClip));
 			}
 		}
 
@@ -3470,7 +4845,10 @@ private:
 			ren.SetDrawColor(rs.BorderColor(sdl3::FColor::UI_BORDER_MUTED()));
 			ren.DrawRoundedRect(s, math::Corners(4.f));
 
-			ren.SetClipRect(sdl3::Rect{int(s.x), int(s.y), int(s.w) + 1, int(s.h) + 1});
+			// Intersection, et non `s` seul : poser le rect du widget comme
+			// clip ÉCRASERAIT celui hérité, et un tracé placé dans un panneau
+			// défilant peindrait par-dessus ce panneau.
+			ren.SetClipRect(ToClipRect(c.childClip.Intersection(s)));
 			sdl3::FRect plotRect = ComputePlotRect(p, s);
 			sdl3::FColor tickTextColor = rs.TextColor(sdl3::FColor{190/255.f, 194/255.f, 210/255.f, 255/255.f});
 			float tickFs = rs.FontSize(11.f);
@@ -3975,9 +5353,9 @@ private:
 			ren.DrawRoundedRect(s, math::Corners(4.f));
 
 			// Clip resserré au rect de la liste pour les items.
-			sdl3::FRect inner = c.clip.Intersection(s);
+			sdl3::FRect inner = c.childClip.Intersection(s);
 			if (inner.w > 0.f && inner.h > 0.f && lb.itemHeight > 0.f) {
-				ren.SetClipRect(sdl3::Rect{int(inner.x), int(inner.y), int(inner.w) + 1, int(inner.h) + 1});
+				ren.SetClipRect(ToClipRect(inner));
 				int first = sdl3::Max(0, int(lb.scroll / lb.itemHeight));
 				int last = sdl3::Min(int(lb.items.size()) - 1, int((lb.scroll + s.h) / lb.itemHeight));
 				for (int i = first; i <= last; ++i) {
@@ -4000,7 +5378,7 @@ private:
 					ren.SetDrawColor(rs.BgPressed(sdl3::FColor::UI_ACCENT_BLUE_LIGHT()));
 					ren.FillRoundedRect({s.x + s.w - 6.f, thumbY, 4.f, thumbH}, math::Corners(2.f));
 				}
-				ren.SetClipRect(sdl3::Rect{int(c.clip.x), int(c.clip.y), int(c.clip.w) + 1, int(c.clip.h) + 1});
+				ren.SetClipRect(ToClipRect(c.childClip));
 			}
 		}
 
@@ -4080,14 +5458,14 @@ private:
 	/// géométrie que celle utilisée par InputSystem pour le drag).
 	void DrawScrollbars(IUiRenderBackend &ren, const UiRect &r, const sdl3::FRect &screen) {
 		if (sdl3::FRect thumb = VScrollbarThumbRect(r, screen); thumb.w > 0.f) {
-			sdl3::FRect track{screen.x + screen.w - K_SCROLLBAR_THICKNESS, screen.y, K_SCROLLBAR_THICKNESS, screen.h};
+			sdl3::FRect track = VScrollbarTrackRect(r, screen);
 			ren.SetDrawColor(scrollbarTrack);
 			ren.FillRect(track);
 			ren.SetDrawColor(scrollbarThumb);
 			ren.FillRoundedRect(thumb, math::Corners(K_SCROLLBAR_THICKNESS * 0.5f));
 		}
 		if (sdl3::FRect thumb = HScrollbarThumbRect(r, screen); thumb.w > 0.f) {
-			sdl3::FRect track{screen.x, screen.y + screen.h - K_SCROLLBAR_THICKNESS, screen.w, K_SCROLLBAR_THICKNESS};
+			sdl3::FRect track = HScrollbarTrackRect(r, screen);
 			ren.SetDrawColor(scrollbarTrack);
 			ren.FillRect(track);
 			ren.SetDrawColor(scrollbarThumb);
@@ -4096,6 +5474,7 @@ private:
 	}
 
 	void DrawDropdown(IUiRenderBackend &ren, const UiComboBox &cb, const sdl3::FRect &box, const ResolvedStyle &rs) {
+		m_currentFontSize = rs.FontSize(0.f);
 		ren.ClearClipRect();
 		sdl3::FRect dd = cb.DropdownRect(box);
 		sdl3::FColor textColor = rs.TextColor(sdl3::FColor::UI_TEXT_PRIMARY());
@@ -4116,15 +5495,33 @@ private:
 		ren.DrawRoundedRect(dd, math::Corners(4.f));
 	}
 
+	/// Taille du texte des infobulles (px).
+	static constexpr float TOOLTIP_FONT_SIZE = 13.f;
+
 	void DrawTooltip(IUiRenderBackend &ren, const InputSystem::Tooltip &tip) {
+		// Mesure et dessin à la MÊME taille : la boîte était mesurée à 13 px
+		// mais le texte dessiné à la taille de chargement de la police
+		// (m_currentFontSize = 0), plus grande — il débordait de sa boîte.
+		m_currentFontSize = TOOLTIP_FONT_SIZE;
 		ren.ClearClipRect();
-		sdl3::FPoint sz = MeasureCached(tip.text, 13.f);
-		sdl3::FRect box{tip.pos.x, tip.pos.y, sz.x + 16.f, sz.y + 8.f};
+		const sdl3::FPoint sz = MeasureCached(tip.text, TOOLTIP_FONT_SIZE);
+		sdl3::FRect box{tip.pos.x, tip.pos.y, sdl3::Ceil(sz.x) + 16.f, sdl3::Ceil(sz.y) + 8.f};
+		// Toujours dans la fenêtre : près d'un bord droit ou bas, l'infobulle
+		// passe à gauche / au-dessus du pointeur plutôt que d'être coupée.
+		if (sdl3::Renderer *native = ren.NativeRenderer()) {
+			const sdl3::Point out = native->OutputSize();
+			const float W = float(out.x), H = float(out.y);
+			if (W > 0.f && box.x + box.w > W)
+				box.x = sdl3::Max(0.f, W - box.w - 2.f);
+			if (H > 0.f && box.y + box.h > H)
+				box.y = sdl3::Max(0.f, tip.pos.y - box.h - 24.f);
+		}
 		ren.SetDrawColor(tooltipBg);
 		ren.FillRoundedRect(box, math::Corners(4.f));
 		ren.SetDrawColor(tooltipBorder);
 		ren.DrawRoundedRect(box, math::Corners(4.f));
 		DrawTextRaw(ren, tip.text, tooltipText, box.x + 8.f, box.y, box.h);
+		m_currentFontSize = 0.f;
 	}
 
 	/// Rend la texture dans `dst` selon le mode d'ajustement demandé.
@@ -4166,6 +5563,45 @@ private:
 	/// effectivement enregistré (jamais d'absence de rendu) : bold+italic
 	/// préfère la variante combinée, sinon gras seul, sinon italique seul,
 	/// sinon la police normale.
+public:
+	/**
+	 * `base` à la taille `size` (points). Le texte d'un widget se dessinait
+	 * TOUJOURS à la taille de chargement de la police, quel que soit son
+	 * `fontSize` : un titre en 18 ou une légende en 11 sortaient en 14 (la
+	 * mise en page, elle, mesurait bien la taille demandée — le texte
+	 * débordait ou flottait dans sa boîte), et une icône de 14 dans un bouton
+	 * de 18 s'affichait à la taille de chargement de la police d'icônes.
+	 *
+	 * Une copie par taille (TTF_CopyFont + SetSize), créée à la première
+	 * demande et gardée : changer la taille de la police PARTAGÉE re-mettrait
+	 * en page tous les textes déjà créés avec elle.
+	 */
+	[[nodiscard]] sdl3::Font *FontAt(sdl3::Font *base, float size) {
+		if (!base || size <= 0.f)
+			return base;
+		if (sdl3::Abs(base->PointSize() - size) < 0.2f)
+			return base;
+		const std::pair<const sdl3::Font *, int> key{base, int(size * 4.f + 0.5f)};
+		if (auto it = m_sizedFonts.find(key); it != m_sizedFonts.end())
+			return it->second.get();
+		auto copy = base->Copy();
+		if (!copy)
+			return base; // au pire, la taille de chargement : jamais d'absence de texte
+		copy.Value().SetSize(float(key.second) / 4.f);
+		auto owned = std::make_unique<sdl3::Font>(std::move(copy.Value()));
+		sdl3::Font *raw = owned.get();
+		m_sizedFonts.emplace(key, std::move(owned));
+		return raw;
+	}
+
+private:
+	/// Police de dessin effective : `font` (ou la police normale) à la taille
+	/// du widget en cours de dessin.
+	[[nodiscard]] sdl3::Font *DrawFont(sdl3::Font *font) {
+		sdl3::Font *base = font ? font : m_font;
+		return m_currentFontSize > 0.f ? FontAt(base, m_currentFontSize) : base;
+	}
+
 	[[nodiscard]] sdl3::Font *PickTextFont(bool bold, bool italic) const {
 		if (bold && italic && boldItalicFont)
 			return boldItalicFont;
@@ -4177,22 +5613,39 @@ private:
 	}
 
 	/// Mesure une chaîne : vraie mesure TTF si possible, sinon heuristique.
+	/// Place occupée par un texte, codes d'échappement compris — même règle
+	/// que LayoutSystem::MeasureText, sinon les décorations (surlignage,
+	/// soulignement, barré) et les colonnes de raccourcis d'un menu se
+	/// placeraient à côté du texte réellement dessiné.
 	[[nodiscard]] sdl3::FPoint MeasureCached(const String &text, float fontSize) {
-		if (m_font) {
-			if (auto sz = m_font->Measure(text); sz.IsSome())
-				return {float(sz.Unwrap().x), float(sz.Unwrap().y)};
-		}
-		return {float(text.size()) * fontSize * 0.55f, fontSize * 1.3f};
+		auto measureLine = [this, fontSize](const String &line, float fs) -> sdl3::FPoint {
+			if (sdl3::Font *sized = FontAt(m_font, fontSize)) {
+				if (auto sz = sized->Measure(line); sz.IsSome())
+					return {float(sz.Unwrap().x), float(sz.Unwrap().y)};
+			}
+			(void)fontSize;
+			return {float(DisplayCells(line)) * CharWidthApprox(fs), LineHeightApprox(fs)};
+		};
+		const TextMetrics metrics = MeasureTextBlock(text, fontSize, measureLine, tabStop);
+		return {metrics.width, metrics.height};
 	}
 
 	/// Texte via le cache clé-chaîne, centré verticalement dans `rowH`.
-	void DrawTextRaw([[maybe_unused]] IUiRenderBackend &ren, const String &text, sdl3::FColor color, float x, float y, float rowH) {
-		if (!m_engine || !m_font || text.IsEmpty())
+	void DrawTextRaw([[maybe_unused]] IUiRenderBackend &ren, const String &rawText, sdl3::FColor color, float x,
+					 float y, float rowH, sdl3::Font *font = nullptr) {
+		sdl3::Font *drawFont = DrawFont(font);
+		if (!m_engine || !drawFont || rawText.IsEmpty())
 			return;
-		String key(text.c_str());
+		// Forme normalisée : SDL_ttf dessine une boîte « glyphe manquant »
+		// pour `\r`, `\t` et tout autre caractère de contrôle (cf.
+		// NormalizeDisplayText) — et c'est cette forme qui a été mesurée.
+		const String text = NormalizeDisplayText(rawText, tabStop);
+		// La clé porte la police quand ce n'est pas celle par défaut : la même
+		// chaîne en chasse fixe et en proportionnelle sont deux textures.
+		String key = drawFont == m_font ? String(text.c_str()) : String::Format("\x01%p\x01%s", (void *)drawFont, text.c_str());
 		auto it = strCache.find(key);
 		if (it == strCache.end()) {
-			auto res = sdl3::Text::Create(*m_engine, *m_font, text);
+			auto res = sdl3::Text::Create(*m_engine, *drawFont, text);
 			if (!res)
 				return;
 			it = strCache.insert_or_assign(std::move(key), CachedStr{color, std::move(res.Value())}).first;
@@ -4204,7 +5657,10 @@ private:
 		float th = rowH;
 		if (auto s = it->second.text.GetSize(); s.IsSome())
 			th = float(s.Unwrap().y);
-		it->second.text.Draw(x, y + (rowH - th) * 0.5f);
+		// Origine au PIXEL ENTIER : un texte posé à une demi-coordonnée est
+		// échantillonné entre deux pixels (filtrage bilinéaire de l'atlas de
+		// glyphes) et paraît dédoublé, flou.
+		it->second.text.Draw(sdl3::Round(x), sdl3::Round(y + (rowH - th) * 0.5f));
 	}
 
 	/// Surbrillance de la sélection (rects semi-transparents, une bande par
@@ -4212,18 +5668,22 @@ private:
 	/// pour qu'il reste lisible par-dessus. Pas de sélection (cursor ==
 	/// selectionAnchor) : ne dessine rien.
 	void DrawSelection(IUiRenderBackend &ren, const std::vector<TextLine> &lines, float fontSize, size_t cursor,
-					   size_t selectionAnchor, const sdl3::FRect &s, const sdl3::FPoint &scroll, sdl3::FColor accent) {
+					   size_t selectionAnchor, const sdl3::FRect &s, const sdl3::FPoint &scroll, sdl3::FColor accent,
+					   float cellWidth = 0.f) {
 		if (cursor == selectionAnchor || lines.empty())
 			return;
 		size_t lo = sdl3::Min(cursor, selectionAnchor), hi = sdl3::Max(cursor, selectionAnchor);
 		size_t loLi = LineIndexOf(lines, lo), hiLi = LineIndexOf(lines, hi);
 		float lh = LineHeightApprox(fontSize);
-		float cw = CharWidthApprox(fontSize);
+		float cw = cellWidth > 0.f ? cellWidth : CharWidthApprox(fontSize);
 		ren.SetDrawColor(sdl3::FColor{accent.r, accent.g, accent.b, 90});
 		for (size_t li = loLi; li <= hiLi; ++li) {
 			const TextLine &line = lines[li];
-			size_t a = (li == loLi) ? (lo - line.offset) : 0;
-			size_t b = (li == hiLi) ? (hi - line.offset) : line.text.size();
+			// Colonnes D'AFFICHAGE (tabulations développées, UTF-8 compté en
+			// caractères) : la bande doit couvrir le texte tel qu'il est
+			// dessiné, pas tel qu'il est stocké.
+			size_t a = DisplayColumn(line.text, (li == loLi) ? (lo - line.offset) : 0, tabStop);
+			size_t b = DisplayColumn(line.text, (li == hiLi) ? (hi - line.offset) : line.text.size(), tabStop);
 			float x0 = s.x + 8.f - scroll.x + float(a) * cw;
 			float x1 = s.x + 8.f - scroll.x + float(b) * cw;
 			float y = s.y + 4.f - scroll.y + float(li) * lh;
@@ -4235,13 +5695,14 @@ private:
 	/// Curseur clignotant à la position réelle de `cursor` (ligne + colonne),
 	/// pas toujours en fin de texte — partagé entre UiInput et UiInputArea.
 	void DrawCaret(IUiRenderBackend &ren, const std::vector<TextLine> &lines, float fontSize, size_t cursor,
-				   const sdl3::FRect &s, const sdl3::FPoint &scroll, sdl3::FColor color) {
+				   const sdl3::FRect &s, const sdl3::FPoint &scroll, sdl3::FColor color, float cellWidth = 0.f) {
 		if (lines.empty())
 			return;
 		size_t li = LineIndexOf(lines, cursor);
-		size_t col = cursor - lines[li].offset;
+		size_t col = DisplayColumn(lines[li].text, cursor - lines[li].offset, tabStop);
 		float lh = LineHeightApprox(fontSize);
-		float x = s.x + 8.f - scroll.x + float(col) * CharWidthApprox(fontSize);
+		const float cw = cellWidth > 0.f ? cellWidth : CharWidthApprox(fontSize);
+		float x = s.x + 8.f - scroll.x + float(col) * cw;
 		float y = s.y + 4.f - scroll.y + float(li) * lh;
 		ren.SetDrawColor(color);
 		ren.FillRect({x, y, 2.f, lh});
@@ -4366,11 +5827,157 @@ private:
 	/// `font` : police à utiliser pour CE dessin (nullptr = police globale
 	/// font — cas de tous les widgets textuels). UiIcon passe explicitement
 	/// sa propre police d'icônes, résolue via iconFonts.
-	void DrawTextCentered([[maybe_unused]] IUiRenderBackend &ren, ecs::Entity e, const String &text, sdl3::FColor color, const sdl3::FRect &box,
-						  TextAlign align, sdl3::Font *font = nullptr) {
-		sdl3::Font *f = font ? font : m_font;
-		if (!m_engine || !f || text.IsEmpty())
+	/**
+	 * Dessine le texte d'un widget selon son mode de débordement (cf.
+	 * TextOverflow) — le point d'entrée unique des libellés.
+	 *
+	 * Les modes ne changent QUE l'affichage : la place réservée, elle, a été
+	 * décidée par le layout (largeur du texte pour CLIP/ELLIPSIS/SCROLL/
+	 * MARQUEE, hauteur repliée pour WRAP), et les barres de défilement
+	 * viennent de UiRect::content. Ici on ne fait que peindre, dans le clip
+	 * déjà posé par DrawTree — aucun mode ne peut donc déborder du widget.
+	 */
+	void DrawOverflowText(IUiRenderBackend &ren, ecs::ArchetypeRegistry &world, ecs::Entity e, const String &text,
+						  sdl3::FColor color, const sdl3::FRect &box, TextAlign align, sdl3::Font *font) {
+		const TextOverflow mode = TextOverflowOf(world, e);
+		if (mode == TextOverflow::CLIP) {
+			DrawTextCentered(ren, e, text, color, box, align, font);
 			return;
+		}
+
+		sdl3::FPoint scroll{};
+		if (auto r = world.GetComponent<UiRect>(e); r.IsSome())
+			scroll = r.Unwrap()->scroll;
+		const float inner = sdl3::Max(1.f, box.w - 2.f * TEXT_INSET);
+		const float fs = GetResolved(world, e).FontSize(14.f);
+
+		switch (mode) {
+		case TextOverflow::CLIP:
+			break; // traité plus haut
+		case TextOverflow::ELLIPSIS: {
+			const String shown = TruncateWithEllipsis(text, fs, inner);
+			DrawTextCentered(ren, e, shown, color, box, align, font);
+			break;
+		}
+		case TextOverflow::SCROLL: {
+			// Défilement horizontal : le texte entier est dessiné, décalé ;
+			// le clip du widget fait le reste, et la barre vient de
+			// UiRect::content (posé par le layout).
+			DrawTextRaw(ren, text, color, box.x + TEXT_INSET - scroll.x, box.y, box.h);
+			break;
+		}
+		case TextOverflow::MARQUEE: {
+			float offset = 0.f;
+			if (auto o = world.GetComponent<UiTextOverflow>(e); o.IsSome())
+				offset = o.Unwrap()->offset;
+			DrawTextRaw(ren, text, color, box.x + TEXT_INSET - offset, box.y, box.h);
+			break;
+		}
+		case TextOverflow::WRAP: {
+			auto measureLine = [this, font](const String &line, float size) -> sdl3::FPoint {
+				return MeasureLineWith(line, size, font);
+			};
+			const std::vector<WrappedLine> lines = WrapTextToWidth(text, fs, inner, measureLine, tabStop);
+			float lineHeight = LineHeightApprox(fs);
+			if (const float measured = measureLine(String("Ag"), fs).y; measured > 0.f)
+				lineHeight = measured;
+			float y = box.y - scroll.y;
+			for (const WrappedLine &line : lines) {
+				if (y + lineHeight >= box.y && y <= box.y + box.h)
+					DrawWrappedLine(ren, line, color, box, y, lineHeight, align, font, fs);
+				y += lineHeight;
+			}
+			break;
+		}
+		}
+	}
+
+public:
+	/// Le plus long préfixe de `text` qui tienne dans `maxWidth` une fois « … »
+	/// ajouté. Public : c'est une opération de MESURE (pas de dessin), utile
+	/// à une application qui veut savoir ce qui sera réellement lisible, et
+	/// testable sans police ni GPU. Recherche DICHOTOMIQUE sur les frontières de caractères : une
+	/// recherche linéaire mesurerait autant de préfixes qu'il y a de lettres,
+	/// à chaque image, pour chaque libellé tronqué.
+	[[nodiscard]] String TruncateWithEllipsis(const String &text, float fontSize, float maxWidth) {
+		const String ellipsis("…");
+		if (MeasureCached(text, fontSize).x <= maxWidth)
+			return text;
+		// Frontières de caractères (UTF-8) : couper entre deux octets d'un
+		// même caractère produirait un glyphe invalide.
+		std::vector<size_t> bounds;
+		bounds.push_back(0);
+		for (size_t i = 0; i < text.size(); ++i)
+			if ((static_cast<unsigned char>(text[i]) & 0xC0) != 0x80 && i > 0)
+				bounds.push_back(i);
+		bounds.push_back(text.size());
+
+		size_t lo = 0, hi = bounds.size() - 1;
+		while (lo < hi) {
+			const size_t mid = (lo + hi + 1) / 2;
+			if (MeasureCached(text.Substr(0, bounds[mid]) + ellipsis, fontSize).x <= maxWidth)
+				lo = mid;
+			else
+				hi = mid - 1;
+		}
+		// Même « … » seul ne tient pas : on rend une chaîne vide plutôt qu'un
+		// glyphe qui dépasserait.
+		if (lo == 0 && MeasureCached(ellipsis, fontSize).x > maxWidth)
+			return String();
+		return text.Substr(0, bounds[lo]) + ellipsis;
+	}
+
+private:
+	/// Une ligne repliée, posée selon l'alignement. `Justify` répartit
+	/// l'espace restant ENTRE LES MOTS — sauf sur la dernière ligne d'un
+	/// paragraphe, qu'étirer rendrait illisible.
+	void DrawWrappedLine(IUiRenderBackend &ren, const WrappedLine &line, sdl3::FColor color, const sdl3::FRect &box,
+						 float y, float lineHeight, TextAlign align, sdl3::Font *font, float fontSize) {
+		const float inner = sdl3::Max(1.f, box.w - 2.f * TEXT_INSET);
+		if (align == TextAlign::Justify && !line.lastOfParagraph) {
+			std::vector<String> words;
+			for (const String &word : line.text.Split(' '))
+				if (!word.IsEmpty())
+					words.push_back(word);
+			if (words.size() > 1) {
+				float wordsWidth = 0.f;
+				for (const String &word : words)
+					wordsWidth += MeasureLineWith(word, fontSize, font).x;
+				const float gap = (inner - wordsWidth) / float(words.size() - 1);
+				float x = box.x + TEXT_INSET;
+				for (const String &word : words) {
+					DrawTextRaw(ren, word, color, x, y, lineHeight);
+					x += MeasureLineWith(word, fontSize, font).x + gap;
+				}
+				return;
+			}
+		}
+		float x = box.x + TEXT_INSET;
+		if (align == TextAlign::Center)
+			x = box.x + (box.w - line.width) * 0.5f;
+		else if (align == TextAlign::Right)
+			x = box.x + box.w - line.width - TEXT_INSET;
+		DrawTextRaw(ren, line.text, color, x, y, lineHeight);
+	}
+
+	/// Mesure d'UNE ligne avec la police donnée (celle du widget, qui peut
+	/// être grasse ou italique) — repli sur l'heuristique sans police.
+	[[nodiscard]] sdl3::FPoint MeasureLineWith(const String &line, float fontSize, sdl3::Font *font) {
+		sdl3::Font *f = font ? font : m_font;
+		if (f)
+			if (auto size = f->Measure(line); size.IsSome())
+				return {float(size.Unwrap().x), float(size.Unwrap().y)};
+		return {float(DisplayCells(line)) * CharWidthApprox(fontSize), LineHeightApprox(fontSize)};
+	}
+
+	void DrawTextCentered([[maybe_unused]] IUiRenderBackend &ren, ecs::Entity e, const String &rawText,
+						  sdl3::FColor color, const sdl3::FRect &box, TextAlign align, sdl3::Font *font = nullptr) {
+		sdl3::Font *f = DrawFont(font);
+		if (!m_engine || !f || rawText.IsEmpty())
+			return;
+		// Cf. DrawTextRaw : on dessine — et on met en cache — la forme
+		// normalisée, celle que le layout a mesurée.
+		const String text = NormalizeDisplayText(rawText, tabStop);
 
 		auto it = textCache.find(e.id);
 		if (it == textCache.end() || it->second.str != text || it->second.font != f) {
@@ -4388,13 +5995,16 @@ private:
 		if (auto s = it->second.text.GetSize(); s.IsSome())
 			sz = {float(s.Unwrap().x), float(s.Unwrap().y)};
 
-		float x = box.x + 8.f;
-		if (align == TextAlign::Center)
-			x = box.x + (box.w - sz.x) * 0.5f;
-		else if (align == TextAlign::Right)
-			x = box.x + box.w - sz.x - 8.f;
+		// Cf. TextOriginX : la marge de confort est rabotée quand la boîte
+		// n'est pas plus large que le texte — sinon un `UiLabel` déborde de
+		// 8 px à droite, ce qui restait invisible tant qu'un widget pouvait
+		// peindre dans le clip de son parent, mais se voyait tranché net
+		// depuis que chacun est borné à sa propre boîte (les libellés de
+		// l'outliner y perdaient leur dernière lettre).
+		float x = TextOriginX(box, sz.x, align);
 		float y = box.y + (box.h - sz.y) * 0.5f;
-		it->second.text.Draw(x, y);
+		// Cf. DrawTextRaw : pixel entier, sinon le texte paraît dédoublé.
+		it->second.text.Draw(sdl3::Round(x), sdl3::Round(y));
 	}
 };
 

@@ -13,7 +13,7 @@
  * Deux formats, même contenu : `text` pour un humain, `json` (via
  * `data::JsonDocument`) pour un test d'intégration qui vérifie des seuils.
  *
- * Structure reprise de examples/level_editor/report.hpp (ThreadTracker,
+ * Structure reprise de examples/game_editor/report.hpp (ThreadTracker,
  * FrameStats) : mêmes mesures, mêmes pièges — la première image est exclue
  * des extrêmes, et le parallélisme publié est un maximum SIMULTANÉ, pas un
  * total cumulé.

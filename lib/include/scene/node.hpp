@@ -34,11 +34,11 @@
  *     PILOTÉS depuis l'arbre (cf. le runtime de l'éditeur), jamais l'inverse
  *     — même séparation document/runtime que celle déjà en place.
  */
-#include <vector>
-
 #include "../core/core.hpp"
 #include "../math/math.hpp"
 #include "property.hpp"
+
+#include <vector>
 
 namespace scene {
 
@@ -59,11 +59,13 @@ struct Transform {
 	static constexpr float DEG2RAD = 3.14159265358979323846f / 180.f;
 	static constexpr float RAD2DEG = 180.f / 3.14159265358979323846f;
 
-	[[nodiscard]] math::FMatrix4 Matrix() const noexcept { return math::ComposeTRS(position, rotation, scale); }
+	[[nodiscard]] math::FMatrix4 Matrix() const noexcept {
+		return math::ComposeTRS(position, rotation, scale);
+	}
 
 	/// Transform correspondant à une matrice (cf. math::DecomposeTRS et ses
 	/// limites : miroir porté sur X, cisaillement approché).
-	[[nodiscard]] static Transform FromMatrix(const math::FMatrix4 &m) noexcept {
+	[[nodiscard]] static Transform FromMatrix(const math::FMatrix4& m) noexcept {
 		math::TRS trs = math::DecomposeTRS(m);
 		return Transform{trs.translation, trs.rotation, trs.scale};
 	}
@@ -73,21 +75,23 @@ struct Transform {
 		return {e.x * RAD2DEG, e.y * RAD2DEG, e.z * RAD2DEG};
 	}
 
-	void SetEulerDegrees(const math::FVector3 &degrees) noexcept {
-		rotation = math::FQuaternion::FromEuler(degrees.x * DEG2RAD, degrees.y * DEG2RAD, degrees.z * DEG2RAD);
+	void SetEulerDegrees(const math::FVector3& degrees) noexcept {
+		rotation = math::FQuaternion::FromEuler(degrees.x * DEG2RAD, degrees.y * DEG2RAD,
+												degrees.z * DEG2RAD);
 	}
 
-	[[nodiscard]] bool operator==(const Transform &o) const noexcept {
-		auto sameVec = [](const math::FVector3 &a, const math::FVector3 &b) {
+	[[nodiscard]] bool operator==(const Transform& o) const noexcept {
+		auto sameVec = [](const math::FVector3& a, const math::FVector3& b) {
 			return a.x == b.x && a.y == b.y && a.z == b.z;
 		};
-		return sameVec(position, o.position) && sameVec(scale, o.scale) && rotation.x == o.rotation.x &&
-			   rotation.y == o.rotation.y && rotation.z == o.rotation.z && rotation.w == o.rotation.w;
+		return sameVec(position, o.position) && sameVec(scale, o.scale) &&
+			   rotation.x == o.rotation.x && rotation.y == o.rotation.y &&
+			   rotation.z == o.rotation.z && rotation.w == o.rotation.w;
 	}
-	[[nodiscard]] bool operator!=(const Transform &o) const noexcept { return !(*this == o); }
+	[[nodiscard]] bool operator!=(const Transform& o) const noexcept { return !(*this == o); }
 
 	[[nodiscard]] data::NodePtr ToJson() const {
-		auto vec3 = [](const math::FVector3 &v) {
+		auto vec3 = [](const math::FVector3& v) {
 			auto array = data::Node::MakeArray();
 			array->Push(data::Node::MakeFloat(double(v.x)));
 			array->Push(data::Node::MakeFloat(double(v.y)));
@@ -101,11 +105,11 @@ struct Transform {
 		return node;
 	}
 
-	[[nodiscard]] static Transform FromJson(const data::NodePtr &node) {
+	[[nodiscard]] static Transform FromJson(const data::NodePtr& node) {
 		Transform transform;
 		if (!node || !node->IsObject())
 			return transform;
-		auto number = [](const data::NodePtr &n, float fallback) -> float {
+		auto number = [](const data::NodePtr& n, float fallback) -> float {
 			if (!n)
 				return fallback;
 			if (n->IsInt())
@@ -114,10 +118,11 @@ struct Transform {
 				return float(n->floatValue);
 			return fallback;
 		};
-		auto vec3 = [&](const data::NodePtr &n, math::FVector3 fallback) -> math::FVector3 {
+		auto vec3 = [&](const data::NodePtr& n, math::FVector3 fallback) -> math::FVector3 {
 			if (!n || !n->IsArray() || n->GetSize() < 3)
 				return fallback;
-			return {number(n->At(0), fallback.x), number(n->At(1), fallback.y), number(n->At(2), fallback.z)};
+			return {number(n->At(0), fallback.x), number(n->At(1), fallback.y),
+					number(n->At(2), fallback.z)};
 		};
 		transform.position = vec3(node->Get("position"), {});
 		transform.SetEulerDegrees(vec3(node->Get("rotation"), {}));
@@ -154,10 +159,10 @@ struct Component {
 	/// (couper une lumière ou un corps sans perdre son réglage).
 	bool enabled = true;
 
-	[[nodiscard]] bool operator==(const Component &o) const {
+	[[nodiscard]] bool operator==(const Component& o) const {
 		return type == o.type && enabled == o.enabled && props == o.props;
 	}
-	[[nodiscard]] bool operator!=(const Component &o) const { return !(*this == o); }
+	[[nodiscard]] bool operator!=(const Component& o) const { return !(*this == o); }
 
 	[[nodiscard]] data::NodePtr ToJson() const {
 		auto node = data::Node::MakeObject();
@@ -168,7 +173,7 @@ struct Component {
 		return node;
 	}
 
-	[[nodiscard]] static Component FromJson(const data::NodePtr &node) {
+	[[nodiscard]] static Component FromJson(const data::NodePtr& node) {
 		Component component;
 		if (!node || !node->IsObject())
 			return component;
@@ -196,18 +201,18 @@ namespace node_type {
 /// Raison : un arbre où seuls certains niveaux portent un transform oblige
 /// tout le code de parcours à traiter le cas « trou dans la chaîne », pour un
 /// gain mémoire dérisoire (10 flottants).
-inline constexpr const char *NODE = "Node";
+inline constexpr const char* NODE = "Node";
 /// Nœud spatial explicite — même structure, nom qui dit l'intention.
-inline constexpr const char *NODE3D = "Node3D";
+inline constexpr const char* NODE3D = "Node3D";
 } // namespace node_type
 
 /// Un nœud de l'arbre. Valeur pure : la parenté est en `NodeId`, jamais en
 /// pointeur (cf. en-tête, décision 2).
 struct Node {
 	NodeId id;
-	NodeId parent;                  ///< invalide pour la racine
-	std::vector<NodeId> children;   ///< ORDRE stable : c'est celui de l'outliner et du fichier
-	String name;                    ///< libellé éditorial, NON unique globalement (cf. NodeTree::UniqueChildName)
+	NodeId parent;				  ///< invalide pour la racine
+	std::vector<NodeId> children; ///< ORDRE stable : c'est celui de l'outliner et du fichier
+	String name; ///< libellé éditorial, NON unique globalement (cf. NodeTree::UniqueChildName)
 	String type = node_type::NODE3D;
 	Transform transform;
 	/// Visibilité PROPRE. La visibilité effective est héritée : un enfant
@@ -222,27 +227,27 @@ struct Node {
 
 	// ── Composants ───────────────────────────────────────────────────────────
 
-	[[nodiscard]] const Component *FindComponent(const String &componentType) const noexcept {
-		for (const Component &component : components)
+	[[nodiscard]] const Component* FindComponent(const String& componentType) const noexcept {
+		for (const Component& component : components)
 			if (component.type == componentType)
 				return &component;
 		return nullptr;
 	}
-	[[nodiscard]] Component *FindComponent(const String &componentType) noexcept {
-		for (Component &component : components)
+	[[nodiscard]] Component* FindComponent(const String& componentType) noexcept {
+		for (Component& component : components)
 			if (component.type == componentType)
 				return &component;
 		return nullptr;
 	}
-	[[nodiscard]] bool HasComponent(const String &componentType) const noexcept {
+	[[nodiscard]] bool HasComponent(const String& componentType) const noexcept {
 		return FindComponent(componentType) != nullptr;
 	}
 
 	/// Ajoute OU remplace le composant de ce type (un nœud ne porte qu'un
 	/// composant par type : deux maillages sur le même nœud décriraient deux
 	/// objets, c'est-à-dire deux nœuds).
-	Component &SetComponent(Component component) {
-		if (Component *existing = FindComponent(component.type)) {
+	Component& SetComponent(Component component) {
+		if (Component* existing = FindComponent(component.type)) {
 			*existing = std::move(component);
 			return *existing;
 		}
@@ -250,7 +255,7 @@ struct Node {
 		return components.back();
 	}
 
-	bool RemoveComponent(const String &componentType) {
+	bool RemoveComponent(const String& componentType) {
 		for (size_t i = 0; i < components.size(); ++i)
 			if (components[i].type == componentType) {
 				components.erase(components.begin() + ptrdiff_t(i));
@@ -260,25 +265,28 @@ struct Node {
 	}
 
 	/// Raccourci de lecture d'une propriété de composant.
-	[[nodiscard]] const PropertyValue *ComponentProperty(const String &componentType, const String &key) const noexcept {
-		const Component *component = FindComponent(componentType);
+	[[nodiscard]] const PropertyValue* ComponentProperty(const String& componentType,
+														 const String& key) const noexcept {
+		const Component* component = FindComponent(componentType);
 		return component ? component->props.Find(key) : nullptr;
 	}
 
 	// ── Propriétés libres ────────────────────────────────────────────────────
 
-	[[nodiscard]] const PropertyValue *Get(const String &key) const noexcept { return properties.Find(key); }
-	void Set(const String &key, PropertyValue value) { properties.Set(key, std::move(value)); }
+	[[nodiscard]] const PropertyValue* Get(const String& key) const noexcept {
+		return properties.Find(key);
+	}
+	void Set(const String& key, PropertyValue value) { properties.Set(key, std::move(value)); }
 
 	// ── Comparaison ──────────────────────────────────────────────────────────
 	// Compare le CONTENU, identifiants et parenté inclus — c'est ce dont les
 	// tests d'aller-retour (sauver/recharger) et l'annulation ont besoin.
-	[[nodiscard]] bool operator==(const Node &o) const {
-		return id == o.id && parent == o.parent && children == o.children && name == o.name && type == o.type &&
-			   transform == o.transform && visible == o.visible && locked == o.locked &&
-			   components == o.components && properties == o.properties;
+	[[nodiscard]] bool operator==(const Node& o) const {
+		return id == o.id && parent == o.parent && children == o.children && name == o.name &&
+			   type == o.type && transform == o.transform && visible == o.visible &&
+			   locked == o.locked && components == o.components && properties == o.properties;
 	}
-	[[nodiscard]] bool operator!=(const Node &o) const { return !(*this == o); }
+	[[nodiscard]] bool operator!=(const Node& o) const { return !(*this == o); }
 
 	// ── Sérialisation ────────────────────────────────────────────────────────
 	// Les ENFANTS ne sont pas sérialisés ici : l'arbre l'est sous forme
@@ -297,7 +305,7 @@ struct Node {
 			node->Set("locked", data::Node::MakeBool(true));
 		if (!components.empty()) {
 			auto array = data::Node::MakeArray();
-			for (const Component &component : components)
+			for (const Component& component : components)
 				array->Push(component.ToJson());
 			node->Set("components", array);
 		}
@@ -308,7 +316,7 @@ struct Node {
 
 	/// Lit un nœud SANS ses enfants (cf. ToJson) — `children` reste vide, la
 	/// reconstruction de l'arbre est le travail de NodeTree::FromJson.
-	[[nodiscard]] static Node FromJson(const data::NodePtr &json) {
+	[[nodiscard]] static Node FromJson(const data::NodePtr& json) {
 		Node node;
 		if (!json || !json->IsObject())
 			return node;

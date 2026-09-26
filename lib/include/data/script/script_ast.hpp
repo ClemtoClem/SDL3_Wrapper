@@ -67,6 +67,11 @@ struct FunctionDef {
 	std::vector<StmtPtr> body;
 	int line = 0;
 	int column = 0;
+	/// Noms des `var` du corps (blocs imbriqués compris), calculés au premier
+	/// appel puis gardés : le hissage se fait à CHAQUE appel, et un script
+	/// appelé à chaque image ne doit pas reparcourir son corps pour ça.
+	mutable std::vector<String> hoistedVars;
+	mutable bool hoistComputed = false;
 
 	FunctionDef() = default;
 	FunctionDef(const FunctionDef &) = delete;
@@ -204,6 +209,7 @@ enum class StmtKind : uint8_t {
 	RETURN,
 	BREAK,
 	CONTINUE,
+	NAMESPACE,
 };
 
 struct Stmt {
@@ -225,11 +231,29 @@ struct ExpressionStmt : Stmt {
 		: Stmt(StmtKind::EXPRESSION, lineNo, columnNo), expression(std::move(e)) {}
 };
 
+/// Forme d'une déclaration de variable — elle décide de la portée et des
+/// droits (cf. memory/project_script_language.md) :
+///
+///   | forme   | portée              | réaffectation | redéclaration (même portée) |
+///   |---------|---------------------|---------------|-----------------------------|
+///   | `var`   | fonction ou globale | oui           | oui                         |
+///   | `let`   | bloc `{}`           | oui           | non                         |
+///   | `const` | bloc `{}`           | NON           | non                         |
+///
+/// Toutes sont hissées au début de leur portée : `var` y vaut `nil` avant sa
+/// ligne ; `let`/`const` y sont en « zone morte » (lecture = erreur).
+enum class DeclKind : uint8_t { LET, VAR, CONST };
+
+[[nodiscard]] inline const char *DeclKindName(DeclKind kind) noexcept {
+	return kind == DeclKind::VAR ? "var" : kind == DeclKind::CONST ? "const" : "let";
+}
+
 struct LetStmt : Stmt {
 	String name;
-	ExprPtr initializer; ///< nullptr => `nil`
-	LetStmt(String n, ExprPtr init, int lineNo, int columnNo)
-		: Stmt(StmtKind::LET, lineNo, columnNo), name(std::move(n)), initializer(std::move(init)) {}
+	ExprPtr initializer; ///< nullptr => `nil` (interdit pour `const`)
+	DeclKind declKind = DeclKind::LET;
+	LetStmt(String n, ExprPtr init, int lineNo, int columnNo, DeclKind kind = DeclKind::LET)
+		: Stmt(StmtKind::LET, lineNo, columnNo), name(std::move(n)), initializer(std::move(init)), declKind(kind) {}
 };
 
 /// Affectation à une cible assignable : identifiant, `a[i]` ou `a.b`.
@@ -294,6 +318,16 @@ struct ContinueStmt : Stmt {
 // ============================================================================
 
 /// Une unité compilée : la suite d'instructions de plus haut niveau.
+/// `namespace nom { … }` : un espace de noms. Son corps est une portée de
+/// FONCTION (un `var` n'en sort pas) ; ses déclarations de premier niveau en
+/// sont les MEMBRES, lus du dehors par `nom.membre`. Rouvrir un espace de
+/// noms existant l'étend (comme en TypeScript).
+struct NamespaceStmt : Stmt {
+	String name;
+	std::vector<StmtPtr> body;
+	NamespaceStmt(String n, int lineNo, int columnNo) : Stmt(StmtKind::NAMESPACE, lineNo, columnNo), name(std::move(n)) {}
+};
+
 struct Program {
 	std::vector<StmtPtr> statements;
 };

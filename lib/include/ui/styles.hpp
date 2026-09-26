@@ -501,7 +501,7 @@ private:
 		//
 		// Deux pièges d'invalidation ici, tous deux DÉJÀ RENCONTRÉS en vrai
 		// (plantage use-after-free reproductible dès qu'une interface a assez
-		// d'archétypes distincts — cf. examples/level_editor/, dont
+		// d'archétypes distincts — cf. examples/game_editor/, dont
 		// l'inspecteur/outliner en crée beaucoup) :
 		//
 		//  a) on passait aux enfants un pointeur vers le `UiComputedStyle`

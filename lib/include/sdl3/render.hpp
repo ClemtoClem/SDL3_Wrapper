@@ -395,6 +395,11 @@ public:
 	/// borderless window can report themselves as draggable/resizable, e.g. a
 	/// hand-drawn title bar strip returning SDL_HITTEST_DRAGGABLE. Pass an
 	/// empty function to clear a previously-installed callback.
+	/// Souris « relative » : curseur caché et capturé, seuls les déplacements
+	/// (xrel/yrel) arrivent — la vue à la première personne d'un jeu.
+	bool SetRelativeMouseMode(bool enabled) { return m_handle && SDL_SetWindowRelativeMouseMode(m_handle, enabled); }
+	[[nodiscard]] bool RelativeMouseMode() const { return m_handle && SDL_GetWindowRelativeMouseMode(m_handle); }
+
 	bool SetHitTest(std::function<SDL_HitTestResult(const SDL_Point &)> fn) {
 		if (!m_handle)
 			return false;
@@ -593,7 +598,7 @@ public:
 	/// dans ce wrapper : `Present()` bloquait donc systématiquement jusqu'au
 	/// prochain balayage, ce qui plafonne la cadence à celle de l'écran et
 	/// rend impossible toute mesure de performance au-delà (constaté en
-	/// profilant examples/level_editor — la présentation pesait à elle seule
+	/// profilant examples/game_editor — la présentation pesait à elle seule
 	/// plus de la moitié du temps d'image).
 	///
 	/// `false` si le pilote ne gère pas le mode demandé (certains n'acceptent
@@ -830,7 +835,23 @@ public:
 	}
 
 	// Contour d'un rectangle à coins arrondis (rayons indépendants par coin).
-	bool DrawRoundedRect(const FRect &rect, const Corners &c) {
+	/// Rayons bornés à la moitié du plus petit côté : au-delà, les quarts de
+	/// disque d'angle se chevauchent et la bande centrale prend une largeur
+	/// négative — un carré de 8 px au rayon 8 se dessinait en « × ».
+	[[nodiscard]] static Corners ClampCorners(const FRect &rect, const Corners &c) noexcept {
+		const float limit = sdl3::Max(0.f, sdl3::Min(rect.w, rect.h) * 0.5f);
+		return Corners{sdl3::Clamp(c.tl, 0.f, limit), sdl3::Clamp(c.tr, 0.f, limit), sdl3::Clamp(c.bl, 0.f, limit),
+					   sdl3::Clamp(c.br, 0.f, limit)};
+	}
+
+	/// Comme SDL_RenderRect, le trait reste À L'INTÉRIEUR du rectangle : les
+	/// bords droit/bas passent par les pixels x+w-1 et y+h-1 (et non x+w/y+h,
+	/// hors de la boîte — donc rognés dès qu'un clip la borne).
+	bool DrawRoundedRect(const FRect &outer, const Corners &corners) {
+		if (outer.w <= 0.f || outer.h <= 0.f)
+			return true;
+		const FRect rect{outer.x, outer.y, Max(0.f, outer.w - 1.f), Max(0.f, outer.h - 1.f)};
+		const Corners c = ClampCorners(rect, corners);
 		bool ok = true;
 		ok = DrawArc({rect.x + c.tl, rect.y + c.tl}, c.tl, 180.f, 270.f) && ok;
 		ok = DrawArc({rect.x + rect.w - c.tr, rect.y + c.tr}, c.tr, 270.f, 360.f) && ok;
@@ -844,7 +865,8 @@ public:
 	}
 
 	// Rectangle à coins arrondis rempli (4 secteurs de coin + 3 bandes rectangulaires).
-	bool FillRoundedRect(const FRect &rect, const Corners &c) {
+	bool FillRoundedRect(const FRect &rect, const Corners &corners) {
+		const Corners c = ClampCorners(rect, corners);
 		FColor color = GetDrawColorFloat();
 		bool ok = true;
 

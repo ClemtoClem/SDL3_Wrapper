@@ -9,7 +9,7 @@
 leak:X11_GetGlobalContentScale
 leak:X11_InitKeyboard
 # SDL_X11_SetWindowTitle -> libX11's _Xutf8TextListToTextProperty (M31/M32,
-# level_editor_demo): a UTF-8 window title (any non-ASCII character, e.g.
+# game_editor_demo): a UTF-8 window title (any non-ASCII character, e.g.
 # the em-dash this repo's own *_demo.cpp titles commonly use) sends
 # SDL3's X11 backend down libX11's Xutf8 conversion path, which leaks 24
 # bytes internally — same "third-party X11 driver, not this repo's code,

@@ -34,7 +34,7 @@ namespace scene {
 namespace component_type {
 /// Posé sur la RACINE d'une instance : mémorise la scène d'origine.
 /// Propriétés : `source` (RESOURCE — chemin du fichier .tscene).
-inline constexpr const char *SCENE_INSTANCE = "SceneInstance";
+inline constexpr const char* SCENE_INSTANCE = "SceneInstance";
 } // namespace component_type
 
 class PackedScene {
@@ -44,13 +44,13 @@ public:
 	/// Emballe le sous-arbre `root` (de `tree`) en scène réutilisable. La
 	/// racine de la scène emballée est une COPIE de `root` : son transform
 	/// local est conservé et sert de transform par défaut à chaque instance.
-	[[nodiscard]] static PackedScene FromSubtree(const NodeTree &tree, NodeId root) {
+	[[nodiscard]] static PackedScene FromSubtree(const NodeTree& tree, NodeId root) {
 		PackedScene packed;
-		const Node *source = tree.Get(root);
+		const Node* source = tree.Get(root);
 		if (!source)
 			return packed;
 		packed.m_tree = NodeTree(source->name, source->type);
-		Node &packedRoot = *packed.m_tree.Get(packed.m_tree.Root());
+		Node& packedRoot = *packed.m_tree.Get(packed.m_tree.Root());
 		const NodeId keepId = packedRoot.id;
 		packedRoot = *source;
 		packedRoot.id = keepId;
@@ -63,13 +63,15 @@ public:
 		return packed;
 	}
 
-	[[nodiscard]] bool IsEmpty() const noexcept { return m_tree.Size() <= 1 && m_tree.ChildrenOf(m_tree.Root()).empty(); }
-	[[nodiscard]] const NodeTree &Tree() const noexcept { return m_tree; }
-	[[nodiscard]] NodeTree &Tree() noexcept { return m_tree; }
+	[[nodiscard]] bool IsEmpty() const noexcept {
+		return m_tree.Size() <= 1 && m_tree.ChildrenOf(m_tree.Root()).empty();
+	}
+	[[nodiscard]] const NodeTree& Tree() const noexcept { return m_tree; }
+	[[nodiscard]] NodeTree& Tree() noexcept { return m_tree; }
 
 	/// Chemin d'où vient cette scène (posé par l'application au chargement) —
 	/// recopié dans le composant `SceneInstance` de chaque instance.
-	[[nodiscard]] const String &Source() const noexcept { return m_source; }
+	[[nodiscard]] const String& Source() const noexcept { return m_source; }
 	void SetSource(String source) { m_source = std::move(source); }
 
 	/**
@@ -80,7 +82,7 @@ public:
 	 * Rend l'identifiant de la racine de l'instance, invalide si `parent`
 	 * n'existe pas.
 	 */
-	NodeId InstantiateInto(NodeTree &target, NodeId parent, const String &name = String(),
+	NodeId InstantiateInto(NodeTree& target, NodeId parent, const String& name = String(),
 						   size_t index = NODE_APPEND) const {
 		if (!target.Contains(parent) || m_tree.Size() == 0)
 			return NodeId{};
@@ -89,7 +91,7 @@ public:
 		remap.reserve(m_tree.Size());
 
 		NodeId instanceRoot;
-		m_tree.Traverse(m_tree.Root(), [&](NodeId id, const Node &node) {
+		m_tree.Traverse(m_tree.Root(), [&](NodeId id, const Node& node) {
 			Node copy = node;
 			copy.children.clear();
 			NodeId destination = parent;
@@ -120,25 +122,26 @@ public:
 				return NONE;
 			return Some(found->second);
 		};
-		for (const auto &[from, to] : remap) {
-			Node *node = target.Get(to);
-			for (auto &[key, value] : node->properties.Entries())
+		for (const auto& [from, to] : remap) {
+			Node* node = target.Get(to);
+			for (auto& [key, value] : node->properties.Entries())
 				value.RemapNodeRefs(lookup);
-			for (Component &component : node->components)
-				for (auto &[key, value] : component.props.Entries())
+			for (Component& component : node->components)
+				for (auto& [key, value] : component.props.Entries())
 					value.RemapNodeRefs(lookup);
 		}
 		return instanceRoot;
 	}
 
 	/// Vrai si ce nœud est la racine d'une instance de scène.
-	[[nodiscard]] static bool IsInstanceRoot(const Node &node) noexcept {
+	[[nodiscard]] static bool IsInstanceRoot(const Node& node) noexcept {
 		return node.HasComponent(String(component_type::SCENE_INSTANCE));
 	}
 
 	/// Chemin de la scène dont ce nœud est une instance (vide sinon).
-	[[nodiscard]] static String InstanceSource(const Node &node) {
-		const PropertyValue *source = node.ComponentProperty(String(component_type::SCENE_INSTANCE), String("source"));
+	[[nodiscard]] static String InstanceSource(const Node& node) {
+		const PropertyValue* source =
+			node.ComponentProperty(String(component_type::SCENE_INSTANCE), String("source"));
 		return source ? source->AsString() : String();
 	}
 
@@ -152,7 +155,7 @@ public:
 		return json;
 	}
 
-	[[nodiscard]] static Result<PackedScene, String> FromJson(const data::NodePtr &json) {
+	[[nodiscard]] static Result<PackedScene, String> FromJson(const data::NodePtr& json) {
 		auto tree = NodeTree::FromJson(json);
 		if (tree.IsError())
 			return Err(tree.Error());
@@ -170,7 +173,7 @@ public:
 		return document.EncodeStr();
 	}
 
-	[[nodiscard]] static Result<PackedScene, String> DecodeJson(const String &text) {
+	[[nodiscard]] static Result<PackedScene, String> DecodeJson(const String& text) {
 		data::JsonDocument document;
 		auto error = document.DecodeStr(text);
 		if (error.IsSome())
@@ -179,9 +182,9 @@ public:
 	}
 
 private:
-	static void CopyChildren(const NodeTree &from, NodeId fromNode, NodeTree &to, NodeId toNode) {
+	static void CopyChildren(const NodeTree& from, NodeId fromNode, NodeTree& to, NodeId toNode) {
 		for (NodeId child : from.ChildrenOf(fromNode)) {
-			const Node *node = from.Get(child);
+			const Node* node = from.Get(child);
 			if (!node)
 				continue;
 			Node copy = *node;
@@ -196,10 +199,10 @@ private:
 	/// Une référence qui sortait du sous-arbre est effacée (elle désignerait
 	/// un nœud absent de la scène emballée, donc une référence cassée dès la
 	/// première instanciation).
-	void RemapInternalRefs(const NodeTree &from, NodeId fromRoot) {
+	void RemapInternalRefs(const NodeTree& from, NodeId fromRoot) {
 		std::unordered_map<NodeId, NodeId> remap;
 		std::vector<NodeId> sources;
-		from.Traverse(fromRoot, [&](NodeId id, const Node &) { sources.push_back(id); });
+		from.Traverse(fromRoot, [&](NodeId id, const Node&) { sources.push_back(id); });
 		std::vector<NodeId> copies = m_tree.AllNodes();
 		for (size_t i = 0; i < sources.size() && i < copies.size(); ++i)
 			remap.emplace(sources[i], copies[i]);
@@ -211,11 +214,11 @@ private:
 			return Some(found->second);
 		};
 		for (NodeId id : copies) {
-			Node *node = m_tree.Get(id);
-			for (auto &[key, value] : node->properties.Entries())
+			Node* node = m_tree.Get(id);
+			for (auto& [key, value] : node->properties.Entries())
 				value.RemapNodeRefs(lookup);
-			for (Component &component : node->components)
-				for (auto &[key, value] : component.props.Entries())
+			for (Component& component : node->components)
+				for (auto& [key, value] : component.props.Entries())
 					value.RemapNodeRefs(lookup);
 		}
 	}

@@ -161,7 +161,11 @@ enum class Anchor : uint8_t {
 enum class LayoutDir : uint8_t { Row, Column };
 enum class Justify : uint8_t { Start, Center, End, SpaceBetween };
 enum class CrossAlign : uint8_t { Start, Center, End, Stretch };
-enum class TextAlign : uint8_t { Left, Center, Right };
+/// Alignement du texte dans sa boîte. `Justify` n'a de sens qu'avec le retour
+/// automatique à la ligne (cf. TextOverflow::WRAP) : l'espace restant y est
+/// réparti ENTRE LES MOTS de chaque ligne, sauf la dernière — la justifier
+/// aussi étirerait un mot isolé sur toute la largeur.
+enum class TextAlign : uint8_t { Left, Center, Right, Justify };
 enum class Orientation : uint8_t { Horizontal, Vertical };
 
 /// Mode d'attache au parent (cf. CSS position). Contrôle à la fois le calcul
@@ -191,13 +195,57 @@ struct UiRect {
 	sdl3::FPoint scroll{0.f, 0.f};
 	/// Si vrai, les enfants sont découpés à la boîte visible de cet élément.
 	bool clipContent = false;
+	/// Place réservée par les barres de défilement automatiques : `x` =
+	/// largeur de la barre verticale (bord droit), `y` = hauteur de la barre
+	/// horizontale (bord bas). Tenue à jour par UpdateGutter() — la barre
+	/// occupe alors sa propre bande, comme un widget à part entière, au lieu
+	/// de recouvrir le contenu.
+	sdl3::FPoint gutter{0.f, 0.f};
 
+	/// Épaisseur d'une barre de défilement automatique (px).
+	static constexpr float SCROLLBAR_THICKNESS = 8.f;
+	/// Débordement en deçà duquel aucune barre n'apparaît : les arrondis de
+	/// placement (fractions de pixel) ne doivent pas faire surgir une barre
+	/// sur un conteneur qui, visuellement, ne déborde pas.
+	static constexpr float OVERFLOW_EPSILON = 1.f;
+
+	/// Partie visible de la boîte, barres de défilement exclues.
+	[[nodiscard]] sdl3::FPoint ViewSize() const noexcept {
+		return {sdl3::Max(0.f, size.x - gutter.x), sdl3::Max(0.f, size.y - gutter.y)};
+	}
 	[[nodiscard]] sdl3::FPoint ContentSize() const noexcept {
-		return {sdl3::Max(content.x, size.x), sdl3::Max(content.y, size.y)};
+		auto v = ViewSize();
+		return {sdl3::Max(content.x, v.x), sdl3::Max(content.y, v.y)};
 	}
 	[[nodiscard]] sdl3::FPoint MaxScroll() const noexcept {
 		auto c = ContentSize();
-		return {sdl3::Max(0.f, c.x - size.x), sdl3::Max(0.f, c.y - size.y)};
+		auto v = ViewSize();
+		auto axis = [](float over) { return over > OVERFLOW_EPSILON ? over : 0.f; };
+		return {axis(c.x - v.x), axis(c.y - v.y)};
+	}
+	/// Barres nécessaires pour un contenu `c` dans une boîte `box` : une barre
+	/// verticale réduit la largeur visible, ce qui peut à son tour rendre la
+	/// barre horizontale nécessaire (et réciproquement).
+	[[nodiscard]] static sdl3::FPoint GutterFor(sdl3::FPoint c, sdl3::FPoint box) noexcept {
+		constexpr float T = SCROLLBAR_THICKNESS, E = OVERFLOW_EPSILON;
+		bool v = c.y > box.y + E, h = c.x > box.x + E;
+		if (v && !h)
+			h = c.x > box.x - T + E;
+		if (h && !v)
+			v = c.y > box.y - T + E;
+		// Boîte trop petite pour loger une barre : on n'en réserve pas.
+		if (box.x <= 2.f * T)
+			v = false;
+		if (box.y <= 2.f * T)
+			h = false;
+		return {v ? T : 0.f, h ? T : 0.f};
+	}
+	/// Recalcule `gutter` depuis `content`/`size` ; vrai s'il a changé.
+	bool UpdateGutter() noexcept {
+		sdl3::FPoint g = GutterFor(content, size);
+		bool changed = g.x != gutter.x || g.y != gutter.y;
+		gutter = g;
+		return changed;
 	}
 	void ClampScroll() noexcept {
 		auto m = MaxScroll();
@@ -326,6 +374,60 @@ struct UiLabel {
 	String text;
 };
 
+// ============================================================================
+// Débordement du texte
+// ============================================================================
+
+/**
+ * Que faire d'une chaîne plus large que le widget qui l'affiche.
+ *
+ * Dans tous les modes, un widget dont la largeur n'est PAS contrainte
+ * (ni `W(...)`, ni `MaxSize`, ni étirement par son parent) s'élargit jusqu'au
+ * texte : le débordement ne se pose que lorsqu'une contrainte existe.
+ */
+enum class TextOverflow : uint8_t {
+	/// Rogné net au bord du widget (comportement historique).
+	CLIP,
+	/// Rogné, avec « … » collé à la fin de ce qui tient.
+	ELLIPSIS,
+	/// Barre de défilement horizontale (la machinerie existante d'
+	/// UiRect::content/scroll, donc molette et pouce inclus).
+	SCROLL,
+	/// Retour automatique à la ligne. Le widget GRANDIT en hauteur ; si sa
+	/// hauteur est contrainte (`H(...)`/`MaxSize`), une barre verticale
+	/// apparaît, là encore par la machinerie existante.
+	WRAP,
+	/// Le texte défile tout seul, aller-retour, avec une pause aux extrémités.
+	MARQUEE,
+};
+
+/// Mode de débordement d'un widget textuel (absent = TextOverflow::CLIP) et
+/// état d'animation du mode MARQUEE.
+struct UiTextOverflow {
+	TextOverflow mode = TextOverflow::CLIP;
+	/// MARQUEE : vitesse en pixels par seconde.
+	float speed = 40.f;
+	/// MARQUEE : temps d'arrêt à chaque extrémité, en secondes.
+	float pause = 1.f;
+	/// Largeur du texte, en pixels — écrite par LayoutSystem, qui dispose de
+	/// la VRAIE mesure (police comprise). `InputSystem::Tick` en a besoin pour
+	/// connaître l'amplitude du défilement, et n'a, lui, aucune police sous la
+	/// main : la recalculer là donnerait une amplitude fausse dès que la
+	/// mesure réelle s'écarte de l'heuristique.
+	float textWidth = 0.f;
+	// ── État, entretenu par InputSystem::Tick ────────────────────────────────
+	float offset = 0.f;  ///< décalage courant du texte, en pixels (>= 0)
+	float hold = 0.f;    ///< temps de pause restant
+	bool forward = true; ///< sens de défilement courant
+};
+
+/// Mode de débordement de `e` (CLIP par défaut).
+[[nodiscard]] inline TextOverflow TextOverflowOf(const ecs::ArchetypeRegistry &world, ecs::Entity e) noexcept {
+	if (auto o = world.GetComponent<UiTextOverflow>(e); o.IsSome())
+		return o.Unwrap()->mode;
+	return TextOverflow::CLIP;
+}
+
 struct UiButton {
 	String text;
 	// État (géré par InputSystem)
@@ -430,11 +532,49 @@ struct UiInput {
 /// (comme UiInput, y compris Haut/Bas pour naviguer entre lignes réelles) —
 /// utile pour saisir un texte multi-ligne aussi bien que pour parcourir et
 /// copier une portion d'une visionneuse de logs en lecture seule.
+/// Morceau coloré d'une ligne de texte : octets `[begin, end)` de la ligne
+/// TELLE QU'AFFICHÉE (tabulations développées en espaces, cf.
+/// UiInputArea::highlighter), dessinés en `color`. Les octets non couverts
+/// gardent la couleur de texte du widget.
+struct UiTextSpan {
+	size_t begin = 0;
+	size_t end = 0;
+	sdl3::FColor color = sdl3::FColor::WHITE();
+};
+
+/// Coloration syntaxique d'UNE ligne : remplit `out` (vidé avant l'appel)
+/// de morceaux triés, sans chevauchement. Sans état d'une ligne à l'autre —
+/// suffisant pour des langages dont les jetons ne traversent pas les lignes
+/// (script de l'éditeur, JSON, journaux), et c'est ce qui permet de ne
+/// colorer QUE les lignes visibles.
+using UiSyntaxHighlighter = std::function<void(const String &line, std::vector<UiTextSpan> &out)>;
+
 struct UiInputArea {
 	String text;
 	String placeholder;
 	IOMode ioMode = IOMode::READ_WRITE_COPY_AND_PASTE;
 	size_t maxLen = 1 << 20; // 1 Mio de texte, largement au-dessus d'un usage journal
+
+	// ── Mode éditeur de code (tout désactivé par défaut) ─────────────────────
+	/// Gouttière de numéros de ligne à gauche du texte.
+	bool lineNumbers = false;
+	/// Police à chasse fixe (cf. RenderSystem::RegisterMonospaceFont) : sans
+	/// elle, les colonnes d'un code aligné ne tombent pas les unes sous les
+	/// autres, et le curseur (placé sur une grille de cellules) dérive du
+	/// texte dessiné. Sans police enregistrée, retombe sur la police normale.
+	bool monospace = false;
+	/// Surligne la ligne du curseur quand le champ a le focus.
+	bool highlightCurrentLine = false;
+	/// Suivre la FIN du texte quand de nouvelles lignes arrivent (journal,
+	/// console), tant que l'utilisateur n'est pas remonté le consulter. Un
+	/// document de code, lui, s'ouvre en haut et ne bouge pas tout seul.
+	bool followTail = true;
+	/// Coloration syntaxique (cf. UiSyntaxHighlighter) — vide = une couleur.
+	UiSyntaxHighlighter highlighter;
+	/// Largeur d'une cellule de caractère MESURÉE sur la police réellement
+	/// dessinée (écrite par RenderSystem, lue par la saisie et la mise en
+	/// page) ; 0 = pas encore dessiné, approximation CharWidthApprox.
+	float cellWidth = 0.f;
 	// État (géré par InputSystem)
 	bool focused = false;
 	bool hovered = false;
@@ -1015,6 +1155,16 @@ struct UiCallbacks {
 	std::function<void(const String &)> onTextChange;
 	std::function<void(const String &)> onSubmit;       ///< input : Entrée
 	std::function<void(int, int)> onReorder;             ///< UiReorderable (posé sur le CONTENEUR) : (fromIndex, toIndex)
+	/// UiDropTarget (posé sur la CIBLE) : appelé au relâchement d'un glissé
+	/// compatible, avec l'identifiant transporté par la source (cf.
+	/// UiDragPayload, interaction.hpp).
+	std::function<void(int64_t)> onDrop;
+	/// Clic DROIT sur ce widget (ou sur un descendant qui n'a pas le sien) :
+	/// position écran du pointeur. C'est le point d'entrée d'un menu
+	/// contextuel (cf. UiFactory::ContextMenu / ui::OpenPopupAt) — seul le
+	/// plus proche porteur de la chaîne de premier plan est notifié, comme
+	/// dans tout gestionnaire de fenêtres.
+	std::function<void(float, float)> onContextMenu;
 };
 
 // ============================================================================

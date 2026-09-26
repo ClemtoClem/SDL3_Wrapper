@@ -2,7 +2,7 @@
 /**
  * emulator_demo::CommandLine — options de ligne de commande de la démo.
  *
- * Même raison d'être que level_editor::CommandLine : un émulateur graphique
+ * Même raison d'être que game_editor::CommandLine : un émulateur graphique
  * n'est pas vérifiable « en vrai » sans écran ni humain devant la manette.
  * Ces options rendent la démo PILOTABLE (ROM, appuis de boutons scriptés à
  * une image précise, sauvegardes/chargements d'état, fenêtre ouverte au
@@ -89,14 +89,14 @@ struct CommandLine {
 	String archivePassword; ///< mot de passe des archives chiffrées (zip AES, 7z AES)
 	String configPath = "config.ini"; ///< vide = chemins de config.ini
 	bool saveConfig = true;
-	String biosDir = "/assets/bios-firmware/";	
+	String biosDir = "./assets/bios-firmware/";	
 	Option<bool> directBoot = NONE;
 	Option<bool> arm7Hle = NONE;
 	Option<bool> threaded2D = NONE;
 	Option<bool> threaded3D = NONE;
 	Option<int> screenLayout = NONE; ///< 0 = horizontal, 1 = vertical
-	String statePath;		///< vide = <rom>.state0
-	String saveDir;			///< vide = sauvegardes de cartouche à côté de la ROM
+	String statePath = "./saves/emulator_demo/states/"; ///< vide = <rom>.state0
+	String saveDir; ///< vide = sauvegardes de cartouche à côté de la ROM
 
 	// ── Fenêtre ──────────────────────────────────────────────────────────────
 	int windowWidth = 1200;

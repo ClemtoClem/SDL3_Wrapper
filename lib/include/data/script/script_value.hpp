@@ -65,13 +65,23 @@ struct NativeObject {
 	int maxArity = -1; ///< -1 = variadique
 };
 
+/// Espace de noms (`math`, `editor`, ou déclaré par `namespace geo { … }`) :
+/// un nom et la PORTÉE qui porte ses membres. Les membres sont lus à travers
+/// cette portée — liaisons VIVANTES : si une fonction de l'espace de noms
+/// modifie un de ses `let`, `geo.membre` le voit aussitôt — et ne s'écrivent
+/// pas du dehors (cf. Interpreter).
+struct NamespaceObject {
+	String name;
+	std::shared_ptr<Environment> scope;
+};
+
 // ============================================================================
 // Value
 // ============================================================================
 
 class Value {
 public:
-	enum class Kind : uint8_t { NIL, BOOLEAN, NUMBER, STRING, LIST, MAP, FUNCTION, NATIVE };
+	enum class Kind : uint8_t { NIL, BOOLEAN, NUMBER, STRING, LIST, MAP, FUNCTION, NATIVE, NAMESPACE };
 
 	Value() = default;
 
@@ -120,6 +130,12 @@ public:
 		value.m_native = std::move(v);
 		return value;
 	}
+	[[nodiscard]] static Value Namespace(std::shared_ptr<NamespaceObject> v) {
+		Value value;
+		value.m_kind = Kind::NAMESPACE;
+		value.m_namespace = std::move(v);
+		return value;
+	}
 
 	// ── Inspection ───────────────────────────────────────────────────────────
 
@@ -132,6 +148,7 @@ public:
 	[[nodiscard]] bool IsMap() const noexcept { return m_kind == Kind::MAP; }
 	[[nodiscard]] bool IsFunction() const noexcept { return m_kind == Kind::FUNCTION; }
 	[[nodiscard]] bool IsNative() const noexcept { return m_kind == Kind::NATIVE; }
+	[[nodiscard]] bool IsNamespace() const noexcept { return m_kind == Kind::NAMESPACE; }
 	[[nodiscard]] bool IsCallable() const noexcept { return IsFunction() || IsNative(); }
 
 	[[nodiscard]] bool AsBoolean() const noexcept { return m_boolean; }
@@ -142,6 +159,7 @@ public:
 	[[nodiscard]] const std::shared_ptr<MapObject> &AsMap() const noexcept { return m_map; }
 	[[nodiscard]] const std::shared_ptr<FunctionObject> &AsFunction() const noexcept { return m_function; }
 	[[nodiscard]] const std::shared_ptr<NativeObject> &AsNative() const noexcept { return m_native; }
+	[[nodiscard]] const std::shared_ptr<NamespaceObject> &AsNamespace() const noexcept { return m_namespace; }
 
 	/// Véracité façon Lua : SEULS `nil` et `false` sont faux. `0` et `""`
 	/// sont VRAIS — choix explicite (un script d'éditeur teste surtout des
@@ -173,6 +191,8 @@ public:
 				return "function";
 			case Kind::NATIVE:
 				return "native";
+			case Kind::NAMESPACE:
+				return "namespace";
 		}
 		return "?";
 	}
@@ -200,6 +220,8 @@ public:
 				return m_function == other.m_function;
 			case Kind::NATIVE:
 				return m_native == other.m_native;
+			case Kind::NAMESPACE:
+				return m_namespace == other.m_namespace;
 		}
 		return false;
 	}
@@ -249,6 +271,8 @@ public:
 													  : "anonyme");
 			case Kind::NATIVE:
 				return String::Format("<native %s>", m_native ? m_native->name.CStr() : "?");
+			case Kind::NAMESPACE:
+				return String::Format("<namespace %s>", m_namespace ? m_namespace->name.CStr() : "?");
 		}
 		return String("?");
 	}
@@ -274,6 +298,7 @@ private:
 	std::shared_ptr<MapObject> m_map;
 	std::shared_ptr<FunctionObject> m_function;
 	std::shared_ptr<NativeObject> m_native;
+	std::shared_ptr<NamespaceObject> m_namespace;
 };
 
 // ── MapObject (défini après Value : ses entrées SONT des Value) ─────────────
@@ -356,7 +381,7 @@ inline bool MapObject::RemoveKey(const String &key) {
 ///
 /// Un nombre entier est réencodé en `INT` : c'est la contrepartie de la
 /// limite connue de l'encodeur JSON de ce module (`5.0` s'écrit `5` et se
-/// relit en INT — cf. examples/level_editor/, où le bug avait été trouvé),
+/// relit en INT — cf. examples/game_editor/, où le bug avait été trouvé),
 /// donc l'aller-retour script -> JSON -> script est stable.
 [[nodiscard]] inline NodePtr NodeFromValue(const Value &value) {
 	switch (value.GetKind()) {
@@ -388,6 +413,7 @@ inline bool MapObject::RemoveKey(const String &key) {
 		}
 		case Value::Kind::FUNCTION:
 		case Value::Kind::NATIVE:
+		case Value::Kind::NAMESPACE:
 			return Node::MakeNone();
 	}
 	return Node::MakeNone();

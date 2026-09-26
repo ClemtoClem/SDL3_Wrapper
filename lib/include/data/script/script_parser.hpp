@@ -38,6 +38,8 @@ public:
 
 	[[nodiscard]] Result<Program, ScriptError> ParseProgram() {
 		Program program;
+		m_scopes.clear();
+		PushScope(true); // portée du programme : une portée de FONCTION (les `var` y vont)
 		while (!Check(TokenType::END_OF_FILE)) {
 			auto stmt = ParseStatement();
 			if (stmt.IsError())
@@ -94,7 +96,13 @@ private:
 		const Token &tok = Peek();
 		switch (tok.type) {
 			case TokenType::KW_LET:
-				return ParseLet();
+				return ParseLet(DeclKind::LET);
+			case TokenType::KW_VAR:
+				return ParseLet(DeclKind::VAR);
+			case TokenType::KW_CONST:
+				return ParseLet(DeclKind::CONST);
+			case TokenType::KW_NAMESPACE:
+				return ParseNamespace();
 			case TokenType::KW_FN:
 				return ParseFunctionStatement();
 			case TokenType::KW_IF:
@@ -127,6 +135,7 @@ private:
 		const Token openTok = open.Unwrap();
 
 		auto block = std::make_unique<BlockStmt>(openTok.line, openTok.column);
+		ScopeGuard scope(*this, false);
 		while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::END_OF_FILE)) {
 			auto stmt = ParseStatement();
 			if (stmt.IsError())
@@ -139,7 +148,7 @@ private:
 		return Ok(StmtPtr(std::move(block)));
 	}
 
-	[[nodiscard]] Result<StmtPtr, ScriptError> ParseLet() {
+	[[nodiscard]] Result<StmtPtr, ScriptError> ParseLet(DeclKind kind) {
 		const Token letTok = Advance();
 		auto name = Consume(TokenType::IDENTIFIER, "un nom de variable");
 		if (name.IsError())
@@ -151,9 +160,48 @@ private:
 			if (value.IsError())
 				return Err(value.Error());
 			init = std::move(value).Unwrap();
+		} else if (kind == DeclKind::CONST) {
+			return Err(ErrorAt(letTok, String::Format("`const %s` doit être initialisée à sa déclaration",
+													  name.Unwrap().text.CStr())));
 		}
+		// Déclarée APRÈS l'initialiseur : `let x = x + 1` lit donc le `x`
+		// englobant… sauf que, hissée, la nouvelle `x` le masque dès le début
+		// du bloc — l'interpréteur rendra l'erreur de zone morte, comme JS.
+		const StaticDecl declared = kind == DeclKind::VAR ? StaticDecl::VAR
+									: kind == DeclKind::CONST ? StaticDecl::CONST
+															  : StaticDecl::LET;
+		if (auto error = Declare(name.Unwrap(), declared); error.IsSome())
+			return Err(error.Unwrap());
 		SkipOptionalSemicolons();
-		return Ok(StmtPtr(new LetStmt(name.Unwrap().text, std::move(init), letTok.line, letTok.column)));
+		return Ok(StmtPtr(new LetStmt(name.Unwrap().text, std::move(init), letTok.line, letTok.column, kind)));
+	}
+
+	/// `namespace nom { déclarations }`
+	[[nodiscard]] Result<StmtPtr, ScriptError> ParseNamespace() {
+		const Token nsTok = Advance();
+		auto name = Consume(TokenType::IDENTIFIER, "un nom d'espace de noms");
+		if (name.IsError())
+			return Err(name.Error());
+		if (auto error = Declare(name.Unwrap(), StaticDecl::NAMESPACE); error.IsSome())
+			return Err(error.Unwrap());
+		auto open = Consume(TokenType::LEFT_BRACE, "`{`");
+		if (open.IsError())
+			return Err(open.Error());
+		auto stmt = std::make_unique<NamespaceStmt>(name.Unwrap().text, nsTok.line, nsTok.column);
+		ScopeGuard scope(*this, true);
+		while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::END_OF_FILE)) {
+			const Token &at = Peek();
+			if (at.type == TokenType::KW_RETURN || at.type == TokenType::KW_BREAK || at.type == TokenType::KW_CONTINUE)
+				return Err(ErrorAt(at, String::Format("`%s` interdit dans un espace de noms", TokenTypeName(at.type))));
+			auto child = ParseStatement();
+			if (child.IsError())
+				return Err(child.Error());
+			stmt->body.push_back(std::move(child).Unwrap());
+		}
+		auto close = Consume(TokenType::RIGHT_BRACE, "`}`");
+		if (close.IsError())
+			return Err(close.Error());
+		return Ok(StmtPtr(std::move(stmt)));
 	}
 
 	[[nodiscard]] Result<FunctionDefPtr, ScriptError> ParseFunctionRest(const Token &fnTok, String name) {
@@ -166,11 +214,16 @@ private:
 		if (open.IsError())
 			return Err(open.Error());
 
+		// Paramètres ET corps partagent la portée de la fonction (un `let`
+		// du même nom qu'un paramètre est donc une redéclaration).
+		ScopeGuard scope(*this, true);
 		if (!Check(TokenType::RIGHT_PAREN)) {
 			for (;;) {
 				auto param = Consume(TokenType::IDENTIFIER, "un nom de paramètre");
 				if (param.IsError())
 					return Err(param.Error());
+				if (auto error = Declare(param.Unwrap(), StaticDecl::PARAM); error.IsSome())
+					return Err(error.Unwrap());
 				def->params.push_back(param.Unwrap().text);
 				if (!Match(TokenType::COMMA))
 					break;
@@ -212,6 +265,8 @@ private:
 		auto name = Consume(TokenType::IDENTIFIER, "un nom de fonction");
 		if (name.IsError())
 			return Err(name.Error());
+		if (auto error = Declare(name.Unwrap(), StaticDecl::FUNCTION); error.IsSome())
+			return Err(error.Unwrap());
 		auto def = ParseFunctionRest(fnTok, name.Unwrap().text);
 		if (def.IsError())
 			return Err(def.Error());
@@ -286,6 +341,11 @@ private:
 			return Err(iterable.Error());
 		stmt->iterable = std::move(iterable).Unwrap();
 
+		// La variable de boucle vit dans une portée propre à chaque tour
+		// (sémantique `let`), qui englobe le bloc du corps.
+		ScopeGuard loopScope(*this, false);
+		if (auto error = Declare(name.Unwrap(), StaticDecl::LET); error.IsSome())
+			return Err(error.Unwrap());
 		auto body = ParseBlock();
 		if (body.IsError())
 			return Err(body.Error());
@@ -339,6 +399,18 @@ private:
 			if (!IsAssignable(*target))
 				return Err(ErrorAt(opTok, String("cible d'affectation invalide (attendu une variable, `a[i]` ou "
 												 "`a.b`)")));
+			if (target->kind == ExprKind::IDENTIFIER) {
+				const String &name = static_cast<const IdentifierExpr &>(*target).name;
+				if (const StaticBinding *binding = Resolve(name)) {
+					if (binding->kind == StaticDecl::CONST)
+						return Err(ErrorAt(opTok, String::Format("`%s` est une constante (déclarée ligne %d) : "
+																 "réaffectation impossible",
+																 name.CStr(), binding->line)));
+					if (binding->kind == StaticDecl::NAMESPACE)
+						return Err(ErrorAt(opTok, String::Format("`%s` est un espace de noms : réaffectation impossible",
+																 name.CStr())));
+				}
+			}
 			auto value = ParseExpression();
 			if (value.IsError())
 				return Err(value.Error());
@@ -706,6 +778,101 @@ private:
 	std::vector<Token> m_tokens;
 	size_t m_pos = 0;
 	bool m_allowMapLiteral = true;
+
+	// ── Portées statiques ────────────────────────────────────────────────────
+	// Suivies PENDANT l'analyse syntaxique pour signaler, ligne à l'appui et
+	// avant toute exécution, ce que les règles de portée interdisent :
+	// redéclarer un `let`/`const` dans sa portée, réaffecter une constante,
+	// un `var` qui heurterait un `let` de la même fonction. L'interpréteur
+	// refait ces contrôles à l'exécution (valeurs définies par l'hôte).
+
+	enum class StaticDecl : uint8_t { VAR, LET, CONST, FUNCTION, PARAM, NAMESPACE };
+	struct StaticBinding {
+		String name;
+		StaticDecl kind;
+		int line = 0;
+	};
+	struct StaticScope {
+		bool function = false;
+		std::vector<StaticBinding> names;
+	};
+	std::vector<StaticScope> m_scopes;
+
+	/// Portée ouverte pour la durée d'un bloc C++ (RAII : refermée sur tous
+	/// les chemins de retour, erreurs comprises).
+	struct ScopeGuard {
+		Parser &parser;
+		ScopeGuard(Parser &p, bool function) : parser(p) { parser.PushScope(function); }
+		~ScopeGuard() { parser.PopScope(); }
+		ScopeGuard(const ScopeGuard &) = delete;
+		ScopeGuard &operator=(const ScopeGuard &) = delete;
+	};
+
+	void PushScope(bool function) { m_scopes.push_back(StaticScope{function, {}}); }
+	void PopScope() {
+		if (!m_scopes.empty())
+			m_scopes.pop_back();
+	}
+
+	[[nodiscard]] static StaticBinding *FindIn(StaticScope &scope, const String &name) {
+		for (StaticBinding &binding : scope.names)
+			if (binding.name == name)
+				return &binding;
+		return nullptr;
+	}
+
+	[[nodiscard]] const StaticBinding *Resolve(const String &name) {
+		for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it)
+			if (const StaticBinding *binding = FindIn(*it, name))
+				return binding;
+		return nullptr;
+	}
+
+	[[nodiscard]] static bool IsLexical(StaticDecl kind) noexcept {
+		return kind == StaticDecl::LET || kind == StaticDecl::CONST || kind == StaticDecl::NAMESPACE;
+	}
+
+	/// Enregistre une déclaration et rend l'erreur si les règles l'interdisent.
+	[[nodiscard]] Option<ScriptError> Declare(const Token &at, StaticDecl kind) {
+		if (m_scopes.empty())
+			PushScope(true);
+		const String &name = at.text;
+		auto conflict = [&](const StaticBinding &existing) {
+			return ErrorAt(at, String::Format("`%s` est déjà déclarée dans cette portée (ligne %d)", name.CStr(),
+											  existing.line));
+		};
+		StaticScope &current = m_scopes.back();
+
+		if (kind == StaticDecl::VAR) {
+			// Un `var` appartient à la portée de fonction la plus proche : il
+			// traverse les blocs intermédiaires, et heurte tout `let`/`const`
+			// du même nom qu'il y rencontre.
+			for (auto it = m_scopes.rbegin(); it != m_scopes.rend(); ++it) {
+				if (StaticBinding *existing = FindIn(*it, name)) {
+					if (IsLexical(existing->kind))
+						return Some(conflict(*existing));
+				} else {
+					it->names.push_back(StaticBinding{name, StaticDecl::VAR, at.line});
+				}
+				if (it->function)
+					break;
+			}
+			return NONE;
+		}
+
+		StaticBinding *existing = FindIn(current, name);
+		if (existing) {
+			const bool reopen = kind == StaticDecl::NAMESPACE && existing->kind == StaticDecl::NAMESPACE;
+			const bool redefine = !IsLexical(kind) && !IsLexical(existing->kind); // fn/param/var entre eux
+			if (kind == StaticDecl::PARAM && existing->kind == StaticDecl::PARAM)
+				return Some(ErrorAt(at, String::Format("paramètre `%s` en double", name.CStr())));
+			if (!reopen && !redefine)
+				return Some(conflict(*existing));
+			return NONE;
+		}
+		current.names.push_back(StaticBinding{name, kind, at.line});
+		return NONE;
+	}
 };
 
 } // namespace data::script

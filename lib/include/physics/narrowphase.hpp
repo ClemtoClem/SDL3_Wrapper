@@ -149,25 +149,30 @@ inline void ClosestPointsSegmentSegment(const math::FVector3 &p1, const math::FV
 		penetration = sph.radius - dist;
 	} else {
 		// Sphere centre is inside the box (deep-penetration edge case): push out
-		// along whichever box axis has the least remaining half-extent.
+		// through whichever face is nearest. The normal must still point
+		// sphere -> box, i.e. AGAINST that face's outward direction (it used to
+		// point along it, which made the solver push the sphere deeper in).
 		float px = box.halfExtents.x - sdl3::Abs(lx);
 		float py = box.halfExtents.y - sdl3::Abs(ly);
 		float pz = box.halfExtents.z - sdl3::Abs(lz);
 		if (px <= py && px <= pz) {
-			normal = (lx >= 0.f ? ax : -ax);
+			normal = (lx >= 0.f ? -ax : ax);
 			penetration = px + sph.radius;
 		} else if (py <= pz) {
-			normal = (ly >= 0.f ? ay : -ay);
+			normal = (ly >= 0.f ? -ay : ay);
 			penetration = py + sph.radius;
 		} else {
-			normal = (lz >= 0.f ? az : -az);
+			normal = (lz >= 0.f ? -az : az);
 			penetration = pz + sph.radius;
 		}
 	}
 
 	out.normal = normal;
 	out.pointCount = 0;
-	out.AddPoint(sph.center - normal * sph.radius, penetration);
+	// Deepest point of the sphere INTO the box — the side facing the box, as
+	// in CollideSphereSphere (it used to be the opposite side, which put the
+	// solver's friction and torque lever on the wrong side of the sphere).
+	out.AddPoint(sph.center + normal * sph.radius, penetration);
 	return true;
 }
 
@@ -375,16 +380,59 @@ inline void ClosestPointsSegmentSegment(const math::FVector3 &p1, const math::FV
 	return CollideSphereSphere(sa, sb, out);
 }
 
+/// Signed distance from `worldPoint` to `box` (negative inside) — the SDF of
+/// an oriented box. Convex, which is what CollideCapsuleBox relies on.
+[[nodiscard]] inline float BoxSignedDistance(const Box &box, const math::FVector3 &worldPoint) noexcept {
+	const math::FVector3 d = worldPoint - box.center;
+	const math::FVector3 q{sdl3::Abs(d.Dot(box.AxisX())) - box.halfExtents.x,
+						   sdl3::Abs(d.Dot(box.AxisY())) - box.halfExtents.y,
+						   sdl3::Abs(d.Dot(box.AxisZ())) - box.halfExtents.z};
+	const math::FVector3 outside{sdl3::Max(q.x, 0.f), sdl3::Max(q.y, 0.f), sdl3::Max(q.z, 0.f)};
+	const float inside = sdl3::Min(sdl3::Max(q.x, sdl3::Max(q.y, q.z)), 0.f);
+	return outside.Length() + inside;
+}
+
 /**
- * Deferred: capsule-vs-box narrow-phase is not implemented for this milestone.
- * Capsule-sphere and capsule-capsule cover the tractable capsule cases; the
- * plan explicitly allows deferring capsule-box given its added complexity
- * (proper capsule-vs-OBB needs its own closest-segment-to-OBB routine). Always
- * reports "no contact" rather than a wrong one.
+ * Normal points capsule (A) -> box (B).
+ *
+ * Reduced to the sphere-box case: the capsule is the set of spheres of
+ * radius `radius` centred on its segment, so the contact is carried by the
+ * segment point where the box's SIGNED distance is smallest — the closest
+ * point when separated, the deepest one when penetrating. That distance is a
+ * convex function along the segment (the SDF of a convex set is convex), so a
+ * ternary search finds its minimum with no special case for parallel faces,
+ * edges or corners.
+ *
+ * A capsule lying on a face touches it along a whole line, and a single
+ * contact point would let it rock around that point. The two segment ends are
+ * therefore added as extra points when they touch with (nearly) the same
+ * normal — the same idea as the face clipping of the box-box case.
  */
-[[nodiscard]] inline bool CollideCapsuleBox(const Capsule & /*cap*/, const Box & /*box*/,
-											 Manifold & /*out*/) noexcept {
-	return false;
+[[nodiscard]] inline bool CollideCapsuleBox(const Capsule &cap, const Box &box, Manifold &out) noexcept {
+	const math::FVector3 a = cap.PointA();
+	const math::FVector3 b = cap.PointB();
+	float lo = 0.f, hi = 1.f;
+	for (int iteration = 0; iteration < 40; ++iteration) {
+		const float m1 = lo + (hi - lo) / 3.f;
+		const float m2 = hi - (hi - lo) / 3.f;
+		if (BoxSignedDistance(box, a.Lerp(b, m1)) <= BoxSignedDistance(box, a.Lerp(b, m2)))
+			hi = m2;
+		else
+			lo = m1;
+	}
+	const float best = (lo + hi) * 0.5f;
+	if (!CollideSphereBox(Sphere{a.Lerp(b, best), cap.radius}, box, out))
+		return false;
+
+	for (float end : {0.f, 1.f}) {
+		if (sdl3::Abs(end - best) < 1e-3f)
+			continue;
+		Manifold extra;
+		if (CollideSphereBox(Sphere{end == 0.f ? a : b, cap.radius}, box, extra) &&
+			extra.normal.Dot(out.normal) > 0.95f)
+			out.AddPoint(extra.points[0].worldPoint, extra.points[0].penetration);
+	}
+	return true;
 }
 
 // ── Dispatch ────────────────────────────────────────────────────────────────
@@ -425,9 +473,13 @@ inline void ClosestPointsSegmentSegment(const math::FVector3 &p1, const math::FV
 						return CollideCapsuleSphere(sa, sb, out);
 					} else if constexpr (std::is_same_v<TA, Capsule> && std::is_same_v<TB, Capsule>) {
 						return CollideCapsuleCapsule(sa, sb, out);
-					} else if constexpr ((std::is_same_v<TA, Box> && std::is_same_v<TB, Capsule>) ||
-										 (std::is_same_v<TA, Capsule> && std::is_same_v<TB, Box>)) {
-						return false; // capsule-box deferred, see CollideCapsuleBox
+					} else if constexpr (std::is_same_v<TA, Capsule> && std::is_same_v<TB, Box>) {
+						return CollideCapsuleBox(sa, sb, out);
+					} else if constexpr (std::is_same_v<TA, Box> && std::is_same_v<TB, Capsule>) {
+						bool hit = CollideCapsuleBox(sb, sa, out); // computed capsule(B) -> box(A)
+						if (hit)
+							out.normal = -out.normal; // want A(box) -> B(capsule)
+						return hit;
 					} else {
 						return false; // unreachable — every combination of the 3 shape kinds is handled above
 					}

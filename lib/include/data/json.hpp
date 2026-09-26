@@ -4,6 +4,7 @@
  * Aucune exception : le décodage retourne Result<NodePtr,ParseError> en
  * interne, converti en Option<ParseError> par DecodeImpl.
  */
+#include <charconv>
 #include <cstdio>
 #include <iomanip>
 #include <limits>
@@ -132,16 +133,23 @@ private:
 				out.Append(String::From(node->intValue));
 				return;
 			case NodeType::FLOAT: {
-				// std::setprecision(max_digits10) garantit un round-trip exact
-				// double -> texte -> double, comme dans un std::ostringstream classique.
-				String text = String::FromStream(std::setprecision(std::numeric_limits<double>::max_digits10),
-												 node->floatValue);
+				// Représentation la PLUS COURTE qui se relit à l'identique
+				// (std::to_chars sans précision) : l'aller-retour reste exact,
+				// comme avec max_digits10, mais 1.65 s'écrit `1.65` et non
+				// `1.6499999999999999` — un projet reste lisible et ses
+				// différences de version, courtes.
+				char buffer[64];
+				const auto written = std::to_chars(buffer, buffer + sizeof(buffer), node->floatValue);
+				String text = written.ec == std::errc{}
+								  ? String(StringView(buffer, size_t(written.ptr - buffer)))
+								  : String::FromStream(std::setprecision(std::numeric_limits<double>::max_digits10),
+													   node->floatValue);
 				// ... mais un FLOAT de valeur entière sort alors comme `5`,
 				// que le DÉCODEUR relit ensuite en nœud INT : le type se
 				// perd silencieusement à l'aller-retour, et tout lecteur qui
 				// ne consulte que `floatValue` récupère 0 (bug réellement
 				// rencontré sur des coordonnées de scène entières, cf.
-				// memory/project_level_editor.md, contourné à l'époque côté
+				// memory/project_game_editor.md, contourné à l'époque côté
 				// LECTURE seulement). Forcer le point décimal — licite en
 				// JSON, sans effet sur la valeur — rend le type stable à
 				// l'aller-retour. `inf`/`nan` (déjà hors JSON strict) et la

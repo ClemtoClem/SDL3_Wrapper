@@ -289,6 +289,19 @@ public:
 		if (m_handle)
 			TTF_SetFontSize(m_handle, pt);
 	}
+	/// Taille courante, en points.
+	[[nodiscard]] float PointSize() const { return m_handle ? TTF_GetFontSize(m_handle) : 0.f; }
+	/// Copie INDÉPENDANTE de la police (même fichier, même style) : sa taille
+	/// peut changer sans toucher l'originale — ni les textes déjà mis en forme
+	/// avec elle, que `SetSize` sur la police partagée re-mettrait en page.
+	[[nodiscard]] Result<Font, StringView> Copy() const {
+		if (!m_handle)
+			return Err(StringView("Font::Copy : police invalide"));
+		TTF_Font *copy = TTF_CopyFont(m_handle);
+		if (!copy)
+			return Err(GetError());
+		return Ok(Font(copy));
+	}
 	void SetHinting(TTF_HintingFlags h) {
 		if (m_handle)
 			TTF_SetFontHinting(m_handle, h);

@@ -26,19 +26,19 @@
  *
  * Le registre est FACULTATIF : `NodeTree` fonctionne entièrement sans lui.
  */
+#include "tree.hpp"
+
 #include <functional>
 #include <vector>
-
-#include "tree.hpp"
 
 namespace scene {
 
 /// Description d'un type de nœud.
 struct NodeTypeInfo {
-	String name;        ///< identifiant technique, celui écrit dans le fichier ("MeshInstance")
-	String label;       ///< libellé affiché ("Maillage")
-	String category;    ///< regroupement dans le menu de création ("3D", "Physique", "Audio"…)
-	String icon;        ///< repère textuel court pour l'outliner ("▣")
+	String name;	 ///< identifiant technique, celui écrit dans le fichier ("MeshInstance")
+	String label;	 ///< libellé affiché ("Maillage")
+	String category; ///< regroupement dans le menu de création ("3D", "Physique", "Audio"…)
+	String icon;	 ///< repère textuel court pour l'outliner ("▣")
 	/// Composants posés d'office à la création (un MeshInstance naît avec un
 	/// composant de maillage vide plutôt qu'avec rien).
 	std::vector<Component> defaultComponents;
@@ -73,7 +73,7 @@ public:
 
 	/// Déclare (ou remplace) un type.
 	void Register(NodeTypeInfo info) {
-		for (NodeTypeInfo &existing : m_types)
+		for (NodeTypeInfo& existing : m_types)
 			if (existing.name == info.name) {
 				existing = std::move(info);
 				return;
@@ -81,36 +81,36 @@ public:
 		m_types.push_back(std::move(info));
 	}
 
-	[[nodiscard]] const NodeTypeInfo *Find(const String &name) const noexcept {
-		for (const NodeTypeInfo &info : m_types)
+	[[nodiscard]] const NodeTypeInfo* Find(const String& name) const noexcept {
+		for (const NodeTypeInfo& info : m_types)
 			if (info.name == name)
 				return &info;
 		return nullptr;
 	}
 
-	[[nodiscard]] bool Knows(const String &name) const noexcept { return Find(name) != nullptr; }
-	[[nodiscard]] const std::vector<NodeTypeInfo> &Types() const noexcept { return m_types; }
+	[[nodiscard]] bool Knows(const String& name) const noexcept { return Find(name) != nullptr; }
+	[[nodiscard]] const std::vector<NodeTypeInfo>& Types() const noexcept { return m_types; }
 
 	/// Libellé d'affichage (repli sur le nom technique pour un type inconnu,
 	/// qui reste donc lisible dans l'outliner).
-	[[nodiscard]] String LabelOf(const String &name) const {
-		const NodeTypeInfo *info = Find(name);
+	[[nodiscard]] String LabelOf(const String& name) const {
+		const NodeTypeInfo* info = Find(name);
 		return info && !info->label.IsEmpty() ? info->label : name;
 	}
 
-	[[nodiscard]] String IconOf(const String &name) const {
-		const NodeTypeInfo *info = Find(name);
+	[[nodiscard]] String IconOf(const String& name) const {
+		const NodeTypeInfo* info = Find(name);
 		return info ? info->icon : String("?");
 	}
 
 	/// Nœud neuf conforme au type : composants et propriétés par défaut déjà
 	/// en place. Un type inconnu donne un nœud nu portant quand même ce type
 	/// (cf. en-tête : jamais perdre l'information).
-	[[nodiscard]] Node Make(const String &type, String name) const {
+	[[nodiscard]] Node Make(const String& type, String name) const {
 		Node node;
 		node.type = type;
 		node.name = std::move(name);
-		if (const NodeTypeInfo *info = Find(type)) {
+		if (const NodeTypeInfo* info = Find(type)) {
 			node.components = info->defaultComponents;
 			node.properties = info->defaultProperties;
 		}
@@ -118,13 +118,13 @@ public:
 	}
 
 	/// Crée directement dans un arbre (raccourci de l'éditeur).
-	NodeId Create(NodeTree &tree, NodeId parent, const String &type, const String &name) const {
+	NodeId Create(NodeTree& tree, NodeId parent, const String& type, const String& name) const {
 		return tree.Add(parent, Make(type, tree.UniqueChildName(parent, name)));
 	}
 
 	/// Prédicat prêt à passer à NodeTree::Validate.
-	[[nodiscard]] std::function<bool(const String &)> TypeChecker() const {
-		return [this](const String &type) { return Knows(type); };
+	[[nodiscard]] std::function<bool(const String&)> TypeChecker() const {
+		return [this](const String& type) { return Knows(type); };
 	}
 
 private:

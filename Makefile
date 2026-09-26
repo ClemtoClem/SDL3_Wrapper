@@ -1,119 +1,114 @@
 # ============================================================================
-# Makefile - ECS / C++23
+# Makefile - C++23
 # ============================================================================
 
-# Compilateur et options C++
-CXX        := g++
-CXX_VERSION:=c++23
+# Force Make à utiliser tous les cœurs par défaut pour toutes les cibles
+MAKEFLAGS += -j$(shell nproc)
 
-# Répertoires — lib/ est 100% header-only (aucun .cpp aujourd'hui) : LIBDIR
-# sert à la fois de racine d'include et de racine de recherche d'éventuelles
-# sources .cpp futures. SRCS/OBJS/LIB restent définis pour ce cas (no-op
-# inoffensif tant que lib/ ne contient aucun .cpp).
+# ============================================================================
+# Configuration de Compilation (Debug / Release)
+# ============================================================================
+
+# Mode de compilation (debug par défaut)
+MODE ?= debug
+
+BUILDDIR := build
+
+ifeq ($(MODE),debug)
+	OPT_FLAGS := -O0 -g
+	SAN_FLAGS := -fsanitize=undefined,address
+	BINDIR    := $(BUILDDIR)/debug
+else ifeq ($(MODE),release)
+	OPT_FLAGS := -O3 -DNDEBUG
+	SAN_FLAGS :=
+	BINDIR    := $(BUILDDIR)/release
+else
+	$(error "MODE doit être 'debug' ou 'release'")
+endif
+
+# Les objets sont séparés selon le mode pour éviter les conflits
+OBJDIR := $(BUILDDIR)/obj/$(MODE)
+
+# ============================================================================
+# Compilateur et Chemins
+# ============================================================================
+
+CXX        := g++
+CXX_VERSION:= c++23
+
 SRCDIR     := lib/src
 INCDIR     := lib/include
-BUILDDIR   := build
 TESTDIR    := tests
 EXAMPLEDIR := examples
 
-# Dépendances SDL3 (résolues via pkg-config, installation système)
+# Dépendances SDL3
 SDL_PKGS   := sdl3 sdl3-image sdl3-ttf sdl3-mixer sdl3-net
 SDL_CFLAGS := $(shell pkg-config --cflags $(SDL_PKGS) 2>/dev/null)
 SDL_LIBS   := $(shell pkg-config --libs $(SDL_PKGS) 2>/dev/null)
 
-# Compilateur GLSL embarqué (render3d::ShaderBuilder) : shaderc a un .pc
-# (GLSL -> SPIR-V) ; spirv-cross n'expose son API C++ (spirv_msl.hpp, utilisée
-# pour SPIR-V -> MSL) que via des .a statiques sans .pc dédié — liés en dur.
+# Dépendances Shaderc & SPIRV-Cross
 SHADERC_CFLAGS := $(shell pkg-config --cflags shaderc 2>/dev/null)
 SHADERC_LIBS   := $(shell pkg-config --libs shaderc 2>/dev/null)
 SPIRV_CROSS_LIBS := -lspirv-cross-msl -lspirv-cross-glsl -lspirv-cross-core -lspirv-cross-util
 
-CXXFLAGS := -O0 -g -std=$(CXX_VERSION) -Wextra -Werror -Wsign-compare -fsanitize=undefined,address -I $(INCDIR) -I $(SRCDIR) -MMD -MP -g $(SDL_CFLAGS) $(SHADERC_CFLAGS)
-LDFLAGS  := -fsanitize=undefined,address
+CXXFLAGS := $(OPT_FLAGS) -std=$(CXX_VERSION) -Wextra -Werror -Wsign-compare $(SAN_FLAGS) -I $(INCDIR) -I $(SRCDIR) -MMD -MP $(SDL_CFLAGS) $(SHADERC_CFLAGS)
+LDFLAGS  := $(SAN_FLAGS)
 LDLIBS   := $(SDL_LIBS) $(SHADERC_LIBS) $(SPIRV_CROSS_LIBS)
 TEST_LDLIBS :=
 
-# Suppressions LeakSanitizer (voir tests/lsan_suppressions.txt) : fuites
-# internes au backend X11 de SDL3 lui-même, pas de ce dépôt — exportée pour
-# que tout binaire lancé depuis ce Makefile (check/run-tests, run-<exemple>)
-# en hérite automatiquement.
 export LSAN_OPTIONS := suppressions=$(CURDIR)/tests/lsan_suppressions.txt
 
-# Bibliothèque statique (no-op aujourd'hui : lib/ est header-only)
-LIB       := $(BUILDDIR)/ui.a
+# ============================================================================
+# Sources et Cibles
+# ============================================================================
+
+# Bibliothèque (statique)
+LIB       := $(OBJDIR)/ui.a
 SRCS      := $(shell find $(SRCDIR) -name '*.cpp' 2>/dev/null)
-OBJS      := $(patsubst $(SRCDIR)/%.cpp,$(BUILDDIR)/lib/%.o,$(SRCS))
+OBJS      := $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/lib/%.o,$(SRCS))
 
-# Sources, objets et exécutables des tests (tests/*.cpp à plat)
+# Tests
 TEST_SRCS := $(shell find $(TESTDIR) -name '*.cpp' 2>/dev/null)
-TEST_OBJS := $(patsubst $(TESTDIR)/%.cpp,$(BUILDDIR)/tests/%.o,$(TEST_SRCS))
-TEST_BINS := $(patsubst $(TESTDIR)/%.cpp,$(BUILDDIR)/bin/%,$(TEST_SRCS))
+TEST_OBJS := $(patsubst $(TESTDIR)/%.cpp,$(OBJDIR)/tests/%.o,$(TEST_SRCS))
+TEST_BINS := $(patsubst $(TESTDIR)/%.cpp,$(BUILDDIR)/tests/%,$(TEST_SRCS))
 
-# Sources, objets et exécutables des exemples (examples/*.cpp à plat, un
-# binaire par fichier — pas de sous-dossier par exemple)
+# Exemples
 EXAMPLE_SRCS := $(shell find $(EXAMPLEDIR) -maxdepth 1 -name '*.cpp' 2>/dev/null)
 EXAMPLES     := $(basename $(notdir $(EXAMPLE_SRCS)))
-EXAMPLE_OBJS := $(patsubst $(EXAMPLEDIR)/%.cpp,$(BUILDDIR)/examples/%.o,$(EXAMPLE_SRCS))
-EXAMPLE_BINS := $(patsubst $(EXAMPLEDIR)/%.cpp,$(BUILDDIR)/bin/%,$(EXAMPLE_SRCS))
+EXAMPLE_OBJS := $(patsubst $(EXAMPLEDIR)/%.cpp,$(OBJDIR)/examples/%.o,$(EXAMPLE_SRCS))
+EXAMPLE_BINS := $(patsubst $(EXAMPLEDIR)/%.cpp,$(BINDIR)/%,$(EXAMPLE_SRCS))
 
-# Exemple multi-fichiers : emulator_demo. Son point d'entrée reste
-# examples/emulator_demo.cpp (donc listé ci-dessus comme les autres), mais il
-# embarque en plus ~50 unités de traduction sous examples/emulator_demo/
-# (cœur NDS/GBA/GBC + coquille applicative), compilées séparément pour
-# profiter de make -j et liées au binaire.
+# Émulateur (Cas particulier multi-fichiers)
 EMULATOR_DIR  := $(EXAMPLEDIR)/emulator_demo
 EMULATOR_SRCS := $(shell find $(EMULATOR_DIR) -name '*.cpp' 2>/dev/null)
-EMULATOR_OBJS := $(patsubst $(EXAMPLEDIR)/%.cpp,$(BUILDDIR)/examples/%.o,$(EMULATOR_SRCS))
-# Un interpréteur ARM à -O0 sous ASan n'atteint pas le temps réel : le cœur
-# est optimisé (les sanitizers restent actifs). Surchargeable :
-# make emulator_demo EMULATOR_OPT=-O0
-EMULATOR_OPT  ?= -O2
+EMULATOR_OBJS := $(patsubst $(EXAMPLEDIR)/%.cpp,$(OBJDIR)/examples/%.o,$(EMULATOR_SRCS))
+# Optimisation forcée pour l'émulateur même en mode debug pour conserver le temps réel
+ifeq ($(MODE),debug)
+	EMULATOR_OPT ?= -O2
+else
+	EMULATOR_OPT ?= -O3
+endif
 
-# Fichiers de dépendances (.d), inclus plus bas (-MMD -MP)
-DEPS      := $(OBJS:.o=.d) $(TEST_OBJS:.o=.d) $(EXAMPLE_OBJS:.o=.d) $(EMULATOR_OBJS:.o=.d)
+DEPS := $(OBJS:.o=.d) $(TEST_OBJS:.o=.d) $(EXAMPLE_OBJS:.o=.d) $(EMULATOR_OBJS:.o=.d)
 
 # ============================================================================
-# Outils qualité / conventions (clang-format, clang-tidy, bear)
+# Outils qualité / conventions
 # ============================================================================
 
 CLANG_TIDY   := clang-tidy
 CLANG_FORMAT := clang-format
 BEAR         := bear
 
-# Configs nommées explicitement en .yml (pas les noms par défaut .clang-tidy/
-# .clang-format) : chargées via --config-file / -style=file: plutôt que par
-# la recherche automatique habituelle de ces outils.
 CLANG_TIDY_CONFIG   := .clang-tidy.yml
 CLANG_FORMAT_CONFIG := .clang-format.yml
-
-# compile_commands.json à la racine du projet (pas dans build/) : c'est
-# l'emplacement que clangd et la plupart des éditeurs/IDE cherchent par
-# défaut, en plus d'être ce que lit clang-tidy via -p=. ci-dessous.
 COMPILE_DB := compile_commands.json
 
-# Fichiers analysés par clang-tidy : les .cpp réels (tests/exemples) — ce
-# sont les seules unités de traduction qui apparaissent dans
-# compile_commands.json (lib/ est header-only, jamais compilé seul). Les
-# en-têtes de lib/ sont couverts par transitivité via --header-filter : tout
-# diagnostic trouvé dans un en-tête inclus par une des TU ci-dessous est
-# remonté, ce qui couvre la bibliothèque en entier tant que chaque en-tête
-# est inclus par au moins un test ou un exemple.
 TIDY_SRCS := $(TEST_SRCS) $(EXAMPLE_SRCS)
+TIDY_ARGS := --config-file=$(CLANG_TIDY_CONFIG) --header-filter='^$(LIBDIR)/.*\.(h|hpp)$$' -p=.
 
-TIDY_ARGS := \
-	--config-file=$(CLANG_TIDY_CONFIG) \
-	--header-filter='^$(LIBDIR)/.*\.(h|hpp)$$' \
-	-p=.
-
-# Fichiers à formater
-FORMAT_SRCS := \
-	$(shell find $(LIBDIR) $(TESTDIR) $(EXAMPLEDIR) \
-		-type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
-		2>/dev/null)
-
+FORMAT_SRCS := $(shell find $(LIBDIR) $(TESTDIR) $(EXAMPLEDIR) -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) 2>/dev/null)
 FORMAT_ARGS := -style=file:$(CLANG_FORMAT_CONFIG)
 
-# Couleurs pour la cible help
 YELLOW    := \033[33m
 GREEN     := \033[32m
 CYAN      := \033[36m
@@ -121,17 +116,23 @@ RED       := \033[31m
 RESET     := \033[0m
 
 # ============================================================================
-# Bibliothèque
+# Cibles Principales
 # ============================================================================
 
-.PHONY: all lib clean re tests examples check help run list-examples run-tests run-example shaders \
+.PHONY: all debug release lib clean re tests examples examples-debug examples-release check help run list-examples run-tests run-example shaders \
 	lint rename format format-check fix compile-commands
 
-all: lib examples tests shaders ## Compile la bibliotheque, les exemples, les tests et les shaders
+all: lib examples tests shaders ## Compile tout dans le mode actif (debug par defaut)
 
-lib: $(LIB) ## Alias explicite pour la bibliotheque
+debug: ## Force la compilation globale en mode Debug (O0 + fsanitize)
+	@$(MAKE) --no-print-directory MODE=debug all
 
-shaders: ## Compile les shaders GLSL (assets/shaders/src -> bin, no-op tant que src/ n'existe pas)
+release: ## Force la compilation globale en mode Release (O3)
+	@$(MAKE) --no-print-directory MODE=release all
+
+lib: $(LIB) ## Compile uniquement la bibliothèque
+
+shaders: ## Compile les shaders GLSL
 	@if [ -d assets/shaders/src ]; then \
 		assets/shaders/compiler.sh; \
 	else \
@@ -141,47 +142,28 @@ shaders: ## Compile les shaders GLSL (assets/shaders/src -> bin, no-op tant que 
 $(LIB): $(OBJS)
 	@mkdir -p $(dir $@)
 	ar rcs $@ $^
-	@echo "=== Bibliotheque compilee : $(LIB) ==="
+	@echo "=== Bibliotheque compilee ($(MODE)) : $(LIB) ==="
 
-# Compilation des sources du projet (.cpp -> .o dans build/lib/) — no-op
-# aujourd'hui, aucun .cpp sous lib/ (header-only), prêt si ça change un jour.
-$(BUILDDIR)/lib/%.o: $(SRCDIR)/%.cpp
+$(OBJDIR)/lib/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-help: ## Affiche ce message d'aide
-	@printf "$(YELLOW)Commandes disponibles :$(RESET)\n"
-	@awk 'BEGIN {FS=":[[:space:]]*.*## "} \
-		/^[[:alnum:]_.-]+[[:space:]]*:/ && /##/ { \
-			printf "  $(CYAN)%-18s$(RESET) %s\n", $$1, $$2 \
-		}' $(MAKEFILE_LIST)
-	@printf "\n$(YELLOW)Raccourcis utiles :$(RESET)\n"
-	@printf "  $(CYAN)make run-tests$(RESET)             compile et lance la suite de tests\n"
-	@printf "  $(CYAN)make run-example EXAMPLE=X$(RESET) compile et lance l'exemple nomme X\n"
-	@printf "  $(CYAN)make list-examples$(RESET)         liste les exemples disponibles\n"
-	@printf "  $(CYAN)make lint$(RESET)                  verifie les conventions de nommage (clang-tidy)\n"
-	@printf "  $(CYAN)make format$(RESET)                applique le formatage (clang-format)\n"
-	@printf "  $(CYAN)make fix$(RESET)                   applique conventions + formatage d'un coup\n"
 
 # ============================================================================
 # Tests
 # ============================================================================
 
-# Compilation des sources de test (Static Pattern Rule)
-$(TEST_OBJS): $(BUILDDIR)/tests/%.o: $(TESTDIR)/%.cpp
+$(OBJDIR)/tests/%.o: $(TESTDIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Édition des liens pour chaque test (Static Pattern Rule)
-# La syntaxe "$(TEST_BINS): cible: dépendances" empêche Make d'effacer les exécutables
-$(TEST_BINS): $(BUILDDIR)/bin/%: $(BUILDDIR)/tests/%.o $(LIB)
+$(TEST_BINS): $(BUILDDIR)/tests/%: $(OBJDIR)/tests/%.o $(LIB)
 	@mkdir -p $(dir $@)
 	$(CXX) $(LDFLAGS) $< $(LIB) $(LDLIBS) $(TEST_LDLIBS) -o $@
 
-tests: $(TEST_BINS) ## Compile tous les tests (sans les executer)
+tests: $(TEST_BINS) ## Compile tous les tests (dans build/tests/)
 run-tests: check ## Compile et execute la suite de tests
 
-check: shaders $(TEST_BINS) ## Compile et exécute automatiquement tous les tests
+check: shaders $(TEST_BINS)
 	@echo "$(CYAN)== Lancement des tests ==$(RESET)"
 	@erreurs=0; \
 	for t in $(TEST_BINS); do \
@@ -203,41 +185,51 @@ check: shaders $(TEST_BINS) ## Compile et exécute automatiquement tous les test
 # Exemples
 # ============================================================================
 
-# Compilation des sources d'exemple (Static Pattern Rule) — un .cpp à plat
-# par exemple sous examples/, pas de sous-dossier.
-$(EXAMPLE_OBJS): $(BUILDDIR)/examples/%.o: $(EXAMPLEDIR)/%.cpp
+$(OBJDIR)/examples/%.o: $(EXAMPLEDIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Sources des sous-dossiers d'exemple (emulator_demo/**/*.cpp)
-$(EMULATOR_OBJS): $(BUILDDIR)/examples/%.o: $(EXAMPLEDIR)/%.cpp
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+$(OBJDIR)/examples/emulator_demo.o $(EMULATOR_OBJS): CXXFLAGS += $(EMULATOR_OPT) -I $(EMULATOR_DIR)
 
-# Les includes internes de l'émulateur sont relatifs à examples/emulator_demo/
-$(BUILDDIR)/examples/emulator_demo.o $(EMULATOR_OBJS): CXXFLAGS += $(EMULATOR_OPT) -I $(EMULATOR_DIR)
-
-# Édition des liens pour chaque exemple (Static Pattern Rule) — tous les .o
-# prérequis sont liés, ce qui permet à un exemple d'en ajouter (ci-dessous).
-$(EXAMPLE_BINS): $(BUILDDIR)/bin/%: $(BUILDDIR)/examples/%.o $(LIB)
+$(EXAMPLE_BINS): $(BINDIR)/%: $(OBJDIR)/examples/%.o $(LIB)
 	@mkdir -p $(dir $@)
 	$(CXX) $(LDFLAGS) $(filter %.o,$^) $(LIB) $(LDLIBS) -o $@
 
-$(BUILDDIR)/bin/emulator_demo: $(EMULATOR_OBJS)
+$(BINDIR)/emulator_demo: $(EMULATOR_OBJS)
 
-examples: $(EXAMPLE_BINS) ## Compile tous les exemples
+examples: $(EXAMPLE_BINS) ## Compile tous les exemples (mode actif)
 
-# Cibles de convenance par exemple : "make NOM" / "make run-NOM"
+examples-debug: ## Compile tous les exemples en mode debug
+	@$(MAKE) --no-print-directory MODE=debug examples
+
+examples-release: ## Compile tous les exemples en mode release
+	@$(MAKE) --no-print-directory MODE=release examples
+
+# Generation automatique des cibles spécifiques pour chaque exemple
 define EXAMPLE_RULES
-.PHONY: $(1) run-$(1)
-$(1): $$(BUILDDIR)/bin/$(1) ## Compile l'exemple $(1)
-run-$(1): $(1) ## Compile et lance l'exemple $(1)
-	@./$$(BUILDDIR)/bin/$(1)
+.PHONY: $(1) $(1)-debug $(1)-release run-$(1) run-$(1)-debug run-$(1)-release
+
+$(1): $$(BINDIR)/$(1) ## Compile l'exemple $(1) dans le mode actif
+
+$(1)-debug: ## Compile l'exemple $(1) en mode debug
+	@$$(MAKE) --no-print-directory MODE=debug $(1)
+
+$(1)-release: ## Compile l'exemple $(1) en mode release
+	@$$(MAKE) --no-print-directory MODE=release $(1)
+
+run-$(1): $(1) ## Compile et lance l'exemple $(1) (mode actif)
+	@./$$(BINDIR)/$(1)
+
+run-$(1)-debug: ## Compile et lance l'exemple $(1) en mode debug
+	@$$(MAKE) --no-print-directory MODE=debug run-$(1)
+
+run-$(1)-release: ## Compile et lance l'exemple $(1) en mode release
+	@$$(MAKE) --no-print-directory MODE=release run-$(1)
 endef
 
 $(foreach ex,$(EXAMPLES),$(eval $(call EXAMPLE_RULES,$(ex))))
 
-list-examples: ## Liste les exemples disponibles
+list-examples:
 	@printf "$(YELLOW)Exemples disponibles :$(RESET)\n"
 	@if [ -z "$(EXAMPLES)" ]; then \
 		printf "  $(RED)Aucun exemple trouve dans $(EXAMPLEDIR)/$(RESET)\n"; \
@@ -248,52 +240,35 @@ list-examples: ## Liste les exemples disponibles
 EXAMPLE ?=
 DEFAULT_EXAMPLE := $(firstword $(EXAMPLES))
 
-run-example: ## Lance un exemple specifique (ex: make run-example EXAMPLE=nom)
+run-example: ## Lance un exemple spécifique (ex: make run-example EXAMPLE=nom MODE=release)
 ifneq ($(EXAMPLE),)
-	@$(MAKE) --no-print-directory run-$(EXAMPLE)
+	@$(MAKE) --no-print-directory MODE=$(MODE) run-$(EXAMPLE)
 else
 	@echo "$(RED)Erreur : veuillez specifier un exemple avec EXAMPLE=nom$(RESET)"
 	@$(MAKE) --no-print-directory list-examples
 endif
 
-run: ## Lance l'exemple par defaut
+run: ## Lance l'exemple par défaut
 ifneq ($(DEFAULT_EXAMPLE),)
-	@$(MAKE) --no-print-directory run-$(DEFAULT_EXAMPLE)
+	@$(MAKE) --no-print-directory MODE=$(MODE) run-$(DEFAULT_EXAMPLE)
 else
 	@echo "$(RED)Aucun exemple trouve sous $(EXAMPLEDIR)/$(RESET)"
 endif
 
-# Nettoyage
-clean: ## Supprime les dossiers de build
+# ============================================================================
+# Nettoyage et Utilitaires
+# ============================================================================
+
+clean: ## Supprime l’intégralité du dossier build
 	rm -rf $(BUILDDIR)
 	@echo "=== Repertoire build supprime ==="
 
-# Reconstruction complète
 re: clean all ## Reconstruit entièrement le projet
 
-# Inclusion automatique des dépendances générées par GCC (-MMD -MP)
 -include $(DEPS)
 
-# ============================================================================
 # Qualité du code
-# ============================================================================
-
-# compile_commands.json — généré via bear en interceptant une VRAIE
-# recompilation complète de tous les tests + exemples (seules unités de
-# traduction du projet, lib/ étant header-only) : "-B" force make à tout
-# recompiler même si les .o sont déjà à jour, sinon bear n'intercepterait
-# aucune commande pour les fichiers déjà compilés. Redéclenché automatique-
-# ment par make si un .cpp/.hpp du projet a changé depuis la dernière
-# génération (dépendances ci-dessous), pas seulement à la demande.
-#
-# "-k" (keep going) + le "-" en tête de la ligne de recette : un test cassé
-# préexistant (tests/ecs_smoke_test.cpp, sans rapport avec ce Makefile, cf.
-# memory/) ne doit ni interrompre la capture des AUTRES unités de traduction
-# par bear, ni faire échouer la cible tout entière à chaque régénération —
-# bear écrit compile_commands.json avec ce qu'il a intercepté même si "make"
-# se termine en erreur.
-COMPILE_DB_INPUTS := $(shell find $(LIBDIR) $(TESTDIR) $(EXAMPLEDIR) \
-	-type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) 2>/dev/null)
+COMPILE_DB_INPUTS := $(shell find $(LIBDIR) $(TESTDIR) $(EXAMPLEDIR) -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) 2>/dev/null)
 
 $(COMPILE_DB): $(COMPILE_DB_INPUTS)
 	@command -v $(BEAR) >/dev/null 2>&1 || { echo "$(RED)bear n'est pas installe$(RESET)"; exit 1; }
@@ -301,29 +276,43 @@ $(COMPILE_DB): $(COMPILE_DB_INPUTS)
 	-@$(BEAR) --output $(COMPILE_DB) -- $(MAKE) --no-print-directory -k -B tests examples
 	@echo "$(GREEN)== $(COMPILE_DB) genere ==$(RESET)"
 
-compile-commands: $(COMPILE_DB) ## (Re)genere compile_commands.json via bear (tests+exemples)
-
-lint: $(COMPILE_DB) ## Verifie les conventions de nommage (clang-tidy, lecture seule)
-	@echo "$(CYAN)== Vérification des conventions de nommage ==$(RESET)"
+compile-commands: $(COMPILE_DB)
+lint: $(COMPILE_DB)
+	@echo "$(CYAN)== Vérification des conventions ==$(RESET)"
 	@$(CLANG_TIDY) $(TIDY_SRCS) $(TIDY_ARGS)
 
-rename: $(COMPILE_DB) ## Applique les conventions de nommage (clang-tidy --fix)
-	@echo "$(YELLOW)== Application des conventions de nommage ==$(RESET)"
+rename: $(COMPILE_DB)
+	@echo "$(YELLOW)== Application des conventions ==$(RESET)"
 	@$(CLANG_TIDY) $(TIDY_SRCS) $(TIDY_ARGS) --fix
-	@echo "$(GREEN)== Renommage terminé ==$(RESET)"
+	@echo "$(GREEN)== Renommage termine ==$(RESET)"
 
-format: ## Applique le formatage du code (clang-format -i)
+format:
 	@echo "$(CYAN)== Formatage du code ==$(RESET)"
 	@if command -v $(CLANG_FORMAT) >/dev/null 2>&1; then \
 		$(CLANG_FORMAT) $(FORMAT_ARGS) -i $(FORMAT_SRCS); \
 	else \
-		echo "$(RED)clang-format n'est pas installé$(RESET)"; \
-		exit 1; \
+		echo "$(RED)clang-format n'est pas installe$(RESET)"; exit 1; \
 	fi
 
-format-check: ## Verifie le formatage sans modifier les fichiers (echoue si non conforme)
+format-check:
 	@echo "$(CYAN)== Vérification du formatage ==$(RESET)"
 	@$(CLANG_FORMAT) $(FORMAT_ARGS) --dry-run --Werror $(FORMAT_SRCS)
 
-fix: rename format ## Applique conventions de nommage + formatage
-	@echo "$(GREEN)== Conventions et formatage appliqués ==$(RESET)"
+fix: rename format
+	@echo "$(GREEN)== Conventions et formatage appliques ==$(RESET)"
+
+help: ## Affiche ce message d'aide
+	@printf "$(YELLOW)Compilation globale :$(RESET)\n"
+	@printf "  $(CYAN)make debug$(RESET)               compile tout en mode debug (-O0 + fsanitize)\n"
+	@printf "  $(CYAN)make release$(RESET)             compile tout en mode release (-O3)\n\n"
+	@printf "$(YELLOW)Compilation des exemples :$(RESET)\n"
+	@printf "  $(CYAN)make examples-debug$(RESET)      compile tous les exemples en mode debug\n"
+	@printf "  $(CYAN)make examples-release$(RESET)    compile tous les exemples en mode release\n"
+	@printf "  $(CYAN)make <nom>-debug$(RESET)         compile l'exemple <nom> en mode debug\n"
+	@printf "  $(CYAN)make <nom>-release$(RESET)       compile l'exemple <nom> en mode release\n\n"
+	@printf "$(YELLOW)Exécution des exemples :$(RESET)\n"
+	@printf "  $(CYAN)make run-<nom>-debug$(RESET)     compile et lance l'exemple <nom> en debug\n"
+	@printf "  $(CYAN)make run-<nom>-release$(RESET)   compile et lance l'exemple <nom> en release\n"
+	@printf "  $(CYAN)make run-example EXAMPLE=<nom> MODE=<mode>$(RESET)\n\n"
+	@printf "$(YELLOW)Toutes les commandes disponibles :$(RESET)\n"
+	@awk 'BEGIN {FS=":[[:space:]]*.*## "} /^[[:alnum:]_.-]+[[:space:]]*:/ && /##/ { printf "  $(CYAN)%-22s$(RESET) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
