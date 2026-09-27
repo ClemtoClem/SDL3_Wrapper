@@ -80,7 +80,9 @@ int main() {
         auto missing = pool.Get("nope");
         assert(missing.IsNone());
 
-        assert(pool.Remove("a"));
+        // Hors de assert() : compilé en -DNDEBUG (release), l'appel disparaîtrait.
+        bool removed = pool.Remove("a");
+        assert(removed);
         assert(!pool.Contains("a"));
         assert(pool.GetSize() == 0);
         std::cout << "Pool<T> (Insert/Get retourne Option/Contains/Remove): ok\n";

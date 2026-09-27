@@ -78,28 +78,18 @@ public:
 	bool DrawRect(const sdl3::FRect &r) override { return m_renderer->DrawRect(r); }
 	bool FillRect(const sdl3::FRect &r) override { return m_renderer->FillRect(r); }
 	bool DrawRoundedRect(const sdl3::FRect &rect, const math::Corners &c) override { return m_renderer->DrawRoundedRect(rect, c); }
-	bool FillRoundedRect(const sdl3::FRect &rect, const math::Corners &c) override {
-		return m_renderer->FillRoundedRect(rect, c);
-	}
+	bool FillRoundedRect(const sdl3::FRect &rect, const math::Corners &c) override;
 	bool DrawCircle(sdl3::FPoint center, float radius) override { return m_renderer->DrawCircle(center, radius); }
 	bool FillCircle(sdl3::FPoint center, float radius) override { return m_renderer->FillCircle(center, radius); }
-	bool DrawArc(sdl3::FPoint center, float radius, float startAngleDeg, float endAngleDeg) override {
-		return m_renderer->DrawArc(center, radius, startAngleDeg, endAngleDeg);
-	}
-	bool DrawPie(sdl3::FPoint center, float radius, float startAngleDeg, float endAngleDeg) override {
-		return m_renderer->DrawPie(center, radius, startAngleDeg, endAngleDeg);
-	}
+	bool DrawArc(sdl3::FPoint center, float radius, float startAngleDeg, float endAngleDeg) override;
+	bool DrawPie(sdl3::FPoint center, float radius, float startAngleDeg, float endAngleDeg) override;
 	bool DrawPolygon(std::span<const sdl3::FPoint> points) override { return m_renderer->DrawPolygon(points); }
 	bool FillPolygon(std::span<const sdl3::FPoint> points) override { return m_renderer->FillPolygon(points); }
 
-	bool RenderGeometry(std::span<const sdl3::Vertex> vertices, std::span<const int> indices) override {
-		return m_renderer->RenderGeometry(vertices, indices);
-	}
+	bool RenderGeometry(std::span<const sdl3::Vertex> vertices, std::span<const int> indices) override;
 
 	bool Render(const sdl3::Texture &tex, const sdl3::FRect &dst) override { return m_renderer->Render(tex, dst); }
-	bool Render(const sdl3::Texture &tex, const sdl3::FRect &src, const sdl3::FRect &dst) override {
-		return m_renderer->Render(tex, src, dst);
-	}
+	bool Render(const sdl3::Texture &tex, const sdl3::FRect &src, const sdl3::FRect &dst) override;
 
 	[[nodiscard]] sdl3::Renderer *NativeRenderer() noexcept override { return m_renderer; }
 };

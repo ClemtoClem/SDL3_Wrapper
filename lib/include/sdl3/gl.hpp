@@ -16,10 +16,7 @@ class GlContext {
 public:
     constexpr GlContext() noexcept = default;
     explicit GlContext(SDL_GLContext h) noexcept : m_handle(h) {}
-    ~GlContext() {
-        if (m_handle)
-            SDL_GL_DestroyContext(m_handle);
-    }
+    ~GlContext();
 
     GlContext(const GlContext &) = delete;
     GlContext &operator=(const GlContext &) = delete;
@@ -39,12 +36,7 @@ public:
 
     // ── Factory ──────────────────────────────────────────────────────────────
 
-    [[nodiscard]] static Result<GlContext, Error> Create(SDL_Window *win) {
-        auto *ctx = SDL_GL_CreateContext(win);
-        if (!ctx)
-            return Err(GetError());
-        return Ok(GlContext(ctx));
-    }
+    [[nodiscard]] static Result<GlContext, Error> Create(SDL_Window *win);
 
     // ── Context management ───────────────────────────────────────────────────
 
@@ -70,9 +62,7 @@ inline void UnloadLibrary() noexcept { SDL_GL_UnloadLibrary(); }
 // ── Proc address ──────────────────────────────────────────────────────────────
 
 [[nodiscard]] inline SDL_FunctionPointer ProcAddress(const char *proc) noexcept { return SDL_GL_GetProcAddress(proc); }
-[[nodiscard]] inline SDL_FunctionPointer EglProcAddress(const char *proc) noexcept {
-    return SDL_EGL_GetProcAddress(proc);
-}
+[[nodiscard]] SDL_FunctionPointer EglProcAddress(const char *proc) noexcept;
 
 // ── Extension query ───────────────────────────────────────────────────────────
 
@@ -81,23 +71,13 @@ inline void UnloadLibrary() noexcept { SDL_GL_UnloadLibrary(); }
 // ── Attributes ───────────────────────────────────────────────────────────────
 
 inline bool SetAttribute(SDL_GLAttr attr, int value) noexcept { return SDL_GL_SetAttribute(attr, value); }
-inline Option<int> GetAttribute(SDL_GLAttr attr) noexcept {
-    int v = 0;
-    if (!SDL_GL_GetAttribute(attr, &v))
-        return NONE;
-    return Some(v);
-}
+Option<int> GetAttribute(SDL_GLAttr attr) noexcept;
 inline void ResetAttributes() noexcept { SDL_GL_ResetAttributes(); }
 
 // ── Swap interval ─────────────────────────────────────────────────────────────
 
 inline bool SetSwapInterval(int interval) noexcept { return SDL_GL_SetSwapInterval(interval); }
-inline Option<int> GetSwapInterval() noexcept {
-    int v = 0;
-    if (!SDL_GL_GetSwapInterval(&v))
-        return NONE;
-    return Some(v);
-}
+Option<int> GetSwapInterval() noexcept;
 
 // ── Swap ──────────────────────────────────────────────────────────────────────
 

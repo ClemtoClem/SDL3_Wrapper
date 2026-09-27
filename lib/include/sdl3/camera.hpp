@@ -59,32 +59,13 @@ namespace camera {
 [[nodiscard]] inline const char *CurrentDriver() noexcept { return SDL_GetCurrentCameraDriver(); }
 
 // Liste des identifiants de caméras actuellement connectées.
-[[nodiscard]] inline std::vector<CameraID> Enumerated() {
-    int count = 0;
-    CameraID *ids = SDL_GetCameras(&count);
-    if (!ids)
-        return {};
-    std::vector<CameraID> v(ids, ids + count);
-    SDL_free(ids);
-    return v;
-}
+[[nodiscard]] std::vector<CameraID> Enumerated();
 
 [[nodiscard]] inline const char *Name(CameraID id) noexcept { return SDL_GetCameraName(id); }
 [[nodiscard]] inline CameraPosition Position(CameraID id) noexcept { return CameraPosition(SDL_GetCameraPosition(id)); }
 
 // Formats supportés par la caméra `id`.
-[[nodiscard]] inline std::vector<CameraSpec> SupportedFormats(CameraID id) {
-    int count = 0;
-    SDL_CameraSpec **specs = SDL_GetCameraSupportedFormats(id, &count);
-    if (!specs)
-        return {};
-    std::vector<CameraSpec> out;
-    out.reserve(size_t(count));
-    for (int i = 0; i < count; ++i)
-        out.emplace_back(*specs[i]);
-    SDL_free(specs);
-    return out;
-}
+[[nodiscard]] std::vector<CameraSpec> SupportedFormats(CameraID id);
 
 } // namespace camera
 
@@ -97,12 +78,7 @@ class CameraFrame {
     SDL_Surface *m_surface = nullptr;
     uint64_t m_timestampNs = 0;
 
-    void Release() noexcept {
-        if (m_camera && m_surface)
-            SDL_ReleaseCameraFrame(m_camera, m_surface);
-        m_camera = nullptr;
-        m_surface = nullptr;
-    }
+    void Release() noexcept;
 
 public:
     CameraFrame() = default;
@@ -150,46 +126,20 @@ public:
     using Wrapper::Wrapper;
 
     // `spec` peut être NONE pour laisser SDL choisir un format par défaut.
-    [[nodiscard]] static Result<Camera, StringView> Open(CameraID id, Option<CameraSpec> spec = NONE) {
-        SDL_CameraSpec sdlSpec{};
-        if (spec.IsSome())
-            sdlSpec = spec.Unwrap();
+    [[nodiscard]] static Result<Camera, StringView> Open(CameraID id, Option<CameraSpec> spec = NONE);
 
-        auto *c = SDL_OpenCamera(id, spec.IsSome() ? &sdlSpec : nullptr);
-        if (!c)
-            return Err(GetError());
-        return Ok(Camera(c));
-    }
-
-    [[nodiscard]] CameraPermission Permission() const noexcept {
-        return m_handle ? CameraPermission(SDL_GetCameraPermissionState(m_handle)) : CameraPermission::DENIED;
-    }
+    [[nodiscard]] CameraPermission Permission() const noexcept;
 
     [[nodiscard]] CameraID GetId() const noexcept { return m_handle ? SDL_GetCameraID(m_handle) : 0; }
 
-    [[nodiscard]] SDL_PropertiesID Properties() const noexcept {
-        return m_handle ? SDL_GetCameraProperties(m_handle) : 0;
-    }
+    [[nodiscard]] SDL_PropertiesID Properties() const noexcept;
 
     // Renvoie le format négocié (valide une fois la permission accordée).
-    [[nodiscard]] Option<CameraSpec> Format() const {
-        SDL_CameraSpec spec{};
-        if (!m_handle || !SDL_GetCameraFormat(m_handle, &spec))
-            return NONE;
-        return Some(CameraSpec(spec));
-    }
+    [[nodiscard]] Option<CameraSpec> Format() const;
 
     // Récupère la dernière frame disponible (non bloquant). La frame retournée
     // est auto-libérée (RAII) — aucun appel de "release" manuel nécessaire.
-    [[nodiscard]] Option<CameraFrame> AcquireFrame() noexcept {
-        if (!m_handle)
-            return NONE;
-        uint64_t ts = 0;
-        SDL_Surface *frame = SDL_AcquireCameraFrame(m_handle, &ts);
-        if (!frame)
-            return NONE;
-        return Some(CameraFrame(m_handle, frame, ts));
-    }
+    [[nodiscard]] Option<CameraFrame> AcquireFrame() noexcept;
 };
 
 } // namespace sdl3

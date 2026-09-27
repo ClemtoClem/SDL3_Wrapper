@@ -112,14 +112,8 @@ class PropertiesLock {
     SDL_PropertiesID id = 0;
 
 public:
-    explicit PropertiesLock(SDL_PropertiesID id) : id(id) {
-        if (id)
-            SDL_LockProperties(id);
-    }
-    ~PropertiesLock() {
-        if (id)
-            SDL_UnlockProperties(id);
-    }
+    explicit PropertiesLock(SDL_PropertiesID id);
+    ~PropertiesLock();
 
     PropertiesLock(const PropertiesLock &) = delete;
     PropertiesLock &operator=(const PropertiesLock &) = delete;
@@ -158,38 +152,20 @@ public:
     bool SetPointer(const char *name, void *val) { return SDL_SetPointerProperty(id, name, val); }
 
     bool SetPointerWithCleanup(const char *name, void *val, SDL_CleanupPropertyCallback cleanup,
-                               void *userdata = nullptr) {
-        return SDL_SetPointerPropertyWithCleanup(id, name, val, cleanup, userdata);
-    }
+                               void *userdata = nullptr);
 
     /// Cleanup via std::function — captures et gère la durée de vie.
-    bool SetPointerWithCleanup(const char *name, void *val, std::function<void(void *)> cleanup) {
-        auto *fn = new std::function<void(void *)>(std::move(cleanup));
-        auto cb = [](void *ud, void *v) {
-            auto *f = static_cast<std::function<void(void *)> *>(ud);
-            (*f)(v);
-            delete f;
-        };
-        return SDL_SetPointerPropertyWithCleanup(id, name, val, cb, fn);
-    }
+    bool SetPointerWithCleanup(const char *name, void *val, std::function<void(void *)> cleanup);
 
     // ── Explicit getters ─────────────────────────────────────────────────────
 
-    [[nodiscard]] const char *GetString(const char *name, const char *def = "") const {
-        return SDL_GetStringProperty(id, name, def);
-    }
-    [[nodiscard]] Sint64 GetNumber(const char *name, Sint64 def = 0) const {
-        return SDL_GetNumberProperty(id, name, def);
-    }
-    [[nodiscard]] float GetFloat(const char *name, float def = 0.f) const {
-        return SDL_GetFloatProperty(id, name, def);
-    }
+    [[nodiscard]] const char *GetString(const char *name, const char *def = "") const;
+    [[nodiscard]] Sint64 GetNumber(const char *name, Sint64 def = 0) const;
+    [[nodiscard]] float GetFloat(const char *name, float def = 0.f) const;
     [[nodiscard]] bool GetBool(const char *name, bool def = false) const {
         return SDL_GetBooleanProperty(id, name, def);
     }
-    [[nodiscard]] void *GetPointer(const char *name, void *def = nullptr) const {
-        return SDL_GetPointerProperty(id, name, def);
-    }
+    [[nodiscard]] void *GetPointer(const char *name, void *def = nullptr) const;
 
     template <typename T> [[nodiscard]] T *GetTypedPointer(const char *name) const noexcept {
         return static_cast<T *>(SDL_GetPointerProperty(id, name, nullptr));
@@ -198,27 +174,16 @@ public:
     // ── Inspection ────────────────────────────────────────────────────────────
 
     [[nodiscard]] bool HasProperty(const char *name) const noexcept { return SDL_HasProperty(id, name); }
-    [[nodiscard]] sdl3::PropertyType PropertyType(const char *name) const noexcept {
-        return sdl3::PropertyType(SDL_GetPropertyType(id, name));
-    }
+    [[nodiscard]] sdl3::PropertyType PropertyType(const char *name) const noexcept;
     bool ClearProperty(const char *name) { return SDL_ClearProperty(id, name); }
 
     // ── Enumeration ──────────────────────────────────────────────────────────
 
     /// Call `fn(name)` for every property. Thread-safe if you hold the lock.
-    void Enumerate(std::function<void(const char *name)> fn) const {
-        auto cb = [](void *ud, SDL_PropertiesID, const char *name) {
-            (*static_cast<std::function<void(const char *)> *>(ud))(name);
-        };
-        SDL_EnumerateProperties(id, cb, &fn);
-    }
+    void Enumerate(std::function<void(const char *name)> fn) const;
 
     /// Nombre de propriétés (implémenté via enumerate() — pas O(1)).
-    [[nodiscard]] uint64_t Count() const {
-        uint64_t n = 0;
-        Enumerate([&n](const char *) { ++n; });
-        return n;
-    }
+    [[nodiscard]] uint64_t Count() const;
 
     // ── Thread safety ─────────────────────────────────────────────────────────
 
@@ -251,10 +216,7 @@ class Properties : public PropertiesBase {
 public:
     using PropertiesBase::PropertiesBase;
 
-    ~Properties() {
-        if (id)
-            SDL_DestroyProperties(id);
-    }
+    ~Properties();
 
     Properties(const Properties &) = delete;
     Properties &operator=(const Properties &) = delete;
@@ -278,11 +240,7 @@ public:
 
     /// Retourne un nouveau Properties contenant une copie de toutes les entrées
     /// (les propriétés "pointer" avec cleanup ne sont PAS copiées — cf. doc SDL).
-    [[nodiscard]] Properties Clone() const {
-        Properties dst = Properties::Create();
-        SDL_CopyProperties(id, dst.id);
-        return dst;
-    }
+    [[nodiscard]] Properties Clone() const;
 };
 
 // ============================================================================
@@ -311,18 +269,10 @@ enum class MsgBoxKind : uint32_t {
     ERROR = SDL_MESSAGEBOX_ERROR,
 };
 
-inline bool ShowMessage(MsgBoxKind kind, const String &title, const String &msg, SDL_Window *parent = nullptr) {
-    return SDL_ShowSimpleMessageBox(uint32_t(kind), title.CStr(), msg.CStr(), parent);
-}
-inline bool ShowInfo(const String &title, const String &msg, SDL_Window *parent = nullptr) {
-    return ShowMessage(MsgBoxKind::INFO, title, msg, parent);
-}
-inline bool ShowWarning(const String &title, const String &msg, SDL_Window *parent = nullptr) {
-    return ShowMessage(MsgBoxKind::WARNING, title, msg, parent);
-}
-inline bool ShowError(const String &title, const String &msg, SDL_Window *parent = nullptr) {
-    return ShowMessage(MsgBoxKind::ERROR, title, msg, parent);
-}
+bool ShowMessage(MsgBoxKind kind, const String &title, const String &msg, SDL_Window *parent = nullptr);
+bool ShowInfo(const String &title, const String &msg, SDL_Window *parent = nullptr);
+bool ShowWarning(const String &title, const String &msg, SDL_Window *parent = nullptr);
+bool ShowError(const String &title, const String &msg, SDL_Window *parent = nullptr);
 
 // ============================================================================
 // Clipboard
@@ -330,12 +280,7 @@ inline bool ShowError(const String &title, const String &msg, SDL_Window *parent
 
 namespace clipboard {
 
-[[nodiscard]] inline String GetText() {
-    char *t = SDL_GetClipboardText();
-    String s(t ? t : "");
-    SDL_free(t);
-    return s;
-}
+[[nodiscard]] String GetText();
 inline bool SetText(const String &text) { return SDL_SetClipboardText(text.CStr()); }
 [[nodiscard]] inline bool HasText() noexcept { return SDL_HasClipboardText(); }
 

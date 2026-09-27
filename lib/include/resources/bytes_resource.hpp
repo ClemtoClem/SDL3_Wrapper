@@ -21,13 +21,7 @@ public:
 	[[nodiscard]] const std::vector<uint8_t> &Bytes() const noexcept { return m_bytes; }
 
 protected:
-	Result<bool, String> DoLoad() override {
-		auto result = sdl3::ReadFile(m_path);
-		if (!result.IsOk())
-			return Err(String(result.Error()));
-		m_bytes = std::move(result.Value());
-		return Ok(true);
-	}
+	Result<bool, String> DoLoad() override;
 	void DoUnload() override { m_bytes.clear(); }
 
 private:

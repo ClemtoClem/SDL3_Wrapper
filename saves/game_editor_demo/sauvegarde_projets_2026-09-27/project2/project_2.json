@@ -1,0 +1,13 @@
+{
+  "format": "game_editor.project",
+  "version": 5,
+  "name": "Example projet 2",
+  "active_scene": "Vitrine",
+  "scenes": [
+    "scenes/Vitrine.scene",
+    "scenes/Circuit.scene",
+    "scenes/Laboratoire physique.scene",
+    "scenes/Assemblages.scene"
+  ],
+  "scripts": []
+}

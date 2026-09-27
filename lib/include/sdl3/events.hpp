@@ -417,71 +417,32 @@ struct Event {
     // ── Category predicates ───────────────────────────────────────────────────
 
     [[nodiscard]] bool IsQuit() const noexcept { return raw.type == uint32_t(EventType::QUIT); }
-    [[nodiscard]] bool IsApp() const noexcept {
-        return raw.type >= uint32_t(EventType::TERMINATING) && raw.type <= uint32_t(EventType::SYSTEM_THEME_CHANGED);
-    }
-    [[nodiscard]] bool IsDisplay() const noexcept {
-        return raw.type >= uint32_t(EventType::DISPLAY_FIRST) && raw.type <= uint32_t(EventType::DISPLAY_LAST);
-    }
-    [[nodiscard]] bool IsWindow() const noexcept {
-        return raw.type >= uint32_t(EventType::WINDOW_FIRST) && raw.type <= uint32_t(EventType::WINDOW_LAST);
-    }
-    [[nodiscard]] bool IsKeyboard() const noexcept {
-        return raw.type >= uint32_t(EventType::KEY_DOWN) && raw.type <= uint32_t(EventType::SCREEN_KEYBOARD_HIDDEN);
-    }
-    [[nodiscard]] bool IsMouse() const noexcept {
-        return raw.type >= uint32_t(EventType::MOUSE_MOTION) && raw.type <= uint32_t(EventType::MOUSE_REMOVED);
-    }
-    [[nodiscard]] bool IsJoystick() const noexcept {
-        return raw.type >= uint32_t(EventType::JOYSTICK_AXIS_MOTION) &&
-               raw.type <= uint32_t(EventType::JOYSTICK_UPDATE_COMPLETE);
-    }
-    [[nodiscard]] bool IsGamepad() const noexcept {
-        return raw.type >= uint32_t(EventType::GAMEPAD_AXIS_MOTION) &&
-               raw.type <= uint32_t(EventType::GAMEPAD_STEAM_HANDLE_UPDATED);
-    }
-    [[nodiscard]] bool IsFinger() const noexcept {
-        return raw.type >= uint32_t(EventType::FINGER_DOWN) && raw.type <= uint32_t(EventType::FINGER_CANCELED);
-    }
-    [[nodiscard]] bool IsPinch() const noexcept {
-        return raw.type >= uint32_t(EventType::PINCH_BEGIN) && raw.type <= uint32_t(EventType::PINCH_END);
-    }
+    [[nodiscard]] bool IsApp() const noexcept;
+    [[nodiscard]] bool IsDisplay() const noexcept;
+    [[nodiscard]] bool IsWindow() const noexcept;
+    [[nodiscard]] bool IsKeyboard() const noexcept;
+    [[nodiscard]] bool IsMouse() const noexcept;
+    [[nodiscard]] bool IsJoystick() const noexcept;
+    [[nodiscard]] bool IsGamepad() const noexcept;
+    [[nodiscard]] bool IsFinger() const noexcept;
+    [[nodiscard]] bool IsPinch() const noexcept;
     [[nodiscard]] bool IsClipboard() const noexcept { return raw.type == uint32_t(EventType::CLIPBOARD_UPDATE); }
-    [[nodiscard]] bool IsDrop() const noexcept {
-        return raw.type >= uint32_t(EventType::DROP_FILE) && raw.type <= uint32_t(EventType::DROP_POSITION);
-    }
-    [[nodiscard]] bool IsAudio() const noexcept {
-        return raw.type >= uint32_t(EventType::AUDIO_DEVICE_ADDED) &&
-               raw.type <= uint32_t(EventType::AUDIO_DEVICE_FORMAT_CHANGED);
-    }
+    [[nodiscard]] bool IsDrop() const noexcept;
+    [[nodiscard]] bool IsAudio() const noexcept;
     [[nodiscard]] bool IsSensor() const noexcept { return raw.type == uint32_t(EventType::SENSOR_UPDATE); }
-    [[nodiscard]] bool IsPen() const noexcept {
-        return raw.type >= uint32_t(EventType::PEN_PROXIMITY_IN) && raw.type <= uint32_t(EventType::PEN_AXIS);
-    }
-    [[nodiscard]] bool IsCamera() const noexcept {
-        return raw.type >= uint32_t(EventType::CAMERA_DEVICE_ADDED) &&
-               raw.type <= uint32_t(EventType::CAMERA_DEVICE_DENIED);
-    }
-    [[nodiscard]] bool IsRender() const noexcept {
-        return raw.type >= uint32_t(EventType::RENDER_TARGETS_RESET) &&
-               raw.type <= uint32_t(EventType::RENDER_DEVICE_LOST);
-    }
-    [[nodiscard]] bool IsUser() const noexcept {
-        return raw.type >= uint32_t(EventType::USER) && raw.type < uint32_t(EventType::LAST);
-    }
+    [[nodiscard]] bool IsPen() const noexcept;
+    [[nodiscard]] bool IsCamera() const noexcept;
+    [[nodiscard]] bool IsRender() const noexcept;
+    [[nodiscard]] bool IsUser() const noexcept;
 
     // ── Keyboard predicates ───────────────────────────────────────────────────
 
     [[nodiscard]] bool IsKeyDown() const noexcept { return raw.type == uint32_t(EventType::KEY_DOWN); }
     [[nodiscard]] bool IsKeyUp() const noexcept { return raw.type == uint32_t(EventType::KEY_UP); }
-    [[nodiscard]] bool IsKey() const noexcept {
-        return raw.type == uint32_t(EventType::KEY_DOWN) || raw.type == uint32_t(EventType::KEY_UP);
-    }
+    [[nodiscard]] bool IsKey() const noexcept;
     [[nodiscard]] bool IsTextInput() const noexcept { return raw.type == uint32_t(EventType::TEXT_INPUT); }
     [[nodiscard]] bool IsTextEditing() const noexcept { return raw.type == uint32_t(EventType::TEXT_EDITING); }
-    [[nodiscard]] bool IsKeyboardDevice() const noexcept {
-        return raw.type == uint32_t(EventType::KEYBOARD_ADDED) || raw.type == uint32_t(EventType::KEYBOARD_REMOVED);
-    }
+    [[nodiscard]] bool IsKeyboardDevice() const noexcept;
 
     [[nodiscard]] bool IsKeyDown(SDL_Keycode code) const noexcept { return IsKeyDown() && raw.key.key == code; }
     [[nodiscard]] bool IsKeyUp(SDL_Keycode code) const noexcept { return IsKeyUp() && raw.key.key == code; }
@@ -497,9 +458,7 @@ struct Event {
     [[nodiscard]] bool IsMouseDown() const noexcept { return raw.type == uint32_t(EventType::MOUSE_BUTTON_DOWN); }
     [[nodiscard]] bool IsMouseUp() const noexcept { return raw.type == uint32_t(EventType::MOUSE_BUTTON_UP); }
     [[nodiscard]] bool IsMouseWheel() const noexcept { return raw.type == uint32_t(EventType::MOUSE_WHEEL); }
-    [[nodiscard]] bool IsMouseDevice() const noexcept {
-        return raw.type == uint32_t(EventType::MOUSE_ADDED) || raw.type == uint32_t(EventType::MOUSE_REMOVED);
-    }
+    [[nodiscard]] bool IsMouseDevice() const noexcept;
     [[nodiscard]] bool IsMouseDown(uint8_t btn) const noexcept { return IsMouseDown() && raw.button.button == btn; }
     [[nodiscard]] bool IsMouseUp(uint8_t btn) const noexcept { return IsMouseUp() && raw.button.button == btn; }
 
@@ -513,23 +472,13 @@ struct Event {
     [[nodiscard]] bool IsWindowMinimized() const noexcept { return raw.type == uint32_t(EventType::WINDOW_MINIMIZED); }
     [[nodiscard]] bool IsWindowMaximized() const noexcept { return raw.type == uint32_t(EventType::WINDOW_MAXIMIZED); }
     [[nodiscard]] bool IsWindowRestored() const noexcept { return raw.type == uint32_t(EventType::WINDOW_RESTORED); }
-    [[nodiscard]] bool IsWindowMouseEnter() const noexcept {
-        return raw.type == uint32_t(EventType::WINDOW_MOUSE_ENTER);
-    }
-    [[nodiscard]] bool IsWindowMouseLeave() const noexcept {
-        return raw.type == uint32_t(EventType::WINDOW_MOUSE_LEAVE);
-    }
-    [[nodiscard]] bool IsWindowFocusGained() const noexcept {
-        return raw.type == uint32_t(EventType::WINDOW_FOCUS_GAINED);
-    }
+    [[nodiscard]] bool IsWindowMouseEnter() const noexcept;
+    [[nodiscard]] bool IsWindowMouseLeave() const noexcept;
+    [[nodiscard]] bool IsWindowFocusGained() const noexcept;
     [[nodiscard]] bool IsWindowFocusLost() const noexcept { return raw.type == uint32_t(EventType::WINDOW_FOCUS_LOST); }
-    [[nodiscard]] bool IsWindowClosed() const noexcept {
-        return raw.type == uint32_t(EventType::WINDOW_CLOSE_REQUESTED);
-    }
+    [[nodiscard]] bool IsWindowClosed() const noexcept;
     [[nodiscard]] bool IsWindowDestroyed() const noexcept { return raw.type == uint32_t(EventType::WINDOW_DESTROYED); }
-    [[nodiscard]] bool IsWindowFullscreen() const noexcept {
-        return raw.type == uint32_t(EventType::WINDOW_ENTER_FULLSCREEN);
-    }
+    [[nodiscard]] bool IsWindowFullscreen() const noexcept;
     [[nodiscard]] bool IsWindowOccluded() const noexcept { return raw.type == uint32_t(EventType::WINDOW_OCCLUDED); }
 
     // ── Joystick predicates ───────────────────────────────────────────────────
@@ -537,33 +486,20 @@ struct Event {
     [[nodiscard]] bool IsJoyAxis() const noexcept { return raw.type == uint32_t(EventType::JOYSTICK_AXIS_MOTION); }
     [[nodiscard]] bool IsJoyBall() const noexcept { return raw.type == uint32_t(EventType::JOYSTICK_BALL_MOTION); }
     [[nodiscard]] bool IsJoyHat() const noexcept { return raw.type == uint32_t(EventType::JOYSTICK_HAT_MOTION); }
-    [[nodiscard]] bool IsJoyButtonDown() const noexcept {
-        return raw.type == uint32_t(EventType::JOYSTICK_BUTTON_DOWN);
-    }
+    [[nodiscard]] bool IsJoyButtonDown() const noexcept;
     [[nodiscard]] bool IsJoyButtonUp() const noexcept { return raw.type == uint32_t(EventType::JOYSTICK_BUTTON_UP); }
-    [[nodiscard]] bool IsJoyDevice() const noexcept {
-        return raw.type == uint32_t(EventType::JOYSTICK_ADDED) || raw.type == uint32_t(EventType::JOYSTICK_REMOVED);
-    }
-    [[nodiscard]] bool IsJoyBattery() const noexcept {
-        return raw.type == uint32_t(EventType::JOYSTICK_BATTERY_UPDATED);
-    }
+    [[nodiscard]] bool IsJoyDevice() const noexcept;
+    [[nodiscard]] bool IsJoyBattery() const noexcept;
 
     // ── Gamepad predicates ────────────────────────────────────────────────────
 
     [[nodiscard]] bool IsGamepadAxis() const noexcept { return raw.type == uint32_t(EventType::GAMEPAD_AXIS_MOTION); }
-    [[nodiscard]] bool IsGamepadButtonDown() const noexcept {
-        return raw.type == uint32_t(EventType::GAMEPAD_BUTTON_DOWN);
-    }
+    [[nodiscard]] bool IsGamepadButtonDown() const noexcept;
     [[nodiscard]] bool IsGamepadButtonUp() const noexcept { return raw.type == uint32_t(EventType::GAMEPAD_BUTTON_UP); }
     [[nodiscard]] bool IsGamepadAdded() const noexcept { return raw.type == uint32_t(EventType::GAMEPAD_ADDED); }
     [[nodiscard]] bool IsGamepadRemoved() const noexcept { return raw.type == uint32_t(EventType::GAMEPAD_REMOVED); }
-    [[nodiscard]] bool IsGamepadTouchpad() const noexcept {
-        return raw.type >= uint32_t(EventType::GAMEPAD_TOUCHPAD_DOWN) &&
-               raw.type <= uint32_t(EventType::GAMEPAD_TOUCHPAD_UP);
-    }
-    [[nodiscard]] bool IsGamepadSensor() const noexcept {
-        return raw.type == uint32_t(EventType::GAMEPAD_SENSOR_UPDATE);
-    }
+    [[nodiscard]] bool IsGamepadTouchpad() const noexcept;
+    [[nodiscard]] bool IsGamepadSensor() const noexcept;
 
     // ── Touch predicates ──────────────────────────────────────────────────────
 
@@ -601,46 +537,14 @@ struct Event {
     // ── Window ID helper ─────────────────────────────────────────────────────
 
     // Returns the window ID for events associated with a window (0 if none).
-    [[nodiscard]] uint32_t WindowId() const noexcept {
-        const auto T = raw.type;
-        if (T >= uint32_t(EventType::WINDOW_FIRST) && T <= uint32_t(EventType::WINDOW_LAST))
-            return raw.window.windowID;
-        if (T == uint32_t(EventType::KEY_DOWN) || T == uint32_t(EventType::KEY_UP) ||
-            T == uint32_t(EventType::KEYBOARD_ADDED) || T == uint32_t(EventType::KEYBOARD_REMOVED))
-            return raw.key.windowID;
-        if (T == uint32_t(EventType::TEXT_EDITING) || T == uint32_t(EventType::TEXT_EDITING_CANDIDATES))
-            return raw.edit.windowID;
-        if (T == uint32_t(EventType::TEXT_INPUT))
-            return raw.text.windowID;
-        if (T == uint32_t(EventType::MOUSE_MOTION))
-            return raw.motion.windowID;
-        if (T == uint32_t(EventType::MOUSE_BUTTON_DOWN) || T == uint32_t(EventType::MOUSE_BUTTON_UP))
-            return raw.button.windowID;
-        if (T == uint32_t(EventType::MOUSE_WHEEL))
-            return raw.wheel.windowID;
-        if (T >= uint32_t(EventType::FINGER_DOWN) && T <= uint32_t(EventType::FINGER_CANCELED))
-            return raw.tfinger.windowID;
-        if (T >= uint32_t(EventType::DROP_FILE) && T <= uint32_t(EventType::DROP_POSITION))
-            return raw.drop.windowID;
-        if (T >= uint32_t(EventType::RENDER_TARGETS_RESET) && T <= uint32_t(EventType::RENDER_DEVICE_LOST))
-            return raw.render.windowID;
-        if (T >= uint32_t(EventType::PEN_PROXIMITY_IN) && T <= uint32_t(EventType::PEN_AXIS)) {
-            // All pen events share windowID at the same offset
-            return raw.pproximity.windowID;
-        }
-        return 0;
-    }
+    [[nodiscard]] uint32_t WindowId() const noexcept;
 
     // Returns the SDL_Window* for this event, if applicable.
     [[nodiscard]] SDL_Window *EventWindow() const noexcept { return SDL_GetWindowFromEvent(&raw); }
 
     // ── Description (debug) ───────────────────────────────────────────────────
 
-    [[nodiscard]] String Describe() const {
-        char buf[512] = {};
-        SDL_GetEventDescription(&raw, buf, int(sizeof(buf)));
-        return String(buf);
-    }
+    [[nodiscard]] String Describe() const;
 };
 
 // ============================================================================
@@ -655,11 +559,7 @@ class EventWatch {
         Fn fn;
     };
 
-    static bool SDLCALL Trampoline(void *ud, SDL_Event *ev) noexcept {
-        Event e;
-        e.raw = *ev;
-        return static_cast<Ctx *>(ud)->fn(e);
-    }
+    static bool SDLCALL Trampoline(void *ud, SDL_Event *ev) noexcept;
 
     Ctx *ctx = nullptr;
 
@@ -670,12 +570,7 @@ public:
         SDL_AddEventWatch(Trampoline, ctx);
     }
 
-    ~EventWatch() {
-        if (ctx) {
-            SDL_RemoveEventWatch(Trampoline, ctx);
-            delete ctx;
-        }
-    }
+    ~EventWatch();
 
     EventWatch(const EventWatch &) = delete;
     EventWatch &operator=(const EventWatch &) = delete;
@@ -704,55 +599,25 @@ public:
 inline void PumpEvents() noexcept { SDL_PumpEvents(); }
 
 /// Non-blocking: dequeue the next event, or NONE if the queue is empty.
-[[nodiscard]] inline Option<Event> PollEvent() noexcept {
-    Event e;
-    if (SDL_PollEvent(&e.raw))
-        return Some(e);
-    return NONE;
-}
+[[nodiscard]] Option<Event> PollEvent() noexcept;
 
 /// Blocking: wait up to `timeoutMs` ms for an event (-1 = wait forever).
-[[nodiscard]] inline Option<Event> WaitEvent(int timeoutMs = -1) noexcept {
-    Event e;
-    if (SDL_WaitEventTimeout(&e.raw, timeoutMs))
-        return Some(e);
-    return NONE;
-}
+[[nodiscard]] Option<Event> WaitEvent(int timeoutMs = -1) noexcept;
 
 // ── Queue inspection ─────────────────────────────────────────────────────────
 
 [[nodiscard]] inline bool HasEvent(uint32_t type) noexcept { return SDL_HasEvent(type); }
 [[nodiscard]] inline bool HasEvent(SDL_EventType type) noexcept { return SDL_HasEvent(uint32_t(type)); }
-[[nodiscard]] inline bool HasEvents(EventType minType = EventType::FIRST,
-                                    EventType maxType = EventType::LAST) noexcept {
-    return SDL_HasEvents(uint32_t(minType), uint32_t(maxType));
-}
+[[nodiscard]] bool HasEvents(EventType minType = EventType::FIRST,
+                                    EventType maxType = EventType::LAST) noexcept;
 
 /// Peek at (copy without removing) up to `max` events of the given type range.
-[[nodiscard]] inline std::vector<Event> PeekEvents(int max = 64, EventType minType = EventType::FIRST,
-                                                   EventType maxType = EventType::LAST) {
-    std::vector<SDL_Event> buf(max);
-    int n = SDL_PeepEvents(buf.data(), max, SDL_PEEKEVENT, uint32_t(minType), uint32_t(maxType));
-    if (n <= 0)
-        return {};
-    std::vector<Event> out(n);
-    for (int i = 0; i < n; ++i)
-        out[i].raw = buf[i];
-    return out;
-}
+[[nodiscard]] std::vector<Event> PeekEvents(int max = 64, EventType minType = EventType::FIRST,
+                                                   EventType maxType = EventType::LAST);
 
 /// Remove and return up to `max` events of the given type range.
-[[nodiscard]] inline std::vector<Event> GetEvents(int max = 64, EventType minType = EventType::FIRST,
-                                                  EventType maxType = EventType::LAST) {
-    std::vector<SDL_Event> buf(max);
-    int n = SDL_PeepEvents(buf.data(), max, SDL_GETEVENT, uint32_t(minType), uint32_t(maxType));
-    if (n <= 0)
-        return {};
-    std::vector<Event> out(n);
-    for (int i = 0; i < n; ++i)
-        out[i].raw = buf[i];
-    return out;
-}
+[[nodiscard]] std::vector<Event> GetEvents(int max = 64, EventType minType = EventType::FIRST,
+                                                  EventType maxType = EventType::LAST);
 
 // ── Push events ───────────────────────────────────────────────────────────────
 
@@ -760,23 +625,14 @@ inline void PumpEvents() noexcept { SDL_PumpEvents(); }
 inline bool PushEvent(Event e) noexcept { return SDL_PushEvent(&e.raw); }
 
 /// Push a user-defined event. `type` must be in [EventType::USER, EventType::LAST).
-inline bool PushUserEvent(uint32_t type, int32_t code = 0, void *data1 = nullptr, void *data2 = nullptr) noexcept {
-    SDL_Event e{};
-    e.user.type = type;
-    e.user.code = code;
-    e.user.data1 = data1;
-    e.user.data2 = data2;
-    return SDL_PushEvent(&e);
-}
+bool PushUserEvent(uint32_t type, int32_t code = 0, void *data1 = nullptr, void *data2 = nullptr) noexcept;
 
 // ── Flush ─────────────────────────────────────────────────────────────────────
 
 inline void FlushEvent(EventType type) noexcept { SDL_FlushEvent(uint32_t(type)); }
 inline void FlushEvent(uint32_t type) noexcept { SDL_FlushEvent(type); }
 
-inline void FlushEvents(EventType minType = EventType::FIRST, EventType maxType = EventType::LAST) noexcept {
-    SDL_FlushEvents(uint32_t(minType), uint32_t(maxType));
-}
+void FlushEvents(EventType minType = EventType::FIRST, EventType maxType = EventType::LAST) noexcept;
 
 // ── Enable / disable ──────────────────────────────────────────────────────────
 
@@ -794,19 +650,6 @@ inline void SetEventEnabled(uint32_t type, bool enabled) noexcept { SDL_SetEvent
 
 /// Remove all events from the queue for which `fn` returns false.
 /// Runs synchronously on the calling thread.
-inline void FilterEvents(std::function<bool(const Event &)> fn) noexcept {
-    struct Ctx {
-        std::function<bool(const Event &)> &fn;
-    };
-    Ctx ctx{fn};
-    SDL_FilterEvents(
-        [](void *ud, SDL_Event *ev) -> bool {
-            Ctx &c = *static_cast<Ctx *>(ud);
-            Event e;
-            e.raw = *ev;
-            return c.fn(e);
-        },
-        &ctx);
-}
+void FilterEvents(std::function<bool(const Event &)> fn) noexcept;
 
 } // namespace sdl3

@@ -58,36 +58,19 @@ public:
 
 	using Borrowed::Borrowed;
 
-	void SetLabel(const String &label) noexcept {
-		if (m_handle)
-			SDL_SetTrayEntryLabel(m_handle, label.c_str());
-	}
+	void SetLabel(const String &label) noexcept;
 	[[nodiscard]] const char *Label() const noexcept { return m_handle ? SDL_GetTrayEntryLabel(m_handle) : ""; }
 
-	void SetChecked(bool checked) noexcept {
-		if (m_handle)
-			SDL_SetTrayEntryChecked(m_handle, checked);
-	}
+	void SetChecked(bool checked) noexcept;
 	[[nodiscard]] bool Checked() const noexcept { return m_handle && SDL_GetTrayEntryChecked(m_handle); }
 
-	void SetEnabled(bool enabled) noexcept {
-		if (m_handle)
-			SDL_SetTrayEntryEnabled(m_handle, enabled);
-	}
+	void SetEnabled(bool enabled) noexcept;
 	[[nodiscard]] bool Enabled() const noexcept { return m_handle && SDL_GetTrayEntryEnabled(m_handle); }
 
-	void Click() noexcept {
-		if (m_handle)
-			SDL_ClickTrayEntry(m_handle);
-	}
+	void Click() noexcept;
 
 	// Retire l'entrée du menu (la vue devient invalide après l'appel).
-	void Remove() noexcept {
-		if (m_handle) {
-			SDL_RemoveTrayEntry(m_handle);
-			m_handle = nullptr;
-		}
-	}
+	void Remove() noexcept;
 
 	// Nécessite que l'entrée ait été créée avec le flag `tray_entry::SUBMENU`.
 	[[nodiscard]] TrayMenu CreateSubmenu();
@@ -97,14 +80,7 @@ public:
 	// Le contexte du callback est heap-alloué et vit aussi longtemps que
 	// l'entrée (détruite avec le Tray) ; un nouvel appel remplace l'ancien
 	// sans le libérer (limitation SDL — pas de callback de nettoyage fourni).
-	void SetCallback(Callback cb) {
-		if (!m_handle)
-			return;
-		auto *ctx = new Callback(std::move(cb));
-		SDL_SetTrayEntryCallback(
-			m_handle,
-			[](void *userdata, SDL_TrayEntry *entry) { (*static_cast<Callback *>(userdata))(TrayEntry(entry)); }, ctx);
-	}
+	void SetCallback(Callback cb);
 };
 
 // ============================================================================
@@ -116,51 +92,18 @@ class TrayMenu : public Borrowed<SDL_TrayMenu> {
 public:
 	using Borrowed::Borrowed;
 
-	[[nodiscard]] std::vector<TrayEntry> Entries() const {
-		if (!m_handle)
-			return {};
-		int count = 0;
-		const SDL_TrayEntry **raw = SDL_GetTrayEntries(m_handle, &count);
-		std::vector<TrayEntry> out;
-		out.reserve(size_t(count));
-		for (int i = 0; i < count; ++i)
-			out.emplace_back(const_cast<SDL_TrayEntry *>(raw[i]));
-		return out;
-	}
+	[[nodiscard]] std::vector<TrayEntry> Entries() const;
 
 	// `pos` négatif insère en fin de menu.
-	[[nodiscard]] TrayEntry InsertAt(int pos, const String &label, TrayEntryFlags flags) {
-		return TrayEntry(m_handle ? SDL_InsertTrayEntryAt(m_handle, pos, label.CStr(), detail::ToSDL(flags)) : nullptr);
-	}
+	[[nodiscard]] TrayEntry InsertAt(int pos, const String &label, TrayEntryFlags flags);
 	[[nodiscard]] TrayEntry Append(const String &label, TrayEntryFlags flags) { return InsertAt(-1, label, flags); }
 
-	[[nodiscard]] Option<TrayEntry> ParentEntry() const {
-		if (!m_handle)
-			return NONE;
-		auto *e = SDL_GetTrayMenuParentEntry(m_handle);
-		if (!e)
-			return NONE;
-		return Some(TrayEntry(e));
-	}
+	[[nodiscard]] Option<TrayEntry> ParentEntry() const;
 };
 
 inline TrayMenu TrayEntry::CreateSubmenu() { return TrayMenu(m_handle ? SDL_CreateTraySubmenu(m_handle) : nullptr); }
-inline Option<TrayMenu> TrayEntry::Submenu() const {
-	if (!m_handle)
-		return NONE;
-	auto *m = SDL_GetTraySubmenu(m_handle);
-	if (!m)
-		return NONE;
-	return Some(TrayMenu(m));
-}
-inline Option<TrayMenu> TrayEntry::Parent() const {
-	if (!m_handle)
-		return NONE;
-	auto *m = SDL_GetTrayEntryParent(m_handle);
-	if (!m)
-		return NONE;
-	return Some(TrayMenu(m));
-}
+
+
 
 // ============================================================================
 // Tray — RAII SDL_Tray (icône système + arbre de menus)
@@ -170,40 +113,17 @@ class Tray : public Wrapper<SDL_Tray, SDL_DestroyTray> {
 public:
 	using Wrapper::Wrapper;
 
-	[[nodiscard]] static Result<Tray, Error> Create(const Surface &icon, const String &tooltip) {
-		auto *t = SDL_CreateTray(icon.Get(), tooltip.c_str());
-		if (!t)
-			return Err(GetError());
-		return Ok(Tray(t));
-	}
+	[[nodiscard]] static Result<Tray, Error> Create(const Surface &icon, const String &tooltip);
 
 	// Certaines plateformes acceptent une icône absente.
-	[[nodiscard]] static Result<Tray, StringView> CreateWithoutIcon(const String &tooltip) {
-		auto *t = SDL_CreateTray(nullptr, tooltip.c_str());
-		if (!t)
-			return Err(GetError());
-		return Ok(Tray(t));
-	}
+	[[nodiscard]] static Result<Tray, StringView> CreateWithoutIcon(const String &tooltip);
 
-	void SetIcon(const Surface &icon) noexcept {
-		if (m_handle)
-			SDL_SetTrayIcon(m_handle, icon.Get());
-	}
-	void SetTooltip(const String &tooltip) noexcept {
-		if (m_handle)
-			SDL_SetTrayTooltip(m_handle, tooltip.c_str());
-	}
+	void SetIcon(const Surface &icon) noexcept;
+	void SetTooltip(const String &tooltip) noexcept;
 
 	[[nodiscard]] TrayMenu CreateMenu() { return TrayMenu(m_handle ? SDL_CreateTrayMenu(m_handle) : nullptr); }
 
-	[[nodiscard]] Option<TrayMenu> Menu() const {
-		if (!m_handle)
-			return NONE;
-		auto *m = SDL_GetTrayMenu(m_handle);
-		if (!m)
-			return NONE;
-		return Some(TrayMenu(m));
-	}
+	[[nodiscard]] Option<TrayMenu> Menu() const;
 };
 
 namespace tray {

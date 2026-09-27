@@ -23,18 +23,7 @@ struct Locale {
 namespace locale {
 
 // Liste des locales préférées de l'utilisateur, par ordre de préférence.
-[[nodiscard]] inline std::vector<Locale> Preferred() {
-    int count = 0;
-    SDL_Locale **locales = SDL_GetPreferredLocales(&count);
-    if (!locales)
-        return {};
-    std::vector<Locale> out;
-    out.reserve(size_t(count));
-    for (int i = 0; i < count; ++i)
-        out.emplace_back(*locales[i]);
-    SDL_free(locales);
-    return out;
-}
+[[nodiscard]] std::vector<Locale> Preferred();
 
 } // namespace locale
 

@@ -297,22 +297,14 @@ enum class Keymod : Uint16 {
 
 /// Returns the current key state for all scancodes.
 /// The returned span is valid until the next call to SDL_PumpEvents().
-[[nodiscard]] inline std::span<const bool> State() noexcept {
-    int n = 0;
-    const bool *s = SDL_GetKeyboardState(&n);
-    return {s, size_t(n)};
-}
+[[nodiscard]] std::span<const bool> State() noexcept;
 
 /// État d'une touche. Rend `false` — plutôt que de déréférencer un pointeur
 /// nul — quand le sous-système d'évènements n'est pas initialisé
 /// (SDL_GetKeyboardState rend alors NULL) ou quand le scancode est hors
 /// bornes. Cas réellement rencontré : une application en mode « sans écran »
 /// qui exécute la même logique de jeu sans initialiser la vidéo.
-[[nodiscard]] inline bool IsPressed(SDL_Scancode sc) noexcept {
-    std::span<const bool> state = State();
-    size_t index = size_t(sc);
-    return state.data() != nullptr && index < state.size() && state[index];
-}
+[[nodiscard]] bool IsPressed(SDL_Scancode sc) noexcept;
 
 [[nodiscard]] inline bool IsPressed(SDL_Keycode kc) noexcept { return IsPressed(SDL_GetScancodeFromKey(kc, nullptr)); }
 
@@ -348,17 +340,9 @@ struct MouseState {
 
 namespace mouse {
 
-[[nodiscard]] inline MouseState State() noexcept {
-    MouseState ms;
-    ms.buttons = SDL_GetMouseState(&ms.x, &ms.y);
-    return ms;
-}
+[[nodiscard]] MouseState State() noexcept;
 
-[[nodiscard]] inline MouseState RelativeState() noexcept {
-    MouseState ms;
-    ms.buttons = SDL_GetRelativeMouseState(&ms.x, &ms.y);
-    return ms;
-}
+[[nodiscard]] MouseState RelativeState() noexcept;
 
 inline bool SetRelative(SDL_Window *win, bool enabled) noexcept { return SDL_SetWindowRelativeMouseMode(win, enabled); }
 [[nodiscard]] inline bool IsRelative(SDL_Window *win) noexcept { return SDL_GetWindowRelativeMouseMode(win); }
@@ -407,19 +391,9 @@ class Cursor : public Wrapper<SDL_Cursor, SDL_DestroyCursor> {
 public:
     using Wrapper::Wrapper;
 
-    [[nodiscard]] static Result<Cursor, StringView> FromSystem(SystemCursor id) {
-        auto *c = SDL_CreateSystemCursor(SDL_SystemCursor(id));
-        if (!c)
-            return Err(GetError());
-        return Ok(Cursor(c));
-    }
+    [[nodiscard]] static Result<Cursor, StringView> FromSystem(SystemCursor id);
 
-    [[nodiscard]] static Result<Cursor, StringView> FromSurface(Ref<Surface> surf, int hotX, int hotY) {
-        auto *c = SDL_CreateColorCursor(surf->Get(), hotX, hotY);
-        if (!c)
-            return Err(GetError());
-        return Ok(Cursor(c));
-    }
+    [[nodiscard]] static Result<Cursor, StringView> FromSurface(Ref<Surface> surf, int hotX, int hotY);
 
     bool Set() const noexcept { return m_handle && SDL_SetCursor(m_handle); }
 
@@ -514,51 +488,28 @@ class Gamepad : public Wrapper<SDL_Gamepad, SDL_CloseGamepad> {
 public:
     using Wrapper::Wrapper;
 
-    [[nodiscard]] static Result<Gamepad, StringView> Open(JoystickID id) {
-        auto *g = SDL_OpenGamepad(id);
-        if (!g)
-            return Err(GetError());
-        return Ok(Gamepad(g));
-    }
+    [[nodiscard]] static Result<Gamepad, StringView> Open(JoystickID id);
 
     /// Returns the list of connected gamepad instance IDs.
-    [[nodiscard]] static std::vector<JoystickID> Enumerated() {
-        int count = 0;
-        JoystickID *ids = SDL_GetGamepads(&count);
-        if (!ids)
-            return {};
-        std::vector<JoystickID> v(ids, ids + count);
-        SDL_free(ids);
-        return v;
-    }
+    [[nodiscard]] static std::vector<JoystickID> Enumerated();
 
     [[nodiscard]] static bool Any() noexcept { return SDL_HasGamepad(); }
 
     // ── Queries ──────────────────────────────────────────────────────────────
 
-    [[nodiscard]] Sint16 Axis(GamepadAxis a) const noexcept {
-        return m_handle ? SDL_GetGamepadAxis(m_handle, SDL_GamepadAxis(a)) : 0;
-    }
-    [[nodiscard]] bool Button(GamepadButton b) const noexcept {
-        return m_handle && SDL_GetGamepadButton(m_handle, SDL_GamepadButton(b));
-    }
+    [[nodiscard]] Sint16 Axis(GamepadAxis a) const noexcept;
+    [[nodiscard]] bool Button(GamepadButton b) const noexcept;
 
     [[nodiscard]] const char *Name() const noexcept { return m_handle ? SDL_GetGamepadName(m_handle) : ""; }
 
-    [[nodiscard]] GamepadType Type() const noexcept {
-        return m_handle ? GamepadType(SDL_GetGamepadType(m_handle)) : GamepadType::UNKNOWN;
-    }
+    [[nodiscard]] GamepadType Type() const noexcept;
 
     [[nodiscard]] JoystickID GetId() const noexcept { return m_handle ? SDL_GetGamepadID(m_handle) : 0; }
 
     // ── Rumble ───────────────────────────────────────────────────────────────
 
-    bool Rumble(uint16_t lowHz, uint16_t highHz, uint32_t durationMs) noexcept {
-        return m_handle && SDL_RumbleGamepad(m_handle, lowHz, highHz, durationMs);
-    }
-    bool RumbleTriggers(uint16_t left, uint16_t right, uint32_t durationMs) noexcept {
-        return m_handle && SDL_RumbleGamepadTriggers(m_handle, left, right, durationMs);
-    }
+    bool Rumble(uint16_t lowHz, uint16_t highHz, uint32_t durationMs) noexcept;
+    bool RumbleTriggers(uint16_t left, uint16_t right, uint32_t durationMs) noexcept;
 
     // ── Convenient axis helpers (normalised to [-1, 1]) ───────────────────────
 

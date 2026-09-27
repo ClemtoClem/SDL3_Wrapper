@@ -17,10 +17,7 @@ inline bool ClearError() { return SDL_ClearError() == 0; }
 
 inline bool ErrorIsOutOfMemory() { return SDL_OutOfMemory(); }
 
-inline Result<bool, Error> CheckError(bool result) {
-    if (result) return Ok(result);
-    return Err(GetError());
-}
+Result<bool, Error> CheckError(bool result);
 
 template <class T> inline Result<T, Error> CheckError(T result) {
     if (result) return Ok(result);

@@ -46,13 +46,7 @@ public:
 	/// l'ordre attendu par SkinnedVertex3D::boneIndices — capturé comme pose
 	/// de liaison (bind pose) immédiatement, avant toute pose manuelle.
 	SkinnedMesh(SkinnedGeometry geometry, Material material, std::unique_ptr<Bone> rootBone,
-			   std::vector<Bone *> bones)
-		: m_geometry(std::move(geometry)), m_material(std::move(material)),
-		  m_rootBone(static_cast<Bone *>(&Add(std::move(rootBone)))), m_bones(std::move(bones)) {
-		m_inverseBindMatrices.reserve(m_bones.size());
-		for (Bone *bone : m_bones)
-			m_inverseBindMatrices.push_back(bone->WorldMatrix().Inverse());
-	}
+			   std::vector<Bone *> bones);
 
 	[[nodiscard]] Bone &RootBone() noexcept { return *m_rootBone; }
 	[[nodiscard]] const std::vector<Bone *> &Bones() const noexcept { return m_bones; }
@@ -60,18 +54,9 @@ public:
 
 	/// Matrices de skinning courantes — recalculées à chaque appel (voir la
 	/// note de classe ci-dessus).
-	[[nodiscard]] std::vector<math::FMatrix4> ComputeSkinMatrices() const {
-		std::vector<math::FMatrix4> result;
-		result.reserve(m_bones.size());
-		for (size_t i = 0; i < m_bones.size(); ++i)
-			result.push_back(m_bones[i]->WorldMatrix() * m_inverseBindMatrices[i]);
-		return result;
-	}
+	[[nodiscard]] std::vector<math::FMatrix4> ComputeSkinMatrices() const;
 
-	void OnDraw(Canvas &canvas) override {
-		std::vector<math::FMatrix4> skinMatrices = ComputeSkinMatrices();
-		canvas.DrawSkinnedMesh(m_geometry, skinMatrices, m_material);
-	}
+	void OnDraw(Canvas &canvas) override;
 };
 
 } // namespace render3d

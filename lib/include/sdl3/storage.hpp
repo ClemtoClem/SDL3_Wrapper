@@ -47,117 +47,44 @@ public:
 
 	// Stockage en lecture seule des assets embarqués avec l'application.
 	[[nodiscard]] static Result<Storage, StringView> OpenTitle(const String &overridePath = "",
-															   SDL_PropertiesID props = 0) {
-		auto *s = SDL_OpenTitleStorage(overridePath.IsEmpty() ? nullptr : overridePath.c_str(), props);
-		if (!s)
-			return Err(GetError());
-		return Ok(Storage(s));
-	}
+															   SDL_PropertiesID props = 0);
 
 	// Stockage persistant (sauvegardes, config) propre à l'utilisateur, isolé par org/app.
 	[[nodiscard]] static Result<Storage, StringView> OpenUser(const String &org, const String &app,
-															  SDL_PropertiesID props = 0) {
-		auto *s = SDL_OpenUserStorage(org.c_str(), app.c_str(), props);
-		if (!s)
-			return Err(GetError());
-		return Ok(Storage(s));
-	}
+															  SDL_PropertiesID props = 0);
 
 	// Accès direct à un chemin du disque local (pas de sandboxing).
-	[[nodiscard]] static Result<Storage, StringView> OpenFile(const String &path) {
-		auto *s = SDL_OpenFileStorage(path.c_str());
-		if (!s)
-			return Err(GetError());
-		return Ok(Storage(s));
-	}
+	[[nodiscard]] static Result<Storage, StringView> OpenFile(const String &path);
 
 	// Le stockage peut être asynchrone (ex: montage réseau) : à sonder avant usage.
 	[[nodiscard]] bool Ready() const noexcept { return m_handle && SDL_StorageReady(m_handle); }
 
-	[[nodiscard]] Result<uint64_t, StringView> FileSize(const String &path) const {
-		uint64_t len = 0;
-		if (!m_handle || !SDL_GetStorageFileSize(m_handle, path.c_str(), &len))
-			return Err(GetError());
-		return Ok(len);
-	}
+	[[nodiscard]] Result<uint64_t, StringView> FileSize(const String &path) const;
 
-	[[nodiscard]] Result<std::vector<uint8_t>, StringView> ReadFile(const String &path) const {
-		auto sizeRes = FileSize(path);
-		if (sizeRes.IsError())
-			return Err(sizeRes.unwrap_error());
+	[[nodiscard]] Result<std::vector<uint8_t>, StringView> ReadFile(const String &path) const;
 
-		std::vector<uint8_t> buf(size_t(sizeRes.Unwrap()));
-		if (!buf.empty() && !SDL_ReadStorageFile(m_handle, path.c_str(), buf.data(), uint64_t(buf.size())))
-			return Err(GetError());
-		return Ok(std::move(buf));
-	}
+	[[nodiscard]] bool WriteFile(const String &path, const void *data, size_t len);
+	[[nodiscard]] bool WriteFile(const String &path, const std::vector<uint8_t> &data);
 
-	[[nodiscard]] bool WriteFile(const String &path, const void *data, size_t len) {
-		return m_handle && SDL_WriteStorageFile(m_handle, path.c_str(), data, uint64_t(len));
-	}
-	[[nodiscard]] bool WriteFile(const String &path, const std::vector<uint8_t> &data) {
-		return WriteFile(path, data.data(), data.size());
-	}
-
-	[[nodiscard]] bool CreateDirectory(const String &path) {
-		return m_handle && SDL_CreateStorageDirectory(m_handle, path.c_str());
-	}
+	[[nodiscard]] bool CreateDirectory(const String &path);
 
 	// Appelle `fn(dirname, filename)` pour chaque entrée du dossier.
 	// Retourner `false` depuis `fn` arrête l'énumération anticipativement.
 	[[nodiscard]] bool EnumerateDirectory(const String &path,
-										  std::function<bool(const char *, const char *)> fn) const {
-		if (!m_handle)
-			return false;
-		struct Ctx {
-			std::function<bool(const char *, const char *)> fn;
-		};
-		Ctx ctx{std::move(fn)};
-		auto cb = [](void *ud, const char *dirname, const char *fname) -> SDL_EnumerationResult {
-			auto *c = static_cast<Ctx *>(ud);
-			return c->fn(dirname, fname) ? SDL_ENUM_CONTINUE : SDL_ENUM_SUCCESS;
-		};
-		return SDL_EnumerateStorageDirectory(m_handle, path.c_str(), cb, &ctx);
-	}
+										  std::function<bool(const char *, const char *)> fn) const;
 
 	bool Remove(const String &path) { return m_handle && SDL_RemoveStoragePath(m_handle, path.c_str()); }
 
-	bool Rename(const String &oldPath, const String &newPath) {
-		return m_handle && SDL_RenameStoragePath(m_handle, oldPath.c_str(), newPath.c_str());
-	}
-	bool Copy(const String &oldPath, const String &newPath) {
-		return m_handle && SDL_CopyStorageFile(m_handle, oldPath.c_str(), newPath.c_str());
-	}
+	bool Rename(const String &oldPath, const String &newPath);
+	bool Copy(const String &oldPath, const String &newPath);
 
-	[[nodiscard]] Option<sdl3::PathInfo> PathInfo(const String &path) const {
-		SDL_PathInfo info{};
-		if (!m_handle || !SDL_GetStoragePathInfo(m_handle, path.c_str(), &info))
-			return NONE;
-		return Some(sdl3::PathInfo(info));
-	}
+	[[nodiscard]] Option<sdl3::PathInfo> PathInfo(const String &path) const;
 
-	[[nodiscard]] uint64_t SpaceRemaining() const noexcept {
-		return m_handle ? SDL_GetStorageSpaceRemaining(m_handle) : 0;
-	}
+	[[nodiscard]] uint64_t SpaceRemaining() const noexcept;
 
 	// Motif glob (ex: "*.png"). `path` peut être vide pour la racine du storage.
 	[[nodiscard]] std::vector<String> Glob(const String &path, const String &pattern,
-										   bool caseInsensitive = false) const {
-		if (!m_handle)
-			return {};
-		int count = 0;
-		char **items = SDL_GlobStorageDirectory(m_handle, path.IsEmpty() ? nullptr : path.c_str(),
-												pattern.IsEmpty() ? nullptr : pattern.c_str(),
-												caseInsensitive ? SDL_GLOB_CASEINSENSITIVE : 0, &count);
-		if (!items)
-			return {};
-		std::vector<String> out;
-		out.reserve(size_t(count));
-		for (int i = 0; i < count; ++i)
-			out.emplace_back(items[i]);
-		SDL_free(items);
-		return out;
-	}
+										   bool caseInsensitive = false) const;
 };
 
 } // namespace sdl3

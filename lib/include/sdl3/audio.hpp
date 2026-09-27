@@ -52,36 +52,10 @@ struct AudioDevice {
 };
 
 /// List physical playback devices (does NOT include SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK).
-[[nodiscard]] inline std::vector<AudioDevice> EnumeratePlaybackDevices() {
-    int count = 0;
-    SDL_AudioDeviceID *ids = SDL_GetAudioPlaybackDevices(&count);
-    std::vector<AudioDevice> devices;
-    if (!ids)
-        return devices;
-    devices.reserve(size_t(count));
-    for (int i = 0; i < count; ++i) {
-        const char *name = SDL_GetAudioDeviceName(ids[i]);
-        devices.push_back({ids[i], String(name ? name : "")});
-    }
-    SDL_free(ids);
-    return devices;
-}
+[[nodiscard]] std::vector<AudioDevice> EnumeratePlaybackDevices();
 
 /// List physical recording devices (does NOT include SDL_AUDIO_DEVICE_DEFAULT_RECORDING).
-[[nodiscard]] inline std::vector<AudioDevice> EnumerateRecordingDevices() {
-    int count = 0;
-    SDL_AudioDeviceID *ids = SDL_GetAudioRecordingDevices(&count);
-    std::vector<AudioDevice> devices;
-    if (!ids)
-        return devices;
-    devices.reserve(size_t(count));
-    for (int i = 0; i < count; ++i) {
-        const char *name = SDL_GetAudioDeviceName(ids[i]);
-        devices.push_back({ids[i], String(name ? name : "")});
-    }
-    SDL_free(ids);
-    return devices;
-}
+[[nodiscard]] std::vector<AudioDevice> EnumerateRecordingDevices();
 
 // ============================================================================
 // AudioStream — RAII wrapper around SDL_AudioStream
@@ -92,43 +66,21 @@ public:
     using Wrapper::Wrapper;
 
     /// Open a stream connected to the default playback device.
-    [[nodiscard]] static Result<AudioStream, StringView> OpenPlayback(const AudioSpec &spec) {
-        return OpenPlayback(spec, SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK);
-    }
+    [[nodiscard]] static Result<AudioStream, StringView> OpenPlayback(const AudioSpec &spec);
 
     /// Open a stream connected to a specific playback device (from enumeratePlaybackDevices()).
     [[nodiscard]] static Result<AudioStream, StringView> OpenPlayback(const AudioSpec &spec,
-                                                                       SDL_AudioDeviceID deviceId) {
-        SDL_AudioSpec s = spec.ToSDL();
-        auto *st = SDL_OpenAudioDeviceStream(deviceId, &s, nullptr, nullptr);
-        if (!st)
-            return Err(GetError());
-        return Ok(AudioStream(st));
-    }
+                                                                       SDL_AudioDeviceID deviceId);
 
     /// Open a stream connected to the default recording device.
-    [[nodiscard]] static Result<AudioStream, StringView> OpenRecording(const AudioSpec &spec) {
-        return OpenRecording(spec, SDL_AUDIO_DEVICE_DEFAULT_RECORDING);
-    }
+    [[nodiscard]] static Result<AudioStream, StringView> OpenRecording(const AudioSpec &spec);
 
     /// Open a stream connected to a specific recording device (from EnumerateRecordingDevices()).
     [[nodiscard]] static Result<AudioStream, StringView> OpenRecording(const AudioSpec &spec,
-                                                                        SDL_AudioDeviceID deviceId) {
-        SDL_AudioSpec s = spec.ToSDL();
-        auto *st = SDL_OpenAudioDeviceStream(deviceId, &s, nullptr, nullptr);
-        if (!st)
-            return Err(GetError());
-        return Ok(AudioStream(st));
-    }
+                                                                        SDL_AudioDeviceID deviceId);
 
     /// Create a standalone stream for format conversion (not bound to a device).
-    [[nodiscard]] static Result<AudioStream, Error> Create(const AudioSpec &src, const AudioSpec &dst) {
-        SDL_AudioSpec s = src.ToSDL(), d = dst.ToSDL();
-        auto *st = SDL_CreateAudioStream(&s, &d);
-        if (!st)
-            return Err(GetError());
-        return Ok(AudioStream(st));
-    }
+    [[nodiscard]] static Result<AudioStream, Error> Create(const AudioSpec &src, const AudioSpec &dst);
 
     // ── Data I/O ─────────────────────────────────────────────────────────────
 
@@ -158,10 +110,7 @@ public:
     // ── Binding ──────────────────────────────────────────────────────────────
 
     bool Bind(SDL_AudioDeviceID devid) { return m_handle && SDL_BindAudioStream(devid, m_handle); }
-    void Unbind() {
-        if (m_handle)
-            SDL_UnbindAudioStream(m_handle);
-    }
+    void Unbind();
 };
 
 // ============================================================================
@@ -173,17 +122,6 @@ struct WavData {
     std::vector<uint8_t> samples;
 };
 
-[[nodiscard]] inline Result<WavData, StringView> LoadWav(const String &path) {
-    SDL_AudioSpec spec{};
-    uint8_t *buf = nullptr;
-    uint32_t len = 0;
-    if (!SDL_LoadWAV(path.c_str(), &spec, &buf, &len))
-        return Err(GetError());
-    WavData wd;
-    wd.spec = spec;
-    wd.samples.assign(buf, buf + len);
-    SDL_free(buf);
-    return Ok(std::move(wd));
-}
+[[nodiscard]] Result<WavData, StringView> LoadWav(const String &path);
 
 } // namespace sdl3

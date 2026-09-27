@@ -63,7 +63,7 @@ export LSAN_OPTIONS := suppressions=$(CURDIR)/tests/lsan_suppressions.txt
 # ============================================================================
 
 # Bibliothèque (statique)
-LIB       := $(OBJDIR)/ui.a
+LIB       := $(OBJDIR)/lib.a
 SRCS      := $(shell find $(SRCDIR) -name '*.cpp' 2>/dev/null)
 OBJS      := $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/lib/%.o,$(SRCS))
 
@@ -89,7 +89,15 @@ else
 	EMULATOR_OPT ?= -O3
 endif
 
-DEPS := $(OBJS:.o=.d) $(TEST_OBJS:.o=.d) $(EXAMPLE_OBJS:.o=.d) $(EMULATOR_OBJS:.o=.d)
+# Éditeur de jeu (Cas particulier multi-fichiers, en sous-répertoires) : ses
+# sources forment une archive liée à l'exemple ET aux tests qui l'exercent.
+GAME_EDITOR_DIR  := $(EXAMPLEDIR)/game_editor_demo
+GAME_EDITOR_SRCS := $(shell find $(GAME_EDITOR_DIR) -name '*.cpp' 2>/dev/null)
+GAME_EDITOR_OBJS := $(patsubst $(EXAMPLEDIR)/%.cpp,$(OBJDIR)/examples/%.o,$(GAME_EDITOR_SRCS))
+GAME_EDITOR_LIB  := $(OBJDIR)/game_editor.a
+GAME_EDITOR_TESTS := $(filter $(BUILDDIR)/tests/game_editor%,$(TEST_BINS))
+
+DEPS := $(OBJS:.o=.d) $(TEST_OBJS:.o=.d) $(EXAMPLE_OBJS:.o=.d) $(EMULATOR_OBJS:.o=.d) $(GAME_EDITOR_OBJS:.o=.d)
 
 # ============================================================================
 # Outils qualité / conventions
@@ -158,7 +166,9 @@ $(OBJDIR)/tests/%.o: $(TESTDIR)/%.cpp
 
 $(TEST_BINS): $(BUILDDIR)/tests/%: $(OBJDIR)/tests/%.o $(LIB)
 	@mkdir -p $(dir $@)
-	$(CXX) $(LDFLAGS) $< $(LIB) $(LDLIBS) $(TEST_LDLIBS) -o $@
+	$(CXX) $(LDFLAGS) $< $(filter $(GAME_EDITOR_LIB),$^) $(LIB) $(LDLIBS) $(TEST_LDLIBS) -o $@
+
+$(GAME_EDITOR_TESTS): $(GAME_EDITOR_LIB)
 
 tests: $(TEST_BINS) ## Compile tous les tests (dans build/tests/)
 run-tests: check ## Compile et execute la suite de tests
@@ -193,9 +203,15 @@ $(OBJDIR)/examples/emulator_demo.o $(EMULATOR_OBJS): CXXFLAGS += $(EMULATOR_OPT)
 
 $(EXAMPLE_BINS): $(BINDIR)/%: $(OBJDIR)/examples/%.o $(LIB)
 	@mkdir -p $(dir $@)
-	$(CXX) $(LDFLAGS) $(filter %.o,$^) $(LIB) $(LDLIBS) -o $@
+	$(CXX) $(LDFLAGS) $(filter %.o,$^) $(filter $(GAME_EDITOR_LIB),$^) $(LIB) $(LDLIBS) -o $@
 
 $(BINDIR)/emulator_demo: $(EMULATOR_OBJS)
+
+$(GAME_EDITOR_LIB): $(GAME_EDITOR_OBJS)
+	@mkdir -p $(dir $@)
+	ar rcs $@ $^
+
+$(BINDIR)/game_editor_demo: $(GAME_EDITOR_LIB)
 
 examples: $(EXAMPLE_BINS) ## Compile tous les exemples (mode actif)
 

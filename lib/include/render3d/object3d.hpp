@@ -55,15 +55,11 @@ public:
 	/// Matrice locale (par rapport au parent), recomposée à chaque appel —
 	/// pas de mise en cache : un graphe de cette taille n'en a pas besoin, et
 	/// ça élimine toute une classe de bugs d'invalidation de cache.
-	[[nodiscard]] math::FMatrix4 LocalMatrix() const noexcept {
-		return math::ComposeTRS(m_position, m_rotation, m_scale);
-	}
+	[[nodiscard]] math::FMatrix4 LocalMatrix() const noexcept;
 
 	/// Matrice monde : remonte la chaîne de parents à chaque appel (même
 	/// remarque que LocalMatrix()).
-	[[nodiscard]] math::FMatrix4 WorldMatrix() const noexcept {
-		return m_parent ? m_parent->WorldMatrix() * LocalMatrix() : LocalMatrix();
-	}
+	[[nodiscard]] math::FMatrix4 WorldMatrix() const noexcept;
 
 	// ── Hiérarchie ────────────────────────────────────────────────────────────
 
@@ -71,12 +67,7 @@ public:
 	[[nodiscard]] const std::vector<std::unique_ptr<Object3D>> &Children() const noexcept { return m_children; }
 
 	/// Prend possession de `child` ; retourne une référence pour chaînage.
-	Object3D &Add(std::unique_ptr<Object3D> child) {
-		child->m_parent = this;
-		Object3D &ref = *child;
-		m_children.push_back(std::move(child));
-		return ref;
-	}
+	Object3D &Add(std::unique_ptr<Object3D> child);
 
 	/// Retire `child` de ce nœud (recherche par identité de pointeur) et rend
 	/// à l'appelant l'unique_ptr propriétaire — nullptr si `child` n'est pas
@@ -122,15 +113,7 @@ public:
 	/// animé peut très bien être rendu invisible pour une raison sans
 	/// rapport, et le rater silencieusement ici serait un bug réel et
 	/// difficile à repérer.
-	[[nodiscard]] Object3D *FindByName(StringView name) noexcept {
-		if (m_name.View() == name)
-			return this;
-		for (auto &child : m_children) {
-			if (Object3D *found = child->FindByName(name))
-				return found;
-		}
-		return nullptr;
-	}
+	[[nodiscard]] Object3D *FindByName(StringView name) noexcept;
 
 	/// Point d'extension : ne fait rien par défaut (Object3D/Group purs ne
 	/// dessinent rien) — voir Shape::OnDraw() pour l'implémentation réelle.

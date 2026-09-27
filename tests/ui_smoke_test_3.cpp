@@ -131,7 +131,9 @@ int main() {
     });
 
     // ── 1. show + layout ─────────────────────────────────────────────────────
-    assert(scenes.SwitchTo("menu"));
+    // Hors de assert() : compilé en -DNDEBUG (release), l'appel disparaîtrait.
+    bool shown = scenes.SwitchTo("menu");
+    assert(shown);
     bool ran = layout.RunIfNeeded(ar, 800, 600);
     assert(ran);
     uint64_t passes = layout.PassCount();
@@ -189,7 +191,8 @@ int main() {
 
     // ── 7. bascule de scène : état conservé, pas de rebuild ─────────────────
     uint32_t playIdBefore = playE.Unwrap().id;
-    assert(scenes.SwitchTo("options"));
+    bool switched = scenes.SwitchTo("options");
+    assert(switched);
     layout.RunIfNeeded(ar, 800, 600);
 
     // La scène cachée ne réagit plus au clic.
@@ -198,7 +201,8 @@ int main() {
     assert(playClicks == 1);
     std::cout << "scene cachee inerte au clic: ok\n";
 
-    assert(scenes.SwitchTo("menu"));
+    bool back = scenes.SwitchTo("menu");
+    assert(back);
     layout.RunIfNeeded(ar, 800, 600);
     auto playE2 = ui::FindByName(ar, "play");
     assert(playE2.IsSome() && playE2.Unwrap().id == playIdBefore); // pas de rebuild

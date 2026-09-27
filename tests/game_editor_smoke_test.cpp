@@ -12,16 +12,18 @@
 
 #include "core/test.hpp"
 
+#include <filesystem>
+
 // Chemins relatifs : les en-têtes de `examples/` ne sont pas dans le chemin
 // d'inclusion du Makefile (seul `lib/include` l'est), et une inclusion
 // relative évite d'avoir à l'y ajouter juste pour ce test.
-#include "../examples/game_editor_demo/app.hpp"
-#include "../examples/game_editor_demo/cli.hpp"
-#include "../examples/game_editor_demo/content.hpp"
-#include "../examples/game_editor_demo/project.hpp"
-#include "../examples/game_editor_demo/report.hpp"
-#include "../examples/game_editor_demo/runtime.hpp"
-#include "../examples/game_editor_demo/scenarios.hpp"
+#include "../examples/game_editor_demo/app/app.hpp"
+#include "../examples/game_editor_demo/app/cli.hpp"
+#include "../examples/game_editor_demo/document/project_files.hpp"
+#include "../examples/game_editor_demo/document/project.hpp"
+#include "../examples/game_editor_demo/app/report.hpp"
+#include "../examples/game_editor_demo/engine/runtime.hpp"
+#include "../examples/game_editor_demo/app/scenarios.hpp"
 
 using namespace game_editor;
 
@@ -36,12 +38,26 @@ Result<CommandLine, String> ParseArgs(std::vector<const char *> args) {
 	return CommandLine::Parse(int(argv.size()), argv.data());
 }
 
+/// Le projet de démonstration, lu depuis ses fichiers de données : plus
+/// rien n'en est construit dans le code de l'éditeur. Lecture seule — aucun
+/// test n'écrit dans ce dossier.
+constexpr const char *DEMO_PROJECT = "tests/data/game_editor_demo/demo/demo.json";
+
+Project LoadDemoProject() {
+	auto project = files::LoadProject(String(DEMO_PROJECT));
+	if (project.IsError()) {
+		test::ReportFailure(__FILE__, __LINE__, project.Error().CStr());
+		return files::MakeBlankProject(String("introuvable"));
+	}
+	return std::move(project).Unwrap();
+}
+
 /// Runtime prêt à l'emploi sur le projet de démonstration, sans GPU.
 struct Harness {
 	ecs::ArchetypeRegistry registry;
 	Runtime runtime{registry};
 
-	Harness() { runtime.OpenProject(MakeDemoProject()); }
+	Harness() { runtime.OpenProject(LoadDemoProject()); }
 
 	/// Exécute une source dans l'interpréteur outil et fait échouer le test
 	/// avec le message d'erreur formaté si elle ne compile/tourne pas.
@@ -117,7 +133,7 @@ TEST(Cli, DefaultsAreUsable) {
 // ============================================================================
 
 TEST(Project, JsonRoundTripPreservesEverything) {
-	Project original = MakeDemoProject();
+	Project original = LoadDemoProject();
 	original.activeScene = "Circuit";
 
 	String encoded = original.EncodeJson();
@@ -181,6 +197,29 @@ TEST(Project, WholeNumberCoordinatesSurviveTheRoundTrip) {
 	EXPECT_EQ(PhysicsDesc::Read(*reloaded).mass, 4.f);
 }
 
+// Régression : le script de jeu d'une scène est lu sous
+// `scenes/../scripts/X.gameplay.script` ; réenregistrer le projet ne doit pas
+// le prendre pour un orphelin et l'effacer juste après l'avoir écrit.
+TEST(Project, ResavingKeepsGameplayScriptFiles) {
+	const std::filesystem::path dir = std::filesystem::temp_directory_path() / "game_editor_resave_test";
+	std::filesystem::remove_all(dir);
+	std::filesystem::create_directories(dir);
+	const String manifest((dir / "resave.json").string().c_str());
+	Project project = files::MakeBlankProject(String("Resave"));
+	project.scenes.front().gameplayScript = String("fn on_update(dt) { }\n");
+	ASSERT_TRUE(files::SaveProject(project, manifest).IsOk());
+	files::FileList loaded;
+	auto reloaded = files::LoadProject(manifest, &loaded);
+	ASSERT_TRUE(reloaded.IsOk());
+	ASSERT_TRUE(files::SaveProject(reloaded.Value(), manifest, loaded).IsOk());
+	auto again = files::LoadProject(manifest);
+	ASSERT_TRUE(again.IsOk());
+	EXPECT_EQ(again.Value().scenes.front().gameplayScript, project.scenes.front().gameplayScript);
+	EXPECT_EQ(files::NormalizePath(String("/a/scenes/../scripts/./x")), "/a/scripts/x");
+	EXPECT_EQ(files::NormalizePath(String("../b/../c")), "../c");
+	std::filesystem::remove_all(dir);
+}
+
 TEST(Project, RejectsMalformedDocuments) {
 	EXPECT_TRUE(Project::DecodeJson(String("pas du json")).IsError());
 	EXPECT_TRUE(Project::DecodeJson(String("{}")).IsError());                       // pas de `scenes`
@@ -191,7 +230,7 @@ TEST(Project, RejectsMalformedDocuments) {
 }
 
 TEST(Project, ActiveSceneFallsBackToTheFirstOne) {
-	Project project = MakeDemoProject();
+	Project project = LoadDemoProject();
 	project.activeScene = "Scène inexistante";
 	ASSERT_TRUE(project.ActiveScene() != nullptr);
 	EXPECT_EQ(project.ActiveScene()->name, project.scenes.front().name);
@@ -257,7 +296,7 @@ TEST(TransformDesc, EulerAndQuaternionRoundTrip) {
 // ============================================================================
 
 TEST(Content, DemoProjectIsWellFormed) {
-	Project project = MakeDemoProject();
+	Project project = LoadDemoProject();
 	ASSERT_TRUE(project.scenes.size() == 5);
 
 	for (const SceneDesc &scene : project.scenes) {
@@ -288,11 +327,20 @@ TEST(Content, DemoProjectIsWellFormed) {
 	}
 }
 
-TEST(Content, EveryGameplayScriptCompiles) {
-	// Un script embarqué qui ne compile pas ne se verrait qu'au moment de
-	// lancer le mode Jeu, dans une scène précise : autant l'attraper ici.
-	for (const char *source : {SHOWCASE_SCRIPT, CIRCUIT_SCRIPT, PHYSICS_SCRIPT}) {
-		auto program = data::script::Parser::Compile(StringView(source));
+TEST(Content, EveryScriptOfTheProjectCompiles) {
+	// Un script (fichier .script du projet) qui ne compile pas ne se verrait
+	// qu'au moment de lancer le mode Jeu, dans une scène précise : autant
+	// l'attraper ici — scripts de jeu des scènes ET bibliothèque.
+	Project project = LoadDemoProject();
+	std::vector<String> sources;
+	for (const SceneDesc &scene : project.scenes)
+		if (!scene.gameplayScript.IsEmpty())
+			sources.push_back(scene.gameplayScript);
+	for (const ScriptAsset &script : project.scripts)
+		sources.push_back(script.source);
+	EXPECT_TRUE(sources.size() >= 8u);
+	for (const String &source : sources) {
+		auto program = data::script::Parser::Compile(source.View());
 		if (program.IsError())
 			test::ReportFailure(__FILE__, __LINE__, program.Error().Format().CStr());
 		EXPECT_TRUE(program.IsOk());
@@ -300,7 +348,7 @@ TEST(Content, EveryGameplayScriptCompiles) {
 }
 
 TEST(Content, CircuitHasAnOrderedRingOfCheckpoints) {
-	Project project = MakeDemoProject();
+	Project project = LoadDemoProject();
 	const SceneDesc *circuit = project.FindScene("Circuit");
 	ASSERT_TRUE(circuit != nullptr);
 
@@ -499,7 +547,7 @@ TEST(Runtime, PlayIsReproducible) {
 		ecs::ArchetypeRegistry registry;
 		Runtime runtime(registry);
 		runtime.SetRandomSeed(seed);
-		runtime.OpenProject(MakeDemoProject());
+		runtime.OpenProject(LoadDemoProject());
 		(void)runtime.SwitchScene("Circuit");
 		runtime.Play();
 		for (int i = 0; i < 240; ++i)
@@ -578,7 +626,7 @@ TEST(ScriptApi, SpawnsAndEditsObjects) {
 	Harness harness;
 	size_t before = harness.runtime.ActiveScene()->ObjectCount();
 
-	ASSERT_TRUE(harness.Run("for i in range(0, 5) {\n"
+	ASSERT_TRUE(harness.Run("for (i in range(0, 5)) {\n"
 							"    scene.spawn({\n"
 							"        name: \"Généré \" .. i,\n"
 							"        shape: \"sphere\",\n"
@@ -1136,7 +1184,7 @@ TEST(Camera, ScriptsDriveEveryCameraMove) {
         }
 
         let rayon = distance(depart, pivot)
-        for i in range(0, 10) { camera.orbit(0.15, 0) }
+        for (i in range(0, 10)) { camera.orbit(0.15, 0) }
         assert(distance(camera.position(), depart) > 1, "l'orbite n'a pas bougé la caméra")
         assert(math.abs(distance(camera.position(), pivot) - rayon) < 0.1, "l'orbite a changé la distance au pivot")
 
@@ -1188,7 +1236,7 @@ TEST(Report, ThreadTrackerCountsTheConcurrentPeak) {
 }
 
 TEST(Report, TextAndJsonCarryTheSameFacts) {
-	Project project = MakeDemoProject();
+	Project project = LoadDemoProject();
 	RunReport report;
 	report.commandLine = "game_editor_demo --scenario=tour";
 	report.scenario = "tour";
@@ -1498,7 +1546,7 @@ TEST(Hierarchy, ASubtreeCanBeSavedAsASceneAndInstantiatedSeveralTimes) {
 	ASSERT_TRUE(h.runtime.SpawnNode(part, car.Unwrap()).IsSome());
 	ASSERT_TRUE(h.runtime.SetPosition(car.Unwrap(), {5.f, 0.f, 0.f}));
 
-	const String path = String("/tmp/game_editor_modele.tscene");
+	const String path = String("/tmp/game_editor_modele.scene");
 	auto saved = h.runtime.SavePackedScene(car.Unwrap(), path);
 	ASSERT_TRUE(saved.IsOk());
 
@@ -1533,7 +1581,7 @@ TEST(Hierarchy, ASubtreeCanBeSavedAsASceneAndInstantiatedSeveralTimes) {
 TEST(Content, TheAssemblySceneShowsRealHierarchies) {
 	// La scène livrée doit VRAIMENT être profonde — sinon elle ne démontre
 	// rien de ce que la hiérarchie apporte.
-	Project project = MakeDemoProject();
+	Project project = LoadDemoProject();
 	const SceneDesc *scene = project.FindScene("Assemblages");
 	ASSERT_TRUE(scene != nullptr);
 	EXPECT_TRUE(scene->tree.Validate().Ok());
@@ -1849,7 +1897,7 @@ TEST(Helpers, LightsCamerasAndZonesArePickableInEditOnly) {
 }
 
 TEST(Project, TheScriptLibrarySurvivesTheRoundTripAndOldFilesStillLoad) {
-	Project project = MakeDemoProject();
+	Project project = LoadDemoProject();
 	ASSERT_TRUE(project.scripts.size() == 5u);
 	auto reloaded = Project::DecodeJson(project.EncodeJson());
 	ASSERT_TRUE(reloaded.IsOk());
@@ -1992,7 +2040,7 @@ TEST(Syntax, ConsoleLevelsColourTheirPrefix) {
 }
 
 TEST(AssetBrowser, NavigatesProjectFoldersAndTheDisk) {
-	Project project = MakeDemoProject();
+	Project project = LoadDemoProject();
 	AssetBrowserModel model(&project, String("assets"));
 	EXPECT_EQ(model.Location(), AssetBrowserModel::ROOT);
 	EXPECT_FALSE(model.CanBack() || model.CanUp());
@@ -2040,11 +2088,11 @@ TEST(AssetBrowser, NavigatesProjectFoldersAndTheDisk) {
 	EXPECT_EQ(model.Location(), AssetBrowserModel::ROOT);
 	EXPECT_FALSE(model.Navigate(String("assets/models/animals/Cow.gltf"))); // un fichier n'est pas un dossier
 	EXPECT_TRUE(AssetBrowserModel::KindOf(String("Sol.PNG")) == AssetKind::TEXTURE);
-	EXPECT_TRUE(AssetBrowserModel::KindOf(String("vehicule.tscene")) == AssetKind::SCENE);
+	EXPECT_TRUE(AssetBrowserModel::KindOf(String("vehicule.scene")) == AssetKind::SCENE);
 }
 
 TEST(AssetBrowser, SavesAreAFolderOfTheirOwn) {
-	Project project = MakeDemoProject();
+	Project project = LoadDemoProject();
 	AssetBrowserModel model(&project, String("assets"), String("tests"));
 	bool saves = false;
 	for (const AssetEntry &entry : model.Entries())

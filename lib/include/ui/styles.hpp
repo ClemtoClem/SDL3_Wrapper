@@ -199,10 +199,7 @@ public:
 
 	/// Fusionne un autre style dans celui-ci (l'autre gagne sur les conflits,
 	/// propriété par propriété — clé = type C++, pas de notion d'ordre interne).
-	void Merge(const UiStyle &other) {
-		for (const auto &[k, v] : other.entries)
-			entries[k] = v;
-	}
+	void Merge(const UiStyle &other);
 
 	[[nodiscard]] bool IsEmpty() const noexcept { return entries.empty(); }
 
@@ -277,30 +274,13 @@ public:
 	/// en bas), coins arrondis, reflet + lueur de bordure. Base de tous les
 	/// autres présets `glassXxx()` — personnalisable via les setters fluents
 	/// (ex: `UiStyle::glass({40,110,190}).setBordersRadius(12.f)`).
-	[[nodiscard]] static UiStyle Glass(sdl3::FColor base, float gloss = 0.35f, float glow = 0.45f, float radius = 8.f) {
-		auto lighten = [](float v) { return sdl3::Clamp(v + 45.f / 255.f, 0.f, 1.f); };
-		sdl3::FColor top(lighten(base.r), lighten(base.g), lighten(base.b), base.a);
-		UiStyle s;
-		s.SetBg(top)
-			.SetBgGradient(base)
-			.SetBorderColor(sdl3::FColor::UI_WHITE_SOFT())
-			.SetBordersWidth(1.f)
-			.SetBordersRadius(radius)
-			.SetGloss(gloss)
-			.SetGlow(glow)
-			.SetGlowColor(sdl3::FColor::UI_WHITE_STRONG());
-		return s;
-	}
+	[[nodiscard]] static UiStyle Glass(sdl3::FColor base, float gloss = 0.35f, float glow = 0.45f, float radius = 8.f);
 
 	/// Panneau vitré translucide (fond de carte/fenêtre).
-	[[nodiscard]] static UiStyle GlassPanel(sdl3::FColor base = sdl3::FColor{70/255.f, 120/255.f, 190/255.f, 165/255.f}) {
-		return Glass(base, 0.28f, 0.35f, 10.f);
-	}
+	[[nodiscard]] static UiStyle GlassPanel(sdl3::FColor base = sdl3::FColor{70/255.f, 120/255.f, 190/255.f, 165/255.f});
 
 	/// Bouton vitré (reflet plus marqué, coins plus arrondis).
-	[[nodiscard]] static UiStyle GlassButton(sdl3::FColor base = sdl3::FColor{60/255.f, 140/255.f, 220/255.f, 220/255.f}) {
-		return Glass(base, 0.45f, 0.5f, 6.f);
-	}
+	[[nodiscard]] static UiStyle GlassButton(sdl3::FColor base = sdl3::FColor{60/255.f, 140/255.f, 220/255.f, 220/255.f});
 
 private:
 	struct Entry {
@@ -345,21 +325,13 @@ void MarkSubtreeDirty(ecs::ArchetypeRegistry &world, ecs::Entity e);
 class UiStyleSheet {
 public:
 	/// Définit (ou redéfinit) une classe. Retourne *this pour le chaînage.
-	UiStyleSheet &Define(String name, UiStyle style) {
-		classes[String(name.c_str())] = std::move(style);
-		return *this;
-	}
+	UiStyleSheet &Define(String name, UiStyle style);
 
 	/// Supprime une classe.
 	void Undefine(const String &name) { classes.erase(String(name.c_str())); }
 
 	/// Cherche une classe. Retourne NONE si inexistante.
-	[[nodiscard]] Option<const UiStyle *> Lookup(const String &name) const {
-		auto it = classes.find(String(name.c_str()));
-		if (it != classes.end())
-			return Some(&it->second);
-		return NONE;
-	}
+	[[nodiscard]] Option<const UiStyle *> Lookup(const String &name) const;
 
 	/// Vrai si la classe existe.
 	[[nodiscard]] bool Has(const String &name) const { return classes.count(String(name.c_str())) > 0; }
@@ -369,18 +341,7 @@ public:
 
 	/// Marque toutes les entités portant cette classe comme dirty
 	/// (appelé après une redéfinition de classe).
-	void DirtyClassUsers(ecs::ArchetypeRegistry &world, const String &name) {
-		world.Query<UiClassList>([&](ecs::Entity e, UiClassList &cls) {
-			for (const auto &n : cls.names) {
-				if (n == name) {
-					if (!world.HasComponent<UiStyleDirty>(e))
-						world.AddComponent(e, UiStyleDirty{});
-					MarkSubtreeDirty(world, e);
-					break;
-				}
-			}
-		});
-	}
+	void DirtyClassUsers(ecs::ArchetypeRegistry &world, const String &name);
 
 	/// Marque dirty TOUT widget stylé par une classe, quelle qu'elle soit.
 	///
@@ -391,17 +352,7 @@ public:
 	/// qu'aux widgets créés ensuite. Appeler `DirtyClassUsers` une fois par
 	/// classe ferait le même travail en autant de parcours complets de
 	/// l'ECS ; ici, un seul suffit.
-	void DirtyAllUsers(ecs::ArchetypeRegistry &world) {
-		std::vector<ecs::Entity> users;
-		// Collecte d'abord, mutation ensuite : AddComponent pendant un Query
-		// invalide l'itération (cf. l'avertissement en tête de ecs.hpp).
-		world.Query<UiClassList>([&](ecs::Entity e, UiClassList &) { users.push_back(e); });
-		for (ecs::Entity e : users) {
-			if (!world.HasComponent<UiStyleDirty>(e))
-				world.AddComponent(e, UiStyleDirty{});
-			MarkSubtreeDirty(world, e);
-		}
-	}
+	void DirtyAllUsers(ecs::ArchetypeRegistry &world);
 
 	/// Nombre de classes définies.
 	[[nodiscard]] size_t GetSize() const noexcept { return classes.size(); }
@@ -423,105 +374,10 @@ public:
 	/// Résout la cascade pour toutes les entités dirty.
 	/// Doit être appelé APRÈS InputSystem (états hover/press à jour)
 	/// et AVANT LayoutSystem (besoin de fontSize résolu pour les unités em).
-	void Resolve(ecs::ArchetypeRegistry &world) {
-		// Collecte d'abord (retirer UiStyleDirty migre l'entité vers un
-		// autre archétype ; le faire PENDANT un Query<UiStyleDirty> invalide
-		// l'itération en cours — d'où la collecte préalable dans un vector).
-		std::vector<ecs::Entity> dirtyEntities;
-		world.Query<UiStyleDirty>([&](ecs::Entity e, UiStyleDirty &) { dirtyEntities.push_back(e); });
-		if (dirtyEntities.empty())
-			return;
-
-		// Résout depuis chaque racine (entité sans UiParent). Collecte
-		// D'ABORD (même raison que dirtyEntities ci-dessus) : resolveEntity()
-		// appelle get_or_add_component<UiComputedStyle> pour CHAQUE entité de
-		// tout le sous-arbre — une migration d'archétype par entité pas
-		// encore résolue une fois, qui peut réallouer le vecteur
-		// d'archétypes. L'appeler PENDANT ce Query<UiComputed> corromprait
-		// son itération exactement comme pour UiStyleDirty plus haut ; ça
-		// n'avait jamais crashé jusqu'ici par pure chance (pas assez
-		// d'archétypes DISTINCTS dans les scènes de test précédentes pour
-		// déclencher une réallocation au bon moment) — confirmé crash réel
-		// sur ui_aero_basics.cpp (Phase 10), dont la variété de widgets crée
-		// nettement plus d'archétypes distincts que les tests antérieurs.
-		std::vector<ecs::Entity> roots;
-		world.Query<UiComputed>([&](ecs::Entity e, UiComputed &) {
-			if (!world.HasComponent<UiParent>(e))
-				roots.push_back(e);
-		});
-		for (ecs::Entity e : roots)
-			ResolveEntity(world, e, nullptr);
-
-		// Nettoie tous les marqueurs dirty collectés plus haut.
-		for (ecs::Entity e : dirtyEntities)
-			world.RemoveComponent<UiStyleDirty>(e);
-	}
+	void Resolve(ecs::ArchetypeRegistry &world);
 
 private:
-	void ResolveEntity(ecs::ArchetypeRegistry &world, ecs::Entity e, const UiStyle *parentResolved) {
-		UiStyle result;
-
-		// 1) Héritage depuis le parent (seules les propriétés héritables :
-		// text-color, font-size, text-align, opacity, inner-zoom — comme en
-		// CSS où background/border/padding n'héritent jamais par défaut).
-		if (parentResolved) {
-			if (auto *p = parentResolved->Get<prop::TextColor>())
-				result.Set(*p);
-			if (auto *p = parentResolved->Get<prop::FontSize>())
-				result.Set(*p);
-			if (auto *p = parentResolved->Get<prop::TextAlignProp>())
-				result.Set(*p);
-			if (auto *p = parentResolved->Get<prop::Opacity>())
-				result.Set(*p);
-			if (auto *p = parentResolved->Get<prop::InnerZoom>())
-				result.Set(*p);
-		}
-
-		// 2) Classes (dans l'ordre de la liste ; la dernière gagne). La liste
-		// commence toujours par "root"/"root-<type>" — cf. UiFactory::Spawn().
-		if (auto classes = world.GetComponent<UiClassList>(e); classes.IsSome()) {
-			for (const auto &name : classes.Unwrap()->names) {
-				if (sheet) {
-					if (auto s = sheet->Lookup(name); s.IsSome())
-						result.Merge(*s.Unwrap());
-				}
-			}
-		}
-
-		// 3) Style inline (priorité maximale)
-		if (auto inlineStyle = world.GetComponent<UiStyle>(e); inlineStyle.IsSome())
-			result.Merge(*inlineStyle.Unwrap());
-
-		// 4) Stocker le résultat
-		auto stored = world.GetOrAddComponent<UiComputedStyle>(e);
-		if (stored.IsSome())
-			stored.Unwrap()->style = result;
-
-		// 5) Propager le résultat résolu aux enfants pour l'héritage.
-		//
-		// Deux pièges d'invalidation ici, tous deux DÉJÀ RENCONTRÉS en vrai
-		// (plantage use-after-free reproductible dès qu'une interface a assez
-		// d'archétypes distincts — cf. examples/game_editor/, dont
-		// l'inspecteur/outliner en crée beaucoup) :
-		//
-		//  a) on passait aux enfants un pointeur vers le `UiComputedStyle`
-		//     STOCKÉ de cette entité. Or chaque appel récursif fait un
-		//     `GetOrAddComponent<UiComputedStyle>` sur un enfant, ce qui peut
-		//     faire migrer cet enfant d'archétype et RÉALLOUER le vecteur de
-		//     composants où vit le nôtre : le pointeur du parent pendouille
-		//     dès le premier enfant qui n'avait pas encore de style calculé.
-		//     `result` est une copie locale, sur la pile de CET appel, avec
-		//     exactement la même valeur — elle survit à toute la récursion.
-		//
-		//  b) la liste d'enfants était parcourue DIRECTEMENT dans le
-		//     composant `UiChildren`, lui aussi susceptible d'être déplacé
-		//     par ces mêmes migrations. On la copie donc avant d'itérer.
-		std::vector<ecs::Entity> children;
-		if (auto list = world.GetComponent<UiChildren>(e); list.IsSome())
-			children = list.Unwrap()->list;
-		for (ecs::Entity child : children)
-			ResolveEntity(world, child, &result);
-	}
+	void ResolveEntity(ecs::ArchetypeRegistry &world, ecs::Entity e, const UiStyle *parentResolved);
 };
 
 // ============================================================================
@@ -587,24 +443,14 @@ public:
 	[[nodiscard]] bool Italic(bool fallback = false) const noexcept { return Value<prop::Italic>(fallback); }
 	[[nodiscard]] bool Bold(bool fallback = false) const noexcept { return Value<prop::Bold>(fallback); }
 	[[nodiscard]] bool Underline(bool fallback = false) const noexcept { return Value<prop::Underline>(fallback); }
-	[[nodiscard]] bool Strikethrough(bool fallback = false) const noexcept {
-		return Value<prop::Strikethrough>(fallback);
-	}
+	[[nodiscard]] bool Strikethrough(bool fallback = false) const noexcept;
 	[[nodiscard]] bool Highlight(bool fallback = false) const noexcept { return Value<prop::Highlight>(fallback); }
-	[[nodiscard]] sdl3::FColor HighlightColor(sdl3::FColor fallback) const noexcept {
-		return Value<prop::HighlightTextColor>(fallback);
-	}
+	[[nodiscard]] sdl3::FColor HighlightColor(sdl3::FColor fallback) const noexcept;
 
 	[[nodiscard]] sdl3::FColor Bg(sdl3::FColor fallback) const noexcept { return Value<prop::BackgroundColor>(fallback); }
-	[[nodiscard]] sdl3::FColor BgHovered(sdl3::FColor fallback) const noexcept {
-		return Value<prop::HoveredBackgroundColor>(fallback);
-	}
-	[[nodiscard]] sdl3::FColor BgPressed(sdl3::FColor fallback) const noexcept {
-		return Value<prop::PressedBackgroundColor>(fallback);
-	}
-	[[nodiscard]] sdl3::FColor BgChecked(sdl3::FColor fallback) const noexcept {
-		return Value<prop::CheckedBackgroundColor>(fallback);
-	}
+	[[nodiscard]] sdl3::FColor BgHovered(sdl3::FColor fallback) const noexcept;
+	[[nodiscard]] sdl3::FColor BgPressed(sdl3::FColor fallback) const noexcept;
+	[[nodiscard]] sdl3::FColor BgChecked(sdl3::FColor fallback) const noexcept;
 	[[nodiscard]] sdl3::FColor BgFocus(sdl3::FColor fallback) const noexcept { return Value<prop::FocusedBackgroundColor>(fallback); }
 	[[nodiscard]] sdl3::FColor TextColor(sdl3::FColor fallback) const noexcept { return Value<prop::TextColor>(fallback); }
 	[[nodiscard]] sdl3::FColor BorderColor(sdl3::FColor fallback) const noexcept { return Value<prop::BorderColor>(fallback); }
@@ -622,20 +468,11 @@ public:
 	[[nodiscard]] sdl3::FColor GlowColor(sdl3::FColor fallback) const noexcept { return Value<prop::GlowColor>(fallback); }
 
 	/// Pour le dégradé : renvoie Some si résolu, NONE sinon (le renderer décide).
-	[[nodiscard]] Option<sdl3::FColor> BgGradientOpt() const noexcept {
-		if (style)
-			if (const auto *p = style->Get<prop::BackgroundGradient>())
-				return Some(p->value);
-		return NONE;
-	}
+	[[nodiscard]] Option<sdl3::FColor> BgGradientOpt() const noexcept;
 };
 
 /// Récupère la vue résolue pour une entité.
-[[nodiscard]] inline ResolvedStyle GetResolved(ecs::ArchetypeRegistry &world, ecs::Entity e) {
-	if (auto c = world.GetComponent<UiComputedStyle>(e); c.IsSome())
-		return ResolvedStyle(&c.Unwrap()->style);
-	return ResolvedStyle{};
-}
+[[nodiscard]] ResolvedStyle GetResolved(ecs::ArchetypeRegistry &world, ecs::Entity e);
 
 // ============================================================================
 // Registre dynamique nom↔propriété — pour l'API par chemin
@@ -651,77 +488,17 @@ using AlignSetter = void (*)(UiStyle &, TextAlign);
 using SidesSetter = void (*)(UiStyle &, math::Sides);
 using CornersSetter = void (*)(UiStyle &, math::Corners);
 
-[[nodiscard]] inline const std::unordered_map<String, BoolSetter> &BoolPropRegistry() {
-	static const std::unordered_map<String, BoolSetter> TABLE = {
-		{prop::Enable::kName, [](UiStyle &s, bool v) { s.Set(prop::Enable{v}); }},
-		{prop::Visible::kName, [](UiStyle &s, bool v) { s.Set(prop::Visible{v}); }},
-		{prop::Italic::kName, [](UiStyle &s, bool v) { s.Set(prop::Italic{v}); }},
-		{prop::Bold::kName, [](UiStyle &s, bool v) { s.Set(prop::Bold{v}); }},
-		{prop::Underline::kName, [](UiStyle &s, bool v) { s.Set(prop::Underline{v}); }},
-		{prop::Strikethrough::kName, [](UiStyle &s, bool v) { s.Set(prop::Strikethrough{v}); }},
-		{prop::Highlight::kName, [](UiStyle &s, bool v) { s.Set(prop::Highlight{v}); }},
-	};
-	return TABLE;
-}
+[[nodiscard]] const std::unordered_map<String, BoolSetter> &BoolPropRegistry();
 
-[[nodiscard]] inline const std::unordered_map<String, ColorSetter> &ColorPropRegistry() {
-	static const std::unordered_map<String, ColorSetter> TABLE = {
-		{prop::BackgroundColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::BackgroundColor{c}); }},
-		{prop::BackgroundGradient::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::BackgroundGradient{c}); }},
-		{prop::HoveredBackgroundColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::HoveredBackgroundColor{c}); }},
-		{prop::PressedBackgroundColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::PressedBackgroundColor{c}); }},
-		{prop::CheckedBackgroundColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::CheckedBackgroundColor{c}); }},
-		{prop::FocusedBackgroundColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::FocusedBackgroundColor{c}); }},
-		{prop::TextColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::TextColor{c}); }},
-		{prop::HoveredTextColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::HoveredTextColor{c}); }},
-		{prop::PressedTextColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::PressedTextColor{c}); }},
-		{prop::CheckedTextColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::CheckedTextColor{c}); }},
-		{prop::FocusedTextColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::FocusedTextColor{c}); }},
-		{prop::BorderColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::BorderColor{c}); }},
-		{prop::HoveredBorderColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::HoveredBorderColor{c}); }},
-		{prop::PressedBorderColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::PressedBorderColor{c}); }},
-		{prop::CheckedBorderColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::CheckedBorderColor{c}); }},
-		{prop::FocusedBorderColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::FocusedBorderColor{c}); }},
-		{prop::GlowColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::GlowColor{c}); }},
-		{prop::HighlightTextColor::kName, [](UiStyle &s, sdl3::FColor c) { s.Set(prop::HighlightTextColor{c}); }},
-	};
-	return TABLE;
-}
+[[nodiscard]] const std::unordered_map<String, ColorSetter> &ColorPropRegistry();
 
-[[nodiscard]] inline const std::unordered_map<String, FloatSetter> &FloatPropRegistry() {
-	static const std::unordered_map<String, FloatSetter> TABLE = {
-		{prop::FontSize::kName, [](UiStyle &s, float v) { s.Set(prop::FontSize{v}); }},
-		{prop::InnerZoom::kName, [](UiStyle &s, float v) { s.Set(prop::InnerZoom{v}); }},
-		{prop::Gap::kName, [](UiStyle &s, float v) { s.Set(prop::Gap{v}); }},
-		{prop::Opacity::kName, [](UiStyle &s, float v) { s.Set(prop::Opacity{v}); }},
-		{prop::Gloss::kName, [](UiStyle &s, float v) { s.Set(prop::Gloss{v}); }},
-		{prop::Glow::kName, [](UiStyle &s, float v) { s.Set(prop::Glow{v}); }},
-	};
-	return TABLE;
-}
+[[nodiscard]] const std::unordered_map<String, FloatSetter> &FloatPropRegistry();
 
-[[nodiscard]] inline const std::unordered_map<String, AlignSetter> &AlignPropRegistry() {
-	static const std::unordered_map<String, AlignSetter> TABLE = {
-		{prop::TextAlignProp::kName, [](UiStyle &s, TextAlign a) { s.Set(prop::TextAlignProp{a}); }},
-	};
-	return TABLE;
-}
+[[nodiscard]] const std::unordered_map<String, AlignSetter> &AlignPropRegistry();
 
-[[nodiscard]] inline const std::unordered_map<String, SidesSetter> &SidesPropRegistry() {
-	static const std::unordered_map<String, SidesSetter> TABLE = {
-		{prop::Padding::kName, [](UiStyle &s, math::Sides v) { s.Set(prop::Padding{v}); }},
-		{prop::Margin::kName, [](UiStyle &s, math::Sides v) { s.Set(prop::Margin{v}); }},
-		{prop::BordersWidth::kName, [](UiStyle &s, math::Sides v) { s.Set(prop::BordersWidth{v}); }},
-	};
-	return TABLE;
-}
+[[nodiscard]] const std::unordered_map<String, SidesSetter> &SidesPropRegistry();
 
-[[nodiscard]] inline const std::unordered_map<String, CornersSetter> &CornersPropRegistry() {
-	static const std::unordered_map<String, CornersSetter> TABLE = {
-		{prop::BordersRadius::kName, [](UiStyle &s, math::Corners v) { s.Set(prop::BordersRadius{v}); }},
-	};
-	return TABLE;
-}
+[[nodiscard]] const std::unordered_map<String, CornersSetter> &CornersPropRegistry();
 
 } // namespace detail
 
@@ -731,174 +508,48 @@ using CornersSetter = void (*)(UiStyle &, math::Corners);
 /// inconnu pour ce type de valeur : permet des scripts/présets tolérants
 /// aux fautes de frappe sans planter l'appli, cohérent avec le reste de
 /// l'API ui:: qui préfère les Option/bool aux exceptions.
-inline bool SetStyleProp(UiStyle &style, const String &name, bool value) {
-	auto &table = detail::BoolPropRegistry();
-	auto it = table.find(String(name.c_str()));
-	if (it == table.end())
-		return false;
-	it->second(style, value);
-	return true;
-}
-inline bool SetStyleProp(UiStyle &style, const String &name, sdl3::FColor value) {
-	auto &table = detail::ColorPropRegistry();
-	auto it = table.find(String(name.c_str()));
-	if (it == table.end())
-		return false;
-	it->second(style, value);
-	return true;
-}
-inline bool SetStyleProp(UiStyle &style, const String &name, float value) {
-	auto &table = detail::FloatPropRegistry();
-	auto it = table.find(String(name.c_str()));
-	if (it == table.end())
-		return false;
-	it->second(style, value);
-	return true;
-}
-inline bool SetStyleProp(UiStyle &style, const String &name, TextAlign value) {
-	auto &table = detail::AlignPropRegistry();
-	auto it = table.find(String(name.c_str()));
-	if (it == table.end())
-		return false;
-	it->second(style, value);
-	return true;
-}
-inline bool SetStyleProp(UiStyle &style, const String &name, math::Sides value) {
-	auto &table = detail::SidesPropRegistry();
-	auto it = table.find(String(name.c_str()));
-	if (it == table.end())
-		return false;
-	it->second(style, value);
-	return true;
-}
-inline bool SetStyleProp(UiStyle &style, const String &name, math::Corners value) {
-	auto &table = detail::CornersPropRegistry();
-	auto it = table.find(String(name.c_str()));
-	if (it == table.end())
-		return false;
-	it->second(style, value);
-	return true;
-}
+bool SetStyleProp(UiStyle &style, const String &name, bool value);
+bool SetStyleProp(UiStyle &style, const String &name, sdl3::FColor value);
+bool SetStyleProp(UiStyle &style, const String &name, float value);
+bool SetStyleProp(UiStyle &style, const String &name, TextAlign value);
+bool SetStyleProp(UiStyle &style, const String &name, math::Sides value);
+bool SetStyleProp(UiStyle &style, const String &name, math::Corners value);
 
 // ============================================================================
 // Fonctions libres — manipulation dynamique des styles
 // ============================================================================
 
 /// Pose ou remplace le style inline d'une entité et marque dirty (avec sous-arbre).
-inline void SetInlineStyle(ecs::ArchetypeRegistry &world, ecs::Entity e, UiStyle style) {
-	// Retirer l'ancien s'il existe pour éviter la duplication dans l'archétype.
-	world.RemoveComponent<UiStyle>(e);
-	world.AddComponent(e, std::move(style));
-	if (!world.HasComponent<UiStyleDirty>(e))
-		world.AddComponent(e, UiStyleDirty{});
-	MarkSubtreeDirty(world, e);
-}
+void SetInlineStyle(ecs::ArchetypeRegistry &world, ecs::Entity e, UiStyle style);
 
 /// Modifie le style inline via un callback (évite de reconstruire tout le UiStyle).
-inline void EditInlineStyle(ecs::ArchetypeRegistry &world, ecs::Entity e, std::function<void(UiStyle &)> fn) {
-	auto existing = world.GetComponent<UiStyle>(e);
-	UiStyle s;
-	if (existing.IsSome())
-		s = *existing.Unwrap();
-	fn(s);
-	SetInlineStyle(world, e, std::move(s));
-}
+void EditInlineStyle(ecs::ArchetypeRegistry &world, ecs::Entity e, std::function<void(UiStyle &)> fn);
 
 /// Ajoute une classe à l'entité (idempotent).
-inline void AddClass(ecs::ArchetypeRegistry &world, ecs::Entity e, String name) {
-	auto cls = world.GetOrAddComponent<UiClassList>(e);
-	if (cls.IsNone())
-		return;
-	auto &names = cls.Unwrap()->names;
-	for (const auto &n : names)
-		if (n == name)
-			return; // déjà présente
-	names.push_back(std::move(name));
-	if (!world.HasComponent<UiStyleDirty>(e))
-		world.AddComponent(e, UiStyleDirty{});
-	MarkSubtreeDirty(world, e);
-}
+void AddClass(ecs::ArchetypeRegistry &world, ecs::Entity e, String name);
 
 /// Retire une classe de l'entité.
-inline void RemoveClass(ecs::ArchetypeRegistry &world, ecs::Entity e, const String &name) {
-	auto cls = world.GetComponent<UiClassList>(e);
-	if (cls.IsNone())
-		return;
-	auto &names = cls.Unwrap()->names;
-	auto it = std::find_if(names.begin(), names.end(), [&](const String &s) { return s == name; });
-	if (it != names.end()) {
-		names.erase(it);
-		if (names.empty())
-			world.RemoveComponent<UiClassList>(e);
-		if (!world.HasComponent<UiStyleDirty>(e))
-			world.AddComponent(e, UiStyleDirty{});
-		MarkSubtreeDirty(world, e);
-	}
-}
+void RemoveClass(ecs::ArchetypeRegistry &world, ecs::Entity e, const String &name);
 
 /// Bascule une classe (ajoute si absente, retire si présente).
 /// Retourne true si la classe est présente après le toggle.
-inline bool ToggleClass(ecs::ArchetypeRegistry &world, ecs::Entity e, String name) {
-	bool present = HasClass(world, e, name);
-	if (present)
-		RemoveClass(world, e, name);
-	else
-		AddClass(world, e, std::move(name));
-	return !present;
-}
+bool ToggleClass(ecs::ArchetypeRegistry &world, ecs::Entity e, String name);
 
 /// Vrai si l'entité porte cette classe.
-[[nodiscard]] inline bool HasClass(ecs::ArchetypeRegistry &world, ecs::Entity e, const String &name) {
-	auto cls = world.GetComponent<UiClassList>(e);
-	if (cls.IsNone())
-		return false;
-	for (const auto &n : cls.Unwrap()->names)
-		if (n == name)
-			return true;
-	return false;
-}
+[[nodiscard]] bool HasClass(ecs::ArchetypeRegistry &world, ecs::Entity e, const String &name);
 
 /// Remplace toute la liste de classes.
-inline void SetClasses(ecs::ArchetypeRegistry &world, ecs::Entity e, std::vector<String> names) {
-	if (names.empty()) {
-		world.RemoveComponent<UiClassList>(e);
-	} else {
-		world.RemoveComponent<UiClassList>(e);
-		world.AddComponent(e, UiClassList{std::move(names)});
-	}
-	if (!world.HasComponent<UiStyleDirty>(e))
-		world.AddComponent(e, UiStyleDirty{});
-	MarkSubtreeDirty(world, e);
-}
+void SetClasses(ecs::ArchetypeRegistry &world, ecs::Entity e, std::vector<String> names);
 
 /// Supprime le style inline d'une entité (revenir aux classes/héritage/défaut).
-inline void RemoveInlineStyle(ecs::ArchetypeRegistry &world, ecs::Entity e) {
-	if (world.HasComponent<UiStyle>(e)) {
-		world.RemoveComponent<UiStyle>(e);
-		if (!world.HasComponent<UiStyleDirty>(e))
-			world.AddComponent(e, UiStyleDirty{});
-		MarkSubtreeDirty(world, e);
-	}
-}
+void RemoveInlineStyle(ecs::ArchetypeRegistry &world, ecs::Entity e);
 
 /// Marque une entité et tout son sous-arbre comme dirty.
-inline void MarkSubtreeDirty(ecs::ArchetypeRegistry &world, ecs::Entity e) {
-	if (auto children = world.GetComponent<UiChildren>(e); children.IsSome()) {
-		for (ecs::Entity c : children.Unwrap()->list) {
-			if (!world.HasComponent<UiStyleDirty>(c)) {
-				world.AddComponent(c, UiStyleDirty{});
-				MarkSubtreeDirty(world, c);
-			}
-		}
-	}
-}
+void MarkSubtreeDirty(ecs::ArchetypeRegistry &world, ecs::Entity e);
 
 /// Marque une seule entité comme dirty (sans le sous-arbre ;
 /// utile si seule la valeur locale change et l'héritage n'est pas impacté).
-inline void MarkStyleDirty(ecs::ArchetypeRegistry &world, ecs::Entity e) {
-	if (!world.HasComponent<UiStyleDirty>(e))
-		world.AddComponent(e, UiStyleDirty{});
-}
+void MarkStyleDirty(ecs::ArchetypeRegistry &world, ecs::Entity e);
 
 // ============================================================================
 // Helpers pour le LayoutSystem — taille de police effective
@@ -906,29 +557,15 @@ inline void MarkStyleDirty(ecs::ArchetypeRegistry &world, ecs::Entity e) {
 
 /// Renvoie la taille de police effective d'un widget : UiComputedStyle
 /// (résolu depuis "root"/classes/héritage/style inline) > themeDefault.
-[[nodiscard]] inline float GetEffectiveFontSize(ecs::ArchetypeRegistry &world, ecs::Entity e, float themeDefault = 14.f) {
-	return GetResolved(world, e).FontSize(themeDefault);
-}
+[[nodiscard]] float GetEffectiveFontSize(ecs::ArchetypeRegistry &world, ecs::Entity e, float themeDefault = 14.f);
 
 /// Renvoie le padding effectif : UiComputedStyle > UiFlow.padding > fallback.
-[[nodiscard]] inline math::Sides GetEffectivePadding(ecs::ArchetypeRegistry &world, ecs::Entity e, math::Sides fallback = math::Sides{0.f}) {
-	math::Sides flowPad = fallback;
-	if (auto f = world.GetComponent<UiFlow>(e); f.IsSome())
-		flowPad = f.Unwrap()->padding;
-	return GetResolved(world, e).Padding(flowPad);
-}
+[[nodiscard]] math::Sides GetEffectivePadding(ecs::ArchetypeRegistry &world, ecs::Entity e, math::Sides fallback = math::Sides{0.f});
 
 /// Renvoie le gap effectif : UiComputedStyle > UiFlow.gap > fallback.
-[[nodiscard]] inline float GetEffectiveGap(ecs::ArchetypeRegistry &world, ecs::Entity e, float fallback = 6.f) {
-	float flowGap = fallback;
-	if (auto f = world.GetComponent<UiFlow>(e); f.IsSome())
-		flowGap = f.Unwrap()->gap;
-	return GetResolved(world, e).Gap(flowGap);
-}
+[[nodiscard]] float GetEffectiveGap(ecs::ArchetypeRegistry &world, ecs::Entity e, float fallback = 6.f);
 
 /// Renvoie l'opacité effective : UiComputedStyle > 1.f.
-[[nodiscard]] inline float GetEffectiveOpacity(ecs::ArchetypeRegistry &world, ecs::Entity e) {
-	return GetResolved(world, e).Opacity(1.f);
-}
+[[nodiscard]] float GetEffectiveOpacity(ecs::ArchetypeRegistry &world, ecs::Entity e);
 
 } // namespace ui

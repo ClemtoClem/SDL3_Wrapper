@@ -23,16 +23,7 @@ namespace power {
 
 // Ne jamais prendre ces valeurs pour une vérité absolue : ce sont des
 // estimations remontées par le matériel (cf. doc SDL_GetPowerInfo).
-[[nodiscard]] inline PowerStatus Info() noexcept {
-    int seconds = -1, percent = -1;
-    PowerState st = PowerState(SDL_GetPowerInfo(&seconds, &percent));
-
-    PowerStatus out;
-    out.state = st;
-    out.secondsLeft = seconds >= 0 ? Some(seconds) : Option<int>(NONE);
-    out.percent = percent >= 0 ? Some(percent) : Option<int>(NONE);
-    return out;
-}
+[[nodiscard]] PowerStatus Info() noexcept;
 
 } // namespace power
 

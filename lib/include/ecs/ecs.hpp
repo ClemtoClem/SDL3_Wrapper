@@ -228,43 +228,11 @@ private:
 	uint32_t m_aliveCount = 0;
 
 public:
-	Entity Allocate() {
-		if (m_freeHead != static_cast<uint32_t>(-1)) {
-			uint32_t idx = m_freeHead;
-			AllocEntry &e = m_entries[idx];
-			m_freeHead = e.nextFree;
-			e.isAlive = true;
-			++e.generation; // la génération est incrémentée lors de la réutilisation
-			++m_aliveCount;
-			return {idx, e.generation};
-		}
+	Entity Allocate();
 
-		uint32_t idx = static_cast<uint32_t>(m_entries.size());
-		m_entries.push_back({0, static_cast<uint32_t>(~0), true});
-		++m_aliveCount;
-		return {idx, 0};
-	}
+	bool Free(Entity entity);
 
-	bool Free(Entity entity) {
-		if (entity.id >= m_entries.size())
-			return false;
-		AllocEntry &e = m_entries[entity.id];
-		if (!e.isAlive || e.generation != entity.generation)
-			return false;
-
-		e.isAlive = false;
-		e.nextFree = m_freeHead;
-		m_freeHead = entity.id;
-		--m_aliveCount;
-		return true;
-	}
-
-	bool IsAlive(Entity entity) const noexcept {
-		if (entity.id >= m_entries.size())
-			return false;
-		const AllocEntry &e = m_entries[entity.id];
-		return e.isAlive && e.generation == entity.generation;
-	}
+	bool IsAlive(Entity entity) const noexcept;
 
 	uint32_t AliveCount() const noexcept { return m_aliveCount; }
 };
@@ -328,26 +296,12 @@ public:
 
 	bool Contains(std::type_index tid) const { return std::find(types.begin(), types.end(), tid) != types.end(); }
 
-	size_t PushEntity(Entity e) {
-		size_t row = entities.size();
-		entities.push_back(e);
-		return row;
-	}
+	size_t PushEntity(Entity e);
 
 	// Retire l'entité à `row` par swap-remove.
 	// Retourne l'entité qui a été déplacée depuis la fin (si elle existe),
 	// c'est-à-dire celle dont EntityLocation doit être mise à jour vers `row`.
-	Option<Entity> SwapRemoveEntity(size_t row) {
-		if (row + 1 < entities.size()) {
-			// BUG CORRIGÉ : on sauvegarde l'entité déplacée AVANT l'écrasement
-			Entity moved = entities.back();
-			entities[row] = std::move(entities.back());
-			entities.pop_back();
-			return Some(std::move(moved));
-		}
-		entities.pop_back();
-		return NONE;
-	}
+	Option<Entity> SwapRemoveEntity(size_t row);
 
 	// Migre tous les composants communs avec `target` de la ligne `row`.
 	void MigrateRowTo(size_t row, Archetype &target) {
@@ -362,10 +316,7 @@ public:
 		}
 	}
 
-	void DropRow(size_t row) {
-		for (auto &[_, vec] : components)
-			vec->SwapRemoveDrop(row);
-	}
+	void DropRow(size_t row);
 };
 
 // ---------------------------------------------------------------------------
@@ -485,51 +436,15 @@ class ArchetypeRegistry {
 	template <typename T> static std::unique_ptr<IAnyVec> CreateAnyVec() { return std::make_unique<AnyVecImpl<T>>(); }
 
 	// Retourne ou crée un archétype pour la signature triée donnée.
-	size_t GetOrCreateArchetype(std::vector<std::type_index> types) {
-		std::sort(types.begin(), types.end());
-
-		auto it = archetypeIndex.find(types);
-		if (it != archetypeIndex.end())
-			return it->second;
-
-		size_t newId = archetypes.size();
-		auto arch = std::make_unique<Archetype>(newId, types);
-		for (const auto &tid : types) {
-			auto ctor = componentConstructors.find(tid);
-			if (ctor != componentConstructors.end())
-				arch->components[tid] = ctor->second();
-		}
-
-		archetypeIndex[types] = newId;
-		archetypes.push_back(std::move(arch));
-		for (const auto &tid : types)
-			typeToArchetypes[tid].push_back(newId);
-		return newId;
-	}
+	size_t GetOrCreateArchetype(std::vector<std::type_index> types);
 
 	// Déplace une entité de old_arch_id vers new_arch_id (composants communs migrés).
-	void MigrateEntity(Entity entity, EntityLocation loc, size_t oldArchId, size_t newArchId) {
-		Archetype &oldArch = *archetypes[oldArchId];
-		Archetype &newArch = *archetypes[newArchId];
-
-		size_t row = loc.archetypeRow;
-		size_t newRow = newArch.PushEntity(entity);
-
-		oldArch.MigrateRowTo(row, newArch);
-		auto moved = oldArch.SwapRemoveEntity(row);
-
-		entityLocations[entity] = {newArchId, newRow};
-
-		if (moved.IsSome())
-			entityLocations[moved.Value()] = {oldArchId, row};
-	}
+	void MigrateEntity(Entity entity, EntityLocation loc, size_t oldArchId, size_t newArchId);
 
 public:
 	Resources resources;
 
-	ArchetypeRegistry() {
-		GetOrCreateArchetype({}); // archétype racine (entité sans composant)
-	}
+	ArchetypeRegistry();
 
 	/// Nombre d'archétypes distincts actuellement enregistrés — diagnostic/
 	/// profiling (cf. Query<>() : son coût par appel est O(archétypes), pas
@@ -543,19 +458,7 @@ public:
 
 	// --- Entités ---
 
-	Entity Spawn() {
-		Entity entity = allocator.Allocate();
-
-		// Remplace .at({}) par une recherche sécurisée sans exception
-		auto it = archetypeIndex.find({});
-		if (it == archetypeIndex.end())
-			std::abort();
-		size_t emptyId = it->second;
-
-		size_t row = archetypes[emptyId]->PushEntity(entity);
-		entityLocations[entity] = {emptyId, row};
-		return entity;
-	}
+	Entity Spawn();
 
 	// Crée une entité avec un bundle de composants en une seule migration.
 	template <typename... Ts> Entity SpawnBundle(Ts &&...comps) {
@@ -576,27 +479,7 @@ public:
 		return entity;
 	}
 
-	bool Despawn(Entity entity) {
-		if (!allocator.IsAlive(entity))
-			return false;
-
-		auto it = entityLocations.find(entity);
-		if (it == entityLocations.end())
-			return false;
-
-		EntityLocation loc = it->second;
-		Archetype &arch = *archetypes[loc.archetypeId];
-
-		arch.DropRow(loc.archetypeRow);
-		auto moved = arch.SwapRemoveEntity(loc.archetypeRow);
-
-		if (moved.IsSome())
-			entityLocations[moved.Value()] = {loc.archetypeId, loc.archetypeRow};
-
-		entityLocations.erase(it);
-		allocator.Free(entity);
-		return true;
-	}
+	bool Despawn(Entity entity);
 
 	bool IsAlive(Entity entity) const { return allocator.IsAlive(entity); }
 
@@ -911,13 +794,7 @@ public:
 	}
 
 	// Détruit toutes les entités vivantes (les ressources sont conservées).
-	void Clear() {
-		std::vector<Entity> all;
-		for (const auto &archPtr : archetypes)
-			all.insert(all.end(), archPtr->entities.begin(), archPtr->entities.end());
-		for (Entity e : all)
-			Despawn(e);
-	}
+	void Clear();
 };
 
 // ---------------------------------------------------------------------------
@@ -941,9 +818,7 @@ public:
 		m_commands.push_back([e](ArchetypeRegistry &reg) { reg.RemoveComponent<T>(e); });
 	}
 
-	void Despawn(Entity e) {
-		m_commands.push_back([e](ArchetypeRegistry &reg) { reg.Despawn(e); });
-	}
+	void Despawn(Entity e);
 
 	/// Enregistre une opération arbitraire.
 	void Push(std::function<void(ArchetypeRegistry &)> fn) { m_commands.push_back(std::move(fn)); }
@@ -952,11 +827,7 @@ public:
 	[[nodiscard]] size_t GetSize() const noexcept { return m_commands.size(); }
 
 	/// Applique toutes les opérations dans l'ordre d'enregistrement, puis vide le tampon.
-	void Flush(ArchetypeRegistry &registry) {
-		for (auto &cmd : m_commands)
-			cmd(registry);
-		m_commands.clear();
-	}
+	void Flush(ArchetypeRegistry &registry);
 };
 
 } // namespace ecs

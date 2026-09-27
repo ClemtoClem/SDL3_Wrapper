@@ -1,0 +1,26 @@
+# ── Hiérarchie : on n'anime que quelques articulations, tout le reste suit ───
+
+let temps = 0
+
+fn afficher_titre(titre, texte) {
+    let bandeau = ui.column({anchor: "top_left", offset: [16, 14], gap: 4, pad: 14, bg: "#10141cd0", radius: 8, w: 400})
+    ui.label(titre, {parent: bandeau, font_size: 20, bold: true, color: "#ffd873"})
+    ui.label(texte, {parent: bandeau, font_size: 13, color: "#c8d0dc"})
+    ui.button("Retour à l'accueil", fn(b) { game.load_scene("Accueil") }, {anchor: "top_right", offset: [-14, 14], w: 180})
+}
+
+fn on_start() {
+    afficher_titre("Hiérarchie", "Tourner « Robot » emporte tout ; plier une épaule emporte l'avant-bras et la main.")
+}
+
+fn on_update(dt) {
+    temps += dt
+    object.set_rotation("Robot", 0, math.sin(temps * 0.4) * 40, 0)
+    object.set_rotation("Épaule gauche", math.sin(temps * 2.2) * 50, 0, 0)
+    object.set_rotation("Épaule droite", -math.sin(temps * 2.2) * 50, 0, 0)
+    object.set_rotation("Coude gauche", -30 - math.sin(temps * 3) * 25, 0, 0)
+    object.set_rotation("Hanche gauche", -math.sin(temps * 2.2) * 25, 0, 0)
+    object.set_rotation("Hanche droite", math.sin(temps * 2.2) * 25, 0, 0)
+    object.set_rotation("Tête", 0, math.sin(temps * 1.3) * 30, 0)
+    object.set_rotation("Antenne", 0, temps * 180, 0)
+}

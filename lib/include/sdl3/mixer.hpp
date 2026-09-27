@@ -24,10 +24,7 @@ class MixerContext {
 
 public:
     MixerContext() = default;
-    ~MixerContext() {
-        if (owns)
-            MIX_Quit();
-    }
+    ~MixerContext();
 
     MixerContext(const MixerContext &) = delete;
     MixerContext &operator=(const MixerContext &) = delete;
@@ -44,13 +41,7 @@ public:
 
     [[nodiscard]] explicit operator bool() const noexcept { return owns; }
 
-    [[nodiscard]] static Result<MixerContext, Error> Create() {
-        MixerContext ctx;
-        ctx.owns = MIX_Init();
-        if (!ctx)
-            return Err(GetError());
-        return Ok(std::move(ctx));
-    }
+    [[nodiscard]] static Result<MixerContext, Error> Create();
 };
 
 // ============================================================================
@@ -66,23 +57,14 @@ public:
     using Wrapper::Wrapper;
 
     /// Open a decoder for a file on disk. `props` may be SDL_PropertiesID{0} for defaults.
-    [[nodiscard]] static Result<AudioDecoder, Error> Create(const String &path, SDL_PropertiesID props = 0) {
-        auto *d = MIX_CreateAudioDecoder(path.c_str(), props);
-        if (!d)
-            return Err(GetError());
-        return Ok(AudioDecoder(d));
-    }
+    [[nodiscard]] static Result<AudioDecoder, Error> Create(const String &path, SDL_PropertiesID props = 0);
 
     /// Query the format the decoder will produce (may not match the source file's format).
-    [[nodiscard]] bool GetFormat(SDL_AudioSpec &outSpec) const {
-        return m_handle && MIX_GetAudioDecoderFormat(m_handle, &outSpec);
-    }
+    [[nodiscard]] bool GetFormat(SDL_AudioSpec &outSpec) const;
 
     /// Decode up to `buflen` bytes into `buffer`, converted to `spec` if given (nullptr = decoder's native
     /// format). Returns the number of bytes actually written, 0 at end-of-stream, -1 on error.
-    [[nodiscard]] int Decode(void *buffer, int buflen, const SDL_AudioSpec *spec = nullptr) {
-        return m_handle ? MIX_DecodeAudio(m_handle, buffer, buflen, spec) : -1;
-    }
+    [[nodiscard]] int Decode(void *buffer, int buflen, const SDL_AudioSpec *spec = nullptr);
 };
 
 // ============================================================================
@@ -103,12 +85,7 @@ public:
     bool SetLoops(int loops) { return m_handle && MIX_SetTrackLoops(m_handle, loops); }
 
     /// Play the track (loops = 0 → play once, -1 → loop forever).
-    bool Play(int loops = 0) {
-        if (!m_handle)
-            return false;
-        MIX_SetTrackLoops(m_handle, loops);
-        return MIX_PlayTrack(m_handle, 0);
-    }
+    bool Play(int loops = 0);
 
     /// Starts playback for a track fed from a live/incremental SDL_AudioStream
     /// (set via setAudioStream()) — e.g. synthesized audio pushed in as it's
@@ -119,15 +96,7 @@ public:
     /// this sets that property to false so the mixer just contributes silence
     /// until more data arrives instead of halting for good. Loop count doesn't
     /// apply to AudioStream inputs, so there's no `loops` parameter here.
-    bool PlayStreaming() {
-        if (!m_handle)
-            return false;
-        SDL_PropertiesID props = SDL_CreateProperties();
-        SDL_SetBooleanProperty(props, MIX_PROP_PLAY_HALT_WHEN_EXHAUSTED_BOOLEAN, false);
-        bool ok = MIX_PlayTrack(m_handle, props);
-        SDL_DestroyProperties(props);
-        return ok;
-    }
+    bool PlayStreaming();
 
     /// Stop the track, optionally with a fade-out over `fadeFrames` sample frames.
     bool Stop(Sint64 fadeFrames = 0) { return m_handle && MIX_StopTrack(m_handle, fadeFrames); }
@@ -148,10 +117,7 @@ public:
     [[nodiscard]] Sint64 GetPosition() const { return m_handle ? MIX_GetTrackPlaybackPosition(m_handle) : 0; }
 
     bool Tag(const String &t) { return m_handle && MIX_TagTrack(m_handle, t.c_str()); }
-    void Untag(const String &t) {
-        if (m_handle)
-            MIX_UntagTrack(m_handle, t.c_str());
-    }
+    void Untag(const String &t);
 };
 
 // ============================================================================
@@ -178,40 +144,18 @@ public:
 
     /// Create a mixer that feeds the given audio device (most common usage).
     [[nodiscard]] static Result<Mixer, StringView>
-    CreateDevice(AudioDeviceID devid = SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, const AudioSpec &spec = AudioSpec{}) {
-        SDL_AudioSpec sdlSpec = spec.ToSDL();
-        auto *m = MIX_CreateMixerDevice(devid, &sdlSpec);
-        if (!m)
-            return Err(GetError());
-        return Ok(Mixer(m));
-    }
+    CreateDevice(AudioDeviceID devid = SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, const AudioSpec &spec = AudioSpec{});
 
     /// Create an offline mixer that renders to a memory buffer via generate().
-    [[nodiscard]] static Result<Mixer, Error> Create(const AudioSpec &spec) {
-        SDL_AudioSpec sdlSpec = spec.ToSDL();
-        auto *m = MIX_CreateMixer(&sdlSpec);
-        if (!m)
-            return Err(GetError());
-        return Ok(Mixer(m));
-    }
+    [[nodiscard]] static Result<Mixer, Error> Create(const AudioSpec &spec);
 
     // ── Tracks ───────────────────────────────────────────────────────────────
 
-    [[nodiscard]] Result<MixTrack, StringView> CreateTrack() {
-        auto *t = MIX_CreateTrack(m_handle);
-        if (!t)
-            return Err(GetError());
-        return Ok(MixTrack(t));
-    }
+    [[nodiscard]] Result<MixTrack, StringView> CreateTrack();
 
     // ── Audio loading ────────────────────────────────────────────────────────
 
-    [[nodiscard]] Result<MixAudio, StringView> LoadAudio(const String &path, bool predecode = false) {
-        auto *a = MIX_LoadAudio(m_handle, path.c_str(), predecode);
-        if (!a)
-            return Err(GetError());
-        return Ok(MixAudio(a));
-    }
+    [[nodiscard]] Result<MixAudio, StringView> LoadAudio(const String &path, bool predecode = false);
 
     /// Fire-and-forget playback of an audio object (no track management needed).
     bool PlayAudio(MixAudio &audio) { return m_handle && MIX_PlayAudio(m_handle, audio.Get()); }
@@ -233,12 +177,7 @@ public:
 // MixAudio deferred impl (needs Mixer to be complete)
 // ============================================================================
 
-inline Result<MixAudio, StringView> MixAudio::Load(Mixer &mixer, const String &path, bool predecode) {
-    auto *a = MIX_LoadAudio(mixer.Get(), path.c_str(), predecode);
-    if (!a)
-        return Err(GetError());
-    return Ok(MixAudio(a));
-}
+
 
 // ============================================================================
 // MixTrack deferred impl (needs MixAudio to be complete)

@@ -13,11 +13,7 @@ class Points : public Shape {
 public:
 	Points(Mesh geometry, Material material) : Shape(std::move(geometry), std::move(material)) {}
 
-	void OnDraw(Canvas &canvas) override {
-		const auto &materials = Materials();
-		canvas.DrawMesh(Geometry(), WorldMatrix(), materials.empty() ? Material::Default() : materials[0],
-						PrimitiveTopology::POINTS);
-	}
+	void OnDraw(Canvas &canvas) override;
 };
 
 /// Segments de droite indépendants (three.js LineSegments, pas LineStrip —
@@ -27,11 +23,7 @@ class LineSegments : public Shape {
 public:
 	LineSegments(Mesh geometry, Material material) : Shape(std::move(geometry), std::move(material)) {}
 
-	void OnDraw(Canvas &canvas) override {
-		const auto &materials = Materials();
-		canvas.DrawMesh(Geometry(), WorldMatrix(), materials.empty() ? Material::Default() : materials[0],
-						PrimitiveTopology::LINES);
-	}
+	void OnDraw(Canvas &canvas) override;
 };
 
 } // namespace render3d

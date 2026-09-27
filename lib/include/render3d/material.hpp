@@ -40,45 +40,17 @@ struct Material {
 
 	[[nodiscard]] static Material Default() noexcept { return {}; }
 
-	[[nodiscard]] static Material Plastic(sdl3::Color color) noexcept {
-		Material m;
-		m.baseColor = color;
-		m.roughness = 0.4f;
-		return m;
-	}
+	[[nodiscard]] static Material Plastic(sdl3::Color color) noexcept;
 
-	[[nodiscard]] static Material Metal(sdl3::Color color) noexcept {
-		Material m;
-		m.baseColor = color;
-		m.roughness = 0.2f;
-		m.metallic = 1.f;
-		return m;
-	}
+	[[nodiscard]] static Material Metal(sdl3::Color color) noexcept;
 
-	[[nodiscard]] static Material Wood(sdl3::Color color = sdl3::Color(133, 94, 66)) noexcept {
-		Material m;
-		m.baseColor = color;
-		m.roughness = 0.8f;
-		return m;
-	}
+	[[nodiscard]] static Material Wood(sdl3::Color color = sdl3::Color(133, 94, 66)) noexcept;
 
-	[[nodiscard]] static Material Unlit(sdl3::Color color) noexcept {
-		Material m;
-		m.baseColor = color;
-		m.lit = false;
-		return m;
-	}
+	[[nodiscard]] static Material Unlit(sdl3::Color color) noexcept;
 
 	/// Matériau PBR metallic-roughness (Cook-Torrance) — voir la note `pbr`
 	/// ci-dessus : compilé via ShaderBuilder, pas de fichier précompilé.
-	[[nodiscard]] static Material Pbr(sdl3::Color color, float metallic = 0.f, float roughness = 0.5f) noexcept {
-		Material m;
-		m.baseColor = color;
-		m.metallic = metallic;
-		m.roughness = roughness;
-		m.pbr = true;
-		return m;
-	}
+	[[nodiscard]] static Material Pbr(sdl3::Color color, float metallic = 0.f, float roughness = 0.5f) noexcept;
 };
 
 // Combinaison distincte de shader + états de pipeline nécessitant une

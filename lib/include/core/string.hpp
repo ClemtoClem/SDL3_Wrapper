@@ -76,44 +76,14 @@ namespace detail {
 
 /// Convertit une magnitude non-signée en base donnée (2…36) dans `out` (non
 /// null-terminé). Retourne la longueur écrite.
-inline size_t UintToBase(unsigned long long uval, int base, char *out) {
-	if (uval == 0) {
-		out[0] = '0';
-		return 1;
-	}
-	char tmp[70];
-	int n = 0;
-	while (uval > 0) {
-		int d = static_cast<int>(uval % static_cast<unsigned long long>(base));
-		tmp[n++] = (d < 10) ? static_cast<char>('0' + d) : static_cast<char>('a' + d - 10);
-		uval /= static_cast<unsigned long long>(base);
-	}
-	size_t len = 0;
-	while (n > 0)
-		out[len++] = tmp[--n];
-	return len;
-}
+size_t UintToBase(unsigned long long uval, int base, char *out);
 
 /// Convertit un entier signé en base donnée (2…36) dans `out` (au moins 72
 /// octets). Retourne la longueur écrite (0 si base invalide).
-inline size_t IntToBase(long long value, int base, char *out) {
-	if (base < 2 || base > 36)
-		return 0;
-	if (value < 0) {
-		out[0] = '-';
-		// Évite l'UB de -LLONG_MIN : (value+1) est représentable, puis on
-		// ré-ajoute 1 après négation/conversion en non-signé.
-		unsigned long long uval = static_cast<unsigned long long>(-(value + 1)) + 1;
-		return 1 + UintToBase(uval, base, out + 1);
-	}
-	return UintToBase(static_cast<unsigned long long>(value), base, out);
-}
+size_t IntToBase(long long value, int base, char *out);
 
 /// Convertit un flottant en chaîne avec `decimals` décimales dans `out`.
-inline size_t FloatToStr(double value, int decimals, char *out, size_t outCap) {
-	int n = std::snprintf(out, outCap, "%.*f", decimals, value);
-	return n > 0 ? static_cast<size_t>(n) : 0;
-}
+size_t FloatToStr(double value, int decimals, char *out, size_t outCap);
 
 } // namespace detail
 
@@ -134,12 +104,7 @@ public:
 	String(const char8_t *cstr) : String(cstr ? reinterpret_cast<const char *>(cstr) : "") {}
 	String(StringView sv) { Assign(sv.GetData(), sv.GetSize()); }
 	String(char c) { Assign(&c, 1); }
-	String(size_t count, char c) {
-		EnsureCapacity(count);
-		if (count)
-			std::memset(m_data, static_cast<unsigned char>(c), count);
-		SetLength(count);
-	}
+	String(size_t count, char c);
 
 	/// Interop : accepte un std::string externe (ex. valeurs renvoyées par
 	/// des API std:: tierces comme unicode::FromUtf16, ou par du code
@@ -192,31 +157,15 @@ public:
 	// =========================================================================
 
 	/// Construit depuis un entier, dans la base donnée (2-36).
-	static String From(long long value, int base = 10) {
-		if (base < 2 || base > 36)
-			return {};
-		char buf[72];
-		size_t n = detail::IntToBase(value, base, buf);
-		return String(buf, n);
-	}
+	static String From(long long value, int base = 10);
 	static String From(int value, int base = 10) { return From(static_cast<long long>(value), base); }
 	static String From(long value, int base = 10) { return From(static_cast<long long>(value), base); }
-	static String From(unsigned long long v, int base = 10) {
-		if (base < 2 || base > 36)
-			return {};
-		char buf[72];
-		size_t n = detail::UintToBase(v, base, buf);
-		return String(buf, n);
-	}
+	static String From(unsigned long long v, int base = 10);
 	static String From(unsigned int v, int base = 10) { return From(static_cast<unsigned long long>(v), base); }
 	static String From(unsigned long v, int base = 10) { return From(static_cast<unsigned long long>(v), base); }
 
 	/// Construit depuis un flottant avec un nombre de décimales.
-	static String From(double value, int decimals = 2) {
-		char buf[64];
-		size_t n = detail::FloatToStr(value, decimals, buf, sizeof(buf));
-		return String(buf, n);
-	}
+	static String From(double value, int decimals = 2);
 	static String From(float value, int decimals = 2) { return From(static_cast<double>(value), decimals); }
 
 	/// Construit depuis un booléen.
@@ -277,7 +226,10 @@ public:
 	[[nodiscard]] const char *CStr() const noexcept { return m_data ? m_data : ""; }
 	/// Alias std::string-compat de CStr (cf. Begin/begin, End/end, PushBack/push_back).
 	[[nodiscard]] const char *c_str() const noexcept { return CStr(); }
-	[[nodiscard]] StringView View() const noexcept { return StringView(CStr(), m_size); }
+	/// Sans tampon, la longueur est un 0 LITTÉRAL (et non m_size) : le
+	/// compilateur voit ainsi qu'aucun octet n'est lu de "" — sinon, en -O3,
+	/// toute copie issue d'une chaîne vide déclenche -Wstringop-overread.
+	[[nodiscard]] StringView View() const noexcept { return m_data ? StringView(m_data, m_size) : StringView("", 0); }
 
 	[[nodiscard]] size_t GetSize() const noexcept { return m_size; }
 	/// Alias std::string-compat de Size.
@@ -301,12 +253,8 @@ public:
 
 	[[nodiscard]] std::reverse_iterator<char *> Rbegin() { return std::reverse_iterator<char *>(End()); }
 	[[nodiscard]] std::reverse_iterator<char *> Rend() { return std::reverse_iterator<char *>(Begin()); }
-	[[nodiscard]] std::reverse_iterator<const char *> Rbegin() const {
-		return std::reverse_iterator<const char *>(End());
-	}
-	[[nodiscard]] std::reverse_iterator<const char *> Rend() const {
-		return std::reverse_iterator<const char *>(Begin());
-	}
+	[[nodiscard]] std::reverse_iterator<const char *> Rbegin() const;
+	[[nodiscard]] std::reverse_iterator<const char *> Rend() const;
 
 	/// Alias std::string-compat de Begin/End, requis par le for-range C++
 	/// (`for (auto &c : s)`), qui ne résout `begin`/`end` que par ce nom exact.
@@ -323,10 +271,7 @@ public:
 	char &operator[](size_t i) noexcept { return m_data[i]; }
 
 	char CharAt(size_t i) const noexcept { return (i < m_size) ? m_data[i] : '\0'; }
-	void SetCharAt(size_t i, char c) {
-		if (i < m_size)
-			m_data[i] = c;
-	}
+	void SetCharAt(size_t i, char c);
 
 	[[nodiscard]] char Front() const noexcept { return m_data[0]; }
 	[[nodiscard]] char Back() const noexcept { return m_data[m_size - 1]; }
@@ -379,18 +324,12 @@ public:
 	[[nodiscard]] size_t Rfind(char c, size_t from = NPOS) const { return View().Rfind(c, from); }
 
 	// Compat Arduino
-	[[nodiscard]] int IndexOf(char c, size_t from = 0) const {
-		size_t p = View().Find(c, from);
-		return (p == NPOS) ? -1 : static_cast<int>(p);
-	}
+	[[nodiscard]] int IndexOf(char c, size_t from = 0) const;
 	[[nodiscard]] int IndexOf(const String &s, size_t from = 0) const {
 		size_t p = View().Find(s.View(), from);
 		return (p == NPOS) ? -1 : static_cast<int>(p);
 	}
-	[[nodiscard]] int LastIndexOf(char c, size_t from = NPOS) const {
-		size_t p = View().Rfind(c, from);
-		return (p == NPOS) ? -1 : static_cast<int>(p);
-	}
+	[[nodiscard]] int LastIndexOf(char c, size_t from = NPOS) const;
 	[[nodiscard]] int LastIndexOf(const String &s, size_t from = NPOS) const {
 		size_t p = View().Rfind(s.View(), from);
 		return (p == NPOS) ? -1 : static_cast<int>(p);
@@ -413,24 +352,8 @@ public:
 	[[nodiscard]] bool EndsWith(const String &suffix) const { return View().EndsWith(suffix.View()); }
 
 	/// Nombre d'occurrences non-chevauchantes de `needle`.
-	[[nodiscard]] size_t Count(StringView needle) const {
-		if (needle.IsEmpty())
-			return 0;
-		size_t n = 0, pos = 0;
-		auto v = View();
-		while ((pos = v.Find(needle, pos)) != NPOS) {
-			++n;
-			pos += needle.GetSize();
-		}
-		return n;
-	}
-	[[nodiscard]] size_t Count(char c) const {
-		size_t n = 0;
-		for (size_t i = 0; i < m_size; ++i)
-			if (m_data[i] == c)
-				++n;
-		return n;
-	}
+	[[nodiscard]] size_t Count(StringView needle) const;
+	[[nodiscard]] size_t Count(char c) const;
 
 	// =========================================================================
 	// Extraction (octets)
@@ -438,50 +361,20 @@ public:
 
 	[[nodiscard]] String Substr(size_t pos, size_t len = NPOS) const { return String(View().Substr(pos, len)); }
 	// Compat Arduino
-	[[nodiscard]] String Substring(size_t beginIdx, size_t endIdx = NPOS) const {
-		if (endIdx == NPOS)
-			endIdx = m_size;
-		if (beginIdx > endIdx)
-			std::swap(beginIdx, endIdx);
-		return Substr(beginIdx, endIdx - beginIdx);
-	}
+	[[nodiscard]] String Substring(size_t beginIdx, size_t endIdx = NPOS) const;
 
-	[[nodiscard]] Option<String> GetBetween(StringView open, StringView close) const {
-		auto v = View();
-		size_t s = v.Find(open);
-		if (s == NPOS)
-			return NONE;
-		s += open.GetSize();
-		size_t e = v.Find(close, s);
-		if (e == NPOS)
-			return NONE;
-		return Some(Substr(s, e - s));
-	}
+	[[nodiscard]] Option<String> GetBetween(StringView open, StringView close) const;
 
 	// =========================================================================
 	// Concaténation & append
 	// =========================================================================
 
-	String &Append(const char *data, size_t len) {
-		if (!data || !len)
-			return *this;
-		EnsureCapacity(m_size + len);
-		std::memcpy(m_data + m_size, data, len);
-		SetLength(m_size + len);
-		return *this;
-	}
+	String &Append(const char *data, size_t len);
 	String &Append(const String &s) { return Append(s.m_data, s.m_size); }
 	String &Append(const char *s) { return s ? Append(s, std::strlen(s)) : *this; }
 	String &Append(StringView sv) { return Append(sv.GetData(), sv.GetSize()); }
 	String &Append(char c) { return Append(&c, 1); }
-	String &Append(size_t n, char c) {
-		if (!n)
-			return *this;
-		EnsureCapacity(m_size + n);
-		std::memset(m_data + m_size, static_cast<unsigned char>(c), n);
-		SetLength(m_size + n);
-		return *this;
-	}
+	String &Append(size_t n, char c);
 
 	String &Append(long long v, int base = 10) { return Append(String::From(v, base)); }
 	String &Append(int v, int base = 10) { return Append(String::From(v, base)); }
@@ -507,38 +400,14 @@ public:
 		Append(s);
 		return true;
 	}
-	bool Concat(const char *s) {
-		Append(s);
-		return true;
-	}
-	bool Concat(char c) {
-		Append(c);
-		return true;
-	}
-	bool Concat(int v) {
-		Append(v);
-		return true;
-	}
-	bool Concat(unsigned int v) {
-		Append(v);
-		return true;
-	}
-	bool Concat(long v) {
-		Append(v);
-		return true;
-	}
-	bool Concat(unsigned long v) {
-		Append(v);
-		return true;
-	}
-	bool Concat(float v) {
-		Append(v);
-		return true;
-	}
-	bool Concat(double v) {
-		Append(v);
-		return true;
-	}
+	bool Concat(const char *s);
+	bool Concat(char c);
+	bool Concat(int v);
+	bool Concat(unsigned int v);
+	bool Concat(long v);
+	bool Concat(unsigned long v);
+	bool Concat(float v);
+	bool Concat(double v);
 
 	// operator+= — retourne *this pour chaînage
 	String &operator+=(const String &s) { return Append(s); }
@@ -602,148 +471,46 @@ public:
 	// =========================================================================
 
 	/// Minuscule ASCII (octets < 128).
-	[[nodiscard]] String ToLower() const {
-		String r(*this);
-		for (char &c : r)
-			c = static_cast<char>(std::tolower(static_cast<uint8_t>(c)));
-		return r;
-	}
+	[[nodiscard]] String ToLower() const;
 	/// Majuscule ASCII.
-	[[nodiscard]] String ToUpper() const {
-		String r(*this);
-		for (char &c : r)
-			c = static_cast<char>(std::toupper(static_cast<uint8_t>(c)));
-		return r;
-	}
+	[[nodiscard]] String ToUpper() const;
 	// Compat Arduino (modifient en place)
 	void ToLowerCase() { *this = ToLower(); }
 	void ToUpperCase() { *this = ToUpper(); }
 
 	/// Minuscule Unicode complet (codepoints).
-	[[nodiscard]] String UToLower() const {
-		String result;
-		result.Reserve(m_size);
-		const auto *p = reinterpret_cast<const uint8_t *>(CStr());
-		const auto *end = p + m_size;
-		while (p < end)
-			unicode::EncodeUtf8(unicode::ToLowerCp(unicode::DecodeNext(p, end)), result);
-		return result;
-	}
+	[[nodiscard]] String UToLower() const;
 
 	/// Majuscule Unicode complet.
-	[[nodiscard]] String UToUpper() const {
-		String result;
-		result.Reserve(m_size);
-		const auto *p = reinterpret_cast<const uint8_t *>(CStr());
-		const auto *end = p + m_size;
-		while (p < end)
-			unicode::EncodeUtf8(unicode::ToUpperCp(unicode::DecodeNext(p, end)), result);
-		return result;
-	}
+	[[nodiscard]] String UToUpper() const;
 
 	/// Supprime les espaces en début et fin (ASCII).
-	[[nodiscard]] String Trim() const {
-		auto v = View();
-		size_t b = v.GetSize();
-		while (b > 0 && IsTrimSpace(v[b - 1]))
-			--b;
-		size_t a = 0;
-		while (a < b && IsTrimSpace(v[a]))
-			++a;
-		return String(v.GetData() + a, b - a);
-	}
+	[[nodiscard]] String Trim() const;
 	// Compat Arduino
 	void TrimInplace() { *this = Trim(); }
 
 	/// Supprime uniquement les espaces à gauche.
-	[[nodiscard]] String TrimLeft() const {
-		size_t i = 0;
-		while (i < m_size && IsTrimSpace(m_data[i]))
-			++i;
-		return Substr(i);
-	}
+	[[nodiscard]] String TrimLeft() const;
 
 	/// Supprime uniquement les espaces à droite.
-	[[nodiscard]] String TrimRight() const {
-		size_t i = m_size;
-		while (i > 0 && IsTrimSpace(m_data[i - 1]))
-			--i;
-		return Substr(0, i);
-	}
+	[[nodiscard]] String TrimRight() const;
 
 	/// Supprime les espaces Unicode en début/fin.
-	[[nodiscard]] String UTrim() const {
-		auto cpv = Codepoints();
-		auto it = cpv.Begin(), end = cpv.End();
-		while (it != end && unicode::IsUnicodeSpace(*it))
-			++it;
-		std::vector<CodepointT> cps;
-		while (it != end) {
-			cps.push_back(*it);
-			++it;
-		}
-		while (!cps.empty() && unicode::IsUnicodeSpace(cps.back()))
-			cps.pop_back();
-		String result;
-		for (auto cp : cps)
-			unicode::EncodeUtf8(cp, result);
-		return result;
-	}
+	[[nodiscard]] String UTrim() const;
 
 	/// Remplace toutes les occurrences de `find` par `replacement`.
-	[[nodiscard]] String Replace(StringView find, StringView replacement) const {
-		if (find.IsEmpty())
-			return *this;
-		String result;
-		result.Reserve(m_size);
-		size_t pos = 0, prev = 0;
-		auto v = View();
-		while ((pos = v.Find(find, prev)) != NPOS) {
-			result.Append(m_data + prev, pos - prev);
-			result.Append(replacement.GetData(), replacement.GetSize());
-			prev = pos + find.GetSize();
-		}
-		result.Append(m_data + prev, m_size - prev);
-		return result;
-	}
+	[[nodiscard]] String Replace(StringView find, StringView replacement) const;
 
-	[[nodiscard]] String Replace(char find, char replacement) const {
-		String r(*this);
-		for (char &c : r)
-			if (c == find)
-				c = replacement;
-		return r;
-	}
+	[[nodiscard]] String Replace(char find, char replacement) const;
 
 	// Compat Arduino (modifient en place)
 	void ReplaceInplace(const String &find, const String &rep) { *this = Replace(find.View(), rep.View()); }
-	void ReplaceInplace(char find, char rep) {
-		for (char &c : *this)
-			if (c == find)
-				c = rep;
-	}
+	void ReplaceInplace(char find, char rep);
 
 	/// Supprime `count` octets à partir de `index`.
-	[[nodiscard]] String Remove(size_t index, size_t count = NPOS) const {
-		if (index >= m_size)
-			return *this;
-		if (count > m_size - index)
-			count = m_size - index;
-		String r;
-		r.Reserve(m_size - count);
-		r.Append(m_data, index);
-		r.Append(m_data + index + count, m_size - index - count);
-		return r;
-	}
+	[[nodiscard]] String Remove(size_t index, size_t count = NPOS) const;
 	// Compat Arduino (modifie en place)
-	void RemoveInplace(size_t index, size_t count = NPOS) {
-		if (index >= m_size)
-			return;
-		if (count > m_size - index)
-			count = m_size - index;
-		std::memmove(m_data + index, m_data + index + count, m_size - index - count);
-		SetLength(m_size - count);
-	}
+	void RemoveInplace(size_t index, size_t count = NPOS);
 
 	/// Insère `s` à la position `pos`.
 	[[nodiscard]] String Insert(size_t pos, const String &s) const {
@@ -756,186 +523,59 @@ public:
 		r.Append(m_data + pos, m_size - pos);
 		return r;
 	}
-	[[nodiscard]] String Insert(size_t pos, char c) const {
-		if (pos > m_size)
-			pos = m_size;
-		String r;
-		r.Reserve(m_size + 1);
-		r.Append(m_data, pos);
-		r.Append(c);
-		r.Append(m_data + pos, m_size - pos);
-		return r;
-	}
+	[[nodiscard]] String Insert(size_t pos, char c) const;
 
 	/// Répète la chaîne `n` fois.
-	[[nodiscard]] String Repeat(size_t n) const {
-		String result;
-		result.Reserve(m_size * n);
-		for (size_t i = 0; i < n; ++i)
-			result.Append(m_data, m_size);
-		return result;
-	}
+	[[nodiscard]] String Repeat(size_t n) const;
 
 	/// Inverse la chaîne (octets — n'est pas unicode-safe pour les multi-octets).
-	[[nodiscard]] String ReverseBytes() const {
-		String r(*this);
-		std::reverse(r.Begin(), r.End());
-		return r;
-	}
+	[[nodiscard]] String ReverseBytes() const;
 
 	/// Inverse la séquence de codepoints (unicode-safe).
-	[[nodiscard]] String UReverse() const {
-		auto cps = unicode::ToUtf32(View());
-		std::reverse(cps.begin(), cps.end());
-		return String(unicode::FromUtf32(cps));
-	}
+	[[nodiscard]] String UReverse() const;
 
 	// =========================================================================
 	// Padding
 	// =========================================================================
 
 	/// Complète à gauche jusqu'à `total_width` octets avec le caractère `pad`.
-	[[nodiscard]] String PadLeft(size_t totalWidth, char pad = ' ') const {
-		if (m_size >= totalWidth)
-			return *this;
-		String r;
-		r.Reserve(totalWidth);
-		r.Append(totalWidth - m_size, pad);
-		r.Append(m_data, m_size);
-		return r;
-	}
+	[[nodiscard]] String PadLeft(size_t totalWidth, char pad = ' ') const;
 
 	/// Complète à droite.
-	[[nodiscard]] String PadRight(size_t totalWidth, char pad = ' ') const {
-		if (m_size >= totalWidth)
-			return *this;
-		String r(*this);
-		r.Append(totalWidth - m_size, pad);
-		return r;
-	}
+	[[nodiscard]] String PadRight(size_t totalWidth, char pad = ' ') const;
 
 	/// Centre avec padding des deux côtés.
-	[[nodiscard]] String PadCenter(size_t totalWidth, char pad = ' ') const {
-		if (m_size >= totalWidth)
-			return *this;
-		size_t totalPad = totalWidth - m_size;
-		size_t leftPad = totalPad / 2;
-		size_t rightPad = totalPad - leftPad;
-		String r;
-		r.Reserve(totalWidth);
-		r.Append(leftPad, pad);
-		r.Append(m_data, m_size);
-		r.Append(rightPad, pad);
-		return r;
-	}
+	[[nodiscard]] String PadCenter(size_t totalWidth, char pad = ' ') const;
 
 	/// Tronque à `max_len` octets.
-	[[nodiscard]] String Truncate(size_t maxLen) const {
-		return (m_size <= maxLen) ? *this : String(m_data, maxLen);
-	}
+	[[nodiscard]] String Truncate(size_t maxLen) const;
 
 	// =========================================================================
 	// Split & join
 	// =========================================================================
 
 	/// Divise sur un délimiteur chaîne. `max_splits` = 0 → illimité.
-	[[nodiscard]] std::vector<String> Split(StringView delim, size_t maxSplits = 0) const {
-		std::vector<String> result;
-		if (delim.IsEmpty()) {
-			result.emplace_back(*this);
-			return result;
-		}
-		auto v = View();
-		size_t pos = 0, prev = 0, splits = 0;
-		while ((pos = v.Find(delim, prev)) != NPOS) {
-			result.emplace_back(m_data + prev, pos - prev);
-			prev = pos + delim.GetSize();
-			if (maxSplits > 0 && ++splits >= maxSplits)
-				break;
-		}
-		result.emplace_back(m_data + prev, m_size - prev);
-		return result;
-	}
+	[[nodiscard]] std::vector<String> Split(StringView delim, size_t maxSplits = 0) const;
 
 	/// Divise sur un caractère.
-	[[nodiscard]] std::vector<String> Split(char delim, size_t maxSplits = 0) const {
-		return Split(StringView(&delim, 1), maxSplits);
-	}
+	[[nodiscard]] std::vector<String> Split(char delim, size_t maxSplits = 0) const;
 
 	/// Divise sur n'importe quel caractère de `chars` (style strtok).
-	[[nodiscard]] std::vector<String> SplitAny(StringView chars) const {
-		std::vector<String> result;
-		size_t prev = 0;
-		for (size_t i = 0; i < m_size; ++i) {
-			if (chars.Find(m_data[i]) != StringView::NPOS) {
-				result.emplace_back(m_data + prev, i - prev);
-				prev = i + 1;
-			}
-		}
-		result.emplace_back(m_data + prev, m_size - prev);
-		return result;
-	}
+	[[nodiscard]] std::vector<String> SplitAny(StringView chars) const;
 
 	/// Divise sur les sauts de ligne (\n, \r\n, \r).
-	[[nodiscard]] std::vector<String> Lines() const {
-		std::vector<String> result;
-		size_t prev = 0;
-		for (size_t i = 0; i < m_size;) {
-			if (m_data[i] == '\r') {
-				result.emplace_back(m_data + prev, i - prev);
-				prev = (i + 1 < m_size && m_data[i + 1] == '\n') ? i + 2 : i + 1;
-				i = prev;
-			} else if (m_data[i] == '\n') {
-				result.emplace_back(m_data + prev, i - prev);
-				prev = ++i;
-			} else {
-				++i;
-			}
-		}
-		result.emplace_back(m_data + prev, m_size - prev);
-		return result;
-	}
+	[[nodiscard]] std::vector<String> Lines() const;
 
 	/// Divise en caractères individuels (octets).
-	[[nodiscard]] std::vector<String> Chars() const {
-		std::vector<String> result;
-		result.reserve(m_size);
-		for (size_t i = 0; i < m_size; ++i)
-			result.emplace_back(m_data + i, size_t(1));
-		return result;
-	}
+	[[nodiscard]] std::vector<String> Chars() const;
 
 	/// Divise en codepoints Unicode individuels.
-	[[nodiscard]] std::vector<String> UChars() const {
-		std::vector<String> result;
-		for (auto cp : Codepoints()) {
-			String s;
-			unicode::EncodeUtf8(cp, s);
-			result.emplace_back(std::move(s));
-		}
-		return result;
-	}
+	[[nodiscard]] std::vector<String> UChars() const;
 
 	/// Joint un vecteur de String avec un séparateur.
-	[[nodiscard]] static String Join(const std::vector<String> &parts, StringView sep = "") {
-		String result;
-		size_t total = 0;
-		for (auto &p : parts)
-			total += p.GetSize();
-		if (!parts.empty())
-			total += sep.GetSize() * (parts.size() - 1);
-		result.Reserve(total);
-		for (size_t i = 0; i < parts.size(); ++i) {
-			if (i > 0)
-				result.Append(sep.GetData(), sep.GetSize());
-			result.Append(parts[i].m_data, parts[i].m_size);
-		}
-		return result;
-	}
+	[[nodiscard]] static String Join(const std::vector<String> &parts, StringView sep = "");
 
-	[[nodiscard]] static String Join(std::initializer_list<String> parts, StringView sep = "") {
-		return Join(std::vector<String>(parts), sep);
-	}
+	[[nodiscard]] static String Join(std::initializer_list<String> parts, StringView sep = "");
 
 	// =========================================================================
 	// Transformations fonctionnelles (codepoints)
@@ -997,51 +637,12 @@ public:
 	// Tests de contenu
 	// =========================================================================
 
-	[[nodiscard]] bool IsAscii() const noexcept {
-		for (uint8_t c : *this)
-			if (c > 127)
-				return false;
-		return true;
-	}
+	[[nodiscard]] bool IsAscii() const noexcept;
 	[[nodiscard]] bool IsValidUtf8() const noexcept { return unicode::IsValidUtf8(View()); }
-	[[nodiscard]] bool IsNumeric() const noexcept {
-		if (m_size == 0)
-			return false;
-		size_t i = 0;
-		if (m_data[0] == '-' || m_data[0] == '+') {
-			if (m_size == 1)
-				return false;
-			i = 1;
-		}
-		bool dot = false;
-		for (; i < m_size; ++i) {
-			if (m_data[i] == '.' && !dot) {
-				dot = true;
-				continue;
-			}
-			if (!std::isdigit(static_cast<uint8_t>(m_data[i])))
-				return false;
-		}
-		return true;
-	}
-	[[nodiscard]] bool IsAlpha() const noexcept {
-		for (char c : *this)
-			if (!std::isalpha(static_cast<uint8_t>(c)))
-				return false;
-		return !IsEmpty();
-	}
-	[[nodiscard]] bool IsAlnum() const noexcept {
-		for (char c : *this)
-			if (!std::isalnum(static_cast<uint8_t>(c)))
-				return false;
-		return !IsEmpty();
-	}
-	[[nodiscard]] bool IsWhitespace() const noexcept {
-		for (char c : *this)
-			if (!std::isspace(static_cast<uint8_t>(c)))
-				return false;
-		return !IsEmpty();
-	}
+	[[nodiscard]] bool IsNumeric() const noexcept;
+	[[nodiscard]] bool IsAlpha() const noexcept;
+	[[nodiscard]] bool IsAlnum() const noexcept;
+	[[nodiscard]] bool IsWhitespace() const noexcept;
 
 	// =========================================================================
 	// Conversion vers types numériques
@@ -1054,25 +655,9 @@ public:
 	[[nodiscard]] double ToDouble() const { return std::strtod(CStr(), nullptr); }
 
 	/// Conversion avec détection d'erreur — retourne nullopt si invalide.
-	[[nodiscard]] Option<int64_t> TryParseInt(int base = 10) const {
-		if (IsEmpty())
-			return NONE;
-		char *end;
-		int64_t v = std::strtoll(CStr(), &end, base);
-		if (end == CStr() || *end != '\0')
-			return NONE;
-		return Some(v);
-	}
+	[[nodiscard]] Option<int64_t> TryParseInt(int base = 10) const;
 
-	[[nodiscard]] Option<double> TryParseDouble() const {
-		if (IsEmpty())
-			return NONE;
-		char *end;
-		double v = std::strtod(CStr(), &end);
-		if (end == CStr() || *end != '\0')
-			return NONE;
-		return Some(v);
-	}
+	[[nodiscard]] Option<double> TryParseDouble() const;
 
 	// =========================================================================
 	// Unicode — accès par codepoint
@@ -1085,20 +670,13 @@ public:
 	[[nodiscard]] CodepointT UCharAt(size_t n) const { return unicode::CodepointAt(View(), n); }
 
 	/// Position en octets du n-ième codepoint.
-	[[nodiscard]] size_t UByteOffset(size_t codepointIndex) const {
-		return unicode::ByteOffsetOf(View(), codepointIndex);
-	}
+	[[nodiscard]] size_t UByteOffset(size_t codepointIndex) const;
 
 	/// Vue itérable sur les codepoints.
 	[[nodiscard]] unicode::CodepointView Codepoints() const noexcept { return unicode::CodepointView{View()}; }
 
 	/// Retourne tous les codepoints dans un vecteur.
-	[[nodiscard]] std::vector<CodepointT> ToCodepoints() const {
-		std::vector<CodepointT> result;
-		for (auto cp : Codepoints())
-			result.push_back(cp);
-		return result;
-	}
+	[[nodiscard]] std::vector<CodepointT> ToCodepoints() const;
 
 	// =========================================================================
 	// Conversions Unicode
@@ -1111,19 +689,9 @@ public:
 	// Copie / buffer (compat Arduino)
 	// =========================================================================
 
-	void ToCharArray(char *buf, size_t bufsize, size_t offset = 0) const {
-		if (!buf || bufsize == 0)
-			return;
-		size_t avail = (offset < m_size) ? (m_size - offset) : 0;
-		size_t len = std::min(avail, bufsize - 1);
-		if (len)
-			std::memcpy(buf, m_data + offset, len);
-		buf[len] = '\0';
-	}
+	void ToCharArray(char *buf, size_t bufsize, size_t offset = 0) const;
 
-	void GetBytes(uint8_t *buf, size_t bufsize, size_t offset = 0) const {
-		ToCharArray(reinterpret_cast<char *>(buf), bufsize, offset);
-	}
+	void GetBytes(uint8_t *buf, size_t bufsize, size_t offset = 0) const;
 
 	void Reserve(size_t m_capacity) { EnsureCapacity(m_capacity); }
 
@@ -1188,44 +756,17 @@ private:
 	size_t m_size = 0;
 	size_t m_capacity = 0;
 
-	[[nodiscard]] static bool IsTrimSpace(char c) noexcept {
-		return static_cast<uint8_t>(c) <= 0x20 || unicode::IsUnicodeSpace(static_cast<uint8_t>(c));
-	}
+	[[nodiscard]] static bool IsTrimSpace(char c) noexcept;
 
 	/// Buffer statique non-const partagé pour begin()==end() sur une String
 	/// vide (évite d'allouer, et d'exposer un char* vers un littéral const).
-	static char *EmptySentinel() noexcept {
-		static char empty = '\0';
-		return &empty;
-	}
+	static char *EmptySentinel() noexcept;
 
-	void EnsureCapacity(size_t minCap) {
-		if (minCap <= m_capacity)
-			return;
-		size_t newCap = m_capacity ? m_capacity * 2 : 16;
-		if (newCap < minCap)
-			newCap = minCap;
-		char *newData = new char[newCap + 1];
-		if (m_data && m_size)
-			std::memcpy(newData, m_data, m_size);
-		delete[] m_data;
-		m_data = newData;
-		m_capacity = newCap;
-		m_data[m_size] = '\0';
-	}
+	void EnsureCapacity(size_t minCap);
 
-	void SetLength(size_t n) noexcept {
-		m_size = n;
-		if (m_data)
-			m_data[n] = '\0';
-	}
+	void SetLength(size_t n) noexcept;
 
-	void Assign(const char *data, size_t len) {
-		EnsureCapacity(len);
-		if (len && m_data)
-			std::memcpy(m_data, data, len);
-		SetLength(len);
-	}
+	void Assign(const char *data, size_t len);
 };
 
 // ---------------------------------------------------------------------------

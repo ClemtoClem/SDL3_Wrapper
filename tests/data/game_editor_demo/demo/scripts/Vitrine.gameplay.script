@@ -1,0 +1,36 @@
+
+# ── Scène « Vitrine » : animations pilotées par script ──────────────────────
+let t = 0
+let spin_speed = 45      # degrés / seconde
+let bob_height = 0.6
+
+fn on_start() {
+    t = 0
+    editor.log("Vitrine : animations démarrées")
+}
+
+fn on_update(dt) {
+    t += dt
+
+    # Balise flottante : sinusoïde verticale autour de sa hauteur de repos.
+    let p = object.position("Balise")
+    if (p) {
+        object.set_position("Balise", p[0], 1.6 + math.sin(t * 2) * bob_height, p[2])
+    }
+
+    # Le tore tourne sur deux axes à des vitesses différentes.
+    object.set_rotation("Tore", t * spin_speed * 0.5, t * spin_speed, 0)
+
+    # L'icosaèdre pulse du bleu au cyan : une animation de MATÉRIAU.
+    let pulse = (math.sin(t * 3) + 1) / 2
+    object.set_color("Cristal", 40 + pulse * 60, 120 + pulse * 120, 255)
+
+    # Les trois plots montent et descendent en décalé (onde progressive).
+    for (i in range(0, 3)) {
+        let name = "Plot " .. (i + 1)
+        let base = object.position(name)
+        if (base) {
+            object.set_position(name, base[0], 0.5 + math.sin(t * 1.5 + i * 0.9) * 0.35, base[2])
+        }
+    }
+}

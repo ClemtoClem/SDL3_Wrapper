@@ -1,0 +1,124 @@
+
+# ── Scène « Circuit » : voiture pilotable + tours chronométrés ──────────────
+let car = "Voiture"
+
+# État du véhicule (modèle « arcade » : le script tient le cap et la vitesse,
+# la physique s'occupe de la gravité et des collisions avec les barrières).
+let heading = 0          # radians, 0 = +Z
+let speed = 0            # unités / seconde
+let max_speed = 26
+let accel = 14
+let brake = 22
+let drag = 3.5
+let turn_rate = 2.0      # radians / seconde à pleine vitesse
+
+# Course
+let checkpoints = []
+let next_checkpoint = 0
+let lap = 0
+let total_laps = 0
+let lap_time = 0
+let best_lap = 0
+let elapsed = 0
+let manual = false
+
+fn on_start() {
+    checkpoints = scene.find_tag("checkpoint")
+    # Le premier point est SOUS la voiture au départ : viser celui d'après,
+    # sinon il serait validé à la première image et le premier tour serait
+    # compté pour rien.
+    next_checkpoint = 0
+    if (len(checkpoints) > 1) { next_checkpoint = 1 }
+    lap = 0
+    total_laps = 0
+    lap_time = 0
+    best_lap = 0
+    elapsed = 0
+    speed = 0
+    # Cap initial = tangente à la piste au point de départ, soit +X (la
+    # voiture est posée avec le même lacet de 90°, cf. content.hpp).
+    heading = pi() / 2
+    manual = false
+    editor.log("Circuit : " .. len(checkpoints) .. " points de passage")
+    editor.status("Circuit prêt — ZQSD/WASD pour conduire, sinon pilote automatique")
+}
+
+# Cap à suivre pour rejoindre un point : atan2 du vecteur voiture -> cible.
+fn heading_to(target) {
+    let here = object.position(car)
+    let there = object.position(target)
+    if (not here or not there) { return heading }
+    return atan2(there[0] - here[0], there[2] - here[2])
+}
+
+# Écart angulaire ramené dans [-pi, pi] : sans ce repliement, un cap qui
+# franchit ±pi ferait braquer la voiture dans le mauvais sens pendant un tour
+# complet.
+fn wrap_angle(a) {
+    while (a > pi()) { a -= 2 * pi() }
+    while (a < -pi()) { a += 2 * pi() }
+    return a
+}
+
+fn autopilot_steer() {
+    if (len(checkpoints) == 0) { return 0 }
+    let target = checkpoints[next_checkpoint]
+    let wanted = heading_to(target)
+    let delta = wrap_angle(wanted - heading)
+    return clamp(delta * 1.8, -1, 1)
+}
+
+fn on_update(dt) {
+    elapsed += dt
+    lap_time += dt
+
+    let throttle = input.axis("down", "up") + input.axis("s", "w")
+    let steer = input.axis("left", "right") + input.axis("a", "d")
+    if (throttle != 0 or steer != 0) { manual = true }
+
+    if (not manual) {
+        steer = autopilot_steer()
+        throttle = 1
+    }
+
+    # Vitesse : accélération, freinage, traînée.
+    if (throttle > 0) {
+        speed += accel * throttle * dt
+    } else if (throttle < 0) {
+        speed += brake * throttle * dt
+    }
+    speed -= drag * dt
+    speed = clamp(speed, -6, max_speed)
+
+    # On ne braque qu'en roulant (comme une vraie voiture à l'arrêt).
+    let grip = clamp(abs(speed) / 8, 0, 1)
+    heading += steer * turn_rate * grip * dt * sign(speed)
+
+    let vx = sin(heading) * speed
+    let vz = cos(heading) * speed
+    let current = object.velocity(car)
+    let vy = 0
+    if (current) { vy = current[1] }
+    object.set_velocity(car, vx, vy, vz)
+    object.set_rotation(car, 0, deg(heading), 0)
+
+    check_progress()
+}
+
+fn check_progress() {
+    if (len(checkpoints) == 0) { return nil }
+    let target = checkpoints[next_checkpoint]
+    if (object.distance(car, target) < 6.5) {
+        next_checkpoint += 1
+        if (next_checkpoint >= len(checkpoints)) {
+            next_checkpoint = 0
+            lap += 1
+            total_laps = lap
+            if (best_lap == 0 or lap_time < best_lap) { best_lap = lap_time }
+            editor.log(format("Tour {} bouclé en {} s (meilleur : {} s)", lap,
+                              i64(lap_time * 100) / 100, i64(best_lap * 100) / 100))
+            editor.status(format("Tour {} — meilleur {} s", lap, i64(best_lap * 100) / 100))
+            lap_time = 0
+        }
+    }
+}

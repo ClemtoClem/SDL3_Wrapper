@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SDL3/SDL.h>
+#include <chrono>
 #include <functional>
 #include <memory>
 
@@ -23,9 +24,7 @@ namespace sdl3 {
  * @sa GetTicksMS
  * @sa GetTicksNS
  */
-inline std::chrono::nanoseconds GetTicks() {
-	return std::chrono::nanoseconds(SDL_GetTicksNS());
-}
+std::chrono::nanoseconds GetTicks();
 
 /**
  * Get the number of milliseconds that have elapsed since the SDL library
@@ -84,9 +83,7 @@ inline Uint64 GetPerformanceCounter() { return SDL_GetPerformanceCounter(); }
  *
  * @sa GetPerformanceCounter
  */
-inline Uint64 GetPerformanceFrequency() {
-	return SDL_GetPerformanceFrequency();
-}
+Uint64 GetPerformanceFrequency();
 
 /**
  * Wait a specified number of milliseconds before returning.
@@ -121,9 +118,7 @@ inline void DelayMS(Uint32 ms) { SDL_Delay(ms); }
  * @sa DelayNS
  * @sa DelayPrecise(std::chrono::nanoseconds)
  */
-inline void Delay(std::chrono::nanoseconds duration) {
-	SDL_DelayNS(duration.count());
-}
+void Delay(std::chrono::nanoseconds duration);
 
 /**
  * Wait a specified number of nanoseconds before returning.
@@ -179,9 +174,7 @@ inline void DelayPrecise(Uint64 ns) { SDL_DelayPrecise(ns); }
  * @sa DelayNS
  * @sa DelayPrecise(Uint64)
  */
-inline void DelayPrecise(std::chrono::nanoseconds duration) {
-	SDL_DelayPrecise(duration.count());
-}
+void DelayPrecise(std::chrono::nanoseconds duration);
 
 // ============================================================================
 // DateTime (SDL_time.h)
@@ -195,27 +188,17 @@ using Time = SDL_Time;
 
 [[nodiscard]] inline int GetDaysInMonth(int year, int month) noexcept { return SDL_GetDaysInMonth(year, month); }
 
-[[nodiscard]] inline int GetDayOfWeek(int year, int month, int day) noexcept {
-	return SDL_GetDayOfWeek(year, month, day);
-}
+[[nodiscard]] int GetDayOfWeek(int year, int month, int day) noexcept;
 
 class DateTime {
 	Time time{0};
 	SDL_DateTime dt{};
 
-	void UpdateFromTime(bool localTime) noexcept {
-		if (!SDL_TimeToDateTime(time, &dt, localTime)) {
-			// En cas d'erreur, on initialise à zéro pour éviter un comportement indéfini
-			dt = {};
-		}
-	}
+	void UpdateFromTime(bool localTime) noexcept;
 
 public:
 	// Constructeur par défaut : récupère la date/heure actuelle (locale par défaut)
-	DateTime() noexcept {
-		SDL_GetCurrentTime(&time);
-		UpdateFromTime(true);
-	}
+	DateTime() noexcept;
 
 	// Constructeur depuis un SDL_Time spécifique (choix du mode local/UTC)
 	explicit DateTime(Time t, bool localTime = true) noexcept : time(t) { UpdateFromTime(localTime); }
@@ -253,32 +236,14 @@ class Timer {
 	std::unique_ptr<CallbackPayload> payload;
 
 	// Fonction statique trampoline pour SDL
-	static Uint32 SDLCALL Trampoline(void *userdata, SDL_TimerID timerID, Uint32 interval) {
-		(void)timerID;
-		auto *p = static_cast<CallbackPayload *>(userdata);
-		if (p && p->func) {
-			// Le retour de la fonction détermine le prochain intervalle (0 pour arrêter)
-			return p->func(interval);
-		}
-		return 0;
-	}
+	static Uint32 SDLCALL Trampoline(void *userdata, SDL_TimerID timerID, Uint32 interval);
 
 public:
 	Timer() noexcept = default;
 
 	// Constructeur : lance le timer immédiatement
 	// func : prend l'intervalle actuel en paramètre, retourne le prochain intervalle (0 pour stopper)
-	Timer(uint32_t interval, std::function<uint32_t(uint32_t)> callback) {
-		if (!callback)
-			return;
-
-		payload = std::make_unique<CallbackPayload>(std::move(callback));
-		id = SDL_AddTimer(interval, Trampoline, payload.get());
-
-		if (id == 0) {
-			payload.reset(); // Échec de création du timer
-		}
-	}
+	Timer(uint32_t interval, std::function<uint32_t(uint32_t)> callback);
 
 	~Timer() { Cancel(); }
 
@@ -299,15 +264,7 @@ public:
 		return *this;
 	}
 
-	void Cancel() noexcept {
-		if (IsRunning()) {
-			SDL_RemoveTimer(id);
-			id = 0;
-			// SDL_RemoveTimer garantit que le callback ne tourne plus quand il retourne,
-			// il est donc sûr de détruire le payload ici.
-			payload.reset();
-		}
-	}
+	void Cancel() noexcept;
 
 	[[nodiscard]] bool IsRunning() const noexcept { return id != 0; }
 };
@@ -324,32 +281,13 @@ class Stopwatch {
 public:
 	Stopwatch() noexcept { Start(); }
 
-	void Start() noexcept {
-		isPaused = false;
-		startTicks = SDL_GetTicksNS();
-		pausedTicks = 0;
-	}
+	void Start() noexcept;
 
-	void Pause() noexcept {
-		if (!isPaused) {
-			pausedTicks = SDL_GetTicksNS();
-			isPaused = true;
-		}
-	}
+	void Pause() noexcept;
 
-	void Resume() noexcept {
-		if (isPaused) {
-			// On compense le temps passé en pause
-			startTicks += SDL_GetTicksNS() - pausedTicks;
-			isPaused = false;
-		}
-	}
+	void Resume() noexcept;
 
-	[[nodiscard]] uint64_t ElapsedNs() const noexcept {
-		if (isPaused)
-			return pausedTicks - startTicks;
-		return SDL_GetTicksNS() - startTicks;
-	}
+	[[nodiscard]] uint64_t ElapsedNs() const noexcept;
 
 	[[nodiscard]] uint64_t ElapsedMs() const noexcept { return ElapsedNs() / 1'000'000; }
 	[[nodiscard]] float ElapsedSec() const noexcept { return static_cast<float>(ElapsedNs()) / 1'000'000'000.f; }
@@ -395,9 +333,7 @@ public:
 	 *
 	 * @param targetFPS desired frames per second (default 60).
 	 */
-	explicit FrameTimestep(float targetFPS = 60.f)
-		: m_targetFPS(targetFPS) {
-	}
+	explicit FrameTimestep(float targetFPS = 60.f);
 
 	/**
 	 * @brief Mark the beginning of a frame.
@@ -406,30 +342,7 @@ public:
 	 * returns `1/targetFPS` as a sensible default; the FPS measurement window is
 	 * also initialised here.
 	 */
-	void Begin() {
-		Uint64 now = GetTicksNS();
-
-		if (m_prevBeginTime > 0) {
-			m_delta = float(now - m_prevBeginTime) * 1e-9f;
-
-			// Accumulate frames; refresh the measured FPS every second.
-			++m_fpsFrameCount;
-			if (now - m_fpsWindowStart >= 1'000'000'000ULL) {
-				m_fps =
-					float(m_fpsFrameCount) / (float(now - m_fpsWindowStart) * 1e-9f);
-				m_fpsWindowStart = now;
-				m_fpsFrameCount  = 0;
-			}
-		} else {
-			// First call: initialise the measurement window.
-			m_fpsWindowStart = now;
-			m_delta          = 1.f / m_targetFPS;
-		}
-
-		m_time         += m_delta;
-		m_prevBeginTime = now;
-		m_frameStart    = now;
-	}
+	void Begin();
 
 	/**
 	 * @brief Mark the end of a frame.
@@ -438,15 +351,7 @@ public:
 	 * than the target rate, the thread is suspended with nanosecond precision
 	 * (via DelayPrecise()) for the remaining budget.
 	 */
-	void End() {
-		Uint64 now    = GetTicksNS();
-		m_computeTime = now - m_frameStart;
-
-		Uint64 targetNS = Uint64(1'000'000'000.0 / double(m_targetFPS));
-		if (m_computeTime < targetNS) {
-			DelayPrecise(targetNS - m_computeTime);
-		}
-	}
+	void End();
 
 	/**
 	 * @brief Return the computation time of the last frame (Begin→End), in seconds.
@@ -505,15 +410,6 @@ public:
 	 * Clears all counters, timestamps, and the measured FPS. The target FPS set
 	 * by SetTargetFPS() (or the constructor) is preserved.
 	 */
-	void Reset() {
-		m_frameStart     = 0;
-		m_prevBeginTime  = 0;
-		m_computeTime    = 0;
-		m_delta          = 0.f;
-		m_fps            = 0.f;
-		m_time           = 0.f;
-		m_fpsFrameCount  = 0;
-		m_fpsWindowStart = 0;
-	}
+	void Reset();
 };
 } // namespace sdl3

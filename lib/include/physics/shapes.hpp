@@ -29,10 +29,7 @@ struct Sphere {
 	math::FVector3 center;
 	float radius = 0.5f;
 
-	[[nodiscard]] math::FAABB WorldAABB() const noexcept {
-		math::FVector3 r{radius, radius, radius};
-		return {center - r, center + r};
-	}
+	[[nodiscard]] math::FAABB WorldAABB() const noexcept;
 };
 
 // ── Box (oriented bounding box) ────────────────────────────────────────────
@@ -47,10 +44,7 @@ struct Box {
 	[[nodiscard]] constexpr math::FVector3 AxisY() const noexcept { return orientation.Rotate({0.f, 1.f, 0.f}); }
 	[[nodiscard]] constexpr math::FVector3 AxisZ() const noexcept { return orientation.Rotate({0.f, 0.f, 1.f}); }
 
-	[[nodiscard]] math::FAABB WorldAABB() const noexcept {
-		math::FAABB local{-halfExtents, halfExtents};
-		return local.Transformed(math::ComposeTRS(center, orientation, math::FVector3{1.f, 1.f, 1.f}));
-	}
+	[[nodiscard]] math::FAABB WorldAABB() const noexcept;
 };
 
 // ── Capsule ─────────────────────────────────────────────────────────────────
@@ -72,22 +66,14 @@ struct Capsule {
 	[[nodiscard]] constexpr math::FVector3 PointA() const noexcept { return center - Axis() * halfHeight; }
 	[[nodiscard]] constexpr math::FVector3 PointB() const noexcept { return center + Axis() * halfHeight; }
 
-	[[nodiscard]] math::FAABB WorldAABB() const noexcept {
-		math::FVector3 r{radius, radius, radius};
-		math::FAABB box{PointA() - r, PointA() + r};
-		box.Expand(PointB() - r);
-		box.Expand(PointB() + r);
-		return box;
-	}
+	[[nodiscard]] math::FAABB WorldAABB() const noexcept;
 };
 
 // ── Shape (tagged union) ───────────────────────────────────────────────────
 
 using Shape = std::variant<Sphere, Box, Capsule>;
 
-[[nodiscard]] inline math::FAABB ShapeWorldAABB(const Shape &shape) noexcept {
-	return std::visit([](const auto &s) { return s.WorldAABB(); }, shape);
-}
+[[nodiscard]] math::FAABB ShapeWorldAABB(const Shape &shape) noexcept;
 
 /**
  * Copies `position`/`orientation` (a RigidBody's authoritative transform) into
@@ -95,16 +81,7 @@ using Shape = std::variant<Sphere, Box, Capsule>;
  * sync — it doesn't need one). Call once per step, before broad/narrow-phase,
  * so the shape reflects the latest integrated pose — see broadphase.hpp.
  */
-inline void SyncShapeTransform(Shape &shape, const math::FVector3 &position,
-								const math::FQuaternion &orientation) noexcept {
-	std::visit(
-		[&](auto &s) {
-			s.center = position;
-			using T = std::decay_t<decltype(s)>;
-			if constexpr (!std::is_same_v<T, Sphere>)
-				s.orientation = orientation;
-		},
-		shape);
-}
+void SyncShapeTransform(Shape &shape, const math::FVector3 &position,
+								const math::FQuaternion &orientation) noexcept;
 
 } // namespace physics

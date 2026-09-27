@@ -61,36 +61,9 @@ constexpr LogCategory GPU = SDL_LOG_CATEGORY_GPU;
 constexpr LogCategory CUSTOM = SDL_LOG_CATEGORY_CUSTOM;
 } // namespace log_category
 
-[[nodiscard]] inline StringView LogPriorityToString(LogPriority p) noexcept {
-    switch (p) {
-    case SDL_LOG_PRIORITY_TRACE:
-        return "TRACE";
-    case SDL_LOG_PRIORITY_VERBOSE:
-        return "VERBOSE";
-    case SDL_LOG_PRIORITY_DEBUG:
-        return "DEBUG";
-    case SDL_LOG_PRIORITY_INFO:
-        return "INFO";
-    case SDL_LOG_PRIORITY_WARN:
-        return "WARN";
-    case SDL_LOG_PRIORITY_ERROR:
-        return "ERROR";
-    case SDL_LOG_PRIORITY_CRITICAL:
-        return "CRITICAL";
-    default:
-        return "UNKNOWN";
-    }
-}
+[[nodiscard]] StringView LogPriorityToString(LogPriority p) noexcept;
 
-[[nodiscard]] inline String LogTimestamp() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t tt = std::chrono::system_clock::to_time_t(now);
-    std::tm tmv{};
-    localtime_r(&tt, &tmv);
-    char buf[32];
-    size_t n = std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tmv);
-    return String(buf, n);
-}
+[[nodiscard]] String LogTimestamp();
 
 // ── Priorités / catégories (fines enveloppes de SDL_Log*) ──────────────────
 
@@ -118,23 +91,12 @@ using LogSink = std::function<void(const LogMessage &)>;
 
 class LogRouter {
 public:
-    [[nodiscard]] static LogRouter &Instance() {
-        static LogRouter router;
-        return router;
-    }
+    [[nodiscard]] static LogRouter &Instance();
 
     /// Enregistre un sink ; retourne un identifiant à repasser à removeSink().
-    size_t AddSink(LogSink sink) {
-        std::lock_guard<std::mutex> lock(mutex);
-        size_t id = nextId++;
-        sinks[id] = std::move(sink);
-        return id;
-    }
+    size_t AddSink(LogSink sink);
 
-    void RemoveSink(size_t id) {
-        std::lock_guard<std::mutex> lock(mutex);
-        sinks.erase(id);
-    }
+    void RemoveSink(size_t id);
 
     /// Le SDL_LogOutputFunction installé avant que LogRouter ne prenne la
     /// main (généralement le handler par défaut de SDL, qui écrit sur la
@@ -146,10 +108,7 @@ public:
     [[nodiscard]] void *PreviousHandlerData() const noexcept { return prevData; }
 
 private:
-    LogRouter() {
-        SDL_GetLogOutputFunction(&prevFn, &prevData);
-        SDL_SetLogOutputFunction(&LogRouter::Trampoline, this);
-    }
+    LogRouter();
     // Volontairement jamais désinstallé : LogRouter vit pour la durée du
     // process (singleton), donc restaurer le handler précédent au dtor
     // n'aurait jamais l'occasion de s'exécuter avant la sortie du process.
@@ -158,13 +117,7 @@ private:
     LogRouter(const LogRouter &) = delete;
     LogRouter &operator=(const LogRouter &) = delete;
 
-    static void SDLCALL Trampoline(void *userdata, int category, SDL_LogPriority priority, const char *message) {
-        auto *self = static_cast<LogRouter *>(userdata);
-        LogMessage msg{category, priority, StringView(message ? message : "")};
-        std::lock_guard<std::mutex> lock(self->mutex);
-        for (auto &[id, sink] : self->sinks)
-            sink(msg);
-    }
+    static void SDLCALL Trampoline(void *userdata, int category, SDL_LogPriority priority, const char *message);
 
     std::mutex mutex;
     std::unordered_map<size_t, LogSink> sinks;
@@ -189,26 +142,9 @@ private:
  */
 class FileLogSink {
 public:
-    [[nodiscard]] static Result<std::unique_ptr<FileLogSink>, Error> Create(const String &path) {
-        std::ofstream file(path.c_str(), std::ios::app);
-        if (!file.is_open()) {
-            SetError("Could not open log file: %s", path.c_str());
-            return Err(GetError());
-        }
-        auto sink = std::unique_ptr<FileLogSink>(new FileLogSink(path, std::move(file)));
-        return Ok(std::move(sink));
-    }
+    [[nodiscard]] static Result<std::unique_ptr<FileLogSink>, Error> Create(const String &path);
 
-    ~FileLogSink() {
-        thread.request_stop();
-        cv.notify_all();
-        // Le jthread membre joint automatiquement à sa destruction (après ce
-        // destructeur, par ordre inverse de déclaration) — mais on le fait
-        // explicitement ici pour garantir que file reste vivant tant que
-        // le thread peut encore y écrire.
-        if (thread.joinable())
-            thread.join();
-    }
+    ~FileLogSink();
 
     FileLogSink(const FileLogSink &) = delete;
     FileLogSink &operator=(const FileLogSink &) = delete;
@@ -216,20 +152,7 @@ public:
     FileLogSink &operator=(FileLogSink &&) = delete;
 
     /// Non-bloquant : copie le message formaté dans la file et revient.
-    void Write(const LogMessage &msg) {
-        String line;
-        line.Reserve(msg.text.GetSize() + 64);
-        line += LogTimestamp();
-        line += " [";
-        line += LogPriorityToString(msg.priority);
-        line += "] ";
-        line += msg.text;
-        {
-            std::lock_guard<std::mutex> lock(mutex);
-            queue.push_back(std::move(line));
-        }
-        cv.notify_one();
-    }
+    void Write(const LogMessage &msg);
 
     [[nodiscard]] const String &Path() const noexcept { return path; }
 
@@ -237,23 +160,7 @@ private:
     FileLogSink(String path, std::ofstream file)
         : path(std::move(path)), file(std::move(file)), thread([this](std::stop_token st) { ThreadLoop(st); }) {}
 
-    void ThreadLoop(std::stop_token st) {
-        while (true) {
-            std::deque<String> batch;
-            {
-                std::unique_lock<std::mutex> lock(mutex);
-                cv.wait(lock, [&] { return st.stop_requested() || !queue.empty(); });
-                batch.swap(queue);
-            }
-            for (const String &line : batch) {
-                file << line.c_str() << '\n';
-            }
-            if (!batch.empty())
-                file.flush();
-            if (st.stop_requested() && batch.empty())
-                break;
-        }
-    }
+    void ThreadLoop(std::stop_token st);
 
     String path;
     std::ofstream file;

@@ -1,0 +1,18 @@
+{
+  "format": "game_editor.project",
+  "version": 5,
+  "name": "Projet 3 — Les Cryptes de Sled",
+  "active_scene": "Menu principal",
+  "scenes": [
+    "scenes/Menu principal.scene",
+    "scenes/Génération.scene",
+    "scenes/Donjon.scene"
+  ],
+  "scripts": [
+    {
+      "name": "torche",
+      "description": "Fait vaciller la lumière qui porte ce script",
+      "file": "scripts/torche.script"
+    }
+  ]
+}

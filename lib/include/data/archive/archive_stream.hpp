@@ -40,10 +40,7 @@ namespace data::archive {
 struct StreamState {
 	Option<ArchiveError> error = NONE;
 
-	void Fail(ArchiveError failure) {
-		if (error.IsNone())
-			error = Some(std::move(failure));
-	}
+	void Fail(ArchiveError failure);
 };
 using StreamStatePtr = std::shared_ptr<StreamState>;
 
@@ -54,84 +51,24 @@ struct ArchiveStream {
 
 	/// Erreur du flux : celle qu'il a signalée, sinon une erreur d'E/S
 	/// générique si SDL rapporte un échec.
-	[[nodiscard]] ArchiveError Failure(const char* context = "flux") const {
-		if (state && state->error.IsSome())
-			return state->error.Value();
-		return MakeError(ErrorKind::IO, String::Format("%s : erreur de lecture", context));
-	}
+	[[nodiscard]] ArchiveError Failure(const char* context = "flux") const;
 };
 
 /// Enveloppe un `IOStreamImpl` dans un `ArchiveStream`.
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
-MakeStream(std::unique_ptr<sdl3::IOStreamImpl> impl, StreamStatePtr state) {
-	auto io = sdl3::IOStream::FromImpl(std::move(impl));
-	if (io.IsError())
-		return Err(MakeError(ErrorKind::IO,
-							 String::Format("flux impossible : %s", String(io.Error()).CStr())));
-	return Ok(ArchiveStream{std::move(io).Unwrap(), std::move(state)});
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
+MakeStream(std::unique_ptr<sdl3::IOStreamImpl> impl, StreamStatePtr state);
 
 /// Lecture d'au plus `size` octets ; 0 = fin. Err si le flux a échoué.
-[[nodiscard]] inline Result<size_t, ArchiveError> StreamRead(ArchiveStream& stream, void* buffer,
-															 size_t size) {
-	if (size == 0)
-		return Ok(size_t(0));
-	auto* bytes = static_cast<uint8_t*>(buffer);
-	size_t total = 0;
-	while (total < size) {
-		const size_t done = stream.io.Read(bytes + total, size - total);
-		if (done == 0) {
-			if (stream.io.Status() == sdl3::IOStatus::ERROR ||
-				(stream.state && stream.state->error.IsSome()))
-				return Err(stream.Failure());
-			break;
-		}
-		total += done;
-	}
-	return Ok(total);
-}
+[[nodiscard]] Result<size_t, ArchiveError> StreamRead(ArchiveStream& stream, void* buffer,
+															 size_t size);
 
 /// Tout le reste du flux, au plus `limit` octets (au-delà : `LIMIT`).
-[[nodiscard]] inline Result<Bytes, ArchiveError>
-ReadStreamToEnd(ArchiveStream& stream, uint64_t limit, uint64_t sizeHint = 0) {
-	Bytes out;
-	if (sizeHint > 0)
-		out.reserve(size_t(std::min<uint64_t>({sizeHint, limit, uint64_t(1) << 26})));
-	uint8_t chunk[1 << 16];
-	for (;;) {
-		auto done = StreamRead(stream, chunk, sizeof(chunk));
-		if (done.IsError())
-			return Err(done.Error());
-		if (done.Value() == 0)
-			break;
-		if (out.size() + done.Value() > limit)
-			return Err(MakeError(ErrorKind::LIMIT,
-								 String("données plus grandes que la limite autorisée")));
-		out.insert(out.end(), chunk, chunk + done.Value());
-	}
-	return Ok(std::move(out));
-}
+[[nodiscard]] Result<Bytes, ArchiveError>
+ReadStreamToEnd(ArchiveStream& stream, uint64_t limit, uint64_t sizeHint = 0);
 
 /// Copie le flux dans `out` ; rend le nombre d'octets copiés.
-[[nodiscard]] inline Result<uint64_t, ArchiveError>
-CopyStream(ArchiveStream& in, sdl3::IOStream& out, uint64_t limit = UINT64_MAX) {
-	std::vector<uint8_t> chunk(1 << 16);
-	uint64_t total = 0;
-	for (;;) {
-		auto done = StreamRead(in, chunk.data(), chunk.size());
-		if (done.IsError())
-			return Err(done.Error());
-		if (done.Value() == 0)
-			break;
-		total += done.Value();
-		if (total > limit)
-			return Err(MakeError(ErrorKind::LIMIT,
-								 String("données plus grandes que la limite autorisée")));
-		if (!out.WriteExact(chunk.data(), done.Value()))
-			return Err(MakeError(ErrorKind::IO, String("écriture impossible")));
-	}
-	return Ok(total);
-}
+[[nodiscard]] Result<uint64_t, ArchiveError>
+CopyStream(ArchiveStream& in, sdl3::IOStream& out, uint64_t limit = UINT64_MAX);
 
 // ============================================================================
 // Tampon d'entrée
@@ -142,41 +79,12 @@ CopyStream(ArchiveStream& in, sdl3::IOStream& out, uint64_t limit = UINT64_MAX) 
 class InputBuffer {
 public:
 	explicit InputBuffer(sdl3::IOStream& source, StreamStatePtr sourceState = {},
-						 uint64_t limit = UINT64_MAX, size_t capacity = size_t(1) << 16)
-		: m_source(&source), m_sourceState(std::move(sourceState)), m_limit(limit),
-		  m_buffer(capacity) {
-		const Sint64 start = source.Tell();
-		m_start = start < 0 ? 0 : uint64_t(start);
-	}
+						 uint64_t limit = UINT64_MAX, size_t capacity = size_t(1) << 16);
 
-	[[nodiscard]] inline bool Byte(uint8_t& out) {
-		if (m_position == m_end && !Fill())
-			return false;
-		out = m_buffer[m_position++];
-		return true;
-	}
+	[[nodiscard]] bool Byte(uint8_t& out);
 
 	/// Recharge le tampon ; faux s'il n'y a plus rien (fin ou erreur).
-	bool Fill() {
-		if (m_position < m_end)
-			return true;
-		m_consumedBefore += m_end;
-		m_position = m_end = 0;
-		const uint64_t remaining = m_limit - m_fetched;
-		if (remaining == 0 || m_failed)
-			return false;
-		const size_t want = size_t(std::min<uint64_t>(remaining, m_buffer.size()));
-		const size_t got = m_source->Read(m_buffer.data(), want);
-		if (got == 0) {
-			if (m_source->Status() == sdl3::IOStatus::ERROR ||
-				(m_sourceState && m_sourceState->error.IsSome()))
-				m_failed = true;
-			return false;
-		}
-		m_end = got;
-		m_fetched += got;
-		return true;
-	}
+	bool Fill();
 
 	/// Octets disponibles sans lecture (après un `Fill` éventuel).
 	[[nodiscard]] size_t Available() const noexcept { return m_end - m_position; }
@@ -184,60 +92,23 @@ public:
 	void Advance(size_t count) noexcept { m_position += std::min(count, Available()); }
 
 	/// Copie jusqu'à `size` octets bruts ; rend le nombre copié.
-	size_t ReadRaw(uint8_t* out, size_t size) {
-		size_t total = 0;
-		while (total < size) {
-			if (Available() == 0 && !Fill())
-				break;
-			const size_t take = std::min(size - total, Available());
-			std::memcpy(out + total, Data(), take);
-			m_position += take;
-			total += take;
-		}
-		return total;
-	}
+	size_t ReadRaw(uint8_t* out, size_t size);
 
 	/// Saute `count` octets ; faux si l'entrée se termine avant.
-	bool Skip(uint64_t count) {
-		while (count > 0) {
-			if (Available() == 0 && !Fill())
-				return false;
-			const size_t take = size_t(std::min<uint64_t>(count, Available()));
-			m_position += take;
-			count -= take;
-		}
-		return true;
-	}
+	bool Skip(uint64_t count);
 
 	/// Octets consommés depuis la position de départ.
 	[[nodiscard]] uint64_t Consumed() const noexcept { return m_consumedBefore + m_position; }
 	/// Vrai si l'entrée a échoué (et non simplement pris fin).
 	[[nodiscard]] bool Failed() const noexcept { return m_failed; }
-	[[nodiscard]] ArchiveError Failure(const char* context) const {
-		if (m_sourceState && m_sourceState->error.IsSome())
-			return m_sourceState->error.Value();
-		return MakeError(
-			m_failed ? ErrorKind::IO : ErrorKind::CORRUPT,
-			String::Format(m_failed ? "%s : erreur de lecture" : "%s : données tronquées",
-						   context));
-	}
+	[[nodiscard]] ArchiveError Failure(const char* context) const;
 
 	/// Repart du début (pour recommencer un décodage).
-	bool Rewind() {
-		if (m_source->Seek(Sint64(m_start), SDL_IO_SEEK_SET) < 0)
-			return false;
-		m_position = m_end = 0;
-		m_consumedBefore = m_fetched = 0;
-		m_failed = false;
-		return true;
-	}
+	bool Rewind();
 
 	/// Replace la source juste après le dernier octet consommé (les octets
 	/// lus d'avance lui sont rendus) : utile quand d'autres données suivent.
-	bool GiveBack(uint64_t unusedBytes = 0) {
-		const uint64_t logical = m_start + Consumed() - unusedBytes;
-		return m_source->Seek(Sint64(logical), SDL_IO_SEEK_SET) >= 0;
-	}
+	bool GiveBack(uint64_t unusedBytes = 0);
 
 	/// Réduit/ôte la limite (en octets depuis le départ).
 	void SetLimit(uint64_t limit) noexcept { m_limit = std::max(limit, m_fetched); }
@@ -261,29 +132,12 @@ private:
 /// 64 Kio.
 class SlidingWindow {
 public:
-	void Reset(uint64_t capacity) {
-		m_capacity = size_t(std::clamp<uint64_t>(capacity, 4096, uint64_t(SIZE_MAX / 2)));
-		m_buffer.clear();
-		m_position = 0;
-		m_total = 0;
-	}
-	inline void Put(uint8_t byte) {
-		if (m_position == m_buffer.size())
-			m_buffer.resize(std::min(m_capacity, std::max(m_buffer.size() * 2, size_t(1) << 16)));
-		m_buffer[m_position] = byte;
-		if (++m_position == m_capacity)
-			m_position = 0;
-		++m_total;
-	}
+	void Reset(uint64_t capacity);
+	void Put(uint8_t byte);
 	/// Octet situé `distance` (≥ 1) octets en arrière ; distance vérifiée par
 	/// `Has`.
-	[[nodiscard]] inline uint8_t Get(uint64_t distance) const {
-		return m_buffer[m_position >= distance ? m_position - size_t(distance)
-											   : m_position + m_capacity - size_t(distance)];
-	}
-	[[nodiscard]] bool Has(uint64_t distance) const noexcept {
-		return distance >= 1 && distance <= std::min<uint64_t>(m_total, m_capacity);
-	}
+	[[nodiscard]] uint8_t Get(uint64_t distance) const;
+	[[nodiscard]] bool Has(uint64_t distance) const noexcept;
 	[[nodiscard]] uint64_t Total() const noexcept { return m_total; }
 
 private:
@@ -306,61 +160,9 @@ public:
 
 	[[nodiscard]] Sint64 Size() override { return m_size.IsSome() ? Sint64(m_size.Value()) : -1; }
 
-	size_t Read(void* buffer, size_t size, sdl3::IOStatus& status) final {
-		auto* out = static_cast<uint8_t*>(buffer);
-		size_t total = 0;
-		while (total < size && !m_ended) {
-			if (m_state->error.IsSome())
-				break;
-			auto produced = Produce(out + total, size - total);
-			if (produced.IsError()) {
-				m_state->Fail(produced.Error());
-				break;
-			}
-			if (produced.Value() == 0) {
-				m_ended = true;
-				if (m_size.IsNone())
-					m_size = Some(m_position + total); // taille connue une fois le flux lu
-				break;
-			}
-			total += produced.Value();
-		}
-		m_position += total;
-		if (total == 0)
-			status = m_state->error.IsSome() ? sdl3::IOStatus::ERROR : sdl3::IOStatus::END;
-		return total;
-	}
+	size_t Read(void* buffer, size_t size, sdl3::IOStatus& status) final;
 
-	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) final {
-		Sint64 target = offset;
-		if (whence == sdl3::IOWhence::SEEK_CURRENT)
-			target = Sint64(m_position) + offset;
-		else if (whence == sdl3::IOWhence::SeekEnd) {
-			if (m_size.IsNone())
-				return -1;
-			target = Sint64(m_size.Value()) + offset;
-		}
-		if (target < 0)
-			return -1;
-		if (uint64_t(target) < m_position) {
-			if (!Restart())
-				return -1;
-			m_position = 0;
-			m_ended = false;
-			if (m_state->error.IsSome())
-				return -1;
-		}
-		// Avancer : décoder et jeter.
-		uint8_t scratch[1 << 14];
-		while (m_position < uint64_t(target)) {
-			sdl3::IOStatus status = sdl3::IOStatus::READY;
-			const size_t want =
-				size_t(std::min<uint64_t>(sizeof(scratch), uint64_t(target) - m_position));
-			if (Read(scratch, want, status) == 0)
-				return -1;
-		}
-		return Sint64(m_position);
-	}
+	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) final;
 
 protected:
 	/// Produit au plus `max` octets ; 0 = fin du flux.
@@ -393,37 +195,8 @@ public:
 		  m_keepAlive(std::move(keepAlive)) {}
 
 	[[nodiscard]] Sint64 Size() override { return Sint64(m_length); }
-	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override {
-		Sint64 target = offset;
-		if (whence == sdl3::IOWhence::SEEK_CURRENT)
-			target += Sint64(m_position);
-		else if (whence == sdl3::IOWhence::SeekEnd)
-			target += Sint64(m_length);
-		if (target < 0)
-			return -1;
-		m_position = uint64_t(target);
-		return target;
-	}
-	size_t Read(void* buffer, size_t size, sdl3::IOStatus& status) override {
-		if (m_position >= m_length) {
-			status = sdl3::IOStatus::END;
-			return 0;
-		}
-		const size_t want = size_t(std::min<uint64_t>(size, m_length - m_position));
-		if (m_parent->Seek(Sint64(m_base + m_position), SDL_IO_SEEK_SET) < 0 ||
-			!m_parent->ReadExact(buffer, want)) {
-			// Parent décodé (bloc solide) : son erreur est la vraie cause.
-			if (m_keepAlive && m_keepAlive->state && m_keepAlive->state->error.IsSome())
-				m_state->Fail(m_keepAlive->state->error.Value());
-			else
-				m_state->Fail(MakeError(ErrorKind::CORRUPT,
-										String("données hors du fichier (archive tronquée ?)")));
-			status = sdl3::IOStatus::ERROR;
-			return 0;
-		}
-		m_position += want;
-		return want;
-	}
+	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override;
+	size_t Read(void* buffer, size_t size, sdl3::IOStatus& status) override;
 
 private:
 	sdl3::IOStream* m_parent;
@@ -442,27 +215,8 @@ public:
 		: m_shared(std::move(bytes)),
 		  m_bytes(std::span<const uint8_t>(*m_shared).subspan(size_t(offset), size_t(length))) {}
 	[[nodiscard]] Sint64 Size() override { return Sint64(m_bytes.size()); }
-	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override {
-		Sint64 target = offset;
-		if (whence == sdl3::IOWhence::SEEK_CURRENT)
-			target += Sint64(m_position);
-		else if (whence == sdl3::IOWhence::SeekEnd)
-			target += Sint64(m_bytes.size());
-		if (target < 0)
-			return -1;
-		m_position = size_t(target);
-		return target;
-	}
-	size_t Read(void* buffer, size_t size, sdl3::IOStatus& status) override {
-		if (m_position >= m_bytes.size()) {
-			status = sdl3::IOStatus::END;
-			return 0;
-		}
-		const size_t take = std::min(size, m_bytes.size() - m_position);
-		std::memcpy(buffer, m_bytes.data() + m_position, take);
-		m_position += take;
-		return take;
-	}
+	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override;
+	size_t Read(void* buffer, size_t size, sdl3::IOStatus& status) override;
 
 private:
 	std::shared_ptr<const Bytes> m_shared;
@@ -471,36 +225,20 @@ private:
 };
 
 /// Fenêtre sur un flux parent.
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
-OpenSubStream(sdl3::IOStream& parent, uint64_t offset, uint64_t length) {
-	auto state = std::make_shared<StreamState>();
-	return MakeStream(std::make_unique<SubStreamImpl>(parent, offset, length, state), state);
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
+OpenSubStream(sdl3::IOStream& parent, uint64_t offset, uint64_t length);
 
 /// Fenêtre sur un flux parent PARTAGÉ : la fenêtre le garde en vie (flux
 /// décodé d'un bloc solide, lu par plusieurs entrées).
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
-OpenSharedSubStream(std::shared_ptr<ArchiveStream> parent, uint64_t offset, uint64_t length) {
-	auto state = std::make_shared<StreamState>();
-	sdl3::IOStream& io = parent->io;
-	return MakeStream(std::make_unique<SubStreamImpl>(io, offset, length, state, std::move(parent)),
-					  state);
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
+OpenSharedSubStream(std::shared_ptr<ArchiveStream> parent, uint64_t offset, uint64_t length);
 
 /// Flux lisant des octets en mémoire (qu'il possède).
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError> OpenMemoryStream(Bytes bytes) {
-	auto state = std::make_shared<StreamState>();
-	return MakeStream(std::make_unique<MemoryStreamImpl>(std::move(bytes)), state);
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError> OpenMemoryStream(Bytes bytes);
 
 /// Fenêtre sur des octets partagés (bloc décodé gardé en cache).
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
-OpenSharedMemoryStream(std::shared_ptr<const Bytes> bytes, uint64_t offset, uint64_t length) {
-	if (offset > bytes->size() || length > bytes->size() - offset)
-		return Err(MakeError(ErrorKind::CORRUPT, String("fenêtre hors du bloc décodé")));
-	auto state = std::make_shared<StreamState>();
-	return MakeStream(std::make_unique<MemoryStreamImpl>(std::move(bytes), offset, length), state);
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
+OpenSharedMemoryStream(std::shared_ptr<const Bytes> bytes, uint64_t offset, uint64_t length);
 
 /// Vérifie, quand la lecture atteint la fin, la taille et le CRC-32 du
 /// contenu. `mismatch` : type d'erreur à rapporter (CORRUPT, ou
@@ -513,53 +251,8 @@ public:
 		  m_expectedCrc(crc), m_name(std::move(name)), m_mismatch(mismatch) {}
 
 protected:
-	Result<size_t, ArchiveError> Produce(uint8_t* out, size_t max) override {
-		if (m_expectedSize.IsSome())
-			max = size_t(std::min<uint64_t>(
-				max, m_expectedSize.Value() - std::min(m_count, m_expectedSize.Value()) + 1));
-		auto done = StreamRead(m_inner, out, max);
-		if (done.IsError()) {
-			ArchiveError error = done.Error();
-			// Données chiffrées indécodables : presque toujours la clé.
-			if (m_mismatch == ErrorKind::WRONG_PASSWORD && error.kind == ErrorKind::CORRUPT) {
-				error.kind = ErrorKind::WRONG_PASSWORD;
-				error.message =
-					String::Format("%s (mot de passe incorrect ?)", error.message.CStr());
-			}
-			if (!error.message.StartsWith(m_name + " :"))
-				error.message = String::Format("%s : %s", m_name.CStr(), error.message.CStr());
-			return Err(error);
-		}
-		if (done.Value() == 0) {
-			if (m_expectedSize.IsSome() && m_count != m_expectedSize.Value())
-				return Err(MakeError(
-					ErrorKind::CORRUPT,
-					String::Format("%s : %llu octets au lieu de %llu", m_name.CStr(),
-								   static_cast<unsigned long long>(m_count),
-								   static_cast<unsigned long long>(m_expectedSize.Value()))));
-			if (m_expectedCrc.IsSome() && m_crc != m_expectedCrc.Value())
-				return Err(
-					MakeError(m_mismatch, String::Format("%s : CRC-32 incorrect%s", m_name.CStr(),
-														 m_mismatch == ErrorKind::WRONG_PASSWORD
-															 ? " (mot de passe incorrect ?)"
-															 : "")));
-			return Ok(size_t(0));
-		}
-		m_count += done.Value();
-		if (m_expectedSize.IsSome() && m_count > m_expectedSize.Value())
-			return Err(MakeError(
-				ErrorKind::CORRUPT,
-				String::Format("%s : plus de données que la taille annoncée", m_name.CStr())));
-		m_crc = Crc32(std::span<const uint8_t>(out, done.Value()), m_crc);
-		return done;
-	}
-	bool Restart() override {
-		if (m_inner.io.Seek(0, SDL_IO_SEEK_SET) != 0)
-			return false;
-		m_count = 0;
-		m_crc = 0;
-		return true;
-	}
+	Result<size_t, ArchiveError> Produce(uint8_t* out, size_t max) override;
+	bool Restart() override;
 
 private:
 	ArchiveStream m_inner;
@@ -571,45 +264,20 @@ private:
 	uint32_t m_crc = 0;
 };
 
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
 OpenCheckedStream(ArchiveStream inner, Option<uint64_t> size, Option<uint32_t> crc,
-				  const String& name, ErrorKind mismatch = ErrorKind::CORRUPT) {
-	auto state = std::make_shared<StreamState>();
-	return MakeStream(
-		std::make_unique<CheckedStreamImpl>(std::move(inner), size, crc, name, mismatch, state),
-		state);
-}
+				  const String& name, ErrorKind mismatch = ErrorKind::CORRUPT);
 
 /// Lit exactement `size` octets d'un flux d'archive.
-[[nodiscard]] inline Result<Bytes, ArchiveError> StreamReadExact(ArchiveStream& stream,
-																 uint64_t size) {
-	Bytes bytes(static_cast<size_t>(size));
-	auto done = StreamRead(stream, bytes.data(), bytes.size());
-	if (done.IsError())
-		return Err(done.Error());
-	if (done.Value() != size)
-		return Err(MakeError(ErrorKind::CORRUPT, String("données tronquées")));
-	return Ok(std::move(bytes));
-}
+[[nodiscard]] Result<Bytes, ArchiveError> StreamReadExact(ArchiveStream& stream,
+																 uint64_t size);
 
 /// Flux de lecture d'un fichier du disque.
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError> OpenFileStream(const String& path) {
-	auto io = sdl3::IOStream::FromFile(path, "rb");
-	if (io.IsError())
-		return Err(
-			MakeError(ErrorKind::IO, String::Format("ouverture de %s impossible : %s", path.CStr(),
-													String(io.Error()).CStr())));
-	return Ok(ArchiveStream{std::move(io).Unwrap(), std::make_shared<StreamState>()});
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError> OpenFileStream(const String& path);
 
 /// Flux sur des octets NON possédés (qui doivent survivre au flux).
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
-OpenViewStream(std::span<const uint8_t> bytes) {
-	auto io = ViewStream(bytes);
-	if (io.IsError())
-		return Err(MakeError(ErrorKind::IO, io.Error()));
-	return Ok(ArchiveStream{std::move(io).Unwrap(), std::make_shared<StreamState>()});
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
+OpenViewStream(std::span<const uint8_t> bytes);
 
 // ============================================================================
 // Flux en écriture (compresseurs, chiffreurs)
@@ -622,33 +290,17 @@ class BorrowedStreamImpl : public sdl3::IOStreamImpl {
 public:
 	explicit BorrowedStreamImpl(sdl3::IOStream& target) : m_target(&target) {}
 	[[nodiscard]] Sint64 Size() override { return m_target->GetSize(); }
-	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override {
-		return m_target->Seek(offset, whence);
-	}
-	size_t Read(void* buffer, size_t size, sdl3::IOStatus& status) override {
-		const size_t done = m_target->Read(buffer, size);
-		if (done == 0)
-			status = m_target->Status();
-		return done;
-	}
-	size_t Write(const void* buffer, size_t size, sdl3::IOStatus& status) override {
-		if (!m_target->WriteExact(buffer, size)) {
-			status = sdl3::IOStatus::ERROR;
-			return 0;
-		}
-		return size;
-	}
+	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override;
+	size_t Read(void* buffer, size_t size, sdl3::IOStatus& status) override;
+	size_t Write(const void* buffer, size_t size, sdl3::IOStatus& status) override;
 	bool Flush(sdl3::IOStatus&) override { return m_target->Flush(); }
 
 private:
 	sdl3::IOStream* m_target;
 };
 
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
-OpenBorrowedStream(sdl3::IOStream& target) {
-	auto state = std::make_shared<StreamState>();
-	return MakeStream(std::make_unique<BorrowedStreamImpl>(target), state);
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
+OpenBorrowedStream(sdl3::IOStream& target);
 
 /// Base des flux en écriture qui transforment ce qu'on leur écrit (compression,
 /// chiffrement) et l'envoient dans `sink` (possédé, fermé avec eux). Les
@@ -660,36 +312,9 @@ public:
 
 	/// Octets reçus jusqu'ici (position d'écriture).
 	[[nodiscard]] Sint64 Size() override { return Sint64(m_received); }
-	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override {
-		return offset == 0 && whence == sdl3::IOWhence::SEEK_CURRENT ? Sint64(m_received) : -1;
-	}
-	size_t Write(const void* buffer, size_t size, sdl3::IOStatus& status) final {
-		if (m_state->error.IsSome() || m_finished) {
-			status = sdl3::IOStatus::ERROR;
-			return 0;
-		}
-		auto consumed = Consume(static_cast<const uint8_t*>(buffer), size);
-		if (consumed.IsError()) {
-			m_state->Fail(consumed.Error());
-			status = sdl3::IOStatus::ERROR;
-			return 0;
-		}
-		m_received += size;
-		return size;
-	}
-	bool Close() final {
-		if (!m_finished && m_state->error.IsNone()) {
-			m_finished = true;
-			auto finished = Finish();
-			if (finished.IsError())
-				m_state->Fail(finished.Error());
-		}
-		if (!m_sink.io.Close() && m_state->error.IsNone())
-			m_state->Fail(m_sink.Failure("écriture"));
-		if (m_state->error.IsNone() && m_sink.state && m_sink.state->error.IsSome())
-			m_state->Fail(m_sink.state->error.Value());
-		return m_state->error.IsNone();
-	}
+	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override;
+	size_t Write(const void* buffer, size_t size, sdl3::IOStatus& status) final;
+	bool Close() final;
 
 protected:
 	virtual Result<bool, ArchiveError> Consume(const uint8_t* data, size_t size) = 0;
@@ -697,14 +322,7 @@ protected:
 	virtual Result<bool, ArchiveError> Finish() = 0;
 
 	/// Écrit dans le flux de sortie.
-	[[nodiscard]] Result<bool, ArchiveError> Emit(const void* data, size_t size) {
-		if (size == 0)
-			return Ok(true);
-		if (!m_sink.io.WriteExact(data, size))
-			return Err(m_sink.Failure("écriture"));
-		m_emitted += size;
-		return Ok(true);
-	}
+	[[nodiscard]] Result<bool, ArchiveError> Emit(const void* data, size_t size);
 	[[nodiscard]] uint64_t Emitted() const noexcept { return m_emitted; }
 	[[nodiscard]] uint64_t Received() const noexcept { return m_received; }
 
@@ -717,42 +335,15 @@ private:
 
 /// Ferme un flux en écriture (émission des données en attente) et rend son
 /// erreur éventuelle.
-[[nodiscard]] inline Result<bool, ArchiveError> FinishStream(ArchiveStream& stream) {
-	const bool closed = stream.io.Close();
-	if (stream.state && stream.state->error.IsSome())
-		return Err(stream.state->error.Value());
-	if (!closed)
-		return Err(MakeError(ErrorKind::IO, String("fermeture du flux impossible")));
-	return Ok(true);
-}
+[[nodiscard]] Result<bool, ArchiveError> FinishStream(ArchiveStream& stream);
 
 /// Écrit tout `data` dans un flux en écriture.
-[[nodiscard]] inline Result<bool, ArchiveError> StreamWrite(ArchiveStream& stream,
-															std::span<const uint8_t> data) {
-	if (data.empty())
-		return Ok(true);
-	if (!stream.io.WriteExact(data.data(), data.size()))
-		return Err(stream.Failure("écriture"));
-	return Ok(true);
-}
+[[nodiscard]] Result<bool, ArchiveError> StreamWrite(ArchiveStream& stream,
+															std::span<const uint8_t> data);
 
 /// Copie un flux d'entrée vers un flux d'archive en écriture.
-[[nodiscard]] inline Result<uint64_t, ArchiveError> CopyToStream(ArchiveStream& in,
-																 ArchiveStream& out) {
-	std::vector<uint8_t> chunk(1 << 16);
-	uint64_t total = 0;
-	for (;;) {
-		auto done = StreamRead(in, chunk.data(), chunk.size());
-		if (done.IsError())
-			return Err(done.Error());
-		if (done.Value() == 0)
-			return Ok(total);
-		auto written = StreamWrite(out, std::span<const uint8_t>(chunk.data(), done.Value()));
-		if (written.IsError())
-			return Err(written.Error());
-		total += done.Value();
-	}
-}
+[[nodiscard]] Result<uint64_t, ArchiveError> CopyToStream(ArchiveStream& in,
+																 ArchiveStream& out);
 
 /// Lit `inner`, puis, arrivé à sa fin, lit `tail` jusqu'au bout (sans rien
 /// rendre) : un contrôle placé en fin de `tail` (code d'authentification)
@@ -763,19 +354,7 @@ public:
 		: DecoderImpl(std::move(state), NONE), m_inner(std::move(inner)), m_tail(std::move(tail)) {}
 
 protected:
-	Result<size_t, ArchiveError> Produce(uint8_t* out, size_t max) override {
-		auto got = StreamRead(m_inner, out, max);
-		if (got.IsError() || got.Value() > 0)
-			return got;
-		uint8_t scratch[1 << 12];
-		for (;;) {
-			auto drained = StreamRead(*m_tail, scratch, sizeof(scratch));
-			if (drained.IsError())
-				return drained;
-			if (drained.Value() == 0)
-				return Ok(size_t(0));
-		}
-	}
+	Result<size_t, ArchiveError> Produce(uint8_t* out, size_t max) override;
 	bool Restart() override { return m_inner.io.Seek(0, SDL_IO_SEEK_SET) == 0; }
 
 private:
@@ -783,40 +362,14 @@ private:
 	std::shared_ptr<ArchiveStream> m_tail;
 };
 
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
-OpenDrainingStream(ArchiveStream inner, std::shared_ptr<ArchiveStream> tail) {
-	auto state = std::make_shared<StreamState>();
-	return MakeStream(std::make_unique<DrainImpl>(std::move(inner), std::move(tail), state), state);
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
+OpenDrainingStream(ArchiveStream inner, std::shared_ptr<ArchiveStream> tail);
 
 /// Copie exactement `size` octets (taille déjà inscrite dans un en-tête) ;
 /// un contenu d'une autre taille (fichier modifié pendant l'écriture) est une
 /// erreur : l'archive serait illisible.
-[[nodiscard]] inline Result<bool, ArchiveError>
-CopyStreamExactly(ArchiveStream& content, sdl3::IOStream& out, uint64_t size, const String& path) {
-	std::vector<uint8_t> chunk(1 << 16);
-	uint64_t copied = 0;
-	for (;;) {
-		const size_t want = size_t(std::min<uint64_t>(chunk.size(), size - copied + 1));
-		auto done = StreamRead(content, chunk.data(), want);
-		if (done.IsError())
-			return Err(done.Error());
-		if (done.Value() == 0)
-			break;
-		if (copied + done.Value() > size)
-			return Err(
-				MakeError(ErrorKind::INVALID_ARGUMENT,
-						  String::Format("%s est plus grand que sa taille annoncée", path.CStr())));
-		if (!out.WriteExact(chunk.data(), done.Value()))
-			return Err(MakeError(ErrorKind::IO, String("écriture impossible")));
-		copied += done.Value();
-	}
-	if (copied != size)
-		return Err(
-			MakeError(ErrorKind::INVALID_ARGUMENT,
-					  String::Format("%s est plus petit que sa taille annoncée", path.CStr())));
-	return Ok(true);
-}
+[[nodiscard]] Result<bool, ArchiveError>
+CopyStreamExactly(ArchiveStream& content, sdl3::IOStream& out, uint64_t size, const String& path);
 
 /// Parties lues à la suite (extents ISO, volumes).
 class ConcatStreamImpl final : public DecoderImpl {
@@ -825,33 +378,16 @@ public:
 		: DecoderImpl(std::move(state), size), m_parts(std::move(parts)) {}
 
 protected:
-	Result<size_t, ArchiveError> Produce(uint8_t* out, size_t max) override {
-		while (m_current < m_parts.size()) {
-			auto got = StreamRead(m_parts[m_current], out, max);
-			if (got.IsError() || got.Value() > 0)
-				return got;
-			++m_current;
-		}
-		return Ok(size_t(0));
-	}
-	bool Restart() override {
-		for (ArchiveStream& part : m_parts)
-			if (part.io.Seek(0, SDL_IO_SEEK_SET) != 0)
-				return false;
-		m_current = 0;
-		return true;
-	}
+	Result<size_t, ArchiveError> Produce(uint8_t* out, size_t max) override;
+	bool Restart() override;
 
 private:
 	std::vector<ArchiveStream> m_parts;
 	size_t m_current = 0;
 };
 
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
-OpenConcatStream(std::vector<ArchiveStream> parts, Option<uint64_t> size = NONE) {
-	auto state = std::make_shared<StreamState>();
-	return MakeStream(std::make_unique<ConcatStreamImpl>(std::move(parts), size, state), state);
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
+OpenConcatStream(std::vector<ArchiveStream> parts, Option<uint64_t> size = NONE);
 
 /// Transmet les écritures à `target` (non possédé) en comptant les octets :
 /// `Tell` rend le nombre d'octets écrits depuis la création.
@@ -860,17 +396,8 @@ public:
 	CountingSinkImpl(sdl3::IOStream& target, std::shared_ptr<uint64_t> counter)
 		: m_target(&target), m_counter(std::move(counter)) {}
 	[[nodiscard]] Sint64 Size() override { return Sint64(*m_counter); }
-	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override {
-		return offset == 0 && whence == sdl3::IOWhence::SEEK_CURRENT ? Sint64(*m_counter) : -1;
-	}
-	size_t Write(const void* buffer, size_t size, sdl3::IOStatus& status) override {
-		if (!m_target->WriteExact(buffer, size)) {
-			status = sdl3::IOStatus::ERROR;
-			return 0;
-		}
-		*m_counter += size;
-		return size;
-	}
+	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override;
+	size_t Write(const void* buffer, size_t size, sdl3::IOStatus& status) override;
 	bool Flush(sdl3::IOStatus&) override { return m_target->Flush(); }
 
 private:
@@ -878,36 +405,23 @@ private:
 	std::shared_ptr<uint64_t> m_counter;
 };
 
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
-OpenCountingSink(sdl3::IOStream& target, std::shared_ptr<uint64_t> counter) {
-	auto state = std::make_shared<StreamState>();
-	return MakeStream(std::make_unique<CountingSinkImpl>(target, std::move(counter)), state);
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
+OpenCountingSink(sdl3::IOStream& target, std::shared_ptr<uint64_t> counter);
 
 /// Flux en écriture vers un tampon mémoire partagé (lisible après fermeture).
 class MemorySinkImpl : public sdl3::IOStreamImpl {
 public:
 	explicit MemorySinkImpl(std::shared_ptr<Bytes> target) : m_target(std::move(target)) {}
 	[[nodiscard]] Sint64 Size() override { return Sint64(m_target->size()); }
-	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override {
-		return offset == 0 && whence == sdl3::IOWhence::SEEK_CURRENT ? Sint64(m_target->size())
-																	 : -1;
-	}
-	size_t Write(const void* buffer, size_t size, sdl3::IOStatus&) override {
-		const auto* bytes = static_cast<const uint8_t*>(buffer);
-		m_target->insert(m_target->end(), bytes, bytes + size);
-		return size;
-	}
+	Sint64 Seek(Sint64 offset, sdl3::IOWhence whence) override;
+	size_t Write(const void* buffer, size_t size, sdl3::IOStatus&) override;
 
 private:
 	std::shared_ptr<Bytes> m_target;
 };
 
-[[nodiscard]] inline Result<ArchiveStream, ArchiveError>
-OpenMemorySink(std::shared_ptr<Bytes> target) {
-	auto state = std::make_shared<StreamState>();
-	return MakeStream(std::make_unique<MemorySinkImpl>(std::move(target)), state);
-}
+[[nodiscard]] Result<ArchiveStream, ArchiveError>
+OpenMemorySink(std::shared_ptr<Bytes> target);
 
 // ============================================================================
 // Interfaces des formats
@@ -934,40 +448,10 @@ public:
 	[[nodiscard]] virtual uint64_t EntryLimit() const noexcept = 0;
 
 	/// Contenu complet d'une entrée en mémoire (plafonné par `EntryLimit`).
-	[[nodiscard]] Result<Bytes, ArchiveError> Extract(size_t index) {
-		if (index >= Entries().size())
-			return Err(MakeError(ErrorKind::INVALID_ARGUMENT, String("entrée inexistante")));
-		const EntryInfo& entry = Entries()[index];
-		if (entry.size > EntryLimit())
-			return Err(
-				MakeError(ErrorKind::LIMIT,
-						  String::Format("%s : %llu octets dépassent la limite", entry.path.CStr(),
-										 static_cast<unsigned long long>(entry.size))));
-		auto stream = OpenEntry(index);
-		if (stream.IsError())
-			return Err(stream.Error());
-		auto bytes = ReadStreamToEnd(stream.Value(), EntryLimit(), entry.size);
-		if (bytes.IsError()) {
-			ArchiveError error = bytes.Error();
-			if (error.kind == ErrorKind::LIMIT)
-				error.message = String::Format("%s : %s", entry.path.CStr(), error.message.CStr());
-			return Err(error);
-		}
-		return bytes;
-	}
+	[[nodiscard]] Result<Bytes, ArchiveError> Extract(size_t index);
 
-	[[nodiscard]] bool HasEncryptedEntries() const noexcept {
-		for (const EntryInfo& entry : Entries())
-			if (entry.encrypted)
-				return true;
-		return false;
-	}
-	[[nodiscard]] Option<size_t> Find(const String& path) const {
-		for (size_t i = 0; i < Entries().size(); ++i)
-			if (Entries()[i].path == path)
-				return Some(i);
-		return NONE;
-	}
+	[[nodiscard]] bool HasEncryptedEntries() const noexcept;
+	[[nodiscard]] Option<size_t> Find(const String& path) const;
 };
 
 /// Écrivain d'archive : sérialise un arbre complet dans un flux.

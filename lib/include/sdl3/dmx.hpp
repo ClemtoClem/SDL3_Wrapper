@@ -39,19 +39,11 @@ public:
 
     // Canaux DMX numérotés de 1 à 512 (convention DMX standard, pas 0-511).
     // Hors-plage : ignoré silencieusement (aucune trame DMX n'a plus de 512 canaux).
-    void Set(int channel, uint8_t value) noexcept {
-        if (channel >= 1 && channel <= DMX_UNIVERSE_SIZE)
-            channels[size_t(channel - 1)] = value;
-    }
-    [[nodiscard]] uint8_t Get(int channel) const noexcept {
-        return (channel >= 1 && channel <= DMX_UNIVERSE_SIZE) ? channels[size_t(channel - 1)] : 0;
-    }
+    void Set(int channel, uint8_t value) noexcept;
+    [[nodiscard]] uint8_t Get(int channel) const noexcept;
 
     // Écrit `values` sur des canaux consécutifs à partir de `startChannel` (1-indexé).
-    void SetRange(int startChannel, std::span<const uint8_t> values) noexcept {
-        for (size_t i = 0; i < values.size(); ++i)
-            Set(startChannel + int(i), values[i]);
-    }
+    void SetRange(int startChannel, std::span<const uint8_t> values) noexcept;
 
     void Blackout() noexcept { channels.fill(0); }
     void FullOn() noexcept { channels.fill(255); }
@@ -68,14 +60,7 @@ namespace dmx {
 // device n'a qu'un seul type de rapport) — vérifie la doc de ton matériel et
 // adapte au besoin (certains découpent en plusieurs rapports plus petits).
 // Retourne le nombre d'octets écrits (cf. HidDevice::write), -1 en cas d'échec.
-inline int SendToHid(HidDevice &device, const DmxUniverse &universe, uint8_t reportId = 0) {
-    std::vector<uint8_t> report;
-    report.reserve(1 + size_t(DmxUniverse::GetSize()));
-    report.push_back(reportId);
-    auto span = universe.GetData();
-    report.insert(report.end(), span.begin(), span.end());
-    return device.Write(report);
-}
+int SendToHid(HidDevice &device, const DmxUniverse &universe, uint8_t reportId = 0);
 
 } // namespace dmx
 

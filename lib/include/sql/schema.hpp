@@ -25,43 +25,14 @@ struct Schema {
 	std::vector<ColumnDef> columns;
 
 	/// Index of the column named `name`, or NONE if no such column exists.
-	[[nodiscard]] Option<size_t> ColumnIndex(StringView name) const {
-		for (size_t i = 0; i < columns.size(); ++i)
-			if (columns[i].name.View() == name)
-				return Some(i);
-		return NONE;
-	}
+	[[nodiscard]] Option<size_t> ColumnIndex(StringView name) const;
 
 	/// Column names in declaration order.
-	[[nodiscard]] std::vector<String> ColumnNames() const {
-		std::vector<String> names;
-		names.reserve(columns.size());
-		for (auto &col : columns)
-			names.push_back(col.name);
-		return names;
-	}
+	[[nodiscard]] std::vector<String> ColumnNames() const;
 };
 
 /// Human-readable name of a scalar data::NodeType, for error messages
 /// (type-mismatch reports in database.hpp / expression.hpp).
-[[nodiscard]] inline String NodeTypeName(data::NodeType type) {
-	switch (type) {
-		case data::NodeType::STRING:
-			return "STRING";
-		case data::NodeType::BOOL:
-			return "BOOL";
-		case data::NodeType::INT:
-			return "INT";
-		case data::NodeType::FLOAT:
-			return "FLOAT";
-		case data::NodeType::OBJECT:
-			return "OBJECT";
-		case data::NodeType::ARRAY:
-			return "ARRAY";
-		case data::NodeType::NONE:
-		default:
-			return "NONE";
-	}
-}
+[[nodiscard]] String NodeTypeName(data::NodeType type);
 
 } // namespace sql

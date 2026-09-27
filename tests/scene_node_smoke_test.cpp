@@ -594,7 +594,7 @@ TEST(ScenePacked, PacksASubtreeAndInstantiatesItSeveralTimes) {
 	Car car;
 	car.tree.SetLocalPosition(car.car, {5.f, 0.f, 0.f});
 	PackedScene packed = PackedScene::FromSubtree(car.tree, car.car);
-	packed.SetSource(String("content/Car.tscene"));
+	packed.SetSource(String("content/Car.scene"));
 	EXPECT_EQ(packed.Tree().Size(), size_t(8)); // la voiture et ses 7 descendants
 
 	NodeTree track(String("RaceTrack"));
@@ -618,11 +618,11 @@ TEST(ScenePacked, PacksASubtreeAndInstantiatesItSeveralTimes) {
 TEST(ScenePacked, InstancesRememberWhereTheyComeFrom) {
 	Car car;
 	PackedScene packed = PackedScene::FromSubtree(car.tree, car.car);
-	packed.SetSource(String("content/Car.tscene"));
+	packed.SetSource(String("content/Car.scene"));
 	NodeTree track(String("RaceTrack"));
 	NodeId instance = packed.InstantiateInto(track, track.Root(), String("Car01"));
 	EXPECT_TRUE(PackedScene::IsInstanceRoot(*track.Get(instance)));
-	EXPECT_TRUE(PackedScene::InstanceSource(*track.Get(instance)) == String("content/Car.tscene"));
+	EXPECT_TRUE(PackedScene::InstanceSource(*track.Get(instance)) == String("content/Car.scene"));
 	// Les nœuds INTERNES d'une instance n'en sont pas la racine.
 	EXPECT_TRUE(
 		!PackedScene::IsInstanceRoot(*track.Get(track.Resolve(String("Wheels"), instance))));
@@ -666,11 +666,11 @@ TEST(ScenePacked, OutgoingReferencesAreNeutralisedRatherThanLeftDangling) {
 TEST(ScenePacked, SurvivesASaveLoadRoundTrip) {
 	Car car;
 	PackedScene packed = PackedScene::FromSubtree(car.tree, car.car);
-	packed.SetSource(String("content/Car.tscene"));
+	packed.SetSource(String("content/Car.scene"));
 	auto back = PackedScene::DecodeJson(packed.EncodeJson());
 	ASSERT_TRUE(back.IsOk());
 	EXPECT_TRUE(back.Value().Tree() == packed.Tree());
-	EXPECT_TRUE(back.Value().Source() == String("content/Car.tscene"));
+	EXPECT_TRUE(back.Value().Source() == String("content/Car.scene"));
 }
 
 // ─────────────────────────────────────────────────────────────────────────

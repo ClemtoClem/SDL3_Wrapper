@@ -60,9 +60,7 @@ struct UiFrameTimings {
 	double shaderEffectMs = 0.0;  ///< post-traitement des widgets à effet
 	double drawMs = 0.0;          ///< dessin 2D de tous les widgets
 
-	[[nodiscard]] double TotalMs() const noexcept {
-		return styleMs + layoutMs + viewport3dMs + shaderEffectMs + drawMs;
-	}
+	[[nodiscard]] double TotalMs() const noexcept;
 };
 
 
@@ -99,22 +97,14 @@ struct UiFrameTimings {
 /// @endcode
 class Ui {
 public:
-	Ui(ecs::ArchetypeRegistry &world, sdl3::Window &window, sdl3::Renderer &renderer, UiTheme theme = UiTheme::Dark())
-		: world(&world), window(&window), factory(world, layout, std::move(theme)) {
-		this->window->StartTextInput();
-		style.sheet = &factory.sheet;
-		Initialize(renderer);
-	}
+	Ui(ecs::ArchetypeRegistry &world, sdl3::Window &window, sdl3::Renderer &renderer, UiTheme theme = UiTheme::Dark());
 
 	/// (Ré)établit le backend de rendu 2D sur un `sdl3::Renderer` classique —
 	/// appelé implicitement par le constructeur ci-dessus, mais aussi
 	/// utilisable seul pour re-router le rendu après construction (cf.
 	/// `ui.Initialize(renderer)`, M20 du plan d'expansion moteur :
 	/// abstraction du backend de rendu ui:: derrière `IUiRenderBackend`).
-	void Initialize(sdl3::Renderer &renderer) {
-		sdlBackend = Some(SdlRendererBackend(renderer));
-		backend = &sdlBackend.Value();
-	}
+	void Initialize(sdl3::Renderer &renderer);
 
 	/// Enregistre le `render3d::Canvas` (device GPU) que les widgets
 	/// `Viewport3D` de cette UI utiliseront pour se rendre (M22, cf.
@@ -141,24 +131,14 @@ public:
 	/// Pose le thème : les widgets créés ENSUITE par la fabrique en prennent
 	/// les couleurs, et les barres de défilement automatiques (dessinées par
 	/// RenderSystem, sans widget ni style propre) suivent aussitôt.
-	void SetTheme(UiTheme theme) {
-		render.scrollbarTrack = theme.scrollbar.bgNormal;
-		render.scrollbarThumb = theme.scrollbar.bgHovered;
-		render.tooltipBg = sdl3::FColor{theme.fieldBg.r, theme.fieldBg.g, theme.fieldBg.b, 0.97f};
-		render.tooltipBorder = theme.border;
-		render.tooltipText = theme.text;
-		factory.SetTheme(std::move(theme));
-	}
+	void SetTheme(UiTheme theme);
 	/// Classes CSS-like partagées (raccourci pour `factory().sheet`).
 	[[nodiscard]] UiStyleSheet &Sheet() noexcept { return factory.sheet; }
 
 	/// Enregistre (ou redéfinit) une classe de style nommée — ex:
 	/// `gui.CreateStyleClass("aero", ui::UiStyle::glassButton());`. Marque
 	/// dirty tous les widgets qui l'utilisent déjà (redéfinition à chaud).
-	void CreateStyleClass(String name, UiStyle style) {
-		factory.sheet.Define(name, std::move(style));
-		factory.sheet.DirtyClassUsers(*world, name);
-	}
+	void CreateStyleClass(String name, UiStyle style);
 
 	/// Pose UNE propriété de style par chemin `"cible.propriete"` (ex:
 	/// `gui.setStyleProperty("menu_1.background-color", sdl3::FColor::UI_ACCENT_BLUE_PRIMARY());`).
@@ -235,9 +215,7 @@ public:
 	/// Règle de transmission des touches quand un widget a le focus : vrai
 	/// = l'évènement continue vers l'application (cf.
 	/// InputSystem::DefaultKeyPassThrough, utilisée si `rule` est vide).
-	void SetKeyPassThrough(std::function<bool(const sdl3::Event &, ecs::Entity)> rule) {
-		input.keyPassThrough = std::move(rule);
-	}
+	void SetKeyPassThrough(std::function<bool(const sdl3::Event &, ecs::Entity)> rule);
 
 	/// Mises à jour continues indépendantes des évènements (animations,
 	/// infobulle) — à appeler une fois par frame.
@@ -263,37 +241,7 @@ public:
 	/// `canvasForViewports` (aucun render3d::Canvas enregistré => les deux
 	/// restent no-op, aucune régression pour une appli ui:: qui n'utilise ni
 	/// Viewport3D ni UiShaderEffect).
-	void Render() {
-		// Chronométrage par étape (cf. UiFrameTimings) : cinq lectures
-		// d'horloge par image, pour que l'application puisse dire OÙ part son
-		// temps de rendu au lieu de constater seulement qu'il est élevé.
-		const double tickRate = double(sdl3::GetPerformanceFrequency());
-		uint64_t mark = sdl3::GetPerformanceCounter();
-		auto elapsedMs = [&mark, tickRate]() {
-			uint64_t now = sdl3::GetPerformanceCounter();
-			double ms = double(now - mark) * 1000.0 / tickRate;
-			mark = now;
-			return ms;
-		};
-
-		style.Resolve(*world);
-		timings.styleMs = elapsedMs();
-
-		auto sz = window->GetSize();
-		layout.RunIfNeeded(*world, float(sz.x), float(sz.y));
-		timings.layoutMs = elapsedMs();
-
-		timings.viewport3dMs = 0.0;
-		timings.shaderEffectMs = 0.0;
-		if (canvasForViewports) {
-			viewport3d.Update(*world, *canvasForViewports, *backend);
-			timings.viewport3dMs = elapsedMs();
-			shaderEffect.Update(*world, *canvasForViewports, *backend, render);
-			timings.shaderEffectMs = elapsedMs();
-		}
-		render.Run(*world, *backend, &input.tooltip);
-		timings.drawMs = elapsedMs();
-	}
+	void Render();
 
 	/// Coût de chaque étape de la dernière image (cf. UiFrameTimings).
 	[[nodiscard]] const UiFrameTimings &LastFrameTimings() const noexcept { return timings; }

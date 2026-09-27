@@ -38,29 +38,11 @@ namespace sql {
 /// Encodes `root` as JSON and writes it to `path`. `root` is used as-is (not
 /// cloned) as the JsonDocument's root — the caller keeps ownership via the
 /// shared_ptr.
-[[nodiscard]] inline bool SaveProjectJson(const String &path, const data::NodePtr &root) {
-	data::JsonDocument doc;
-	doc.SetRoot(root);
-	String text = doc.EncodeStr();
-	return sdl3::WriteFile(path, text.CStr(), text.GetSize());
-}
+[[nodiscard]] bool SaveProjectJson(const String &path, const data::NodePtr &root);
 
 /// Reads `path` and decodes it as JSON. Err on I/O failure or a JSON parse
 /// error (formatted via data::ParseError::Format()).
-[[nodiscard]] inline Result<data::NodePtr, String> LoadProjectJson(const String &path) {
-	auto bytes = sdl3::ReadFile(path);
-	if (!bytes)
-		return Err(String(bytes.Error()));
-
-	String content(reinterpret_cast<const char *>(bytes.Value().data()), bytes.Value().size());
-
-	data::JsonDocument doc;
-	auto err = doc.DecodeStr(content);
-	if (err.IsSome())
-		return Err(err->Format());
-
-	return Ok(doc.GetRoot());
-}
+[[nodiscard]] Result<data::NodePtr, String> LoadProjectJson(const String &path);
 
 // ============================================================================
 // Half 2 — Table<Row> CSV persistence

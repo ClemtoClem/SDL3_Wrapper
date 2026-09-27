@@ -1,0 +1,60 @@
+# player — contrôleur à la première personne
+let yaw = 0
+let pitch = 0
+let manual = false
+let waypoints = []
+let next_point = 0
+let walk_speed = 4
+
+fn wrap_angle(a) {
+    while (a > math.pi) { a -= 2 * math.pi }
+    while (a < -math.pi) { a += 2 * math.pi }
+    return a
+}
+
+fn on_start(self) {
+    waypoints = scene.find_tag("waypoint")
+    next_point = 0
+    yaw = 0
+    pitch = 0
+    manual = false
+}
+
+fn on_update(self, dt) {
+    let mouse = input.mouse_delta()
+    if (mouse[0] != 0 or mouse[1] != 0) { manual = true }
+    yaw += mouse[0] * 0.0025
+    pitch = math.clamp(pitch - mouse[1] * 0.0025, -1.2, 1.2)
+
+    let forward = input.axis("s", "w") + input.axis("down", "up")
+    let strafe = input.axis("a", "d") + input.axis("left", "right")
+    if (forward != 0 or strafe != 0) { manual = true }
+
+    # Visite guidée : cap vers le prochain point, en avant toute.
+    if (not manual and next_point < len(waypoints)) {
+        let here = object.position(self)
+        let there = object.position(waypoints[next_point])
+        let dx = there[0] - here[0]
+        let dz = there[2] - here[2]
+        if (dx * dx + dz * dz < 0.5) {
+            next_point += 1
+        } else {
+            yaw += math.clamp(wrap_angle(math.atan2(dx, dz) - yaw), -2.5 * dt, 2.5 * dt)
+            forward = 1
+        }
+        pitch = math.lerp(pitch, 0, math.min(1, dt * 2))
+    }
+
+    let speed = walk_speed
+    if (input.key("shift")) { speed = walk_speed * 1.8 }
+    let v = object.velocity(self)
+    let vy = 0
+    if (v) { vy = v[1] }
+    # Droite = (-cos, 0, sin) quand l'avant est (sin, 0, cos).
+    let vx = (math.sin(yaw) * forward - math.cos(yaw) * strafe) * speed
+    let vz = (math.cos(yaw) * forward + math.sin(yaw) * strafe) * speed
+    object.set_velocity(self, vx, vy, vz)
+    object.set_rotation(self, 0, yaw * 180 / math.pi, 0)
+    let eye = node.prop(self, "eye")
+    if (eye != nil) { object.set_rotation(eye, -pitch * 180 / math.pi, 0, 0) }
+}

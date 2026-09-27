@@ -1,0 +1,197 @@
+{
+  "name": "Terrain procédural",
+  "description": "gen.terrain : couches de bruit, île, érosion, biomes",
+  "gameplay_script": "",
+  "environment": {
+    "sun_direction": [
+      0.30000001192092896,
+      -0.699999988079071,
+      0.44999998807907104
+    ],
+    "sun_intensity": 1.100000023841858,
+    "sun_color": [
+      255,
+      247,
+      230
+    ],
+    "ambient_color": [
+      70,
+      80,
+      96
+    ],
+    "background_color": [
+      120,
+      170,
+      220
+    ],
+    "gravity": [
+      0.0,
+      -9.8100004196167,
+      0.0
+    ]
+  },
+  "camera": {
+    "edit_position": [
+      0.0,
+      24.0,
+      -28.0
+    ],
+    "edit_yaw": 0.0,
+    "edit_pitch": -0.6499999761581421,
+    "play_position": [
+      0.0,
+      21.0,
+      -27.0
+    ],
+    "play_yaw": 0.0,
+    "play_pitch": -0.6200000047683716
+  },
+  "canvas2d": {
+    "width": 1280,
+    "height": 720,
+    "render_3d": true,
+    "background": [
+      24,
+      26,
+      34
+    ]
+  },
+  "tree": {
+    "format": "scene.tree",
+    "version": 1,
+    "root": {
+      "id": "0:0",
+      "type": "Node",
+      "name": "Terrain procédural",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          -0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "children": [
+        {
+          "id": "1:0",
+          "type": "MeshInstance",
+          "name": "Mer",
+          "transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "components": [
+            {
+              "type": "MeshInstance",
+              "props": {
+                "shape": {
+                  "type": "string",
+                  "value": "box"
+                },
+                "dimensions": {
+                  "type": "vec3",
+                  "value": [
+                    60.0,
+                    0.20000000298023224,
+                    60.0
+                  ]
+                },
+                "segments": {
+                  "type": "int",
+                  "value": 24
+                },
+                "material": {
+                  "type": "string",
+                  "value": "pbr"
+                },
+                "base_color": {
+                  "type": "color",
+                  "value": [
+                    36.0,
+                    82.0,
+                    150.0,
+                    255.0
+                  ]
+                },
+                "metallic": {
+                  "type": "float",
+                  "value": 0.10000000149011612
+                },
+                "roughness": {
+                  "type": "float",
+                  "value": 0.20000000298023224
+                },
+                "double_sided": {
+                  "type": "bool",
+                  "value": false
+                },
+                "wireframe": {
+                  "type": "bool",
+                  "value": false
+                }
+              }
+            },
+            {
+              "type": "RigidBody",
+              "props": {
+                "body": {
+                  "type": "string",
+                  "value": "static"
+                },
+                "collider": {
+                  "type": "string",
+                  "value": "box"
+                },
+                "half_extents": {
+                  "type": "vec3",
+                  "value": [
+                    30.0,
+                    0.10000000149011612,
+                    30.0
+                  ]
+                },
+                "mass": {
+                  "type": "float",
+                  "value": 1.0
+                },
+                "restitution": {
+                  "type": "float",
+                  "value": 0.30000001192092896
+                },
+                "friction": {
+                  "type": "float",
+                  "value": 0.5
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "format": "game_editor.scene",
+  "version": 1,
+  "gameplay_script_file": "../scripts/Terrain procédural.gameplay.script"
+}

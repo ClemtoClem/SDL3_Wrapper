@@ -108,11 +108,7 @@ public:
 		return static_cast<Slot<T> *>(it->second.get())->pool;
 	}
 
-	void ClearAll() {
-		std::scoped_lock lk(mu);
-		for (auto &[_, s] : slots)
-			s->Clear();
-	}
+	void ClearAll();
 
 	template <std::derived_from<Resource> T> bool Insert(String n, std::shared_ptr<T> r) {
 		return GetPool<T>().Insert(std::move(n), std::move(r));

@@ -36,15 +36,7 @@ namespace detail {
 
 namespace sensor {
 
-[[nodiscard]] inline std::vector<SensorID> Enumerated() {
-	int count = 0;
-	SensorID *ids = SDL_GetSensors(&count);
-	if (!ids)
-		return {};
-	std::vector<SensorID> v(ids, ids + count);
-	SDL_free(ids);
-	return v;
-}
+[[nodiscard]] std::vector<SensorID> Enumerated();
 
 [[nodiscard]] inline const char *NameFor(SensorID id) noexcept { return SDL_GetSensorNameForID(id); }
 [[nodiscard]] inline SensorType TypeFor(SensorID id) noexcept { return SensorType(SDL_GetSensorTypeForID(id)); }
@@ -61,16 +53,10 @@ namespace detail {
 // Requêtes communes à Sensor (possédant) et SensorView (emprunté) — évite la
 // duplication entre les deux classes tout en gardant SDL_Sensor* privé aux .cpp/.hpp internes.
 [[nodiscard]] inline const char *GetSensorName(SDL_Sensor *h) noexcept { return h ? SDL_GetSensorName(h) : ""; }
-[[nodiscard]] inline SensorType GetSensorType(SDL_Sensor *h) noexcept {
-	return h ? SensorType(SDL_GetSensorType(h)) : SensorType::INVALID;
-}
-[[nodiscard]] inline int SensorNonPortableType(SDL_Sensor *h) noexcept {
-	return h ? SDL_GetSensorNonPortableType(h) : -1;
-}
+[[nodiscard]] SensorType GetSensorType(SDL_Sensor *h) noexcept;
+[[nodiscard]] int SensorNonPortableType(SDL_Sensor *h) noexcept;
 [[nodiscard]] inline SensorID SensorId(SDL_Sensor *h) noexcept { return h ? SDL_GetSensorID(h) : 0; }
-[[nodiscard]] inline SDL_PropertiesID SensorProperties(SDL_Sensor *h) noexcept {
-	return h ? SDL_GetSensorProperties(h) : 0;
-}
+[[nodiscard]] SDL_PropertiesID SensorProperties(SDL_Sensor *h) noexcept;
 
 template <size_t N> [[nodiscard]] Option<std::array<float, N>> SensorData(SDL_Sensor *h) {
 	std::array<float, N> out{};
@@ -109,21 +95,11 @@ class Sensor : public Wrapper<SDL_Sensor, SDL_CloseSensor> {
 public:
 	using Wrapper::Wrapper;
 
-	[[nodiscard]] static Result<Sensor, StringView> Open(SensorID id) {
-		auto *s = SDL_OpenSensor(id);
-		if (!s)
-			return Err(GetError());
-		return Ok(Sensor(s));
-	}
+	[[nodiscard]] static Result<Sensor, StringView> Open(SensorID id);
 
 	/// Retrouve la vue d'un capteur déjà ouvert ailleurs, à partir de son id
 	/// (utile en réponse à un SDL_EVENT_SENSOR_UPDATE).
-	[[nodiscard]] static Option<SensorView> FromId(SensorID id) noexcept {
-		auto *s = SDL_GetSensorFromID(id);
-		if (!s)
-			return NONE;
-		return Some(SensorView(s));
-	}
+	[[nodiscard]] static Option<SensorView> FromId(SensorID id) noexcept;
 
 	[[nodiscard]] SDL_PropertiesID Properties() const noexcept { return detail::SensorProperties(m_handle); }
 	[[nodiscard]] const char *Name() const noexcept { return detail::GetSensorName(m_handle); }

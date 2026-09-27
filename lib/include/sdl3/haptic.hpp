@@ -13,15 +13,7 @@ namespace sdl3 {
 
 namespace haptic {
 
-[[nodiscard]] inline std::vector<SDL_HapticID> Enumerated() {
-    int count = 0;
-    SDL_HapticID *ids = SDL_GetHaptics(&count);
-    if (!ids)
-        return {};
-    std::vector<SDL_HapticID> v(ids, ids + count);
-    SDL_free(ids);
-    return v;
-}
+[[nodiscard]] std::vector<SDL_HapticID> Enumerated();
 
 [[nodiscard]] inline const char *NameFor(SDL_HapticID id) noexcept { return SDL_GetHapticNameForID(id); }
 
@@ -38,34 +30,17 @@ class Haptic : public Wrapper<SDL_Haptic, SDL_CloseHaptic> {
 public:
     using Wrapper::Wrapper;
 
-    [[nodiscard]] static Result<Haptic, StringView> Open(SDL_HapticID id) {
-        auto *h = SDL_OpenHaptic(id);
-        if (!h)
-            return Err(GetError());
-        return Ok(Haptic(h));
-    }
+    [[nodiscard]] static Result<Haptic, StringView> Open(SDL_HapticID id);
 
-    [[nodiscard]] static Result<Haptic, StringView> OpenFromMouse() {
-        auto *h = SDL_OpenHapticFromMouse();
-        if (!h)
-            return Err(GetError());
-        return Ok(Haptic(h));
-    }
+    [[nodiscard]] static Result<Haptic, StringView> OpenFromMouse();
 
-    [[nodiscard]] static Result<Haptic, StringView> OpenFromJoystick(Joystick &j) {
-        auto *h = SDL_OpenHapticFromJoystick(j.Get());
-        if (!h)
-            return Err(GetError());
-        return Ok(Haptic(h));
-    }
+    [[nodiscard]] static Result<Haptic, StringView> OpenFromJoystick(Joystick &j);
 
     [[nodiscard]] SDL_HapticID GetId() const noexcept { return m_handle ? SDL_GetHapticID(m_handle) : 0; }
     [[nodiscard]] const char *Name() const noexcept { return m_handle ? SDL_GetHapticName(m_handle) : ""; }
 
     [[nodiscard]] int MaxEffects() const noexcept { return m_handle ? SDL_GetMaxHapticEffects(m_handle) : 0; }
-    [[nodiscard]] int MaxEffectsPlaying() const noexcept {
-        return m_handle ? SDL_GetMaxHapticEffectsPlaying(m_handle) : 0;
-    }
+    [[nodiscard]] int MaxEffectsPlaying() const noexcept;
     [[nodiscard]] uint32_t Features() const noexcept { return m_handle ? SDL_GetHapticFeatures(m_handle) : 0; }
     [[nodiscard]] int NumAxes() const noexcept { return m_handle ? SDL_GetNumHapticAxes(m_handle) : 0; }
 
@@ -79,38 +54,18 @@ public:
 
     [[nodiscard]] bool RumbleSupported() const noexcept { return m_handle && SDL_HapticRumbleSupported(m_handle); }
     bool InitRumble() noexcept { return m_handle && SDL_InitHapticRumble(m_handle); }
-    bool PlayRumble(float strength, uint32_t lengthMs) noexcept {
-        return m_handle && SDL_PlayHapticRumble(m_handle, strength, lengthMs);
-    }
+    bool PlayRumble(float strength, uint32_t lengthMs) noexcept;
     bool StopRumble() noexcept { return m_handle && SDL_StopHapticRumble(m_handle); }
 
     // ── API avancée : effets décrits par SDL_HapticEffect (union native SDL) ─
 
-    [[nodiscard]] bool EffectSupported(const SDL_HapticEffect &effect) const noexcept {
-        return m_handle && SDL_HapticEffectSupported(m_handle, &effect);
-    }
-    [[nodiscard]] Result<SDL_HapticEffectID, StringView> CreateEffect(const SDL_HapticEffect &effect) {
-        if (!m_handle)
-            return Err(StringView("haptic invalide"));
-        auto id = SDL_CreateHapticEffect(m_handle, &effect);
-        if (id < 0)
-            return Err(GetError());
-        return Ok(id);
-    }
-    bool UpdateEffect(SDL_HapticEffectID id, const SDL_HapticEffect &effect) noexcept {
-        return m_handle && SDL_UpdateHapticEffect(m_handle, id, &effect);
-    }
-    bool RunEffect(SDL_HapticEffectID id, uint32_t iterations = 1) noexcept {
-        return m_handle && SDL_RunHapticEffect(m_handle, id, iterations);
-    }
+    [[nodiscard]] bool EffectSupported(const SDL_HapticEffect &effect) const noexcept;
+    [[nodiscard]] Result<SDL_HapticEffectID, StringView> CreateEffect(const SDL_HapticEffect &effect);
+    bool UpdateEffect(SDL_HapticEffectID id, const SDL_HapticEffect &effect) noexcept;
+    bool RunEffect(SDL_HapticEffectID id, uint32_t iterations = 1) noexcept;
     bool StopEffect(SDL_HapticEffectID id) noexcept { return m_handle && SDL_StopHapticEffect(m_handle, id); }
-    void DestroyEffect(SDL_HapticEffectID id) noexcept {
-        if (m_handle)
-            SDL_DestroyHapticEffect(m_handle, id);
-    }
-    [[nodiscard]] bool EffectRunning(SDL_HapticEffectID id) const noexcept {
-        return m_handle && SDL_GetHapticEffectStatus(m_handle, id);
-    }
+    void DestroyEffect(SDL_HapticEffectID id) noexcept;
+    [[nodiscard]] bool EffectRunning(SDL_HapticEffectID id) const noexcept;
 };
 
 } // namespace sdl3

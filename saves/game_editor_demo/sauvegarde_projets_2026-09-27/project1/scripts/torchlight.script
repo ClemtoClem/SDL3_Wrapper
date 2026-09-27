@@ -1,0 +1,26 @@
+# torchlight — flamme vacillante (attaché à chaque torche)
+# Propriétés lues sur le nœud : flicker_speed, flicker_min, flicker_max,
+# seed, flame (nom de la flamme à animer).
+let base = map()
+
+fn prop_or(self, key, fallback) {
+    let value = node.prop(self, key)
+    if (value == nil) { return fallback }
+    return value
+}
+
+fn on_start(self) {
+    base[self] = light.intensity(self)
+}
+
+fn on_update(self, dt) {
+    let t = editor.time() * prop_or(self, "flicker_speed", 1.5) + prop_or(self, "seed", 0)
+    # Somme de trois sinus incommensurables : un bruit sans motif visible.
+    let n = (math.sin(t * 7.3) + math.sin(t * 13.1 + 1.7) * 0.5 + math.sin(t * 23.7 + 0.4) * 0.25) / 1.75
+    let k = math.lerp(prop_or(self, "flicker_min", 0.75), prop_or(self, "flicker_max", 1.2), n * 0.5 + 0.5)
+    light.set_intensity(self, base[self] * k)
+    let flame = node.prop(self, "flame")
+    if (flame != nil) {
+        object.set_scale(flame, 1, 0.85 + k * 0.2, 1)
+    }
+}

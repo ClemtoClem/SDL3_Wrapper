@@ -5,13 +5,13 @@
 
 namespace generators {
 
-    template <typename Array>
-    class Generator {
-    public:
-        virtual ~Generator() = default;
-        
-        // Utilisation de std::expected (C++23) pour retourner la grille ou une erreur string
-        virtual Result<Array, String> Generate() = 0;
-    };
+	template <typename Array>
+	class Generator {
+	public:
+		virtual ~Generator() = default;
+		
+		// Utilisation de std::expected (C++23) pour retourner la grille ou une erreur string
+		virtual Result<Array, String> Generate() = 0;
+	};
 
 } /* namespace generators */

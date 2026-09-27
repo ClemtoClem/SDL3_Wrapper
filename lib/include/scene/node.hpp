@@ -59,26 +59,15 @@ struct Transform {
 	static constexpr float DEG2RAD = 3.14159265358979323846f / 180.f;
 	static constexpr float RAD2DEG = 180.f / 3.14159265358979323846f;
 
-	[[nodiscard]] math::FMatrix4 Matrix() const noexcept {
-		return math::ComposeTRS(position, rotation, scale);
-	}
+	[[nodiscard]] math::FMatrix4 Matrix() const noexcept;
 
 	/// Transform correspondant à une matrice (cf. math::DecomposeTRS et ses
 	/// limites : miroir porté sur X, cisaillement approché).
-	[[nodiscard]] static Transform FromMatrix(const math::FMatrix4& m) noexcept {
-		math::TRS trs = math::DecomposeTRS(m);
-		return Transform{trs.translation, trs.rotation, trs.scale};
-	}
+	[[nodiscard]] static Transform FromMatrix(const math::FMatrix4& m) noexcept;
 
-	[[nodiscard]] math::FVector3 EulerDegrees() const noexcept {
-		math::FVector3 e = rotation.ToEuler();
-		return {e.x * RAD2DEG, e.y * RAD2DEG, e.z * RAD2DEG};
-	}
+	[[nodiscard]] math::FVector3 EulerDegrees() const noexcept;
 
-	void SetEulerDegrees(const math::FVector3& degrees) noexcept {
-		rotation = math::FQuaternion::FromEuler(degrees.x * DEG2RAD, degrees.y * DEG2RAD,
-												degrees.z * DEG2RAD);
-	}
+	void SetEulerDegrees(const math::FVector3& degrees) noexcept;
 
 	[[nodiscard]] bool operator==(const Transform& o) const noexcept {
 		auto sameVec = [](const math::FVector3& a, const math::FVector3& b) {
@@ -90,45 +79,9 @@ struct Transform {
 	}
 	[[nodiscard]] bool operator!=(const Transform& o) const noexcept { return !(*this == o); }
 
-	[[nodiscard]] data::NodePtr ToJson() const {
-		auto vec3 = [](const math::FVector3& v) {
-			auto array = data::Node::MakeArray();
-			array->Push(data::Node::MakeFloat(double(v.x)));
-			array->Push(data::Node::MakeFloat(double(v.y)));
-			array->Push(data::Node::MakeFloat(double(v.z)));
-			return array;
-		};
-		auto node = data::Node::MakeObject();
-		node->Set("position", vec3(position));
-		node->Set("rotation", vec3(EulerDegrees()));
-		node->Set("scale", vec3(scale));
-		return node;
-	}
+	[[nodiscard]] data::NodePtr ToJson() const;
 
-	[[nodiscard]] static Transform FromJson(const data::NodePtr& node) {
-		Transform transform;
-		if (!node || !node->IsObject())
-			return transform;
-		auto number = [](const data::NodePtr& n, float fallback) -> float {
-			if (!n)
-				return fallback;
-			if (n->IsInt())
-				return float(n->intValue);
-			if (n->IsFloat())
-				return float(n->floatValue);
-			return fallback;
-		};
-		auto vec3 = [&](const data::NodePtr& n, math::FVector3 fallback) -> math::FVector3 {
-			if (!n || !n->IsArray() || n->GetSize() < 3)
-				return fallback;
-			return {number(n->At(0), fallback.x), number(n->At(1), fallback.y),
-					number(n->At(2), fallback.z)};
-		};
-		transform.position = vec3(node->Get("position"), {});
-		transform.SetEulerDegrees(vec3(node->Get("rotation"), {}));
-		transform.scale = vec3(node->Get("scale"), {1.f, 1.f, 1.f});
-		return transform;
-	}
+	[[nodiscard]] static Transform FromJson(const data::NodePtr& node);
 };
 
 /// Quel transform conserver lors d'un re-parentage (cf. NodeTree::Reparent).
@@ -164,26 +117,9 @@ struct Component {
 	}
 	[[nodiscard]] bool operator!=(const Component& o) const { return !(*this == o); }
 
-	[[nodiscard]] data::NodePtr ToJson() const {
-		auto node = data::Node::MakeObject();
-		node->Set("type", data::Node::MakeString(type));
-		if (!enabled)
-			node->Set("enabled", data::Node::MakeBool(false));
-		node->Set("props", props.ToJson());
-		return node;
-	}
+	[[nodiscard]] data::NodePtr ToJson() const;
 
-	[[nodiscard]] static Component FromJson(const data::NodePtr& node) {
-		Component component;
-		if (!node || !node->IsObject())
-			return component;
-		if (auto type = node->Get("type"); type && type->IsString())
-			component.type = type->stringValue;
-		if (auto enabled = node->Get("enabled"); enabled && enabled->IsBool())
-			component.enabled = enabled->boolValue;
-		component.props = PropertyMap::FromJson(node->Get("props"));
-		return component;
-	}
+	[[nodiscard]] static Component FromJson(const data::NodePtr& node);
 };
 
 // ============================================================================
@@ -227,55 +163,24 @@ struct Node {
 
 	// ── Composants ───────────────────────────────────────────────────────────
 
-	[[nodiscard]] const Component* FindComponent(const String& componentType) const noexcept {
-		for (const Component& component : components)
-			if (component.type == componentType)
-				return &component;
-		return nullptr;
-	}
-	[[nodiscard]] Component* FindComponent(const String& componentType) noexcept {
-		for (Component& component : components)
-			if (component.type == componentType)
-				return &component;
-		return nullptr;
-	}
-	[[nodiscard]] bool HasComponent(const String& componentType) const noexcept {
-		return FindComponent(componentType) != nullptr;
-	}
+	[[nodiscard]] const Component* FindComponent(const String& componentType) const noexcept;
+	[[nodiscard]] Component* FindComponent(const String& componentType) noexcept;
+	[[nodiscard]] bool HasComponent(const String& componentType) const noexcept;
 
 	/// Ajoute OU remplace le composant de ce type (un nœud ne porte qu'un
 	/// composant par type : deux maillages sur le même nœud décriraient deux
 	/// objets, c'est-à-dire deux nœuds).
-	Component& SetComponent(Component component) {
-		if (Component* existing = FindComponent(component.type)) {
-			*existing = std::move(component);
-			return *existing;
-		}
-		components.push_back(std::move(component));
-		return components.back();
-	}
+	Component& SetComponent(Component component);
 
-	bool RemoveComponent(const String& componentType) {
-		for (size_t i = 0; i < components.size(); ++i)
-			if (components[i].type == componentType) {
-				components.erase(components.begin() + ptrdiff_t(i));
-				return true;
-			}
-		return false;
-	}
+	bool RemoveComponent(const String& componentType);
 
 	/// Raccourci de lecture d'une propriété de composant.
 	[[nodiscard]] const PropertyValue* ComponentProperty(const String& componentType,
-														 const String& key) const noexcept {
-		const Component* component = FindComponent(componentType);
-		return component ? component->props.Find(key) : nullptr;
-	}
+														 const String& key) const noexcept;
 
 	// ── Propriétés libres ────────────────────────────────────────────────────
 
-	[[nodiscard]] const PropertyValue* Get(const String& key) const noexcept {
-		return properties.Find(key);
-	}
+	[[nodiscard]] const PropertyValue* Get(const String& key) const noexcept;
 	void Set(const String& key, PropertyValue value) { properties.Set(key, std::move(value)); }
 
 	// ── Comparaison ──────────────────────────────────────────────────────────
@@ -293,50 +198,11 @@ struct Node {
 	// imbriquée par NodeTree (cf. tree.hpp), ce qui donne un fichier qui se
 	// lit comme l'arbre qu'il décrit.
 
-	[[nodiscard]] data::NodePtr ToJson() const {
-		auto node = data::Node::MakeObject();
-		node->Set("id", data::Node::MakeString(id.ToText()));
-		node->Set("type", data::Node::MakeString(type));
-		node->Set("name", data::Node::MakeString(name));
-		node->Set("transform", transform.ToJson());
-		if (!visible)
-			node->Set("visible", data::Node::MakeBool(false));
-		if (locked)
-			node->Set("locked", data::Node::MakeBool(true));
-		if (!components.empty()) {
-			auto array = data::Node::MakeArray();
-			for (const Component& component : components)
-				array->Push(component.ToJson());
-			node->Set("components", array);
-		}
-		if (!properties.IsEmpty())
-			node->Set("properties", properties.ToJson());
-		return node;
-	}
+	[[nodiscard]] data::NodePtr ToJson() const;
 
 	/// Lit un nœud SANS ses enfants (cf. ToJson) — `children` reste vide, la
 	/// reconstruction de l'arbre est le travail de NodeTree::FromJson.
-	[[nodiscard]] static Node FromJson(const data::NodePtr& json) {
-		Node node;
-		if (!json || !json->IsObject())
-			return node;
-		if (auto id = json->Get("id"); id && id->IsString())
-			node.id = NodeId::FromText(id->stringValue);
-		if (auto type = json->Get("type"); type && type->IsString() && !type->stringValue.IsEmpty())
-			node.type = type->stringValue;
-		if (auto name = json->Get("name"); name && name->IsString())
-			node.name = name->stringValue;
-		node.transform = Transform::FromJson(json->Get("transform"));
-		if (auto visible = json->Get("visible"); visible && visible->IsBool())
-			node.visible = visible->boolValue;
-		if (auto locked = json->Get("locked"); locked && locked->IsBool())
-			node.locked = locked->boolValue;
-		if (auto array = json->Get("components"); array && array->IsArray())
-			for (size_t i = 0; i < array->GetSize(); ++i)
-				node.components.push_back(Component::FromJson(array->At(i)));
-		node.properties = PropertyMap::FromJson(json->Get("properties"));
-		return node;
-	}
+	[[nodiscard]] static Node FromJson(const data::NodePtr& json);
 };
 
 } // namespace scene

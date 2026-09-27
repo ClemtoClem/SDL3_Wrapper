@@ -324,10 +324,7 @@ class GpuBuffer: public DeviceWrapper<SDL_GPUDevice,SDL_GPUBuffer,SDL_ReleaseGPU
 public:
     using DeviceWrapper::DeviceWrapper;
 
-    void SetName(const char *name) {
-        if (m_handle && m_device)
-            SDL_SetGPUBufferName(m_device, m_handle, name);
-    }
+    void SetName(const char *name);
 };
 
 // ============================================================================
@@ -343,10 +340,7 @@ public:
     constexpr GpuMappedBuffer() noexcept = default;
     GpuMappedBuffer(SDL_GPUDevice *dev, SDL_GPUTransferBuffer *buf, bool cycle)
         : m_device(dev), buf(buf), ptr(SDL_MapGPUTransferBuffer(dev, buf, cycle)) {}
-    ~GpuMappedBuffer() {
-        if (ptr && m_device && buf)
-            SDL_UnmapGPUTransferBuffer(m_device, buf);
-    }
+    ~GpuMappedBuffer();
     GpuMappedBuffer(const GpuMappedBuffer &) = delete;
     GpuMappedBuffer &operator=(const GpuMappedBuffer &) = delete;
     GpuMappedBuffer(GpuMappedBuffer &&o) noexcept : m_device(o.m_device), buf(o.buf), ptr(o.ptr) {
@@ -371,9 +365,7 @@ class GpuTransferBuffer: public DeviceWrapper<SDL_GPUDevice, SDL_GPUTransferBuff
 public:
     using DeviceWrapper::DeviceWrapper;
 
-    [[nodiscard]] GpuMappedBuffer Map(bool cycle = false) noexcept {
-        return GpuMappedBuffer(m_device, m_handle, cycle);
-    }
+    [[nodiscard]] GpuMappedBuffer Map(bool cycle = false) noexcept;
 
     template <typename T> [[nodiscard]] bool WriteData(std::span<const T> data, bool cycle = false) noexcept {
         auto mapped = Map(cycle);
@@ -392,10 +384,7 @@ class GpuTexture: public DeviceWrapper<SDL_GPUDevice, SDL_GPUTexture, SDL_Releas
 public:
     using DeviceWrapper::DeviceWrapper;
 
-    void SetName(const char *name) {
-        if (m_handle && m_device)
-            SDL_SetGPUTextureName(m_device, m_handle, name);
-    }
+    void SetName(const char *name);
 };
 
 // ============================================================================
@@ -446,10 +435,7 @@ class GpuComputePipeline {
 public:
     constexpr GpuComputePipeline() noexcept = default;
     GpuComputePipeline(SDL_GPUDevice *dev, SDL_GPUComputePipeline *h) : m_device(dev), m_handle(h) {}
-    ~GpuComputePipeline() {
-        if (m_handle && m_device)
-            SDL_ReleaseGPUComputePipeline(m_device, m_handle);
-    }
+    ~GpuComputePipeline();
     GpuComputePipeline(const GpuComputePipeline &) = delete;
     GpuComputePipeline &operator=(const GpuComputePipeline &) = delete;
     GpuComputePipeline(GpuComputePipeline &&o) noexcept : m_device(o.m_device), m_handle(o.m_handle) {
@@ -489,111 +475,45 @@ class GpuRenderPass: public Wrapper<SDL_GPURenderPass, SDL_EndGPURenderPass> {
 public:
     using Wrapper::Wrapper;
 
-    void End() noexcept {
-        if (m_handle) {
-            SDL_EndGPURenderPass(m_handle);
-            m_handle = nullptr;
-        }
-    }
+    void End() noexcept;
 
     // ── Pipeline ─────────────────────────────────────────────────────────────
 
-    void BindPipeline(const GpuGraphicsPipeline &p) noexcept {
-        if (m_handle)
-            SDL_BindGPUGraphicsPipeline(m_handle, p.Get());
-    }
+    void BindPipeline(const GpuGraphicsPipeline &p) noexcept;
 
     // ── Viewport / scissor ────────────────────────────────────────────────────
 
-    void SetViewport(const GpuViewport &vp) noexcept {
-        if (m_handle)
-            SDL_SetGPUViewport(m_handle, &vp);
-    }
-    void SetScissor(const SDL_Rect &r) noexcept {
-        if (m_handle)
-            SDL_SetGPUScissor(m_handle, &r);
-    }
-    void SetBlendConstants(SDL_FColor color) noexcept {
-        if (m_handle)
-            SDL_SetGPUBlendConstants(m_handle, color);
-    }
-    void SetStencilReference(uint8_t ref) noexcept {
-        if (m_handle)
-            SDL_SetGPUStencilReference(m_handle, ref);
-    }
+    void SetViewport(const GpuViewport &vp) noexcept;
+    void SetScissor(const SDL_Rect &r) noexcept;
+    void SetBlendConstants(SDL_FColor color) noexcept;
+    void SetStencilReference(uint8_t ref) noexcept;
 
     // ── Vertex / index buffers ────────────────────────────────────────────────
 
-    void BindVertexBuffers(uint32_t firstSlot, std::span<const GpuBufferBinding> bindings) noexcept {
-        if (m_handle)
-            SDL_BindGPUVertexBuffers(m_handle, firstSlot, bindings.data(), uint32_t(bindings.size()));
-    }
-    void BindVertexBuffer(uint32_t slot, const GpuBufferBinding &binding) noexcept {
-        BindVertexBuffers(slot, {&binding, 1});
-    }
-    void BindIndexBuffer(const GpuBufferBinding &binding, GpuIndexElementSize elemSize) noexcept {
-        if (m_handle)
-            SDL_BindGPUIndexBuffer(m_handle, &binding, elemSize);
-    }
+    void BindVertexBuffers(uint32_t firstSlot, std::span<const GpuBufferBinding> bindings) noexcept;
+    void BindVertexBuffer(uint32_t slot, const GpuBufferBinding &binding) noexcept;
+    void BindIndexBuffer(const GpuBufferBinding &binding, GpuIndexElementSize elemSize) noexcept;
 
     // ── Vertex shader resources ───────────────────────────────────────────────
 
-    void BindVertexSamplers(uint32_t firstSlot, std::span<const GpuTextureSamplerBinding> bindings) noexcept {
-        if (m_handle)
-            SDL_BindGPUVertexSamplers(m_handle, firstSlot, bindings.data(), uint32_t(bindings.size()));
-    }
-    void BindVertexStorageTextures(uint32_t firstSlot, std::span<const Ref<GpuTexture>> textures) {
-        if (!m_handle)
-            return;
-        auto raw = ::detail::ToRawHandles(textures);
-        SDL_BindGPUVertexStorageTextures(m_handle, firstSlot, raw.data(), uint32_t(raw.size()));
-    }
-    void BindVertexStorageBuffers(uint32_t firstSlot, std::span<const Ref<GpuBuffer>> buffers) {
-        if (!m_handle)
-            return;
-        auto raw = ::detail::ToRawHandles(buffers);
-        SDL_BindGPUVertexStorageBuffers(m_handle, firstSlot, raw.data(), uint32_t(raw.size()));
-    }
+    void BindVertexSamplers(uint32_t firstSlot, std::span<const GpuTextureSamplerBinding> bindings) noexcept;
+    void BindVertexStorageTextures(uint32_t firstSlot, std::span<const Ref<GpuTexture>> textures);
+    void BindVertexStorageBuffers(uint32_t firstSlot, std::span<const Ref<GpuBuffer>> buffers);
 
     // ── Fragment shader resources ─────────────────────────────────────────────
 
-    void BindFragmentSamplers(uint32_t firstSlot, std::span<const GpuTextureSamplerBinding> bindings) noexcept {
-        if (m_handle)
-            SDL_BindGPUFragmentSamplers(m_handle, firstSlot, bindings.data(), uint32_t(bindings.size()));
-    }
-    void BindFragmentStorageTextures(uint32_t firstSlot, std::span<const Ref<GpuTexture>> textures) {
-        if (!m_handle)
-            return;
-        auto raw = ::detail::ToRawHandles(textures);
-        SDL_BindGPUFragmentStorageTextures(m_handle, firstSlot, raw.data(), uint32_t(raw.size()));
-    }
-    void BindFragmentStorageBuffers(uint32_t firstSlot, std::span<const Ref<GpuBuffer>> buffers) {
-        if (!m_handle)
-            return;
-        auto raw = ::detail::ToRawHandles(buffers);
-        SDL_BindGPUFragmentStorageBuffers(m_handle, firstSlot, raw.data(), uint32_t(raw.size()));
-    }
+    void BindFragmentSamplers(uint32_t firstSlot, std::span<const GpuTextureSamplerBinding> bindings) noexcept;
+    void BindFragmentStorageTextures(uint32_t firstSlot, std::span<const Ref<GpuTexture>> textures);
+    void BindFragmentStorageBuffers(uint32_t firstSlot, std::span<const Ref<GpuBuffer>> buffers);
 
     // ── Draw calls ────────────────────────────────────────────────────────────
 
     void DrawPrimitives(uint32_t numVertices, uint32_t numInstances = 1, uint32_t firstVertex = 0,
-                        uint32_t firstInstance = 0) noexcept {
-        if (m_handle)
-            SDL_DrawGPUPrimitives(m_handle, numVertices, numInstances, firstVertex, firstInstance);
-    }
+                        uint32_t firstInstance = 0) noexcept;
     void DrawIndexedPrimitives(uint32_t numIndices, uint32_t numInstances = 1, uint32_t firstIndex = 0,
-                               int32_t vertexOffset = 0, uint32_t firstInstance = 0) noexcept {
-        if (m_handle)
-            SDL_DrawGPUIndexedPrimitives(m_handle, numIndices, numInstances, firstIndex, vertexOffset, firstInstance);
-    }
-    void DrawPrimitivesIndirect(const GpuBuffer &buf, uint32_t offset, uint32_t drawCount) noexcept {
-        if (m_handle)
-            SDL_DrawGPUPrimitivesIndirect(m_handle, buf.Get(), offset, drawCount);
-    }
-    void DrawIndexedPrimitivesIndirect(const GpuBuffer &buf, uint32_t offset, uint32_t drawCount) noexcept {
-        if (m_handle)
-            SDL_DrawGPUIndexedPrimitivesIndirect(m_handle, buf.Get(), offset, drawCount);
-    }
+                               int32_t vertexOffset = 0, uint32_t firstInstance = 0) noexcept;
+    void DrawPrimitivesIndirect(const GpuBuffer &buf, uint32_t offset, uint32_t drawCount) noexcept;
+    void DrawIndexedPrimitivesIndirect(const GpuBuffer &buf, uint32_t offset, uint32_t drawCount) noexcept;
 };
 
 // ============================================================================
@@ -604,41 +524,14 @@ class GpuComputePass: public Wrapper<SDL_GPUComputePass, SDL_EndGPUComputePass> 
 public:
     using Wrapper::Wrapper;
 
-    void End() noexcept {
-        if (m_handle) {
-            SDL_EndGPUComputePass(m_handle);
-            m_handle = nullptr;
-        }
-    }
+    void End() noexcept;
 
-    void BindPipeline(const GpuComputePipeline &p) noexcept {
-        if (m_handle)
-            SDL_BindGPUComputePipeline(m_handle, p.Get());
-    }
-    void BindSamplers(uint32_t firstSlot, std::span<const GpuTextureSamplerBinding> bindings) noexcept {
-        if (m_handle)
-            SDL_BindGPUComputeSamplers(m_handle, firstSlot, bindings.data(), uint32_t(bindings.size()));
-    }
-    void BindStorageTextures(uint32_t firstSlot, std::span<const Ref<GpuTexture>> textures) {
-        if (!m_handle)
-            return;
-        auto raw = ::detail::ToRawHandles(textures);
-        SDL_BindGPUComputeStorageTextures(m_handle, firstSlot, raw.data(), uint32_t(raw.size()));
-    }
-    void BindStorageBuffers(uint32_t firstSlot, std::span<const Ref<GpuBuffer>> buffers) {
-        if (!m_handle)
-            return;
-        auto raw = ::detail::ToRawHandles(buffers);
-        SDL_BindGPUComputeStorageBuffers(m_handle, firstSlot, raw.data(), uint32_t(raw.size()));
-    }
-    void Dispatch(uint32_t groupX, uint32_t groupY, uint32_t groupZ) noexcept {
-        if (m_handle)
-            SDL_DispatchGPUCompute(m_handle, groupX, groupY, groupZ);
-    }
-    void DispatchIndirect(const GpuBuffer &buf, uint32_t offset) noexcept {
-        if (m_handle)
-            SDL_DispatchGPUComputeIndirect(m_handle, buf.Get(), offset);
-    }
+    void BindPipeline(const GpuComputePipeline &p) noexcept;
+    void BindSamplers(uint32_t firstSlot, std::span<const GpuTextureSamplerBinding> bindings) noexcept;
+    void BindStorageTextures(uint32_t firstSlot, std::span<const Ref<GpuTexture>> textures);
+    void BindStorageBuffers(uint32_t firstSlot, std::span<const Ref<GpuBuffer>> buffers);
+    void Dispatch(uint32_t groupX, uint32_t groupY, uint32_t groupZ) noexcept;
+    void DispatchIndirect(const GpuBuffer &buf, uint32_t offset) noexcept;
 };
 
 // ============================================================================
@@ -649,49 +542,23 @@ class GpuCopyPass: public Wrapper<SDL_GPUCopyPass, SDL_EndGPUCopyPass> {
 public:
     using Wrapper::Wrapper;
     
-    void End() noexcept {
-        if (m_handle) {
-            SDL_EndGPUCopyPass(m_handle);
-            m_handle = nullptr;
-        }
-    }
+    void End() noexcept;
 
-    void UploadToTexture(const GpuTextureTransferInfo &src, const GpuTextureRegion &dst, bool cycle = false) noexcept {
-        if (m_handle)
-            SDL_UploadToGPUTexture(m_handle, &src, &dst, cycle);
-    }
-    void UploadToBuffer(const GpuTransferBufferLocation &src, const GpuBufferRegion &dst, bool cycle = false) noexcept {
-        if (m_handle)
-            SDL_UploadToGPUBuffer(m_handle, &src, &dst, cycle);
-    }
+    void UploadToTexture(const GpuTextureTransferInfo &src, const GpuTextureRegion &dst, bool cycle = false) noexcept;
+    void UploadToBuffer(const GpuTransferBufferLocation &src, const GpuBufferRegion &dst, bool cycle = false) noexcept;
     void CopyTextureToTexture(const GpuTextureLocation &src, const GpuTextureLocation &dst, uint32_t w, uint32_t h,
-                              uint32_t d, bool cycle = false) noexcept {
-        if (m_handle)
-            SDL_CopyGPUTextureToTexture(m_handle, &src, &dst, w, h, d, cycle);
-    }
+                              uint32_t d, bool cycle = false) noexcept;
     void CopyBufferToBuffer(const GpuBufferLocation &src, const GpuBufferLocation &dst, uint32_t size,
-                            bool cycle = false) noexcept {
-        if (m_handle)
-            SDL_CopyGPUBufferToBuffer(m_handle, &src, &dst, size, cycle);
-    }
-    void DownloadFromTexture(const GpuTextureRegion &src, const GpuTextureTransferInfo &dst) noexcept {
-        if (m_handle)
-            SDL_DownloadFromGPUTexture(m_handle, &src, &dst);
-    }
-    void DownloadFromBuffer(const GpuBufferRegion &src, const GpuTransferBufferLocation &dst) noexcept {
-        if (m_handle)
-            SDL_DownloadFromGPUBuffer(m_handle, &src, &dst);
-    }
+                            bool cycle = false) noexcept;
+    void DownloadFromTexture(const GpuTextureRegion &src, const GpuTextureTransferInfo &dst) noexcept;
+    void DownloadFromBuffer(const GpuBufferRegion &src, const GpuTransferBufferLocation &dst) noexcept;
 };
 
 // ============================================================================
 // GpuCommandBuffer — acquired from GpuDevice, auto-cancelled on destruction
 // ============================================================================
 
-inline void CancelGPUCommandBuffer(SDL_GPUDevice *d, SDL_GPUCommandBuffer* b) {
-    (void)d;
-    SDL_CancelGPUCommandBuffer(b);
-}
+void CancelGPUCommandBuffer(SDL_GPUDevice *d, SDL_GPUCommandBuffer* b);
 
 class GpuCommandBuffer: public DeviceWrapper<SDL_GPUDevice, SDL_GPUCommandBuffer, CancelGPUCommandBuffer> {
 public:
@@ -699,18 +566,9 @@ public:
     
     // ── Debug ─────────────────────────────────────────────────────────────────
 
-    void InsertDebugLabel(const char *label) noexcept {
-        if (m_handle)
-            SDL_InsertGPUDebugLabel(m_handle, label);
-    }
-    void PushDebugGroup(const char *name) noexcept {
-        if (m_handle)
-            SDL_PushGPUDebugGroup(m_handle, name);
-    }
-    void PopDebugGroup() noexcept {
-        if (m_handle)
-            SDL_PopGPUDebugGroup(m_handle);
-    }
+    void InsertDebugLabel(const char *label) noexcept;
+    void PushDebugGroup(const char *name) noexcept;
+    void PopDebugGroup() noexcept;
 
     // ── Uniform data ──────────────────────────────────────────────────────────
 
@@ -730,43 +588,20 @@ public:
     // ── Begin passes ──────────────────────────────────────────────────────────
 
     [[nodiscard]] GpuRenderPass BeginRenderPass(std::span<const GpuColorTargetInfo> colorTargets,
-                                                const GpuDepthStencilTargetInfo *depthStencil = nullptr) noexcept {
-        if (!m_handle)
-            return {};
-        return GpuRenderPass(
-            SDL_BeginGPURenderPass(m_handle, colorTargets.data(), uint32_t(colorTargets.size()), depthStencil));
-    }
+                                                const GpuDepthStencilTargetInfo *depthStencil = nullptr) noexcept;
     [[nodiscard]] GpuRenderPass BeginRenderPass(const GpuColorTargetInfo &colorTarget,
-                                                const GpuDepthStencilTargetInfo *depthStencil = nullptr) noexcept {
-        return BeginRenderPass({&colorTarget, 1}, depthStencil);
-    }
+                                                const GpuDepthStencilTargetInfo *depthStencil = nullptr) noexcept;
 
     [[nodiscard]] GpuComputePass
     BeginComputePass(std::span<const GpuStorageTextureReadWriteBinding> storageTextures = {},
-                     std::span<const GpuStorageBufferReadWriteBinding> storageBuffers = {}) noexcept {
-        if (!m_handle)
-            return {};
-        return GpuComputePass(SDL_BeginGPUComputePass(m_handle, storageTextures.data(),
-                                                      uint32_t(storageTextures.size()), storageBuffers.data(),
-                                                      uint32_t(storageBuffers.size())));
-    }
+                     std::span<const GpuStorageBufferReadWriteBinding> storageBuffers = {}) noexcept;
 
-    [[nodiscard]] GpuCopyPass BeginCopyPass() noexcept {
-        if (!m_handle)
-            return {};
-        return GpuCopyPass(SDL_BeginGPUCopyPass(m_handle));
-    }
+    [[nodiscard]] GpuCopyPass BeginCopyPass() noexcept;
 
     // ── Texture operations ────────────────────────────────────────────────────
 
-    void GenerateMipmaps(const GpuTexture &tex) noexcept {
-        if (m_handle)
-            SDL_GenerateMipmapsForGPUTexture(m_handle, tex.Get());
-    }
-    void BlitTexture(const GpuBlitInfo &info) noexcept {
-        if (m_handle)
-            SDL_BlitGPUTexture(m_handle, &info);
-    }
+    void GenerateMipmaps(const GpuTexture &tex) noexcept;
+    void BlitTexture(const GpuBlitInfo &info) noexcept;
 
     // ── Swapchain acquisition ─────────────────────────────────────────────────
 
@@ -775,53 +610,17 @@ public:
     /// by the swapchain, not by the caller: it must never be released, so it
     /// comes back as a non-owning Borrowed<> rather than a raw pointer.
     [[nodiscard]] Option<Borrowed<SDL_GPUTexture>> AcquireSwapchainTexture(Ref<Window> win, uint32_t *outW = nullptr,
-                                                                           uint32_t *outH = nullptr) noexcept {
-        if (!m_handle)
-            return NONE;
-        SDL_GPUTexture *tex = nullptr;
-        SDL_AcquireGPUSwapchainTexture(m_handle, win->Get(), &tex, outW, outH);
-        if (!tex)
-            return NONE;
-        return Some(Borrowed<SDL_GPUTexture>(tex));
-    }
+                                                                           uint32_t *outH = nullptr) noexcept;
     [[nodiscard]] Option<Borrowed<SDL_GPUTexture>>
-    WaitAndAcquireSwapchainTexture(Ref<Window> win, uint32_t *outW = nullptr, uint32_t *outH = nullptr) noexcept {
-        if (!m_handle)
-            return NONE;
-        SDL_GPUTexture *tex = nullptr;
-        SDL_WaitAndAcquireGPUSwapchainTexture(m_handle, win->Get(), &tex, outW, outH);
-        if (!tex)
-            return NONE;
-        return Some(Borrowed<SDL_GPUTexture>(tex));
-    }
+    WaitAndAcquireSwapchainTexture(Ref<Window> win, uint32_t *outW = nullptr, uint32_t *outH = nullptr) noexcept;
 
     // ── Submit ────────────────────────────────────────────────────────────────
 
-    [[nodiscard]] bool Submit() noexcept {
-        if (!m_handle)
-            return false;
-        bool ok = SDL_SubmitGPUCommandBuffer(m_handle);
-        m_handle = nullptr;
-        return ok;
-    }
+    [[nodiscard]] bool Submit() noexcept;
 
-    [[nodiscard]] Option<GpuFence> SubmitAndAcquireFence() noexcept {
-        if (!m_handle)
-            return NONE;
-        SDL_GPUFence *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(m_handle);
-        m_handle = nullptr;
-        if (!fence)
-            return NONE;
-        return Some(GpuFence(m_device, fence));
-    }
+    [[nodiscard]] Option<GpuFence> SubmitAndAcquireFence() noexcept;
 
-    [[nodiscard]] bool Cancel() noexcept {
-        if (!m_handle)
-            return false;
-        bool ok = SDL_CancelGPUCommandBuffer(m_handle);
-        m_handle = nullptr;
-        return ok;
-    }
+    [[nodiscard]] bool Cancel() noexcept;
 };
 
 // ============================================================================
@@ -835,193 +634,87 @@ public:
     // ── Factories ─────────────────────────────────────────────────────────────
 
     [[nodiscard]] static Result<GpuDevice, Error> Create(SDL_GPUShaderFormat formats, bool debugMode = false,
-                                                              const char *driverName = nullptr) {
-        auto *d = SDL_CreateGPUDevice(formats, debugMode, driverName);
-        if (!d)
-            return Err(GetError());
-        return Ok(GpuDevice(d));
-    }
+                                                              const char *driverName = nullptr);
 
-    [[nodiscard]] static Result<GpuDevice, StringView> CreateWithProperties(SDL_PropertiesID props) {
-        auto *d = SDL_CreateGPUDeviceWithProperties(props);
-        if (!d)
-            return Err(GetError());
-        return Ok(GpuDevice(d));
-    }
+    [[nodiscard]] static Result<GpuDevice, StringView> CreateWithProperties(SDL_PropertiesID props);
 
     // ── Device info ───────────────────────────────────────────────────────────
 
     [[nodiscard]] const char *Driver() const noexcept { return m_handle ? SDL_GetGPUDeviceDriver(m_handle) : nullptr; }
-    [[nodiscard]] SDL_GPUShaderFormat ShaderFormats() const noexcept {
-        return m_handle ? SDL_GetGPUShaderFormats(m_handle) : SDL_GPUShaderFormat(SDL_GPU_SHADERFORMAT_INVALID);
-    }
-    [[nodiscard]] SDL_PropertiesID Properties() const noexcept {
-        return m_handle ? SDL_GetGPUDeviceProperties(m_handle) : 0;
-    }
+    [[nodiscard]] SDL_GPUShaderFormat ShaderFormats() const noexcept;
+    [[nodiscard]] SDL_PropertiesID Properties() const noexcept;
 
     [[nodiscard]] bool WaitIdle() noexcept { return m_handle && SDL_WaitForGPUIdle(m_handle); }
 
     // ── Texture format queries ────────────────────────────────────────────────
 
     [[nodiscard]] bool TextureSupportsFormat(SDL_GPUTextureFormat format, SDL_GPUTextureType type,
-                                             SDL_GPUTextureUsageFlags usage) const noexcept {
-        return m_handle && SDL_GPUTextureSupportsFormat(m_handle, format, type, usage);
-    }
+                                             SDL_GPUTextureUsageFlags usage) const noexcept;
     [[nodiscard]] bool TextureSupportsSampleCount(SDL_GPUTextureFormat format,
-                                                  SDL_GPUSampleCount count) const noexcept {
-        return m_handle && SDL_GPUTextureSupportsSampleCount(m_handle, format, count);
-    }
+                                                  SDL_GPUSampleCount count) const noexcept;
 
     // ── Swapchain / window ────────────────────────────────────────────────────
 
-    [[nodiscard]] bool ClaimWindow(Ref<Window> win) noexcept {
-        return m_handle && SDL_ClaimWindowForGPUDevice(m_handle, win->Get());
-    }
-    void ReleaseWindow(Ref<Window> win) noexcept {
-        if (m_handle)
-            SDL_ReleaseWindowFromGPUDevice(m_handle, win->Get());
-    }
+    [[nodiscard]] bool ClaimWindow(Ref<Window> win) noexcept;
+    void ReleaseWindow(Ref<Window> win) noexcept;
     [[nodiscard]] bool SetSwapchainParameters(Ref<Window> win, SDL_GPUSwapchainComposition composition,
-                                              SDL_GPUPresentMode presentMode) noexcept {
-        return m_handle && SDL_SetGPUSwapchainParameters(m_handle, win->Get(), composition, presentMode);
-    }
-    [[nodiscard]] bool SetAllowedFramesInFlight(uint32_t n) noexcept {
-        return m_handle && SDL_SetGPUAllowedFramesInFlight(m_handle, n);
-    }
-    [[nodiscard]] SDL_GPUTextureFormat SwapchainTextureFormat(Ref<Window> win) const noexcept {
-        return m_handle ? SDL_GetGPUSwapchainTextureFormat(m_handle, win->Get()) : SDL_GPU_TEXTUREFORMAT_INVALID;
-    }
-    [[nodiscard]] bool WindowSupportsComposition(Ref<Window> win, SDL_GPUSwapchainComposition c) const noexcept {
-        return m_handle && SDL_WindowSupportsGPUSwapchainComposition(m_handle, win->Get(), c);
-    }
-    [[nodiscard]] bool WindowSupportsPresentMode(Ref<Window> win, SDL_GPUPresentMode mode) const noexcept {
-        return m_handle && SDL_WindowSupportsGPUPresentMode(m_handle, win->Get(), mode);
-    }
-    [[nodiscard]] bool WaitForSwapchain(Ref<Window> win) noexcept {
-        return m_handle && SDL_WaitForGPUSwapchain(m_handle, win->Get());
-    }
+                                              SDL_GPUPresentMode presentMode) noexcept;
+    [[nodiscard]] bool SetAllowedFramesInFlight(uint32_t n) noexcept;
+    [[nodiscard]] SDL_GPUTextureFormat SwapchainTextureFormat(Ref<Window> win) const noexcept;
+    [[nodiscard]] bool WindowSupportsComposition(Ref<Window> win, SDL_GPUSwapchainComposition c) const noexcept;
+    [[nodiscard]] bool WindowSupportsPresentMode(Ref<Window> win, SDL_GPUPresentMode mode) const noexcept;
+    [[nodiscard]] bool WaitForSwapchain(Ref<Window> win) noexcept;
 
     // ── Command buffer ────────────────────────────────────────────────────────
 
-    [[nodiscard]] GpuCommandBuffer AcquireCommandBuffer() noexcept {
-        if (!m_handle)
-            return {};
-        return GpuCommandBuffer(m_handle, SDL_AcquireGPUCommandBuffer(m_handle));
-    }
+    [[nodiscard]] GpuCommandBuffer AcquireCommandBuffer() noexcept;
 
     // ── Fences ───────────────────────────────────────────────────────────────
 
-    [[nodiscard]] bool WaitForFences(bool waitAll, std::span<const Ref<GpuFence>> fences) {
-        if (!m_handle)
-            return false;
-        auto raw = ::detail::ToRawHandles(fences);
-        return SDL_WaitForGPUFences(m_handle, waitAll, raw.data(), uint32_t(raw.size()));
-    }
+    [[nodiscard]] bool WaitForFences(bool waitAll, std::span<const Ref<GpuFence>> fences);
 
     // ── Resource creation ─────────────────────────────────────────────────────
 
-    [[nodiscard]] Result<GpuBuffer, StringView> CreateBuffer(const GpuBufferCreateInfo &info) {
-        auto *b = SDL_CreateGPUBuffer(m_handle, &info);
-        if (!b)
-            return Err(GetError());
-        return Ok(GpuBuffer(m_handle, b));
-    }
-    [[nodiscard]] Result<GpuBuffer, StringView> CreateBuffer(SDL_GPUBufferUsageFlags usage, uint32_t size) {
-        GpuBufferCreateInfo info{};
-        info.usage = usage;
-        info.size = size;
-        return CreateBuffer(info);
-    }
+    [[nodiscard]] Result<GpuBuffer, StringView> CreateBuffer(const GpuBufferCreateInfo &info);
+    [[nodiscard]] Result<GpuBuffer, StringView> CreateBuffer(SDL_GPUBufferUsageFlags usage, uint32_t size);
 
-    [[nodiscard]] Result<GpuTransferBuffer, StringView> CreateTransferBuffer(const GpuTransferBufferCreateInfo &info) {
-        auto *b = SDL_CreateGPUTransferBuffer(m_handle, &info);
-        if (!b)
-            return Err(GetError());
-        return Ok(GpuTransferBuffer(m_handle, b));
-    }
+    [[nodiscard]] Result<GpuTransferBuffer, StringView> CreateTransferBuffer(const GpuTransferBufferCreateInfo &info);
     [[nodiscard]] Result<GpuTransferBuffer, StringView> CreateTransferBuffer(SDL_GPUTransferBufferUsage usage,
-                                                                             uint32_t size) {
-        GpuTransferBufferCreateInfo info{};
-        info.usage = usage;
-        info.size = size;
-        return CreateTransferBuffer(info);
-    }
+                                                                             uint32_t size);
 
-    [[nodiscard]] Result<GpuTexture, StringView> CreateTexture(const GpuTextureCreateInfo &info) {
-        auto *t = SDL_CreateGPUTexture(m_handle, &info);
-        if (!t)
-            return Err(GetError());
-        return Ok(GpuTexture(m_handle, t));
-    }
+    [[nodiscard]] Result<GpuTexture, StringView> CreateTexture(const GpuTextureCreateInfo &info);
 
-    [[nodiscard]] Result<GpuSampler, StringView> CreateSampler(const GpuSamplerCreateInfo &info) {
-        auto *s = SDL_CreateGPUSampler(m_handle, &info);
-        if (!s)
-            return Err(GetError());
-        return Ok(GpuSampler(m_handle, s));
-    }
+    [[nodiscard]] Result<GpuSampler, StringView> CreateSampler(const GpuSamplerCreateInfo &info);
 
-    [[nodiscard]] Result<GpuShader, StringView> CreateShader(const GpuShaderCreateInfo &info) {
-        auto *s = SDL_CreateGPUShader(m_handle, &info);
-        if (!s)
-            return Err(GetError());
-        return Ok(GpuShader(m_handle, s));
-    }
+    [[nodiscard]] Result<GpuShader, StringView> CreateShader(const GpuShaderCreateInfo &info);
 
     [[nodiscard]] Result<GpuGraphicsPipeline, StringView>
-    CreateGraphicsPipeline(const GpuGraphicsPipelineCreateInfo &info) {
-        auto *p = SDL_CreateGPUGraphicsPipeline(m_handle, &info);
-        if (!p)
-            return Err(GetError());
-        return Ok(GpuGraphicsPipeline(m_handle, p));
-    }
+    CreateGraphicsPipeline(const GpuGraphicsPipelineCreateInfo &info);
 
     [[nodiscard]] Result<GpuComputePipeline, StringView>
-    CreateComputePipeline(const GpuComputePipelineCreateInfo &info) {
-        auto *p = SDL_CreateGPUComputePipeline(m_handle, &info);
-        if (!p)
-            return Err(GetError());
-        return Ok(GpuComputePipeline(m_handle, p));
-    }
+    CreateComputePipeline(const GpuComputePipelineCreateInfo &info);
 };
 
 // Renderer::GetGPUDevice() — corps (déclaré dans render.hpp, voir la note sur
 // l'inclusion circulaire là-bas : a besoin du type complet de GpuDevice
 // ci-dessus).
-inline Result<GpuDevice, StringView> Renderer::GetGPUDevice() const {
-    SDL_GPUDevice *gpu = SDL_GetGPURendererDevice(m_handle);
-    if (!gpu)
-        return Err(GetError());
-    return Ok(GpuDevice(gpu));
-}
+
 
 // ============================================================================
 // Free functions
 // ============================================================================
 
-[[nodiscard]] inline bool GpuSupportsShaderFormats(SDL_GPUShaderFormat formats, const char *name = nullptr) noexcept {
-    return SDL_GPUSupportsShaderFormats(formats, name);
-}
+[[nodiscard]] bool GpuSupportsShaderFormats(SDL_GPUShaderFormat formats, const char *name = nullptr) noexcept;
 // Pré-vérifie qu'un backend GPU est disponible pour les propriétés données,
 // sans créer de m_device — utile avant GpuDevice::createWithProperties().
-[[nodiscard]] inline bool GpuSupportsProperties(SDL_PropertiesID props) noexcept {
-    return SDL_GPUSupportsProperties(props);
-}
+[[nodiscard]] bool GpuSupportsProperties(SDL_PropertiesID props) noexcept;
 [[nodiscard]] inline int GpuDriverCount() noexcept { return SDL_GetNumGPUDrivers(); }
 [[nodiscard]] inline const char *GpuDriver(int i) noexcept { return SDL_GetGPUDriver(i); }
 
-[[nodiscard]] inline uint32_t GpuTexelBlockSize(SDL_GPUTextureFormat fmt) noexcept {
-    return SDL_GPUTextureFormatTexelBlockSize(fmt);
-}
-[[nodiscard]] inline uint32_t GpuCalculateTextureSize(SDL_GPUTextureFormat fmt, uint32_t w, uint32_t h,
-                                                      uint32_t depthOrLayers) noexcept {
-    return SDL_CalculateGPUTextureFormatSize(fmt, w, h, depthOrLayers);
-}
-[[nodiscard]] inline SDL_PixelFormat GpuTextureFormatToPixel(SDL_GPUTextureFormat fmt) noexcept {
-    return SDL_GetPixelFormatFromGPUTextureFormat(fmt);
-}
-[[nodiscard]] inline SDL_GPUTextureFormat GpuTextureFormatFromPixel(SDL_PixelFormat fmt) noexcept {
-    return SDL_GetGPUTextureFormatFromPixelFormat(fmt);
-}
+[[nodiscard]] uint32_t GpuTexelBlockSize(SDL_GPUTextureFormat fmt) noexcept;
+[[nodiscard]] uint32_t GpuCalculateTextureSize(SDL_GPUTextureFormat fmt, uint32_t w, uint32_t h,
+                                                      uint32_t depthOrLayers) noexcept;
+[[nodiscard]] SDL_PixelFormat GpuTextureFormatToPixel(SDL_GPUTextureFormat fmt) noexcept;
+[[nodiscard]] SDL_GPUTextureFormat GpuTextureFormatFromPixel(SDL_PixelFormat fmt) noexcept;
 
 } // namespace sdl3

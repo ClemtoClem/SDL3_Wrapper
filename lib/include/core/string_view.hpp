@@ -73,12 +73,7 @@ public:
 				return i;
 		return NPOS;
 	}
-	[[nodiscard]] size_t Find(char c, size_t from = 0) const noexcept {
-		for (size_t i = from; i < m_size; ++i)
-			if (m_data[i] == c)
-				return i;
-		return NPOS;
-	}
+	[[nodiscard]] size_t Find(char c, size_t from = 0) const noexcept;
 
 	[[nodiscard]] size_t Rfind(StringView needle, size_t from = NPOS) const noexcept {
 		if (needle.m_size > m_size)
@@ -94,18 +89,7 @@ public:
 		}
 		return NPOS;
 	}
-	[[nodiscard]] size_t Rfind(char c, size_t from = NPOS) const noexcept {
-		if (m_size == 0)
-			return NPOS;
-		size_t start = (from < m_size) ? from : m_size - 1;
-		for (size_t i = start;; --i) {
-			if (m_data[i] == c)
-				return i;
-			if (i == 0)
-				break;
-		}
-		return NPOS;
-	}
+	[[nodiscard]] size_t Rfind(char c, size_t from = NPOS) const noexcept;
 
 	[[nodiscard]] bool StartsWith(StringView p) const noexcept {
 		return m_size >= p.m_size && std::memcmp(m_data, p.m_data, p.m_size) == 0;

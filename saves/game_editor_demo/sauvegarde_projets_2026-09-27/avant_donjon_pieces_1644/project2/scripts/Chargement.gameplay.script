@@ -1,0 +1,112 @@
+# ── Chargement : prépare le circuit choisi pendant qu'une barre progresse ────
+#
+# Le travail se fait dans une fonction `async` (son propre fil) : la scène
+# reste fluide et la barre avance. Le résultat (le décor, placé par
+# échantillonnage de Poisson HORS de la piste) passe au circuit par
+# game.state(), qui survit aux changements de scène.
+
+const CIRCUITS = {
+    "Circuit Ovale": {forme: "anneau", rayon: 30, largeur: 9, graine: 11},
+    "Circuit du Stade": {forme: "stade", rayon: 22, droite: 30, largeur: 9, graine: 23},
+}
+const CONSEILS = [
+    "Freinez AVANT le virage, accélérez en sortie.",
+    "Les rivaux visent l'intérieur : doublez par l'extérieur.",
+    "Sans toucher au clavier, le pilote automatique conduit pour vous.",
+    "Le meilleur tour de la session est gardé jusqu'à l'arrêt du jeu.",
+]
+
+var progression = 0.0     # écrites par le fil de préparation, lues ici :
+var etape = "Préparation"  # protégées automatiquement (verrou par variable)
+let tache = nil
+let circuit = "Circuit Ovale"
+let temps = 0
+let parti = false
+let barre = nil
+let texte = nil
+let conseil = nil
+
+# Distance d'un point (x, z) à l'axe de la piste.
+fn distance_piste(c, x, z) {
+    if (c.forme == "anneau") {
+        return math.abs(math.hypot(x, z) - c.rayon)
+    }
+    # Stade : deux lignes droites (z = ±rayon, |x| <= droite) et deux demi-cercles.
+    if (math.abs(x) <= c.droite) {
+        return math.abs(math.abs(z) - c.rayon)
+    }
+    let cx = c.droite
+    if (x < 0) { cx = -c.droite }
+    return math.abs(math.hypot(x - cx, z) - c.rayon)
+}
+
+async fn preparer(nom) {
+    let c = CIRCUITS[nom]
+    etape = "Lecture du tracé"
+    sleep(300)
+    progression = 0.15
+
+    etape = "Plantation des arbres"
+    let marge = c.largeur * 0.5 + 5
+    let points = gen.poisson(180, 180, 8, c.graine, fn(x, y) {
+        let d = distance_piste(c, x - 90, y - 90)
+        if (d < marge) { return 0 }
+        return 0.8
+    })
+    progression = 0.45
+    sleep(250)
+
+    etape = "Pose des rochers"
+    let rng = math.random_engine(c.graine)
+    let decor = []
+    for (p in points) {
+        let genre = 0
+        if (rng.bool(0.35)) { genre = 1 }
+        if (rng.bool(0.15)) { genre = 2 }
+        decor.append([p[0] - 90, p[1] - 90, genre])
+    }
+    progression = 0.7
+    sleep(250)
+
+    etape = "Chauffe des pneus"
+    sleep(300)
+    progression = 1.0
+    etape = format("Prêt : {} éléments de décor", len(decor))
+    return decor
+}
+
+fn on_start() {
+    let etat = game.state()
+    circuit = etat.circuit or "Circuit Ovale"
+    if (not CIRCUITS[circuit]) { circuit = "Circuit Ovale" }
+    let panneau = ui.column({anchor: "center", gap: 12, pad: 28, bg: "#0c1016e0", radius: 12, w: 480, align: "center"})
+    ui.label("Chargement", {parent: panneau, font_size: 30, bold: true, color: "#ffd873"})
+    ui.label(circuit .. " — " .. (etat.tours or 3) .. " tours", {parent: panneau, font_size: 16, color: "#c8d6e6"})
+    barre = ui.progress(0, 1, {parent: panneau, w: 400})
+    texte = ui.label("Préparation", {parent: panneau, font_size: 14, color: "#9aa6b8"})
+    ui.spinner({parent: panneau})
+    conseil = ui.label(CONSEILS[0], {anchor: "bottom", offset: [0, -24], font_size: 14, color: "#c8d0dcc0"})
+    camera.follow(7, 2.5, 2)
+    tache = preparer(circuit)
+}
+
+fn on_update(dt) {
+    temps += dt
+    object.set_rotation("Voiture exposée", 0, temps * 40, 0)
+    barre.value = progression
+    texte.text = etape
+    conseil.text = CONSEILS[i64(temps / 2.5) % len(CONSEILS)]
+    if (parti or not tache.done) { return nil }
+    if (tache.failed) {
+        texte.text = "Échec du chargement : " .. tache.error
+        return nil
+    }
+    # Au moins 1,5 s d'écran : un chargement instantané se lit comme un bug.
+    if (temps >= 1.5) {
+        let etat = game.state()
+        etat.decor = tache.value
+        etat.decor_pour = circuit
+        parti = true
+        game.load_scene(circuit)
+    }
+}

@@ -53,43 +53,14 @@ struct UiSelection {
 /// et le clic se comporte comme un clic simple. Pure — ne touche pas l'ECS,
 /// chaque widget appelant calcule `index` selon son propre hit-test puis
 /// applique lui-même les conséquences (callback onChange, etc.).
-inline void ApplySelectionClick(SelectionState &state, int index, bool ctrl, bool shift, bool multiSelect = true) {
-	if (multiSelect && shift && state.anchor >= 0) {
-		state.selected.clear();
-		int lo = sdl3::Min(state.anchor, index), hi = sdl3::Max(state.anchor, index);
-		for (int i = lo; i <= hi; ++i)
-			state.selected.insert(i);
-	} else if (multiSelect && ctrl) {
-		if (state.selected.count(index))
-			state.selected.erase(index);
-		else
-			state.selected.insert(index);
-		state.anchor = index;
-	} else {
-		state.selected.clear();
-		state.selected.insert(index);
-		state.anchor = index;
-	}
-	state.lastClicked = index;
-}
+void ApplySelectionClick(SelectionState &state, int index, bool ctrl, bool shift, bool multiSelect = true);
 
 /// Remonte les UiParent depuis `e` (lui-même inclus) jusqu'à trouver une
 /// entité porteuse d'un UiSelection — le "conteneur" logique d'une liste/
 /// d'un arbre sélectionnable (UiSelectable/UiTreeNode, Phase 4). ecs::Entity{}
 /// invalide si aucun ancêtre n'en porte (widget hors d'un conteneur de
 /// sélection — clic ignoré par l'appelant).
-[[nodiscard]] inline ecs::Entity NearestSelectionAncestor(ecs::ArchetypeRegistry &world, ecs::Entity e) {
-	ecs::Entity cur = e;
-	while (cur.Valid()) {
-		if (world.HasComponent<UiSelection>(cur))
-			return cur;
-		auto p = world.GetComponent<UiParent>(cur);
-		if (p.IsNone())
-			break;
-		cur = p.Unwrap()->parent;
-	}
-	return ecs::Entity{};
-}
+[[nodiscard]] ecs::Entity NearestSelectionAncestor(ecs::ArchetypeRegistry &world, ecs::Entity e);
 
 // ============================================================================
 // Poignée de redimensionnement générique (Splitter / colonnes de Table)
@@ -127,19 +98,7 @@ struct UiResizeHandle {
 /// Résout UN pas de drag : appelé par InputSystem à chaque frame où le bouton
 /// reste enfoncé sur une poignée déjà verrouillée (cf. resizeDrag). Pure côté
 /// ECS — se contente d'appeler les accesseurs de `h`.
-inline void ResolveResizeDrag(UiResizeHandle &h, float mouseCoord) {
-	float delta = mouseCoord - h.dragStartMouse;
-	if (h.setBefore) {
-		float newBefore = sdl3::Clamp(h.dragStartBefore + delta, h.minBefore, h.maxBefore);
-		h.setBefore(newBefore);
-	}
-	if (h.setAfter) {
-		// Signe opposé : si le panneau avant grandit de +delta, celui après
-		// doit rétrécir d'autant (cas des deux panneaux en Px explicite).
-		float newAfter = sdl3::Clamp(h.dragStartAfter - delta, h.minAfter, h.maxAfter);
-		h.setAfter(newAfter);
-	}
-}
+void ResolveResizeDrag(UiResizeHandle &h, float mouseCoord);
 
 // ============================================================================
 // Réordonnancement par glisser (Selectable/TreeNode — Phase 4 ; réutilisable
@@ -195,22 +154,7 @@ struct UiReorderable {
 /// Déplace `child` juste avant `target` dans le UiChildren de leur parent
 /// COMMUN `parent` (retire puis réinsère — un seul élément bouge, pas de tri
 /// global). No-op si l'un des deux n'est pas un enfant direct de `parent`.
-inline void ReorderChild(ecs::ArchetypeRegistry &world, ecs::Entity parent, ecs::Entity child, ecs::Entity target) {
-	auto ch = world.GetComponent<UiChildren>(parent);
-	if (ch.IsNone())
-		return;
-	auto &list = ch.Unwrap()->list;
-	auto itChild = std::find(list.begin(), list.end(), child);
-	if (itChild == list.end())
-		return;
-	list.erase(itChild);
-	auto itTarget = std::find(list.begin(), list.end(), target); // ré-cherché : l'erase a pu décaler `target`
-	if (itTarget == list.end()) {
-		list.push_back(child); // `target` a disparu entre-temps (despawn concurrent) : replace en fin
-		return;
-	}
-	list.insert(itTarget, child);
-}
+void ReorderChild(ecs::ArchetypeRegistry &world, ecs::Entity parent, ecs::Entity child, ecs::Entity target);
 
 // ============================================================================
 // Glisser générique (déplacement / redimensionnement) — panneaux flottants

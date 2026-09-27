@@ -40,29 +40,12 @@ public:
 	/// il faut la copier AVANT de retourner, sinon un appel SDL ultérieur sur
 	/// CE MÊME thread pourrait écraser le message avant que l'appelant (sur
 	/// un autre thread) ne le lise.
-	Result<bool, String> Load() {
-		state.store(ResourceState::Loading, std::memory_order_release);
-		auto result = DoLoad();
-		state.store(result.IsOk() ? ResourceState::Ready : ResourceState::Failed, std::memory_order_release);
-		if (result.IsOk())
-			FireCallbacks();
-		return result;
-	}
+	Result<bool, String> Load();
 
-	void Unload() {
-		DoUnload();
-		state.store(ResourceState::Unloaded, std::memory_order_release);
-	}
+	void Unload();
 
 	// --- Callbacks ---
-	void OnReady(ReadyCallback cb) {
-		if (IsReady()) {
-			cb(*this);
-			return;
-		}
-		std::scoped_lock lock(cbMutex);
-		callbacks.push_back(std::move(cb));
-	}
+	void OnReady(ReadyCallback cb);
 
 protected:
 	Resource() = default;
@@ -70,21 +53,10 @@ protected:
 	virtual Result<bool, String> DoLoad() = 0;
 	virtual void DoUnload() = 0;
 
-	void MarkReadyInternal() {
-		state.store(ResourceState::Ready, std::memory_order_release);
-		FireCallbacks();
-	}
+	void MarkReadyInternal();
 
 private:
-	void FireCallbacks() {
-		std::vector<ReadyCallback> cbs;
-		{
-			std::scoped_lock lock(cbMutex);
-			cbs.swap(callbacks);
-		}
-		for (auto &cb : cbs)
-			cb(*this);
-	}
+	void FireCallbacks();
 
 	std::atomic<ResourceState> state{ResourceState::Unloaded};
 	std::mutex cbMutex;

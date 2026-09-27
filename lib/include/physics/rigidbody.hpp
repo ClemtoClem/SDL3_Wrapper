@@ -23,30 +23,7 @@ namespace physics {
  * closed-form capsule tensor if capsule rotational accuracy becomes
  * load-bearing later). Local Y is every shape's up/symmetry axis.
  */
-[[nodiscard]] inline math::FVector3 ComputeInertiaLocal(const Shape &shape, float mass) noexcept {
-	return std::visit(
-		[mass](const auto &s) -> math::FVector3 {
-			using T = std::decay_t<decltype(s)>;
-			if constexpr (std::is_same_v<T, Sphere>) {
-				float i = 0.4f * mass * s.radius * s.radius; // solid sphere: I = 2/5 m r^2
-				return {i, i, i};
-			} else if constexpr (std::is_same_v<T, Box>) {
-				const math::FVector3 &h = s.halfExtents; // full extents are 2h; I = m/12*(b^2+c^2) with b=2h
-				return {
-					(mass / 3.f) * (h.y * h.y + h.z * h.z),
-					(mass / 3.f) * (h.x * h.x + h.z * h.z),
-					(mass / 3.f) * (h.x * h.x + h.y * h.y),
-				};
-			} else {
-				static_assert(std::is_same_v<T, Capsule>, "ComputeInertiaLocal: unhandled Shape alternative");
-				float length = 2.f * s.halfHeight + 2.f * s.radius; // equivalent-cylinder approximation
-				float axisI = 0.5f * mass * s.radius * s.radius;
-				float transI = mass * (3.f * s.radius * s.radius + length * length) / 12.f;
-				return {transI, axisI, transI};
-			}
-		},
-		shape);
-}
+[[nodiscard]] math::FVector3 ComputeInertiaLocal(const Shape &shape, float mass) noexcept;
 
 /**
  * A simulated rigid body. `position`/`orientation` are the authoritative
@@ -82,50 +59,17 @@ struct RigidBody {
 	 * Recomputed fresh on every call: this module follows the repo-wide
 	 * convention of correctness-by-recomputation over dirty-flag caching.
 	 */
-	[[nodiscard]] math::FMatrix4 WorldInverseInertia() const noexcept {
-		math::FMatrix4 r = orientation.ToMat4();
-		math::FMatrix4 invILocal = math::FMatrix4::Scale(invInertiaLocal);
-		return r * invILocal * r.Transpose();
-	}
+	[[nodiscard]] math::FMatrix4 WorldInverseInertia() const noexcept;
 
 	/// Dynamic body: `invMass`/`invInertiaLocal` are derived from `shape`/`mass`.
 	[[nodiscard]] static RigidBody MakeDynamic(Shape shape, const math::FVector3 &position, float mass,
-												float restitution = 0.3f, float friction = 0.5f) noexcept {
-		RigidBody rb;
-		rb.shape = shape;
-		rb.position = position;
-		SyncShapeTransform(rb.shape, rb.position, rb.orientation);
-		rb.mass = mass;
-		rb.invMass = mass > 1e-8f ? 1.f / mass : 0.f;
-
-		math::FVector3 inertia = ComputeInertiaLocal(rb.shape, mass);
-		rb.invInertiaLocal = {
-			inertia.x > 1e-8f ? 1.f / inertia.x : 0.f,
-			inertia.y > 1e-8f ? 1.f / inertia.y : 0.f,
-			inertia.z > 1e-8f ? 1.f / inertia.z : 0.f,
-		};
-		rb.restitution = restitution;
-		rb.friction = friction;
-		return rb;
-	}
+												float restitution = 0.3f, float friction = 0.5f) noexcept;
 
 	/// Static (infinite-mass, immovable) body: `invMass = 0`, `invInertiaLocal = 0`.
 	[[nodiscard]] static RigidBody
 	MakeStatic(Shape shape, const math::FVector3 &position,
 			   const math::FQuaternion &orientation = math::FQuaternion::Identity(), float restitution = 0.3f,
-			   float friction = 0.5f) noexcept {
-		RigidBody rb;
-		rb.shape = shape;
-		rb.position = position;
-		rb.orientation = orientation;
-		SyncShapeTransform(rb.shape, rb.position, rb.orientation);
-		rb.mass = 0.f;
-		rb.invMass = 0.f;
-		rb.invInertiaLocal = {0.f, 0.f, 0.f};
-		rb.restitution = restitution;
-		rb.friction = friction;
-		return rb;
-	}
+			   float friction = 0.5f) noexcept;
 };
 
 } // namespace physics

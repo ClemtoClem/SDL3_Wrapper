@@ -44,40 +44,11 @@ public:
 	/// Nombre de fils conseillé pour un vivier : tous les cœurs logiques sauf
 	/// un, celui-là restant au fil appelant (qui participe au travail dans
 	/// `ParallelFor`). Au moins 0, jamais négatif.
-	[[nodiscard]] static size_t RecommendedWorkerCount() noexcept {
-		int cores = sdl3::system::CpuCount();
-		return cores > 1 ? size_t(cores - 1) : 0;
-	}
+	[[nodiscard]] static size_t RecommendedWorkerCount() noexcept;
 
 	/// `workerCount` fils secondaires. 0 = tout s'exécute en ligne sur
 	/// l'appelant (cf. en-tête).
-	explicit JobSystem(size_t workerCount = RecommendedWorkerCount()) {
-		if (workerCount == 0)
-			return;
-
-		auto mutexResult = sdl3::Mutex::Create();
-		auto conditionResult = sdl3::Condition::Create();
-		auto doneResult = sdl3::Condition::Create();
-		// Sans primitive de synchronisation, on reste en mode « en ligne » :
-		// dégradation silencieuse mais parfaitement correcte, plutôt qu'un
-		// vivier à moitié monté.
-		if (!mutexResult || !conditionResult || !doneResult)
-			return;
-		m_mutex = Some(std::move(mutexResult.Value()));
-		m_wakeUp = Some(std::move(conditionResult.Value()));
-		m_allDone = Some(std::move(doneResult.Value()));
-
-		m_workers.reserve(workerCount);
-		for (size_t i = 0; i < workerCount; ++i) {
-			auto thread = sdl3::Thread::Create([this]() -> int {
-				WorkerLoop();
-				return 0;
-			}, String::Format("job-worker-%d", int(i)));
-			if (!thread)
-				break; // on tourne avec les fils effectivement obtenus
-			m_workers.push_back(std::move(thread.Value()));
-		}
-	}
+	explicit JobSystem(size_t workerCount = RecommendedWorkerCount());
 
 	JobSystem(const JobSystem &) = delete;
 	JobSystem &operator=(const JobSystem &) = delete;
@@ -85,18 +56,7 @@ public:
 	/// Arrête et joint tous les fils. Les tâches encore en file sont
 	/// TERMINÉES avant l'arrêt (un `ParallelFor` bloquant ne peut de toute
 	/// façon pas être en vol ici : il aurait bloqué son appelant).
-	~JobSystem() {
-		if (m_workers.empty())
-			return;
-		{
-			sdl3::MutexGuard guard(m_mutex.Value());
-			m_stopping = true;
-		}
-		m_wakeUp.Value().Broadcast();
-		for (sdl3::Thread &worker : m_workers)
-			(void)worker.Wait();
-		m_workers.clear();
-	}
+	~JobSystem();
 
 	[[nodiscard]] size_t WorkerCount() const noexcept { return m_workers.size(); }
 	/// Vrai si le travail s'exécute sur le fil appelant (aucun fil secondaire).
@@ -116,83 +76,10 @@ public:
 	///
 	/// `body` est appelé depuis PLUSIEURS fils : il ne doit écrire que dans
 	/// des emplacements distincts par `index` (ou se synchroniser lui-même).
-	void ParallelFor(size_t count, size_t minimumPerBatch, const std::function<void(size_t)> &body) {
-		if (count == 0)
-			return;
-		if (m_workers.empty() || count < minimumPerBatch * 2) {
-			for (size_t i = 0; i < count; ++i)
-				body(i);
-			return;
-		}
-
-		// Un lot par fil (vivier + appelant), borné par `minimumPerBatch`.
-		size_t participants = m_workers.size() + 1;
-		size_t batchSize = (count + participants - 1) / participants;
-		if (batchSize < minimumPerBatch)
-			batchSize = minimumPerBatch;
-		size_t batchCount = (count + batchSize - 1) / batchSize;
-
-		{
-			sdl3::MutexGuard guard(m_mutex.Value());
-			// Les lots 1..n-1 vont au vivier ; le lot 0 reste pour l'appelant,
-			// qui serait sinon à ne rien faire pendant tout l'appel.
-			for (size_t batch = 1; batch < batchCount; ++batch) {
-				size_t begin = batch * batchSize;
-				size_t end = begin + batchSize < count ? begin + batchSize : count;
-				m_queue.push_back([&body, begin, end]() {
-					for (size_t i = begin; i < end; ++i)
-						body(i);
-				});
-			}
-			m_pending += batchCount - 1;
-		}
-		m_wakeUp.Value().Broadcast();
-
-		size_t firstEnd = batchSize < count ? batchSize : count;
-		for (size_t i = 0; i < firstEnd; ++i)
-			body(i);
-
-		// Attente des lots confiés au vivier. `body` est capturé par
-		// RÉFÉRENCE ci-dessus : c'est licite précisément parce qu'on ne sort
-		// pas d'ici avant que toutes les tâches l'aient fini d'utiliser.
-		sdl3::MutexGuard guard(m_mutex.Value());
-		while (m_pending > 0)
-			m_allDone.Value().Wait(m_mutex.Value());
-	}
+	void ParallelFor(size_t count, size_t minimumPerBatch, const std::function<void(size_t)> &body);
 
 private:
-	void WorkerLoop() {
-		for (;;) {
-			std::function<void()> job;
-			{
-				sdl3::MutexGuard guard(m_mutex.Value());
-				while (m_queue.empty() && !m_stopping)
-					m_wakeUp.Value().Wait(m_mutex.Value());
-				if (m_queue.empty() && m_stopping)
-					return;
-				job = std::move(m_queue.front());
-				m_queue.erase(m_queue.begin());
-			}
-
-			int active = m_active.FetchAdd(1) + 1;
-			// Maximum simultané, par compare-échange : deux fils qui démarrent
-			// ensemble ne doivent pas s'écraser mutuellement.
-			for (;;) {
-				int peak = m_peakActive.Load();
-				if (active <= peak || m_peakActive.CompareExchange(peak, active))
-					break;
-			}
-			job();
-			m_active.FetchAdd(-1);
-
-			{
-				sdl3::MutexGuard guard(m_mutex.Value());
-				if (m_pending > 0)
-					--m_pending;
-			}
-			m_allDone.Value().Broadcast();
-		}
-	}
+	void WorkerLoop();
 
 	Option<sdl3::Mutex> m_mutex = NONE;
 	Option<sdl3::Condition> m_wakeUp = NONE;

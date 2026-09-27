@@ -1,0 +1,40 @@
+# ── Accueil : le sommaire des scènes de démonstration ────────────────────────
+
+const DEMOS = [
+    {scene: "Formes et matériaux", texte: "Primitives et familles de matériaux"},
+    {scene: "Physique", texte: "Chutes, rebonds et empilements"},
+    {scene: "Hiérarchie", texte: "Un robot articulé : chaque pièce suit son parent"},
+    {scene: "Lumières", texte: "Lumières colorées en mouvement"},
+    {scene: "Terrain procédural", texte: "gen.terrain : bruit, érosion et biomes"},
+    {scene: "Jeu 2D", texte: "Scène purement 2D : nœuds, calque d'interface, draw2d"},
+]
+
+let temps = 0
+
+fn on_start() {
+    # Menu : souris libre, même en plein écran, pour cliquer les boutons.
+    input.set_mouse_mode("free")
+    let panneau = ui.column({anchor: "center", gap: 10, pad: 24, bg: "#10141cdd", radius: 12})
+    ui.label("Démonstration de scènes", {parent: panneau, font_size: 28, bold: true, color: "#ffd873"})
+    ui.label("Chaque scène montre une facette de l'éditeur ; « Retour » ramène ici.",
+             {parent: panneau, font_size: 13, color: "#c8d0dc"})
+    ui.separator({parent: panneau})
+    for (demo in DEMOS) {
+        let ligne = ui.row({parent: panneau, gap: 12, align: "center"})
+        ui.button(demo.scene, fn(b) { game.load_scene(demo.scene) }, {parent: ligne, w: 190})
+        ui.label(demo.texte, {parent: ligne, font_size: 12, color: "#9aa6b8"})
+    }
+    let etat = game.state()
+    etat.visites = (etat.visites or 0) + 1
+    if (etat.visites > 1) {
+        ui.label(format("Retour n°{} à l'accueil", etat.visites - 1), {anchor: "bottom", offset: [0, -16], font_size: 12,
+                                                                      color: "#c8d0dc90"})
+    }
+}
+
+fn on_update(dt) {
+    temps += dt
+    object.set_rotation("Anneau", temps * 20, temps * 35, 0)
+    object.set_rotation("Noyau", 0, -temps * 50, temps * 15)
+    object.set_position("Noyau", 0, 2.4 + math.sin(temps * 1.6) * 0.3, 0)
+}

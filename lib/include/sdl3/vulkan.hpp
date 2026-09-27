@@ -17,10 +17,7 @@ class VkLibrary {
 public:
 	constexpr VkLibrary() noexcept = default;
 	explicit VkLibrary(bool loaded) noexcept : loaded(loaded) {}
-	~VkLibrary() {
-		if (loaded)
-			SDL_Vulkan_UnloadLibrary();
-	}
+	~VkLibrary();
 
 	VkLibrary(const VkLibrary &) = delete;
 	VkLibrary &operator=(const VkLibrary &) = delete;
@@ -38,11 +35,7 @@ public:
 	[[nodiscard]] explicit operator bool() const noexcept { return loaded; }
 
 	// Load the Vulkan loader library. Pass nullptr to use the system default.
-	[[nodiscard]] static Result<VkLibrary, StringView> Load(const char *path = nullptr) {
-		if (!SDL_Vulkan_LoadLibrary(path))
-			return Err(GetError());
-		return Ok(VkLibrary(true));
-	}
+	[[nodiscard]] static Result<VkLibrary, StringView> Load(const char *path = nullptr);
 };
 
 // ============================================================================
@@ -54,49 +47,32 @@ namespace vulkan {
 // ── Instance proc address ─────────────────────────────────────────────────────
 
 // Returns vkGetInstanceProcAddr as an opaque function pointer.
-[[nodiscard]] inline SDL_FunctionPointer GetInstanceProcAddr() noexcept {
-	return SDL_Vulkan_GetVkGetInstanceProcAddr();
-}
+[[nodiscard]] SDL_FunctionPointer GetInstanceProcAddr() noexcept;
 
 // ── Instance extensions ───────────────────────────────────────────────────────
 
 // Returns the set of Vulkan instance extensions SDL requires on this platform.
 // The returned span is valid until the next call to SDL_Vulkan_GetInstanceExtensions
 // or until SDL is shut down.
-[[nodiscard]] inline std::span<const char *const> InstanceExtensions() noexcept {
-	Uint32 count = 0;
-	const char *const *exts = SDL_Vulkan_GetInstanceExtensions(&count);
-	if (!exts)
-		return {};
-	return {exts, count};
-}
+[[nodiscard]] std::span<const char *const> InstanceExtensions() noexcept;
 
 // ── Surface creation / destruction ────────────────────────────────────────────
 
 // Create a Vulkan surface for the given window.
 // `allocator` may be nullptr to use the default allocator.
-[[nodiscard]] inline Result<VkSurfaceKHR, StringView> CreateSurface(SDL_Window *win, VkInstance instance,
-																	const VkAllocationCallbacks *allocator = nullptr) {
-	VkSurfaceKHR surface{};
-	if (!SDL_Vulkan_CreateSurface(win, instance, allocator, &surface))
-		return Err(GetError());
-	return Ok(surface);
-}
+[[nodiscard]] Result<VkSurfaceKHR, StringView> CreateSurface(SDL_Window *win, VkInstance instance,
+																	const VkAllocationCallbacks *allocator = nullptr);
 
 // Destroy a Vulkan surface that was created with createSurface().
 // Must be called before SDL_DestroyWindow for the associated window.
-inline void DestroySurface(VkInstance instance, VkSurfaceKHR surface,
-						   const VkAllocationCallbacks *allocator = nullptr) noexcept {
-	SDL_Vulkan_DestroySurface(instance, surface, allocator);
-}
+void DestroySurface(VkInstance instance, VkSurfaceKHR surface,
+						   const VkAllocationCallbacks *allocator = nullptr) noexcept;
 
 // ── Presentation support ──────────────────────────────────────────────────────
 
 // Returns true if the given physical device / queue family supports presentation.
-[[nodiscard]] inline bool PresentationSupported(VkInstance instance, VkPhysicalDevice physicalDevice,
-												uint32_t queueFamilyIndex) noexcept {
-	return SDL_Vulkan_GetPresentationSupport(instance, physicalDevice, queueFamilyIndex);
-}
+[[nodiscard]] bool PresentationSupported(VkInstance instance, VkPhysicalDevice physicalDevice,
+												uint32_t queueFamilyIndex) noexcept;
 
 } // namespace vulkan
 } // namespace sdl3

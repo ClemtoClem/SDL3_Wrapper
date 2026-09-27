@@ -29,10 +29,7 @@ class SpinLockGuard {
 
 public:
 	explicit SpinLockGuard(const SpinLock &lock) : lock(&lock) { this->lock->Lock(); }
-	~SpinLockGuard() {
-		if (lock)
-			lock->Unlock();
-	}
+	~SpinLockGuard();
 
 	SpinLockGuard(const SpinLockGuard &) = delete;
 	SpinLockGuard &operator=(const SpinLockGuard &) = delete;
@@ -58,9 +55,7 @@ public:
 	[[nodiscard]] int Load() const noexcept { return SDL_GetAtomicInt(&value); }
 	int Store(int v) noexcept { return SDL_SetAtomicInt(&value, v); }
 	int FetchAdd(int v) noexcept { return SDL_AddAtomicInt(&value, v); }
-	[[nodiscard]] bool CompareExchange(int expected, int desired) noexcept {
-		return SDL_CompareAndSwapAtomicInt(&value, expected, desired);
-	}
+	[[nodiscard]] bool CompareExchange(int expected, int desired) noexcept;
 };
 
 class AtomicU32 {
@@ -75,9 +70,7 @@ public:
 	[[nodiscard]] Uint32 Load() const noexcept { return SDL_GetAtomicU32(&value); }
 	Uint32 Store(Uint32 v) noexcept { return SDL_SetAtomicU32(&value, v); }
 	Uint32 FetchAdd(int v) noexcept { return SDL_AddAtomicU32(&value, v); }
-	[[nodiscard]] bool CompareExchange(Uint32 expected, Uint32 desired) noexcept {
-		return SDL_CompareAndSwapAtomicU32(&value, expected, desired);
-	}
+	[[nodiscard]] bool CompareExchange(Uint32 expected, Uint32 desired) noexcept;
 };
 
 template <typename T> class AtomicPointer {
@@ -104,12 +97,7 @@ class Mutex : public Wrapper<SDL_Mutex, SDL_DestroyMutex> {
 public:
 	using Wrapper::Wrapper;
 
-	[[nodiscard]] static Result<Mutex, Error> Create() {
-		auto *m = SDL_CreateMutex();
-		if (!m)
-			return Err(GetError());
-		return Ok(Mutex(m));
-	}
+	[[nodiscard]] static Result<Mutex, Error> Create();
 
 	void Lock() { if (m_handle) SDL_LockMutex(m_handle); }
 	[[nodiscard]] bool TryLock() { return m_handle && SDL_TryLockMutex(m_handle); }
@@ -122,14 +110,8 @@ class MutexGuard {
 	SDL_Mutex *m_handle = nullptr;
 
 public:
-	explicit MutexGuard(Mutex &m) : m_handle(m.Get()) {
-		if (m_handle)
-			SDL_LockMutex(m_handle);
-	}
-	~MutexGuard() {
-		if (m_handle)
-			SDL_UnlockMutex(m_handle);
-	}
+	explicit MutexGuard(Mutex &m);
+	~MutexGuard();
 
 	MutexGuard(const MutexGuard &) = delete;
 	MutexGuard &operator=(const MutexGuard &) = delete;
@@ -145,12 +127,7 @@ class RWLock : public Wrapper<SDL_RWLock, SDL_DestroyRWLock> {
 public:
 	using Wrapper::Wrapper;
 
-	[[nodiscard]] static Result<RWLock, Error> Create() {
-		auto *l = SDL_CreateRWLock();
-		if (!l)
-			return Err(GetError());
-		return Ok(RWLock(l));
-	}
+	[[nodiscard]] static Result<RWLock, Error> Create();
 
 	void LockRead() { if (m_handle) SDL_LockRWLockForReading(m_handle); }
 	void LockWrite() { if (m_handle) SDL_LockRWLockForWriting(m_handle); }
@@ -163,14 +140,8 @@ class RWLockReadGuard {
 	SDL_RWLock *m_handle = nullptr;
 
 public:
-	explicit RWLockReadGuard(RWLock &l) : m_handle(l.Get()) {
-		if (m_handle)
-			SDL_LockRWLockForReading(m_handle);
-	}
-	~RWLockReadGuard() {
-		if (m_handle)
-			SDL_UnlockRWLock(m_handle);
-	}
+	explicit RWLockReadGuard(RWLock &l);
+	~RWLockReadGuard();
 
 	RWLockReadGuard(const RWLockReadGuard &) = delete;
 	RWLockReadGuard &operator=(const RWLockReadGuard &) = delete;
@@ -181,14 +152,8 @@ class RWLockWriteGuard {
 	SDL_RWLock *m_handle = nullptr;
 
 public:
-	explicit RWLockWriteGuard(RWLock &l) : m_handle(l.Get()) {
-		if (m_handle)
-			SDL_LockRWLockForWriting(m_handle);
-	}
-	~RWLockWriteGuard() {
-		if (m_handle)
-			SDL_UnlockRWLock(m_handle);
-	}
+	explicit RWLockWriteGuard(RWLock &l);
+	~RWLockWriteGuard();
 
 	RWLockWriteGuard(const RWLockWriteGuard &) = delete;
 	RWLockWriteGuard &operator=(const RWLockWriteGuard &) = delete;
@@ -203,12 +168,7 @@ class Semaphore : public Wrapper<SDL_Semaphore, SDL_DestroySemaphore> {
 public:
 	using Wrapper::Wrapper;
 
-	[[nodiscard]] static Result<Semaphore, Error> Create(Uint32 initialValue) {
-		auto *s = SDL_CreateSemaphore(initialValue);
-		if (!s)
-			return Err(GetError());
-		return Ok(Semaphore(s));
-	}
+	[[nodiscard]] static Result<Semaphore, Error> Create(Uint32 initialValue);
 
 	void Wait() { if (m_handle) SDL_WaitSemaphore(m_handle); }
 	[[nodiscard]] bool TryWait() { return m_handle && SDL_TryWaitSemaphore(m_handle); }
@@ -227,25 +187,15 @@ class Condition : public Wrapper<SDL_Condition, SDL_DestroyCondition> {
 public:
 	using Wrapper::Wrapper;
 
-	[[nodiscard]] static Result<Condition, Error> Create() {
-		auto *c = SDL_CreateCondition();
-		if (!c)
-			return Err(GetError());
-		return Ok(Condition(c));
-	}
+	[[nodiscard]] static Result<Condition, Error> Create();
 
 	void Signal() { if (m_handle) SDL_SignalCondition(m_handle); }
 	void Broadcast() { if (m_handle) SDL_BroadcastCondition(m_handle); }
 	/// `mutex` doit être verrouillé par l'appelant AVANT d'appeler wait() —
 	/// relâché pendant l'attente, reverrouillé avant le retour (même contrat
 	/// que SDL_WaitCondition/std::condition_variable::Wait).
-	void Wait(Mutex &mutex) {
-		if (m_handle && mutex.Get())
-			SDL_WaitCondition(m_handle, mutex.Get());
-	}
-	[[nodiscard]] bool WaitTimeout(Mutex &mutex, Sint32 timeoutMs) {
-		return m_handle && mutex.Get() && SDL_WaitConditionTimeout(m_handle, mutex.Get(), timeoutMs);
-	}
+	void Wait(Mutex &mutex);
+	[[nodiscard]] bool WaitTimeout(Mutex &mutex, Sint32 timeoutMs);
 };
 
 // ============================================================================
@@ -323,12 +273,7 @@ namespace detail {
 struct ThreadCtx {
 	std::function<int()> fn;
 };
-inline int SDLCALL ThreadTrampoline(void *data) {
-	auto *ctx = static_cast<ThreadCtx *>(data);
-	int result = ctx->fn ? ctx->fn() : 0;
-	delete ctx;
-	return result;
-}
+int SDLCALL ThreadTrampoline(void *data);
 } // namespace detail
 
 /// Libère les données locales de fil de SDL (tampon d'erreur de
@@ -372,58 +317,31 @@ public:
 	/// appelés — jamais de thread orphelin non joint/détaché à la sortie de
 	/// portée (contrairement à `std::thread`, qui `std::terminate()` dans ce
 	/// cas : ici on privilégie la sécurité, cohérent avec le reste du projet).
-	~Thread() {
-		if (m_handle)
-			SDL_WaitThread(m_handle, nullptr);
-	}
+	~Thread();
 
 	/// `fn` s'exécute sur le nouveau thread ; sa valeur de retour devient le
 	/// code de sortie récupérable via wait(). `name` (optionnel) est visible
 	/// dans un débogueur/profileur sur les plateformes qui le supportent.
-	[[nodiscard]] static Result<Thread, Error> Create(std::function<int()> fn, const String &name = String()) {
-		auto *ctx = new detail::ThreadCtx{std::move(fn)};
-		auto *t = SDL_CreateThread(detail::ThreadTrampoline, name.IsEmpty() ? nullptr : name.c_str(), ctx);
-		if (!t) {
-			delete ctx;
-			return Err(GetError());
-		}
-		return Ok(Thread(t));
-	}
+	[[nodiscard]] static Result<Thread, Error> Create(std::function<int()> fn, const String &name = String());
 
 	[[nodiscard]] String Name() const { return m_handle ? String(SDL_GetThreadName(m_handle)) : String(); }
 	[[nodiscard]] SDL_ThreadID GetId() const noexcept { return m_handle ? SDL_GetThreadID(m_handle) : 0; }
-	[[nodiscard]] ThreadState State() const noexcept {
-		return m_handle ? ThreadState(SDL_GetThreadState(m_handle)) : ThreadState::UNKNOWN;
-	}
+	[[nodiscard]] ThreadState State() const noexcept;
 
 	/// Attend la fin du thread (bloquant) et renvoie son code de sortie —
 	/// `NONE` si déjà joint/détaché (mêmes conventions que `Process::Wait()`).
 	/// Après cet appel, l'objet ne représente plus aucun thread.
-	Option<int> Wait() noexcept {
-		if (!m_handle)
-			return NONE;
-		int status = 0;
-		SDL_WaitThread(m_handle, &status);
-		m_handle = nullptr;
-		return Some(status);
-	}
+	Option<int> Wait() noexcept;
 
 	/// Détache le thread (libéré automatiquement à sa fin, sans jamais
 	/// pouvoir être joint) — usage fire-and-forget. Après cet appel, l'objet
 	/// ne représente plus aucun thread.
-	void Detach() noexcept {
-		if (m_handle) {
-			SDL_DetachThread(m_handle);
-			m_handle = nullptr;
-		}
-	}
+	void Detach() noexcept;
 
 	[[nodiscard]] explicit operator bool() const noexcept { return m_handle != nullptr; }
 
 	[[nodiscard]] static SDL_ThreadID CurrentId() noexcept { return SDL_GetCurrentThreadID(); }
-	static bool SetCurrentPriority(ThreadPriority p) noexcept {
-		return SDL_SetCurrentThreadPriority(detail::ToSDL(p));
-	}
+	static bool SetCurrentPriority(ThreadPriority p) noexcept;
 };
 
 } // namespace sdl3

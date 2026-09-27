@@ -23,15 +23,7 @@ struct DirectionalLight {
 	float shadowNear = 0.1f;
 	float shadowFar = 100.f;
 
-	[[nodiscard]] math::FMatrix4 ShadowViewProjection() const noexcept {
-		math::FVector3 dir = direction.Normalize();
-		math::FVector3 eye = shadowTarget - dir * (shadowFar * 0.5f);
-		math::FVector3 up = (sdl3::Abs(dir.y) > 0.99f) ? math::FVector3{0.f, 0.f, 1.f} : math::FVector3{0.f, 1.f, 0.f};
-		math::FMatrix4 view = math::FMatrix4::LookAt(eye, shadowTarget, up);
-		math::FMatrix4 proj = math::FMatrix4::Ortho(-shadowOrthoSize, shadowOrthoSize, -shadowOrthoSize,
-													 shadowOrthoSize, shadowNear, shadowFar);
-		return proj * view;
-	}
+	[[nodiscard]] math::FMatrix4 ShadowViewProjection() const noexcept;
 };
 
 struct AmbientLight {
@@ -60,16 +52,7 @@ struct PointLight {
 	/// Matrice vue-projection pour la face `faceIndex` (0-5, ordre standard
 	/// SDL_GPU_CUBEMAPFACE_*: +X,-X,+Y,-Y,+Z,-Z) — FOV fixe à 90° (couvre
 	/// exactement une face de cube depuis le centre).
-	[[nodiscard]] math::FMatrix4 ShadowViewProjection(int faceIndex) const noexcept {
-		static constexpr math::FVector3 DIRS[6] = {{1.f, 0.f, 0.f},  {-1.f, 0.f, 0.f}, {0.f, 1.f, 0.f},
-													{0.f, -1.f, 0.f}, {0.f, 0.f, 1.f},  {0.f, 0.f, -1.f}};
-		static constexpr math::FVector3 UPS[6] = {{0.f, -1.f, 0.f}, {0.f, -1.f, 0.f}, {0.f, 0.f, 1.f},
-												   {0.f, 0.f, -1.f}, {0.f, -1.f, 0.f}, {0.f, -1.f, 0.f}};
-		math::FVector3 target = position + DIRS[faceIndex];
-		math::FMatrix4 view = math::FMatrix4::LookAt(position, target, UPS[faceIndex]);
-		math::FMatrix4 proj = math::FMatrix4::Perspective(1.57079632679f, 1.f, shadowNear, shadowFar);
-		return proj * view;
-	}
+	[[nodiscard]] math::FMatrix4 ShadowViewProjection(int faceIndex) const noexcept;
 };
 
 /// Lumière conique (three.js SpotLight). `angle` est le demi-angle du cône en
@@ -91,16 +74,7 @@ struct SpotLight {
 	float shadowNear = 0.1f;
 	float shadowFar = 50.f;
 
-	[[nodiscard]] math::FMatrix4 ShadowViewProjection() const noexcept {
-		math::FVector3 dir = direction.Normalize();
-		math::FVector3 target = position + dir;
-		math::FVector3 up = (sdl3::Abs(dir.y) > 0.99f) ? math::FVector3{0.f, 0.f, 1.f} : math::FVector3{0.f, 1.f, 0.f};
-		math::FMatrix4 view = math::FMatrix4::LookAt(position, target, up);
-		// Marge sur le FOV réel du cône pour couvrir la pénombre jusqu'au bord.
-		float fov = sdl3::Clamp(angle * 2.2f, 0.1f, 3.0f);
-		math::FMatrix4 proj = math::FMatrix4::Perspective(fov, 1.f, shadowNear, shadowFar);
-		return proj * view;
-	}
+	[[nodiscard]] math::FMatrix4 ShadowViewProjection() const noexcept;
 };
 
 } // namespace render3d

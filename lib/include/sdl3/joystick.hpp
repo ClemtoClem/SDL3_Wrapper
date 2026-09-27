@@ -65,15 +65,7 @@ namespace joystick {
 
 [[nodiscard]] inline bool Any() noexcept { return SDL_HasJoystick(); }
 
-[[nodiscard]] inline std::vector<JoystickID> Enumerated() {
-    int count = 0;
-    JoystickID *ids = SDL_GetJoysticks(&count);
-    if (!ids)
-        return {};
-    std::vector<JoystickID> v(ids, ids + count);
-    SDL_free(ids);
-    return v;
-}
+[[nodiscard]] std::vector<JoystickID> Enumerated();
 
 [[nodiscard]] inline const char *NameFor(JoystickID id) noexcept { return SDL_GetJoystickNameForID(id); }
 [[nodiscard]] inline const char *PathFor(JoystickID id) noexcept { return SDL_GetJoystickPathForID(id); }
@@ -97,16 +89,9 @@ class Joystick : public Wrapper<SDL_Joystick, SDL_CloseJoystick> {
 public:
     using Wrapper::Wrapper;
 
-    [[nodiscard]] static Result<Joystick, StringView> Open(JoystickID id) {
-        auto *j = SDL_OpenJoystick(id);
-        if (!j)
-            return Err(GetError());
-        return Ok(Joystick(j));
-    }
+    [[nodiscard]] static Result<Joystick, StringView> Open(JoystickID id);
 
-    [[nodiscard]] SDL_PropertiesID Properties() const noexcept {
-        return m_handle ? SDL_GetJoystickProperties(m_handle) : 0;
-    }
+    [[nodiscard]] SDL_PropertiesID Properties() const noexcept;
     [[nodiscard]] const char *GetName() const noexcept { return m_handle ? SDL_GetJoystickName(m_handle) : ""; }
     [[nodiscard]] const char *GetPath() const noexcept { return m_handle ? SDL_GetJoystickPath(m_handle) : ""; }
 
@@ -115,22 +100,14 @@ public:
 
     [[nodiscard]] uint16_t GetVendor() const noexcept { return m_handle ? SDL_GetJoystickVendor(m_handle) : 0; }
     [[nodiscard]] uint16_t GetProduct() const noexcept { return m_handle ? SDL_GetJoystickProduct(m_handle) : 0; }
-    [[nodiscard]] uint16_t GetProductVersion() const noexcept {
-        return m_handle ? SDL_GetJoystickProductVersion(m_handle) : 0;
-    }
-    [[nodiscard]] uint16_t FirmwareVersion() const noexcept {
-        return m_handle ? SDL_GetJoystickFirmwareVersion(m_handle) : 0;
-    }
+    [[nodiscard]] uint16_t GetProductVersion() const noexcept;
+    [[nodiscard]] uint16_t FirmwareVersion() const noexcept;
     [[nodiscard]] const char *Serial() const noexcept { return m_handle ? SDL_GetJoystickSerial(m_handle) : ""; }
-    [[nodiscard]] JoystickType GetType() const noexcept {
-        return m_handle ? JoystickType(SDL_GetJoystickType(m_handle)) : JoystickType::UNKNOWN;
-    }
+    [[nodiscard]] JoystickType GetType() const noexcept;
 
     [[nodiscard]] bool Connected() const noexcept { return m_handle && SDL_JoystickConnected(m_handle); }
     [[nodiscard]] JoystickID GetId() const noexcept { return m_handle ? SDL_GetJoystickID(m_handle) : 0; }
-    [[nodiscard]] JoystickConnection ConnectionState() const noexcept {
-        return m_handle ? JoystickConnection(SDL_GetJoystickConnectionState(m_handle)) : JoystickConnection::INVALID;
-    }
+    [[nodiscard]] JoystickConnection ConnectionState() const noexcept;
 
     [[nodiscard]] int GetNumAxes() const noexcept { return m_handle ? SDL_GetNumJoystickAxes(m_handle) : 0; }
     [[nodiscard]] int GetNumBalls() const noexcept { return m_handle ? SDL_GetNumJoystickBalls(m_handle) : 0; }
@@ -139,38 +116,20 @@ public:
 
     [[nodiscard]] Sint16 GetAxis(int index) const noexcept { return m_handle ? SDL_GetJoystickAxis(m_handle, index) : 0; }
 
-    [[nodiscard]] Option<Sint16> AxisInitialState(int index) const {
-        Sint16 state = 0;
-        if (!m_handle || !SDL_GetJoystickAxisInitialState(m_handle, index, &state))
-            return NONE;
-        return Some(state);
-    }
+    [[nodiscard]] Option<Sint16> AxisInitialState(int index) const;
 
-    [[nodiscard]] Option<BallDelta> Ball(int index) const {
-        BallDelta d;
-        if (!m_handle || !SDL_GetJoystickBall(m_handle, index, &d.dx, &d.dy))
-            return NONE;
-        return Some(d);
-    }
+    [[nodiscard]] Option<BallDelta> Ball(int index) const;
 
     [[nodiscard]] uint8_t Hat(int index) const noexcept { return m_handle ? SDL_GetJoystickHat(m_handle, index) : 0; }
     [[nodiscard]] bool Button(int index) const noexcept { return m_handle && SDL_GetJoystickButton(m_handle, index); }
 
-    bool Rumble(uint16_t lowHz, uint16_t highHz, uint32_t durationMs) noexcept {
-        return m_handle && SDL_RumbleJoystick(m_handle, lowHz, highHz, durationMs);
-    }
+    bool Rumble(uint16_t lowHz, uint16_t highHz, uint32_t durationMs) noexcept;
 
     // Envoie des données d'effet spécifiques au pilote (usage avancé).
-    bool SendEffect(const void *data, int size) noexcept {
-        return m_handle && SDL_SendJoystickEffect(m_handle, data, size);
-    }
+    bool SendEffect(const void *data, int size) noexcept;
 
     // `percent` (charge restante, [0,100]) est NONE si inconnu.
-    [[nodiscard]] sdl3::PowerInfo PowerInfo() const noexcept {
-        int p = -1;
-        PowerState st = m_handle ? PowerState(SDL_GetJoystickPowerInfo(m_handle, &p)) : PowerState::UNKNOWN;
-        return {st, p >= 0 ? Some(p) : Option<int>(NONE)};
-    }
+    [[nodiscard]] sdl3::PowerInfo PowerInfo() const noexcept;
 };
 
 } // namespace sdl3

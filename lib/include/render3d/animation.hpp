@@ -94,18 +94,7 @@ struct AnimationClip {
 
 	/// Clip length: the latest keyframe time across every track (0 if the
 	/// clip has no tracks, or every track is empty).
-	[[nodiscard]] float Duration() const noexcept {
-		float duration = 0.f;
-		auto scan = [&](const auto &tracks) {
-			for (const auto &track : tracks)
-				if (!track.keyframes.empty())
-					duration = std::max(duration, track.keyframes.back().time);
-		};
-		scan(positionTracks);
-		scan(rotationTracks);
-		scan(scaleTracks);
-		return duration;
-	}
+	[[nodiscard]] float Duration() const noexcept;
 };
 
 /**
@@ -134,18 +123,12 @@ public:
 	/// Starts playing `clip` from t=0 with its own independent cursor;
 	/// returns a handle usable with Stop(). `clip` is referenced, not
 	/// copied — it must outlive its use by the mixer.
-	ClipHandle Play(const AnimationClip &clip, bool loop = true) {
-		m_active.push_back(ActiveClip{&clip, 0.f, loop});
-		return m_active.size() - 1;
-	}
+	ClipHandle Play(const AnimationClip &clip, bool loop = true);
 
 	/// Stops the clip at `handle` (no-op if already stopped/out of range).
 	/// The slot is cleared, not erased, so previously returned handles stay
 	/// valid across further Play()/Stop() calls.
-	void Stop(ClipHandle handle) noexcept {
-		if (handle < m_active.size())
-			m_active[handle].clip = nullptr;
-	}
+	void Stop(ClipHandle handle) noexcept;
 
 	/**
 	 * Advances every active clip's cursor by `dt`, samples every track at
@@ -155,26 +138,7 @@ public:
 	 * comment) — a name that doesn't resolve is skipped silently (this
 	 * repo's best-effort, defensive style — no assert/throw).
 	 */
-	void Update(float dt) {
-		for (ActiveClip &active : m_active) {
-			if (!active.clip)
-				continue;
-
-			float duration = active.clip->Duration();
-			active.time += dt;
-			if (duration > 1e-8f)
-				active.time = active.loop ? std::fmod(active.time, duration) : std::min(active.time, duration);
-			else
-				active.time = 0.f;
-
-			ApplyTracks(active.clip->positionTracks, active.time,
-						[](Object3D &node, const math::FVector3 &v) { node.SetPosition(v); });
-			ApplyTracks(active.clip->rotationTracks, active.time,
-						[](Object3D &node, const math::FQuaternion &v) { node.SetRotation(v); });
-			ApplyTracks(active.clip->scaleTracks, active.time,
-						[](Object3D &node, const math::FVector3 &v) { node.SetScale(v); });
-		}
-	}
+	void Update(float dt);
 
 private:
 	template <typename T, typename Apply>

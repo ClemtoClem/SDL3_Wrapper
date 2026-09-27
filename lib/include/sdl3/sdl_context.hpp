@@ -33,10 +33,7 @@ public:
 	SdlContext() = default;
 	explicit SdlContext(InitFlags flags) noexcept : owns(SDL_Init(flags)) {}
 
-	~SdlContext() {
-		if (owns)
-			SDL_Quit();
-	}
+	~SdlContext();
 
 	SdlContext(const SdlContext &) = delete;
 	SdlContext &operator=(const SdlContext &) = delete;
@@ -57,12 +54,7 @@ public:
 	bool InitSubsystem(InitFlags flags) noexcept { return SDL_InitSubSystem(flags); }
 	void QuitSubsystem(InitFlags flags) noexcept { SDL_QuitSubSystem(flags); }
 
-	[[nodiscard]] static Result<SdlContext, Error> Create(InitFlags flags) {
-		SdlContext ctx(flags);
-		if (!ctx)
-			return Err(GetError());
-		return Ok(std::move(ctx));
-	}
+	[[nodiscard]] static Result<SdlContext, Error> Create(InitFlags flags);
 };
 
 } // namespace sdl3

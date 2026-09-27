@@ -1,0 +1,42 @@
+# ── Physique : une pyramide de caisses, des sphères qu'on lâche dessus ───────
+
+let temps = 0
+let lachees = 0
+let compteur = nil
+let espace_avant = false
+
+fn afficher_titre(titre, texte) {
+    let bandeau = ui.column({anchor: "top_left", offset: [16, 14], gap: 4, pad: 14, bg: "#10141cd0", radius: 8, w: 380})
+    ui.label(titre, {parent: bandeau, font_size: 20, bold: true, color: "#ffd873"})
+    ui.label(texte, {parent: bandeau, font_size: 13, color: "#c8d0dc"})
+    ui.button("Retour à l'accueil", fn(b) { game.load_scene("Accueil") }, {anchor: "top_right", offset: [-14, 14], w: 180})
+    return bandeau
+}
+
+fn lacher() {
+    lachees += 1
+    let x = math.sin(lachees * 1.7) * 1.2
+    scene.spawn({name: "Sphère " .. lachees, shape: "sphere", size: [0.9, 0.9, 0.9], pos: [x, 9, -0.4],
+                 color: [240 - lachees * 7 % 120, 90, 60 + lachees * 13 % 160], material: "pbr", metallic: 0.3,
+                 body: "dynamic", collider: "sphere", mass: 4, restitution: 0.55})
+    compteur.text = format("Sphères lâchées : {}", lachees)
+}
+
+fn on_start() {
+    let bandeau = afficher_titre("Physique", "Espace (ou le bouton) : lâcher une sphère. Une toutes les 2 s sinon.")
+    compteur = ui.label("Sphères lâchées : 0", {parent: bandeau, font_size: 13})
+    let boutons = ui.row({parent: bandeau, gap: 8})
+    ui.button("Lâcher une sphère", fn(b) { lacher() }, {parent: boutons, w: 170})
+    ui.button("Recommencer", fn(b) { game.load_scene("Physique") }, {parent: boutons, w: 130})
+}
+
+fn on_update(dt) {
+    temps += dt
+    let espace = input.key("space")
+    if (espace and not espace_avant) { lacher() }
+    espace_avant = espace
+    if (temps > 2 and lachees < 12) {
+        temps = 0
+        lacher()
+    }
+}

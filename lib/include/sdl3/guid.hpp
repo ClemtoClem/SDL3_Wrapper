@@ -25,11 +25,7 @@ struct Guid {
         return g;
     }
 
-    [[nodiscard]] String ToString() const {
-        char buf[33] = {};
-        SDL_GUIDToString(*this, buf, sizeof(buf));
-        return String(buf);
-    }
+    [[nodiscard]] String ToString() const;
 
     [[nodiscard]] static Guid FromString(const String &s) noexcept { return Guid(SDL_StringToGUID(s.c_str())); }
 

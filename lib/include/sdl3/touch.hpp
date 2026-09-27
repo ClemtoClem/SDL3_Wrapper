@@ -43,34 +43,13 @@ struct Finger {
 
 namespace touch {
 
-[[nodiscard]] inline std::vector<SDL_TouchID> Devices() {
-	int count = 0;
-	SDL_TouchID *ids = SDL_GetTouchDevices(&count);
-	if (!ids)
-		return {};
-	std::vector<SDL_TouchID> v(ids, ids + count);
-	SDL_free(ids);
-	return v;
-}
+[[nodiscard]] std::vector<SDL_TouchID> Devices();
 
 [[nodiscard]] inline const char *DeviceName(SDL_TouchID id) noexcept { return SDL_GetTouchDeviceName(id); }
-[[nodiscard]] inline TouchDeviceType DeviceType(SDL_TouchID id) noexcept {
-	return TouchDeviceType(SDL_GetTouchDeviceType(id));
-}
+[[nodiscard]] TouchDeviceType DeviceType(SDL_TouchID id) noexcept;
 
 // Doigts actuellement posés sur le périphérique `id`.
-[[nodiscard]] inline std::vector<Finger> Fingers(SDL_TouchID id) {
-	int count = 0;
-	SDL_Finger **raw = SDL_GetTouchFingers(id, &count);
-	if (!raw)
-		return {};
-	std::vector<Finger> out;
-	out.reserve(size_t(count));
-	for (int i = 0; i < count; ++i)
-		out.emplace_back(*raw[i]);
-	SDL_free(raw);
-	return out;
-}
+[[nodiscard]] std::vector<Finger> Fingers(SDL_TouchID id);
 
 } // namespace touch
 

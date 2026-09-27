@@ -1,0 +1,65 @@
+# ── Menu principal : graine du donjon et difficulté ──────────────────────────
+
+const DIFFICULTES = ["Facile", "Normal", "Difficile"]
+
+let graine = 1
+let difficulte = "Normal"
+let champ = nil
+let boutons = []
+let temps = 0
+
+fn choisir(d) {
+    difficulte = d
+    for (b in boutons) {
+        if (b.text == d) { b.set_bg("#8a2f2f") } else { b.set_bg("#2a2a32") }
+    }
+}
+
+fn graine_au_hasard() {
+    graine = i64(std.os.time() * 1000) % 100000
+    champ.text = str(graine)
+}
+
+fn entrer() {
+    let saisie = num(champ.text)
+    if (saisie) { graine = i64(saisie) }
+    let etat = game.state()
+    etat.graine = graine
+    etat.difficulte = difficulte
+    editor.log(format("Donjon : graine {}, difficulté {}", graine, difficulte))
+    game.load_scene("Génération")
+}
+
+fn on_start() {
+    # Menu : souris libre, même en plein écran, pour cliquer les boutons.
+    input.set_mouse_mode("free")
+    let etat = game.state()
+    graine = etat.graine or 1234
+    difficulte = etat.difficulte or "Normal"
+    ui.label("LES CRYPTES DE SLED", {anchor: "top_left", offset: [36, 26], font_size: 46, bold: true, color: "#e8c27a"})
+    ui.label("Un donjon différent à chaque graine", {anchor: "top_left", offset: [40, 84], font_size: 17, color: "#c9bfae"})
+
+    let panneau = ui.column({anchor: "bottom_right", offset: [-40, -44], gap: 10, pad: 24, bg: "#120e0ce0", radius: 10, w: 360})
+    ui.label("Graine du donjon", {parent: panneau, bold: true})
+    let ligne = ui.row({parent: panneau, gap: 8})
+    champ = ui.input("nombre", fn(w, texte) { entrer() }, {parent: ligne, w: 160})
+    champ.text = str(graine)
+    ui.button("Au hasard", fn(b) { graine_au_hasard() }, {parent: ligne, w: 110})
+    ui.label("Difficulté", {parent: panneau, bold: true})
+    let choix = ui.row({parent: panneau, gap: 6})
+    for (d in DIFFICULTES) {
+        boutons.append(ui.button(d, fn(b) { choisir(d) }, {parent: choix, w: 90}))
+    }
+    choisir(difficulte)
+    ui.separator({parent: panneau})
+    ui.button("Entrer dans le donjon", fn(b) { entrer() }, {parent: panneau, w: 300})
+    ui.button("Quitter", fn(b) { game.quit() }, {parent: panneau, w: 300})
+    ui.label("ZQSD / WASD + souris : explorer · Espace ou clic : frapper · F7 : libérer la souris",
+             {anchor: "bottom", offset: [0, -18], font_size: 13, color: "#c9bfaea0"})
+}
+
+fn on_update(dt) {
+    temps += dt
+    object.set_rotation("Crâne", 0, math.sin(temps * 0.8) * 25, 0)
+    if (input.key("enter")) { entrer() }
+}

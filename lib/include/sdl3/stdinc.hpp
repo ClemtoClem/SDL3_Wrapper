@@ -137,9 +137,7 @@ namespace ctype {
 namespace env {
 
 [[nodiscard]] inline const char *Get(const char *name) noexcept { return SDL_getenv(name); }
-inline bool Set(const char *name, const char *value, bool overwrite = true) noexcept {
-	return SDL_setenv_unsafe(name, value, overwrite) == 0;
-}
+bool Set(const char *name, const char *value, bool overwrite = true) noexcept;
 inline bool Unset(const char *name) noexcept { return SDL_unsetenv_unsafe(name) == 0; }
 
 } // namespace env

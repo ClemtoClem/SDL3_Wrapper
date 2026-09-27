@@ -37,11 +37,7 @@ struct ParseError {
 	ParseError() = default;
 	explicit ParseError(String msg, int l = -1, int c = -1) : message(std::move(msg)), line(l), column(c) {}
 
-	[[nodiscard]] String Format() const {
-		if (line >= 0)
-			return message + " (line " + String::From(line) + ")";
-		return message;
-	}
+	[[nodiscard]] String Format() const;
 };
 
 // ============================================================================
@@ -57,61 +53,23 @@ public:
 
 	[[nodiscard]] bool Eof() const noexcept { return m_pos >= m_data.GetSize(); }
 
-	[[nodiscard]] Option<char> Peek() const noexcept {
-		if (Eof())
-			return NONE;
-		return Some(m_data[m_pos]);
-	}
+	[[nodiscard]] Option<char> Peek() const noexcept;
 
-	[[nodiscard]] Option<char> PeekAt(size_t offset) const noexcept {
-		size_t p = m_pos + offset;
-		if (p >= m_data.GetSize())
-			return NONE;
-		return Some(m_data[p]);
-	}
+	[[nodiscard]] Option<char> PeekAt(size_t offset) const noexcept;
 
-	[[nodiscard]] bool PeekIs(char c) const noexcept {
-		auto p = Peek();
-		return p.IsSome() && *p == c;
-	}
+	[[nodiscard]] bool PeekIs(char c) const noexcept;
 
-	[[nodiscard]] bool PeekIs(std::initializer_list<char> lst) const noexcept {
-		auto p = Peek();
-		return p.IsSome() &&
-			std::find(lst.begin(), lst.end(), *p) != lst.end();
-	}
+	[[nodiscard]] bool PeekIs(std::initializer_list<char> lst) const noexcept;
 
-	Option<char> Get() noexcept {
-		if (Eof())
-			return NONE;
-		char c = m_data[m_pos++];
-		if (c == '\n')
-			++m_line;
-		return Some(c);
-	}
+	Option<char> Get() noexcept;
 
 	/// Recule d'un caractère — n'est valide qu'immédiatement après un Get().
-	void Putback() noexcept {
-		if (m_pos > 0) {
-			--m_pos;
-			if (m_data[m_pos] == '\n')
-				--m_line;
-		}
-	}
+	void Putback() noexcept;
 
 	/// Consomme `c` si c'est le prochain caractère. Retourne true si consommé.
-	bool Eat(char c) noexcept {
-		if (PeekIs(c)) {
-			Get();
-			return true;
-		}
-		return false;
-	}
+	bool Eat(char c) noexcept;
 
-	void SkipWs() noexcept {
-		while (!Eof() && std::isspace(static_cast<unsigned char>(m_data[m_pos])))
-			Get();
-	}
+	void SkipWs() noexcept;
 
 	[[nodiscard]] int Line() const noexcept { return m_line; }
 	[[nodiscard]] size_t Pos() const noexcept { return m_pos; }
@@ -134,14 +92,7 @@ private:
 
 namespace scalar {
 
-[[nodiscard]] inline Option<bool> ParseBool(StringView text) {
-	String up = String(text).ToUpper();
-	if (up == "TRUE")
-		return Some(true);
-	if (up == "FALSE")
-		return Some(false);
-	return NONE;
-}
+[[nodiscard]] Option<bool> ParseBool(StringView text);
 
 [[nodiscard]] inline Option<int64_t> ParseInt(StringView text) { return String(text).TryParseInt(); }
 
@@ -149,34 +100,9 @@ namespace scalar {
 
 // Construit le nœud le plus précis pour un texte brut : bool, puis int,
 // puis float, sinon string telle quelle.
-[[nodiscard]] inline NodePtr ParseNode(StringView text) {
-	if (auto b = ParseBool(text))
-		return Node::MakeBool(*b);
-	if (auto i = ParseInt(text))
-		return Node::MakeInt(*i);
-	if (auto f = ParseFloat(text))
-		return Node::MakeFloat(*f);
-	return Node::MakeString(String(text));
-}
+[[nodiscard]] NodePtr ParseNode(StringView text);
 
-[[nodiscard]] inline String ToString(const NodePtr &node) {
-	if (!node)
-		return "";
-	switch (node->type) {
-		case NodeType::NONE:
-			return "";
-		case NodeType::BOOL:
-			return node->boolValue ? "true" : "false";
-		case NodeType::STRING:
-			return node->stringValue;
-		case NodeType::INT:
-			return String::From(node->intValue);
-		case NodeType::FLOAT:
-			return String::FromStream(node->floatValue);
-		default:
-			return ""; // Object/Array n'ont pas de forme scalaire
-	}
-}
+[[nodiscard]] String ToString(const NodePtr &node);
 
 } // namespace scalar
 
@@ -191,20 +117,13 @@ public:
 	// ── Décodage ─────────────────────────────────────────────────────────────
 	// NONE = succès (la racine a été remplie via SetRoot()) ; Some(err) = échec.
 
-	[[nodiscard]] Option<ParseError> Decode(sdl3::IOStream &io) {
-		auto bytes = io.ReadAll();
-		String content(reinterpret_cast<const char *>(bytes.data()), bytes.size());
-		return DecodeStr(content);
-	}
+	[[nodiscard]] Option<ParseError> Decode(sdl3::IOStream &io);
 
 	[[nodiscard]] Option<ParseError> DecodeStr(const String &content) { return DecodeImpl(content); }
 
 	// ── Encodage ─────────────────────────────────────────────────────────────
 
-	[[nodiscard]] bool Encode(sdl3::IOStream &io) const {
-		String text = EncodeStr();
-		return io.Write(text.CStr(), text.GetSize()) == text.GetSize();
-	}
+	[[nodiscard]] bool Encode(sdl3::IOStream &io) const;
 
 	[[nodiscard]] virtual String EncodeStr() const = 0;
 
@@ -238,50 +157,23 @@ public:
 		Creator creator;
 	};
 
-	[[nodiscard]] static DocumentFactory &instance() {
-		static DocumentFactory inst;
-		return inst;
-	}
+	[[nodiscard]] static DocumentFactory &instance();
 
 	DocumentFactory(const DocumentFactory &) = delete;
 	DocumentFactory &operator=(const DocumentFactory &) = delete;
 
-	bool registerFormat(const String &name, std::vector<String> extensions, Creator creator) {
-		FormatInfo info{name, extensions, creator};
-		m_byName[name] = info;
-		for (auto &ext : info.extensions)
-			m_byExtension[ext] = info;
-		return true;
-	}
+	bool registerFormat(const String &name, std::vector<String> extensions, Creator creator);
 
-	[[nodiscard]] DocumentPtr CreateByName(const String &name) const {
-		auto it = m_byName.find(name);
-		return (it != m_byName.end()) ? it->second.creator() : nullptr;
-	}
+	[[nodiscard]] DocumentPtr CreateByName(const String &name) const;
 
-	[[nodiscard]] DocumentPtr CreateByFilename(const String &filename) const {
-		auto ext = ExtractExtension(filename);
-		auto it = m_byExtension.find(ext);
-		return (it != m_byExtension.end()) ? it->second.creator() : nullptr;
-	}
+	[[nodiscard]] DocumentPtr CreateByFilename(const String &filename) const;
 
-	[[nodiscard]] std::vector<String> RegisteredFormats() const {
-		std::vector<String> v;
-		v.reserve(m_byName.size());
-		for (auto &p : m_byName)
-			v.push_back(p.first);
-		return v;
-	}
+	[[nodiscard]] std::vector<String> RegisteredFormats() const;
 
 private:
 	DocumentFactory() = default;
 
-	[[nodiscard]] static String ExtractExtension(const String &filename) {
-		auto pos = filename.Rfind('.');
-		if (pos == String::NPOS)
-			return {};
-		return filename.Substr(pos).ToLower();
-	}
+	[[nodiscard]] static String ExtractExtension(const String &filename);
 
 	std::unordered_map<String, FormatInfo> m_byName;
 	std::unordered_map<String, FormatInfo> m_byExtension;
