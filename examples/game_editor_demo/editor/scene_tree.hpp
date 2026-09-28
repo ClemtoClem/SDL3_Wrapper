@@ -70,7 +70,7 @@ public:
 
 	void ExpandAll(bool expanded);
 
-	/// Oublie l'état de dépli (changement de scène : les identifiants ne
+	/// Oublie l'état de déplié (changement de scène : les identifiants ne
 	/// désignent plus les mêmes nœuds).
 	void ResetExpansion();
 

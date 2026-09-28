@@ -4,20 +4,20 @@
  *
  * Disposition des éditeurs de jeu du marché (Godot, Unity, Unreal) :
  *
- *   ┌───────────────────────────────────────────────────────────────────────┐
- *   │ Fichier  Édition  Outils  Fenêtre  Compiler  Aide                     │
- *   ├────────────┬──────────────────────────────────────┬───────────────────┤
- *   │ Arbre de   │ [Scène : Donjon] [torchlight.script ×]  │ Inspecteur        │
- *   │ scène      │ ⇔ ↻ ⤢ ▦ │ ▶ ⛶ │     🔍 aller à…  ⤢  │  nom, sections    │
- *   │ (recherche │                                      │  repliables par   │
- *   │  + ≡)      │           vue 3D  ⊕ axes             │  composant        │
- *   │            │                        ‹ Persp       │                   │
- *   ├────────────┴───────────────────────┬──────────────┼───────────────────┤
- *   │ Ressources  ← → ↑ Projet › Modèles │ Console      │ Matériaux Scripts │
- *   │ dossiers │ vignettes               │ Profil       │ Monde             │
- *   ├────────────────────────────────────┴──────────────┴───────────────────┤
- *   │ img/s · objets · corps · scène · mode · manipulateur · message        │
- *   └───────────────────────────────────────────────────────────────────────┘
+ *   ┌─────────────────────────────────────────────────────────────────────────┐
+ *   │ Fichier  Édition  Outils  Fenêtre  Compiler  Aide                       │
+ *   ├────────────┬────────────────────────────────────────┬───────────────────┤
+ *   │ Arbre de   │ [Scène : Donjon] [torchlight.script ×] │ Inspecteur        │
+ *   │ scène      │ ⇔ ↻ ⤢ ▦ │ ▶ ⛶ │     🔍 aller à…  ⤢    │  nom, sections    │
+ *   │ (recherche │                                        │  repliables par   │
+ *   │  + ≡)      │           vue 3D  ⊕ axes               │  composant        │
+ *   │            │                        ‹ Persp         │                   │
+ *   ├────────────┴───────────────────────┬────────────────┼───────────────────┤
+ *   │ Ressources  ← → ↑ Projet › Modèles │ Console        │ Matériaux Scripts │
+ *   │ dossiers │ vignettes               │ Profil         │ Monde             │
+ *   ├────────────────────────────────────┴────────────────┴───────────────────┤
+ *   │ img/s · objets · corps · scène · mode · manipulateur · message          │
+ *   └─────────────────────────────────────────────────────────────────────────┘
  *
  * Chaque bordure entre panneaux se tire à la souris. Chaque panneau est un
  * `kit::DockPanel` (onglets + menu ≡) ; leur contenu vit dans des classes

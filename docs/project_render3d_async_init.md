@@ -1,0 +1,38 @@
+---
+name: project-render3d-async-init
+description: "Two related fixes to examples/ui_viewport3d_demo.cpp and render3d::Canvas: (1) async GPU pipeline warm-up on a worker thread to fix the SDL3 window freezing at startup, (2) a new Canvas::Create(sdl3::Renderer&) overload that shares a GPU-backed renderer's SDL_GPUDevice instead of creating an independent one. Not part of the numbered engine-expansion plan phases — user-directed fixes done alongside Phase 3."
+metadata:
+  type: project
+---
+
+Two related pieces of work, both user-directed (not numbered milestones of `/home/clement/.claude/plans/optimized-humming-toast.md`), done in the same session as M22.
+
+## 1. Async GPU warm-up (fixes window freeze at startup)
+
+**Symptom**: `examples/ui_viewport3d_demo.cpp` froze the SDL3 window for a noticeable delay before showing anything. **Root cause**: `Canvas::GetOrCreatePipeline` compiles pipelines lazily on first use — for a `Material::Pbr` (`ShaderBuilder`-generated shader), that means a real runtime GLSL→SPIR-V→MSL compile (shaderc + spirv-cross), hundreds of ms, landing entirely inside the FIRST call to `gui.Render()` — i.e. before the first `ren.Present()` ever runs. `Canvas::Create` itself is NOT the bottleneck (loads precompiled shader binaries from `assets/shaders/bin/`, no runtime compilation there).
+
+**Fix**: a worker thread (`sdl3::Thread`) does two throwaway `RenderObjectToTexture` (M21) calls before the real UI is built, forcing every pipeline the scene needs to compile ahead of time. The main thread pumps events and presents a 2D-only loading screen (label + `UiProgress` bar) while this runs, polling progress from a small `sdl3::Mutex`-guarded shared state (fraction/stage/done/failed/error — all plain locals in `main()`, captured by reference into the thread lambda, safe because the thread is always joined before the enclosing scope could unwind).
+
+**Thread-safety reasoning (verified against the real SDL3 headers, not assumed)**:
+- `SDL_ClaimWindowForGPUDevice` (called inside `Canvas::Create`) is documented "should only be called from the thread that created the window" — stays on the main thread. Not a problem: it's fast (see above).
+- `SDL_AcquireGPUCommandBuffer`'s only documented constraint is that a given command buffer must be used/submitted on the thread that acquired it — `RenderObjectToTexture` already acquires-and-submits within one call on one thread, so running the whole call on a worker thread is safe, and it never touches the swapchain (M21's own established property).
+- `canvas`/`sceneRoot`/both `Camera`s are never touched by both threads *at once*: during loading, `Viewport3DSystem::Update` (invoked from `gui.Render()`) is a no-op because zero `UiViewport3D` widgets exist yet — the main thread's loading-screen `Render()` calls never reach into `canvas`. The worker thread is joined (`sdl3::Thread::Wait()`) before the real `Viewport3D` widgets are spawned and the main thread starts touching `canvas`/`sceneRoot` itself. Sequential handoff, not true concurrent access — only the progress struct genuinely needs a lock.
+- Quit-during-loading is handled by breaking the loading loop and still joining the thread before returning, so no GPU work is ever left running past window/device teardown.
+
+**New widget-tree helper used**: `ui::DespawnTree(world, entity)` (`components.hpp:1000`, already existed, used by `nodegraph.hpp`/`scene.hpp`) — cascades through `UiChildren`, used here to tear down the loading screen before building the real UI.
+
+## 2. `Canvas::Create(sdl3::Renderer&, w, h)` — shared GPU device
+
+Separate, user-requested addition: a way to construct a `Canvas` that reuses an existing `sdl3::Renderer`'s `SDL_GPUDevice` instead of creating a second, independent one via `sdl3::GpuDevice::Create`.
+
+**SDL3 API used**: `SDL_GetGPURendererDevice` (new in SDL 3.4.0, wrapped as `sdl3::Renderer::GetGPUDevice()` in `render.hpp`, body defined in `gpu.hpp` after `GpuDevice`'s full definition — same forward-declaration split as `Canvas::RenderObjectOffscreen`/`offscreen.hpp` from M21, needed because `gpu.hpp` includes `render.hpp` and the reverse would cycle). **Only returns a real device when the renderer was created via the "gpu" SDL_Renderer backend** (`Renderer::Create(window, "gpu")` / `SDL_CreateGPURenderer`) — the default backend used everywhere else in this repo (`Renderer::Create(window)`, no driver name) does NOT expose one; `Canvas::Create(renderer, ...)` fails cleanly with `Err` in that case rather than silently falling back to an independent device (would defeat the purpose of the call and surprise the caller) — covered by a dedicated test.
+
+**Real double-free hazard found and fixed during implementation**: `SDL_GetGPURendererDevice` returns a *borrowed* pointer (the renderer keeps ownership), but `sdl3::GpuDevice` is an *owning* `Wrapper<SDL_GPUDevice, SDL_DestroyGPUDevice>` — wrapping the borrowed pointer naively and letting it reach its own destructor would call `SDL_DestroyGPUDevice` on a device the renderer still thinks it owns, a real crash waiting to happen (not hypothetical — this is exactly the shape of bug that compiles fine and only manifests at shutdown, or worse, on the renderer's next GPU call). Fixed with a new `Canvas::m_ownsDevice` flag + an explicit `~Canvas()` that calls `m_device.Release()` (clears the handle without destroying) when the device isn't owned, *before* `m_device`'s own member destructor runs — declaring this destructor also required explicitly defaulting `Canvas`'s move constructor/assignment (a user-declared destructor otherwise suppresses the implicit ones, which would have silently broken `return Ok(std::move(canvas));` and every example that moves a `Canvas`).
+
+**A second, smaller consequence**: `Canvas::m_window` changed from a required `Ref<sdl3::Window>` to `Option<Ref<sdl3::Window>>` — the renderer-based constructor has no way to produce a `Ref<sdl3::Window>` from the raw `SDL_Window*` `SDL_GetRenderWindow` would return (`Ref<T>` requires an existing C++ object, not just a pointer — a deliberate safety property of this codebase's `Ref<T>`, not a limitation worth working around), and doesn't need one anyway: a `Canvas` built this way is offscreen-only by design (no `SDL_ClaimWindowForGPUDevice` call, matching how it's actually used — `ui::Viewport3D`'s `RenderObjectToTexture` path never touches a swapchain). `Begin()` now returns `false` immediately when `m_window` is `NONE`, documented as the correct, intentional behavior for a windowless Canvas rather than a gap.
+
+**Verification**: two new tests in `tests/offscreen_smoke_test.cpp` — `CanvasCreateFromRendererFailsCleanlyWhenNotGpuBacked` (default renderer, confirms clean `Err`) and `CanvasCreateFromGpuBackedRendererSharesDeviceAndRenders` (renderer created with `Renderer::Create(window, "gpu")`, confirmed available in this environment; does a real `RenderObjectToTexture` through the shared device, and — critically — the whole binary exits clean under ASan afterward, which is the actual proof the ownership fix works: a double-free here would have aborted the process). Full render3d regression (`render3d_smoke_test` 25/25, `offscreen_smoke_test` 5/5, `viewport3d_smoke_test` 3/3, `shadow_smoke_test` 3/3, `environment_smoke_test` 3/3) confirmed clean after the `Canvas` ownership/window-type changes — these touch shared, foundational code (`m_window`'s type, the constructor signature, a new destructor) so the full sweep mattered here, not just the two new tests.
+
+## Status
+
+Both done as of 2026-08-23. Not gated behind a plan milestone number — user-directed work alongside M22.

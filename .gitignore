@@ -1,7 +1,6 @@
 build/
 tmp/
 captures/
-memory/
 .claude/
 .vscode/
 compile_commands.json
