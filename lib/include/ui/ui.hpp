@@ -28,6 +28,7 @@
 #include "styles.hpp"
 #include "systems.hpp"
 #include "viewport3d.hpp"
+#include "window_frame.hpp"
 
 // M20 ne faisait que déclarer render3d::Canvas en avant (`Ui::Initialize
 // (render3d::Canvas&)` existait déjà mais n'était qu'un stub) pour éviter de

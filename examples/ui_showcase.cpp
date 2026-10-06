@@ -39,7 +39,10 @@
 #include "ui/ui.hpp"
 
 static constexpr int WIN_W = 1280;
-static constexpr int WIN_H = 760;
+static constexpr int WIN_H = 820; // 760 de contenu + barres de titre et d'état
+/// Hauteur de la barre de titre (ui::WindowFrame) : l'en-tête et les pages,
+/// placés en absolu, commencent dessous.
+static constexpr float TITLE_H = 36.f;
 static constexpr float FONT_PT = 14.f;
 
 namespace pal {
@@ -139,7 +142,7 @@ int main() {
 	}
 	auto &font = fontRes.Value();
 
-	auto winRes = sdl3::Window::Create(u8"ui:: - vitrine des widgets", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+	auto winRes = sdl3::Window::Create(u8"ui:: - vitrine des widgets", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -255,7 +258,7 @@ int main() {
 	// ═════════════════════════════════════════════════════════════════════════
 	scenes.Add("base", [&](ui::UiFactory &fac) {
 		auto page = fac.Row();
-		page.Name("page_base").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f).Gap(12.f).Pad(0.f);
+		page.Name("page_base").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f + TITLE_H).Gap(12.f).Pad(0.f);
 
 		// Colonne gauche : labels + boutons
 		auto left = fac.Panel();
@@ -340,7 +343,7 @@ int main() {
 	// ═════════════════════════════════════════════════════════════════════════
 	scenes.Add("controles", [&](ui::UiFactory &fac) {
 		auto page = fac.Row();
-		page.Name("page_ctrl").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f).Gap(12.f).Pad(0.f);
+		page.Name("page_ctrl").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f + TITLE_H).Gap(12.f).Pad(0.f);
 
 		auto left = fac.Panel();
 		left.W(ui::Dimension::Px(460))
@@ -435,7 +438,7 @@ int main() {
 	// ═════════════════════════════════════════════════════════════════════════
 	scenes.Add("saisie", [&](ui::UiFactory &fac) {
 		auto page = fac.Row();
-		page.Name("page_saisie").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f).Gap(12.f).Pad(0.f);
+		page.Name("page_saisie").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f + TITLE_H).Gap(12.f).Pad(0.f);
 
 		auto left = fac.Panel();
 		left.W(ui::Dimension::Px(420))
@@ -477,7 +480,7 @@ int main() {
 			.H(ui::Dimension::Px(320))
 			.Gap(4.f)
 			.Pad(8.f)
-			.Bg({22, 24, 36, 255})
+			.Bg(sdl3::Color{22, 24, 36, 255})
 			.Radius(6.f);
 		for (int i = 1; i <= 25; ++i) {
 			auto item = fac.Label(String(std::format("{:02d}. Élément défilable", i).c_str()));
@@ -499,7 +502,7 @@ int main() {
 	// ═════════════════════════════════════════════════════════════════════════
 	scenes.Add("listes", [&](ui::UiFactory &fac) {
 		auto page = fac.Row();
-		page.Name("page_listes").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f).Gap(12.f).Pad(0.f);
+		page.Name("page_listes").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f + TITLE_H).Gap(12.f).Pad(0.f);
 
 		std::vector<String> fruits{"Pomme", "Banane", "Cerise", "Datte",  "Figue",  "Grenade",
 								   "Kiwi",  "Litchi", "Mangue", "Orange", "Papaye", "Raisin"};
@@ -569,7 +572,7 @@ int main() {
 	// ═════════════════════════════════════════════════════════════════════════
 	scenes.Add("image", [&](ui::UiFactory &fac) {
 		auto page = fac.Row();
-		page.Name("page_image").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f).Gap(12.f).Pad(0.f);
+		page.Name("page_image").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f + TITLE_H).Gap(12.f).Pad(0.f);
 
 		auto left = fac.Panel();
 		left.W(ui::Dimension::Px(480))
@@ -650,7 +653,7 @@ int main() {
 	// ═════════════════════════════════════════════════════════════════════════
 	scenes.Add("dynamique", [&](ui::UiFactory &fac) {
 		auto page = fac.Row();
-		page.Name("page_dyn").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f).Gap(12.f).Pad(0.f);
+		page.Name("page_dyn").Anchor(ui::Anchor::TopLeft).Offset(12.f, 64.f + TITLE_H).Gap(12.f).Pad(0.f);
 
 		// Popups/modale : entités racines indépendantes (cf. UiFactory::
 		// popup()/modal()) — à ajouter au vecteur retourné pour que
@@ -679,7 +682,7 @@ int main() {
 			.H(ui::Dimension::Px(120.f))
 			.Gap(2.f)
 			.Pad(6.f)
-			.Bg({22, 24, 36, 255})
+			.Bg(sdl3::Color{22, 24, 36, 255})
 			.Radius(6.f);
 		for (int i = 0; i < 20; ++i) {
 			auto item = fac.Label(String(std::format("Élément {:02d}", i + 1).c_str()));
@@ -715,7 +718,7 @@ int main() {
 		col2.W(ui::Dimension::Px(360)).Gap(10.f).Pad(14.f);
 
 		auto menuBarRow = fac.MenuBar();
-		menuBarRow.Name("dyn_menubar").Bg({22, 24, 36, 255}).Radius(4.f);
+		menuBarRow.Name("dyn_menubar").Bg(sdl3::Color{22, 24, 36, 255}).Radius(4.f);
 
 		std::vector<String> fruitsSel{"Pomme", "Banane", "Cerise", "Datte"};
 		auto selList = fac.Column();
@@ -910,17 +913,24 @@ int main() {
 		}
 	};
 
+	// Encadrement de fenêtre (barre de titre, barre d'état, redimensionnement)
+	// — après l'enregistrement des polices d'icônes, qu'il réutilise.
+	ui::WindowFrame frame;
+	frame.Build(f, layout, render, window,
+				{.title = "ui:: - vitrine des widgets", .appIcon = Some(ui::MaterialIcons::WIDGETS),
+				 .status = "Six pages : naviguer avec les onglets de l'en-tête.", .titleHeight = TITLE_H});
+
 	{
 		auto header = f.Row();
 		header.Name("header")
 			.Anchor(ui::Anchor::TopLeft)
-			.Offset(0.f, 0.f)
+			.Offset(0.f, TITLE_H)
 			.W(ui::Dimension::Rpct(100.f))
 			.H(ui::Dimension::Px(52))
 			.Gap(8.f)
 			.Pad(math::Sides{12.f, 8.f, 12.f, 8.f})
 			.Align(ui::CrossAlign::Center)
-			.Bg({24, 26, 38, 255});
+			.Bg(sdl3::Color{24, 26, 38, 255});
 		header.Children(f.Label("ui:: showcase").FontSize(18.f).TextColor(pal::ACCENT).GrowW());
 		for (int i = 0; i < K_PAGE_COUNT; ++i) {
 			auto btn = f.Button(String(kPageLabels[i]));
@@ -997,6 +1007,9 @@ int main() {
 			input.HandleEvent(ar, e, layout);
 		}
 		input.Tick(ar, layout, dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
 		// Un évènement (scroll, changement de page, repli d'un expander...)
 		// a pu marquer le layout dirty : on le rejoue avant de dessiner.

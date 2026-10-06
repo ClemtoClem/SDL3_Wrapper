@@ -23,7 +23,7 @@
 #include "ui/ui.hpp"
 
 static constexpr int WIN_W = 1280;
-static constexpr int WIN_H = 800;
+static constexpr int WIN_H = 860; // 800 de contenu + barres de titre et d'état
 static constexpr float FONT_PT = 14.f;
 
 static constexpr float K_SAMPLE_RATE = 44100.f;
@@ -115,7 +115,7 @@ int main() {
 	}
 	auto &font = fontRes.Value();
 
-	auto winRes = sdl3::Window::Create(u8"audio:: - Générateur de signal", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+	auto winRes = sdl3::Window::Create(u8"audio:: - Générateur de signal", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -255,7 +255,7 @@ int main() {
 		Oscillator &o = osc[idx];
 
 		auto card = f.Column();
-		card.Gap(6.f).Pad(10.f).Bg({20, 22, 34}).W(ui::Dimension::Pct(100));
+		card.Gap(6.f).Pad(10.f).Bg(sdl3::Color{20, 22, 34}).W(ui::Dimension::Pct(100));
 
 		auto hdr = f.Row();
 		hdr.Gap(6.f).Align(ui::CrossAlign::Center);
@@ -305,8 +305,17 @@ int main() {
 		return card;
 	};
 
+	// ── Encadrement de fenêtre : barre de titre, corps en deux colonnes,
+	// barre d'état avec poignée de redimensionnement ─────────────────────────
+	ui::WindowFrame frame;
+	frame.Build(gui, window, {.title = "audio:: - Générateur de signal", .appIcon = Some(ui::MaterialIcons::GRAPHIC_EQ),
+							  .status = "Trois oscillateurs mixés vers la sortie audio."});
+	auto body = f.Row();
+	body.GrowW().GrowH().Parent(frame.Content());
+	ecs::Entity bodyE = body.Spawn();
+
 	auto left = f.Column();
-	left.Anchor(ui::Anchor::TopLeft).Gap(8.f).Pad(12.f).W(ui::Dimension::Px(320)).H(ui::Dimension::Rpct(100)).Bg({16, 18, 28});
+	left.Gap(8.f).Pad(12.f).W(ui::Dimension::Px(320)).GrowH().Bg(sdl3::Color{16, 18, 28}).Parent(bodyE);
 
 	std::vector<String> deviceNames;
 	deviceNames.push_back(String("Défaut système"));
@@ -326,7 +335,7 @@ int main() {
 
 	left.Children(f.Label("Sortie audio").FontSize(15.f), std::move(lbDevices), std::move(btnRefresh),
 				  buildOscCard(0), buildOscCard(1), buildOscCard(2), buildOscCard(3),
-				  f.Label("Défaut système actif").Name("lblStatus").TextColor({140, 146, 168}).FontSize(11.f));
+				  f.Label("Défaut système actif").Name("lblStatus").TextColor(sdl3::Color{140, 146, 168}).FontSize(11.f));
 	left.Spawn();
 
 	std::vector<float> initWave(size_t(K_BLOCK_SIZE), 0.f);
@@ -355,7 +364,7 @@ int main() {
 	auto lblRmsB = f.Label("RMS  -80.0 dB");
 	lblRmsB.Name("lblRms").W(ui::Dimension::Px(140)).FontSize(12.f);
 	auto progRmsB = f.Progress(0.f, 1.f, 0.f);
-	progRmsB.Name("progRms").GrowW().H(ui::Dimension::Px(10)).Style(ui::UiStyle{}.SetBgChecked({70, 210, 140, 255}));
+	progRmsB.Name("progRms").GrowW().H(ui::Dimension::Px(10)).Style(ui::UiStyle{}.SetBgChecked(sdl3::Color{70, 210, 140, 255}));
 	rmsRow.Children(std::move(lblRmsB), std::move(progRmsB));
 
 	auto peakRow = f.Row();
@@ -363,16 +372,11 @@ int main() {
 	auto lblPeakB = f.Label("Peak -80.0 dB");
 	lblPeakB.Name("lblPeak").W(ui::Dimension::Px(140)).FontSize(12.f);
 	auto progPeakB = f.Progress(0.f, 1.f, 0.f);
-	progPeakB.Name("progPeak").GrowW().H(ui::Dimension::Px(10)).Style(ui::UiStyle{}.SetBgChecked({220, 90, 80, 255}));
+	progPeakB.Name("progPeak").GrowW().H(ui::Dimension::Px(10)).Style(ui::UiStyle{}.SetBgChecked(sdl3::Color{220, 90, 80, 255}));
 	peakRow.Children(std::move(lblPeakB), std::move(progPeakB));
 
 	auto right = f.Column();
-	right.Anchor(ui::Anchor::TopLeft)
-		.Offset(320.f, 0.f)
-		.Gap(10.f)
-		.Pad(14.f)
-		.W(ui::Dimension::Rpct(100.f).Plus(-320.f))
-		.H(ui::Dimension::Rpct(100));
+	right.Gap(10.f).Pad(14.f).GrowW().GrowH().Parent(bodyE);
 	right.Children(std::move(masterRow), f.Label("Forme d'onde — signal composite").FontSize(14.f), std::move(plotWaveB),
 				   f.Label("Spectre FFT (Hanning)").FontSize(14.f), std::move(plotSpecB), std::move(rmsRow), std::move(peakRow));
 	right.Spawn();
@@ -497,6 +501,9 @@ int main() {
 			gui.HandleEvent(e);
 		}
 		gui.Tick(dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
 		ren.SetDrawColor(sdl3::FColor::UI_WINDOW_BG());
 		ren.Clear();

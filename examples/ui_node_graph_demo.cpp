@@ -55,7 +55,7 @@ int main() {
 	auto &font = fontRes.Value();
 
 	auto winRes =
-		sdl3::Window::Create(u8"ui::nodegraph - calculatrice visuelle", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+		sdl3::Window::Create(u8"ui::nodegraph - calculatrice visuelle", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -96,17 +96,18 @@ int main() {
 		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
 	};
 
-	// ── Barre d'aide ─────────────────────────────────────────────────────────
-	auto help = f.Label("Molette: zoom · Clic-milieu: pan · Ctrl+clic: multi-sélection · "
-						"Glisser sur le vide: marquee · Suppr/Ctrl+C/X/V: presse-papiers · "
-						"Clic droit: menu · Ctrl+S/O: sauver/charger");
-	help.TextColor({150, 156, 178}).FontSize(12.f);
-	help.Absolute().Anchor(ui::Anchor::TopLeft).Offset(10.f, 6.f);
-	help.Spawn();
+	// ── Encadrement de fenêtre ; l'aide clavier/souris va dans la barre d'état
+	// Pas de fond sur la racine : la grille du graphe est dessinée AVANT
+	// render.Run() et doit rester visible.
+	ui::WindowFrame frame;
+	frame.Build(f, layout, render, window,
+				{.title = "ui::nodegraph - calculatrice visuelle", .appIcon = Some(ui::MaterialIcons::ACCOUNT_TREE),
+				 .status = "Molette : zoom · Clic-milieu : pan · Ctrl+clic : multi-sélection · Glisser sur le vide : "
+						   "marquee · Suppr/Ctrl+C/X/V : presse-papiers · Clic droit : menu · Ctrl+S/O : sauver/charger"});
 
-	// ── Canvas plein écran ───────────────────────────────────────────────────
+	// ── Canvas : toute la zone de contenu ────────────────────────────────────
 	auto canvas = ui::CanvasBuilder(f);
-	canvas.Anchor(ui::Anchor::TopLeft).Offset(0.f, 28.f).W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Rpct(100.f));
+	canvas.GrowW().GrowH().Parent(frame.Content());
 	ecs::Entity canvasE = canvas.Spawn();
 	ui::AttachNodeGraphCanvas(ar, canvasE); // thème par défaut (Phase 7, style Blueprint) déjà appliqué
 
@@ -252,6 +253,9 @@ int main() {
 		}
 		input.Tick(ar, layout, dt);
 		nodeGraph.Tick(ar, layout, dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
 		style.Resolve(ar);
 		layout.RunIfNeeded(ar, float(window.GetSize().x), float(window.GetSize().y));

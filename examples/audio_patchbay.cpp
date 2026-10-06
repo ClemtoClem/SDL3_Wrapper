@@ -30,7 +30,7 @@
 #include "ui/ui.hpp"
 
 static constexpr int WIN_W = 1440;
-static constexpr int WIN_H = 860;
+static constexpr int WIN_H = 920; // 860 de contenu + barres de titre et d'état
 static constexpr float FONT_PT = 13.f;
 
 // ============================================================================
@@ -463,7 +463,7 @@ int main() {
 	}
 	auto &font = fontRes.Value();
 
-	auto winRes = sdl3::Window::Create(u8"audio:: - Patchbay audio", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+	auto winRes = sdl3::Window::Create(u8"audio:: - Patchbay audio", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -517,9 +517,22 @@ int main() {
 		}
 	};
 
-	// ── Canvas plein écran ───────────────────────────────────────────────────
+	// ── Encadrement de fenêtre : barre de titre, zone de contenu (barre
+	// d'outils puis canvas), barre d'état. Pas de fond sur la racine : la
+	// grille du graphe est dessinée AVANT render.Run().
+	ui::WindowFrame frame;
+	frame.Build(f, layout, render, window,
+				{.title = "audio:: - Patchbay audio", .appIcon = Some(ui::MaterialIcons::CABLE),
+				 .status = "Ajouter des blocs, relier leurs broches · Clic droit : menu · Suppr : effacer"});
+	// Emplacement de la barre d'outils, construite plus bas (elle a besoin
+	// du graphe DSP) : réservé ici pour qu'elle précède le canvas.
+	auto toolbarSlot = f.Row();
+	toolbarSlot.GrowW().HAuto().Parent(frame.Content());
+	ecs::Entity toolbarSlotE = toolbarSlot.Spawn();
+
+	// ── Canvas : le reste de la zone de contenu ─────────────────────────────
 	auto canvas = ui::CanvasBuilder(f);
-	canvas.Anchor(ui::Anchor::TopLeft).Offset(0.f, 36.f).W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Rpct(100.f).Plus(-36.f));
+	canvas.GrowW().GrowH().Parent(frame.Content());
 	ecs::Entity canvasE = canvas.Spawn();
 	ui::AttachNodeGraphCanvas(ar, canvasE);
 
@@ -1036,7 +1049,7 @@ int main() {
 
 	// ── Barre d'outils "Ajouter un bloc" ─────────────────────────────────────
 	auto toolbar = f.Row();
-	toolbar.Anchor(ui::Anchor::TopLeft).Gap(4.f).Pad(4.f).W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Px(36)).Bg({16, 18, 28});
+	toolbar.Gap(4.f).Pad(4.f).GrowW().H(ui::Dimension::Px(36)).Bg(sdl3::Color{16, 18, 28}).Parent(toolbarSlotE);
 	struct ToolbarBtn {
 		const char *label;
 		dsp::BlockType type;
@@ -1153,6 +1166,9 @@ int main() {
 		}
 		input.Tick(ar, layout, dt);
 		nodeGraph.Tick(ar, layout, dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
 		// Topologie : re-dérive `graph.connections` des `GraphConnection`
 		// visuelles (l'utilisateur a pu glisser une nouvelle connexion).

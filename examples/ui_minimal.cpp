@@ -41,7 +41,7 @@ int main() {
 	}
 	auto &font = fontRes.Value();
 
-	auto winRes = sdl3::Window::Create(u8"ui:: - exemple minimal", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+	auto winRes = sdl3::Window::Create(u8"ui:: - exemple minimal", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -75,15 +75,24 @@ int main() {
 		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
 	};
 
+	// ── Encadrement de fenêtre ───────────────────────────────────────────────
+	// Fenêtre sans décoration système : barre de titre (déplacer, réduire,
+	// agrandir, fermer), barre d'état et poignée de redimensionnement.
+	ui::WindowFrame frame;
+	frame.Build(gui, window, {.title = "ui:: - exemple minimal", .appIcon = Some(ui::MaterialIcons::WIDGETS),
+							  .status = "Échap ou × pour quitter."});
+
 	// ── Une carte centrée avec quelques widgets ──────────────────────────────
 	int clicks = 0;
 	auto card = f.Panel();
-	card.Anchor(ui::Anchor::Center)
+	card.Absolute()
+		.Anchor(ui::Anchor::Center)
+		.Parent(frame.Content())
 		.W(ui::Dimension::Px(360))
 		.Gap(10.f)
 		.Pad(16.f)
 		.Children(f.Label("Bonjour ui:: !").FontSize(20.f),
-				  f.Label("Un panneau, un slider, un bouton.").TextColor({150, 156, 178}), f.Separator(),
+				  f.Label("Un panneau, un slider, un bouton.").TextColor(sdl3::Color{150, 156, 178}), f.Separator(),
 				  f.Row().Gap(8.f).Children(
 					  f.Label("Volume").W(ui::Dimension::Px(80)),
 					  f.Slider(0.f, 100.f, 50.f, 1.f).GrowW().Tooltip("Glissez ou molette").OnChange([](float v) {
@@ -116,6 +125,9 @@ int main() {
 			gui.HandleEvent(e);
 		}
 		gui.Tick(dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
 		ren.SetDrawColor(sdl3::FColor::UI_APP_BG());
 		ren.Clear();

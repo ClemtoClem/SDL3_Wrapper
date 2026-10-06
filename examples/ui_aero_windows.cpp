@@ -35,7 +35,7 @@ int main() {
 	}
 	auto &font = fontRes.Value();
 
-	auto winRes = sdl3::Window::Create(u8"ui:: Aero - bureau", WIN_W, WIN_H, sdl3::window_flags::BORDERLESS | sdl3::window_flags::RESIZABLE);
+	auto winRes = sdl3::Window::Create(u8"ui:: Aero - bureau", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -72,11 +72,15 @@ int main() {
 	desktop.Style(ui::UiStyle{}.SetBg(sdl3::FColor{20 / 255.f, 45 / 255.f, 80 / 255.f, 1.f}).SetBgGradient(sdl3::FColor{55 / 255.f, 100 / 255.f, 160 / 255.f, 1.f}));
 	desktop.Spawn();
 
-	ui::TitleBarWidgets tb = ui::TitleBar(f, window, u8"Bureau Aero", [] { std::exit(0); });
+	// Encadrement de fenêtre « verre » : barre de titre sans fond (le dégradé
+	// du bureau reste visible), barre d'état et poignée de redimensionnement.
+	ui::WindowFrame frame;
+	frame.Build(gui, window, {.title = u8"Bureau Aero", .appIcon = Some(ui::MaterialIcons::DESKTOP_WINDOWS),
+							  .status = "Panneaux flottants : glisser leur en-tête.", .fillTitleBar = false});
 
 	// ── Barre de menu (sous la barre de titre OS) ───────────────────────────
 	auto menuBarRow = f.MenuBar();
-	menuBarRow.Anchor(ui::Anchor::TopLeft).Offset(0.f, 32.f).W(ui::Dimension::Rpct(100.f));
+	menuBarRow.GrowW().Parent(frame.Content());
 	ecs::Entity menuBarE = menuBarRow.Spawn();
 
 	// Boîte de dialogue modale ("À propos"), construite avant les menus qui
@@ -84,7 +88,7 @@ int main() {
 	auto aboutContent = f.Panel();
 	aboutContent.Size(320.f, 160.f).Gap(10.f).Pad(16.f);
 	aboutContent.Children(f.Label("ui:: Aero Desktop").FontSize(18.f),
-						  f.Label("Démo du thème Frutiger Aero et du bureau simulé.").TextColor({210, 220, 235}),
+						  f.Label("Démo du thème Frutiger Aero et du bureau simulé.").TextColor(sdl3::Color{210, 220, 235}),
 						  f.Button("Fermer").AlignSelf(ui::CrossAlign::End));
 	auto aboutModal = f.Modal(std::move(aboutContent));
 	ecs::Entity aboutModalE = aboutModal.Spawn();
@@ -98,7 +102,7 @@ int main() {
 	}
 
 	ecs::Entity fileMenu = f.Menu(menuBarE, "Fichier", f.MenuItem("Nouveau"), f.MenuItem("Ouvrir"),
-								 f.MenuItem("Quitter").OnClick([] { std::exit(0); }));
+								 f.MenuItem("Quitter").OnClick([&frame] { frame.RequestClose(); }));
 	(void)fileMenu;
 	ecs::Entity aideMenu = f.Menu(menuBarE, "Aide", f.MenuItem("À propos"));
 	if (auto ch = ar.GetComponent<ui::UiChildren>(aideMenu); ch.IsSome() && !ch.Unwrap()->list.empty()) {
@@ -109,10 +113,7 @@ int main() {
 
 	// ── Zone de contenu : 2 panneaux flottants (PanelChrome) + splitter ─────
 	auto contentArea = f.Column();
-	contentArea.Anchor(ui::Anchor::TopLeft)
-		.Offset(0.f, 62.f)
-		.W(ui::Dimension::Rpct(100.f))
-		.H(ui::Dimension::Rpct(100.f).Plus(-62.f));
+	contentArea.GrowW().GrowH().Parent(frame.Content());
 	ecs::Entity contentAreaE = contentArea.Spawn();
 
 	// Panneau flottant n°1 : sélecteur de date (déclenché par un bouton).
@@ -166,9 +167,6 @@ int main() {
 	if (auto it = ar.GetOrAddComponent<ui::UiItem>(splitContainerE); it.IsSome())
 		it.Unwrap()->height = ui::Dimension::Grow();
 
-	ui::WindowChrome chrome;
-	chrome.Attach(window, ar, layout, tb.root, {tb.minimizeBtn, tb.maximizeBtn, tb.closeBtn});
-
 	bool running = true;
 	uint64_t lastTick = sdl3::GetTicksMS();
 	while (running) {
@@ -192,11 +190,13 @@ int main() {
 			gui.HandleEvent(e);
 		}
 		gui.Tick(dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
 		ren.SetDrawColor(sdl3::FColor::UI_WINDOW_BG());
 		ren.Clear();
 		gui.Render();
-		chrome.Update();
 		ren.Present();
 	}
 	return 0;

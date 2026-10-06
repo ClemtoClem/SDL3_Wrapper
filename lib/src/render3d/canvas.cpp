@@ -533,9 +533,10 @@ bool Canvas::Begin() {
 		return false;
 
 	auto cmd = m_device.AcquireCommandBuffer();
-	auto swapchain = cmd.WaitAndAcquireSwapchainTexture(m_window.Value());
+	auto swapchain = cmd.WaitAndAcquireSwapchainTexture(m_window.Value(), &m_swapchainWidth, &m_swapchainHeight);
 	if (!swapchain)
 		return false; // cmd annulé automatiquement (RAII) à la sortie de portée
+	m_overlayRegions.clear();
 
 	m_swapchainTexture = swapchain.Value();
 	m_commandBuffer = Some(std::move(cmd));
@@ -1416,6 +1417,9 @@ void Canvas::End() {
 		}
 	}
 
+	// Calque 2D par-dessus la scène (render pass terminé : copy pass permis).
+	UploadAndBlitOverlay(cmd);
+
 	bool submitted = cmd.Submit();
 	(void)submitted; // best-effort : une frame perdue n'est pas fatale, GetError() reste disponible côté appelant
 	m_commandBuffer = NONE;
@@ -1423,6 +1427,98 @@ void Canvas::End() {
 	m_drawList.clear();
 	m_instancedDrawList.clear();
 	m_skinnedDrawList.clear();
+}
+
+// ── Calque 2D ────────────────────────────────────────────────────────────────
+
+void Canvas::SetOverlay(const uint8_t *pixels, uint32_t width, uint32_t height, uint32_t pitch,
+						std::span<const sdl3::Rect> regions) {
+	if (!m_frameActive || !pixels)
+		return;
+	for (const sdl3::Rect &r : regions) {
+		// Bornée à l'image fournie ET à la swapchain de cette frame.
+		int x0 = sdl3::Max(r.x, 0), y0 = sdl3::Max(r.y, 0);
+		int x1 = sdl3::Min(sdl3::Min(r.x + r.w, int(width)), int(m_swapchainWidth));
+		int y1 = sdl3::Min(sdl3::Min(r.y + r.h, int(height)), int(m_swapchainHeight));
+		if (x1 <= x0 || y1 <= y0)
+			continue;
+		OverlayRegion region;
+		region.rect = {x0, y0, x1 - x0, y1 - y0};
+		size_t rowBytes = size_t(region.rect.w) * 4;
+		region.pixels.resize(rowBytes * size_t(region.rect.h));
+		for (int y = 0; y < region.rect.h; ++y)
+			std::memcpy(region.pixels.data() + size_t(y) * rowBytes,
+						pixels + size_t(y0 + y) * pitch + size_t(x0) * 4, rowBytes);
+		m_overlayRegions.push_back(std::move(region));
+	}
+}
+
+void Canvas::UploadAndBlitOverlay(sdl3::GpuCommandBuffer &cmd) {
+	if (m_overlayRegions.empty() || !m_swapchainTexture.Get())
+		return;
+	if (m_overlayTexture.IsNone() || m_overlayWidth != m_swapchainWidth || m_overlayHeight != m_swapchainHeight) {
+		sdl3::GpuTextureCreateInfo info{};
+		info.type = sdl3::gpu_texture_type::TEXTURE2_D;
+		info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+		info.usage = sdl3::gpu_texture_usage::SAMPLER; // source d'un blit
+		info.width = m_swapchainWidth;
+		info.height = m_swapchainHeight;
+		info.layer_count_or_depth = 1;
+		info.num_levels = 1;
+		info.sample_count = sdl3::gpu_sample_count::SAMPLE1;
+		auto texture = m_device.CreateTexture(info);
+		if (!texture)
+			return; // best-effort : la frame part sans calque
+		m_overlayTexture = Some(std::move(texture.Value()));
+		m_overlayWidth = m_swapchainWidth;
+		m_overlayHeight = m_swapchainHeight;
+	}
+
+	uint32_t total = 0;
+	for (const OverlayRegion &r : m_overlayRegions)
+		total += uint32_t(r.pixels.size());
+	auto transferResult = m_device.CreateTransferBuffer(sdl3::gpu_transfer_buffer_usage::UPLOAD, total);
+	if (!transferResult)
+		return;
+	sdl3::GpuTransferBuffer transfer = std::move(transferResult.Value());
+	{
+		auto mapped = transfer.Map(false);
+		if (!mapped)
+			return;
+		uint32_t offset = 0;
+		for (const OverlayRegion &r : m_overlayRegions) {
+			std::memcpy(static_cast<uint8_t *>(mapped.GetData()) + offset, r.pixels.data(), r.pixels.size());
+			offset += uint32_t(r.pixels.size());
+		}
+	}
+	{
+		sdl3::GpuCopyPass copyPass = cmd.BeginCopyPass();
+		uint32_t offset = 0;
+		for (const OverlayRegion &r : m_overlayRegions) {
+			sdl3::GpuTextureTransferInfo src{transfer.Get(), offset, uint32_t(r.rect.w), uint32_t(r.rect.h)};
+			sdl3::GpuTextureRegion dst{m_overlayTexture.Value().Get(), 0, 0, uint32_t(r.rect.x), uint32_t(r.rect.y), 0,
+									   uint32_t(r.rect.w), uint32_t(r.rect.h), 1};
+			copyPass.UploadToTexture(src, dst, false);
+			offset += uint32_t(r.pixels.size());
+		}
+	}
+	for (const OverlayRegion &r : m_overlayRegions) {
+		sdl3::GpuBlitInfo blit{};
+		blit.source.texture = m_overlayTexture.Value().Get();
+		blit.source.x = uint32_t(r.rect.x);
+		blit.source.y = uint32_t(r.rect.y);
+		blit.source.w = uint32_t(r.rect.w);
+		blit.source.h = uint32_t(r.rect.h);
+		blit.destination.texture = m_swapchainTexture.Get();
+		blit.destination.x = uint32_t(r.rect.x);
+		blit.destination.y = uint32_t(r.rect.y);
+		blit.destination.w = uint32_t(r.rect.w);
+		blit.destination.h = uint32_t(r.rect.h);
+		blit.load_op = SDL_GPU_LOADOP_LOAD; // garder la scène autour des régions
+		blit.filter = sdl3::gpu_filter::NEAREST;
+		cmd.BlitTexture(blit);
+	}
+	m_overlayRegions.clear();
 }
 
 } // namespace render3d

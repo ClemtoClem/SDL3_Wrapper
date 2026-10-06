@@ -19,6 +19,7 @@
 #include "render3d/skinned_mesh.hpp"
 #include "render3d/sprite.hpp"
 #include "sdl3/sdl3.hpp"
+#include "ui/canvas_window_frame.hpp"
 
 static constexpr int WIN_W = 1000;
 static constexpr int WIN_H = 600;
@@ -31,7 +32,7 @@ int main() {
 	}
 
 	auto windowResult = sdl3::Window::Create(u8"render3d:: - shadows + IBL + object3d showcase", WIN_W, WIN_H,
-											 sdl3::window_flags::RESIZABLE);
+											 ui::WindowFrame::WINDOW_FLAGS);
 	if (!windowResult) {
 		std::cerr << "Window: " << windowResult.Error().CStr() << "\n";
 		return 1;
@@ -193,6 +194,16 @@ int main() {
 		root->Add(std::move(lodPtr));
 		lod.SetPosition({0.f, 1.f, 3.f}); // ~9 unités de la caméra -> niveau moyen attendu
 
+		// Encadrement de fenêtre (barre de titre, barre d'état) : rendu en
+		// logiciel puis copié par-dessus la scène 3D (cf. ui::CanvasWindowFrame).
+		auto frameResult = ui::CanvasWindowFrame::Create(
+			window, {.title = "render3d:: - ombres, IBL et Object3D", .appIcon = Some(ui::MaterialIcons::LAYERS), .status = "Ombres, environnement HDR, instanciation, sprites, LOD, maillage skinné."});
+		if (!frameResult) {
+			std::cerr << "CanvasWindowFrame: " << frameResult.Error().CStr() << "\n";
+			return 1;
+		}
+		ui::CanvasWindowFrame &frame = *frameResult.Value();
+
 		sdl3::FrameTimestep timestep(60.f);
 		float animTime = 0.f;
 		bool running = true;
@@ -204,7 +215,11 @@ int main() {
 				auto &e = ev.Value();
 				if (e.IsQuit() || e.IsKeyDown(SDLK_ESCAPE))
 					running = false;
+				frame.HandleEvent(e);
 			}
+			frame.Update(timestep.GetDelta());
+			if (frame.CloseRequested())
+				running = false;
 
 			float dt = timestep.GetDelta();
 			animTime += dt;
@@ -214,6 +229,7 @@ int main() {
 
 			if (canvas.Begin()) {
 				canvas.DrawObject(*root);
+				frame.Draw(canvas);
 				canvas.End();
 			}
 

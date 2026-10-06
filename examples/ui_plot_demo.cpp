@@ -26,7 +26,7 @@
 #include "ui/ui.hpp"
 
 static constexpr int WIN_W = 1320;
-static constexpr int WIN_H = 640;
+static constexpr int WIN_H = 700; // 640 de contenu + barres de titre et d'état
 static constexpr float FONT_PT = 14.f;
 
 int main() {
@@ -47,7 +47,7 @@ int main() {
 	}
 	auto &font = fontRes.Value();
 
-	auto winRes = sdl3::Window::Create(u8"ui:: - galerie de plots", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+	auto winRes = sdl3::Window::Create(u8"ui:: - galerie de plots", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -176,15 +176,20 @@ int main() {
 	});
 	plot7.Size(K_PLOT_W, K_PLOT_H);
 
+	// ── Encadrement de fenêtre (barre de titre, barre d'état) ────────────────
+	ui::WindowFrame frame;
+	frame.Build(gui, window, {.title = "ui:: - galerie de plots", .appIcon = Some(ui::MaterialIcons::SHOW_CHART),
+							  .status = "7 graphiques interactifs."});
+
 	// ── Mise en page : titre + instructions, puis 2 rangées ─────────────────
 	auto root = f.Column();
-	root.Gap(12.f).Pad(16.f).Anchor(ui::Anchor::TopLeft).W(ui::Dimension::Rpct(100)).H(ui::Dimension::Rpct(100));
+	root.Gap(12.f).Pad(16.f).GrowW().GrowH().Parent(frame.Content());
 	root.Children(
 		f.Label("ui:: — galerie de plots 2D").FontSize(20.f),
 		f.Label("Pan : glisser · Zoom : molette (par axe sur la bande de graduation, combiné sinon) · "
 				 "Zoom-rectangle : clic-droit glissé · Reset : double-clic · Légende : survol/clic")
 			.FontSize(12.f)
-			.TextColor({150, 156, 178}),
+			.TextColor(sdl3::Color{150, 156, 178}),
 		f.Separator(),
 		f.Row().Gap(14.f).Children(std::move(plot1), std::move(plot2), std::move(plot3), std::move(plot4)),
 		f.Row().Gap(14.f).Children(std::move(plot5), std::move(plot6), std::move(plot7)));
@@ -206,6 +211,9 @@ int main() {
 			gui.HandleEvent(e);
 		}
 		gui.Tick(dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
 		ren.SetDrawColor(sdl3::FColor::UI_APP_BG());
 		ren.Clear();

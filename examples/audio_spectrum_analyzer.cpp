@@ -20,7 +20,7 @@
 #include "ui/ui.hpp"
 
 static constexpr int WIN_W = 1280;
-static constexpr int WIN_H = 800;
+static constexpr int WIN_H = 860; // 800 de contenu + barres de titre et d'état
 static constexpr float FONT_PT = 14.f;
 
 static constexpr int K_SAMPLE_SIZES[] = {256, 512, 1024, 2048, 4096};
@@ -64,7 +64,7 @@ int main() {
 	auto &font = fontRes.Value();
 
 	auto winRes =
-		sdl3::Window::Create(u8"audio:: - Analyseur de spectre", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+		sdl3::Window::Create(u8"audio:: - Analyseur de spectre", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -202,13 +202,17 @@ int main() {
 	};
 
 	// ── Construction UI ──────────────────────────────────────────────────────
+	// Encadrement de fenêtre : barre de titre, corps en deux colonnes, barre
+	// d'état avec poignée de redimensionnement.
+	ui::WindowFrame frame;
+	frame.Build(gui, window, {.title = "audio:: - Analyseur de spectre", .appIcon = Some(ui::MaterialIcons::EQUALIZER),
+							  .status = "Capture du périphérique d'entrée, FFT en continu."});
+	auto body = f.Row();
+	body.GrowW().GrowH().Parent(frame.Content());
+	ecs::Entity bodyE = body.Spawn();
+
 	auto left = f.Column();
-	left.Anchor(ui::Anchor::TopLeft)
-		.Gap(10.f)
-		.Pad(14.f)
-		.W(ui::Dimension::Px(320))
-		.H(ui::Dimension::Rpct(100))
-		.Bg({16, 18, 28});
+	left.Gap(10.f).Pad(14.f).W(ui::Dimension::Px(320)).GrowH().Bg(sdl3::Color{16, 18, 28}).Parent(bodyE);
 
 	std::vector<String> deviceNames;
 	for (auto &d : devices)
@@ -221,8 +225,8 @@ int main() {
 	btnRefresh.GrowW().OnClick(refreshDevices);
 
 	left.Children(f.Label("Périphérique d'entrée").FontSize(15.f), std::move(lbDevices), std::move(btnRefresh),
-				  f.Label("Actif :").TextColor({140, 146, 168}).FontSize(12.f),
-				  f.Label("(aucun)").Name("lblDevice").TextColor({120, 190, 250}).FontSize(13.f), f.Separator(),
+				  f.Label("Actif :").TextColor(sdl3::Color{140, 146, 168}).FontSize(12.f),
+				  f.Label("(aucun)").Name("lblDevice").TextColor(sdl3::Color{120, 190, 250}).FontSize(13.f), f.Separator(),
 
 				  f.Label(String(std::format("Gain : {:.1f}x", gain).c_str())).Name("lblGain").FontSize(13.f),
 				  f.Slider(0.1f, 10.f, gain, 0.1f).GrowW().OnChange([&](float v) {
@@ -249,7 +253,7 @@ int main() {
 				  }),
 				  f.Separator(),
 
-				  f.Label("Taille FFT :").TextColor({140, 146, 168}).FontSize(12.f),
+				  f.Label("Taille FFT :").TextColor(sdl3::Color{140, 146, 168}).FontSize(12.f),
 				  f.Row().Gap(4.f).Children(
 					  f.Button("256").Name("btnSz0").GrowW().FontSize(12.f).OnClick([&] {
 						  sampleSize = K_SAMPLE_SIZES[0];
@@ -282,7 +286,7 @@ int main() {
 						  selectActive(szBtns,4);
 					  })),
 
-				  f.Label("Fréquence d'échantillonnage :").TextColor({140, 146, 168}).FontSize(12.f),
+				  f.Label("Fréquence d'échantillonnage :").TextColor(sdl3::Color{140, 146, 168}).FontSize(12.f),
 				  f.Row().Gap(4.f).Children(
 					  f.Button("8k").Name("btnRa0").GrowW().FontSize(12.f).OnClick([&] {
 						  sampleRate = float(K_SAMPLE_RATES[0]);
@@ -310,7 +314,7 @@ int main() {
 						  reopenDevice();
 					  })),
 
-				  f.Label("Fenêtre spectrale :").TextColor({140, 146, 168}).FontSize(12.f),
+				  f.Label("Fenêtre spectrale :").TextColor(sdl3::Color{140, 146, 168}).FontSize(12.f),
 				  f.Row().Gap(4.f).Children(
 					  f.Button("Rect").Name("btnWin0").GrowW().FontSize(12.f).OnClick([&] {
 						  windowFn = K_WINDOWS[0].fn;
@@ -331,7 +335,7 @@ int main() {
 				  f.Separator(),
 				  f.Label(String(std::format("{} périphérique(s) trouvé(s)", devices.size()).c_str()))
 					  .Name("lblStatus")
-					  .TextColor({140, 146, 168})
+					  .TextColor(sdl3::Color{140, 146, 168})
 					  .FontSize(12.f));
 	left.Spawn();
 
@@ -348,12 +352,7 @@ int main() {
 	plotSpecB.Name("plotSpec").GrowW().H(ui::Dimension::Px(320));
 
 	auto right = f.Column();
-	right.Anchor(ui::Anchor::TopLeft)
-		.Offset(320.f, 0.f)
-		.Gap(10.f)
-		.Pad(14.f)
-		.W(ui::Dimension::Rpct(100.f).Plus(-320.f))
-		.H(ui::Dimension::Rpct(100));
+	right.Gap(10.f).Pad(14.f).GrowW().GrowH().Parent(bodyE);
 	right.Children(f.Label("Forme d'onde").FontSize(15.f), std::move(plotWaveB),
 				   f.Label("Spectre de fréquence").FontSize(15.f), std::move(plotSpecB));
 	right.Spawn();
@@ -474,6 +473,9 @@ int main() {
 			gui.HandleEvent(e);
 		}
 		gui.Tick(dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
 		ren.SetDrawColor(sdl3::FColor::UI_WINDOW_BG());
 		ren.Clear();

@@ -210,16 +210,16 @@ struct DeviceInfo {
 class AdhocChatApp {
 public:
 	AdhocChatApp(ecs::ArchetypeRegistry& ar, ui::Ui& gui, sdl3::Window& window,
-				 chat::ChatNode& node, Options options, bool icons)
+				 chat::ChatNode& node, Options options)
 		: m_ar(ar), m_gui(gui), m_f(gui.Factory()), m_window(window), m_node(node),
-		  m_opt(std::move(options)), m_icons(icons) {
+		  m_opt(std::move(options)) {
 		m_adhoc.device = m_opt.device;
 	}
 
 	void Build();
 	void Update();
 	void OnDropFile(const String& path);
-	[[nodiscard]] bool QuitRequested() const noexcept { return m_quit; }
+	[[nodiscard]] bool QuitRequested() const noexcept { return m_frame.CloseRequested(); }
 
 private:
 	// ── Construction ─────────────────────────────────────────────────────
@@ -268,11 +268,7 @@ private:
 	sdl3::Window& m_window;
 	chat::ChatNode& m_node;
 	Options m_opt;
-	bool m_icons = false; ///< police MaterialIcons chargée
-	bool m_quit = false;
-	ui::WindowChrome m_chrome;
-	ui::TitleBarWidgets m_titleBar;
-	ui::StatusBarWidgets m_statusBar;
+	ui::WindowFrame m_frame;
 
 	// Wi-Fi
 	wifi::AdhocConfig m_adhoc;
@@ -366,22 +362,18 @@ ui::WidgetBuilder AdhocChatApp::Muted(const String& text) {
 // ── Construction ─────────────────────────────────────────────────────────────
 
 void AdhocChatApp::Build() {
-	auto window = m_f.Column();
-	window.Gap(0.f).Pad(0.f).Fixed().Anchor(ui::Anchor::TopLeft).Bg(Rgb(18, 19, 27));
-	window.W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Rpct(100.f));
-	ecs::Entity windowE = window.Spawn();
-	// Fenêtre sans décoration : barre de titre et barre d'état du module ui
-	// (déplacement, réduire / agrandir / fermer, poignée de redimension).
-	ui::TitleBarOptions title;
-	title.title = "Chat Wi-Fi ad hoc (IBSS)";
-	title.appIcon = Some(ui::MaterialIcons::WIFI_TETHERING);
-	title.icons = m_icons;
-	title.background = Rgb(30, 33, 48);
-	title.onClose = [this] { m_quit = true; };
-	m_titleBar = ui::TitleBar(m_f, m_window, std::move(title), windowE);
+	// Fenêtre sans décoration : encadrement du module ui (barre de titre,
+	// déplacement, réduire / agrandir / fermer, barre d'état et poignée de
+	// redimensionnement).
+	m_frame.Build(m_gui, m_window,
+				  {.title = "Chat Wi-Fi ad hoc (IBSS)",
+				   .appIcon = Some(ui::MaterialIcons::WIFI_TETHERING),
+				   .status = "Prêt.",
+				   .background = Rgb(18, 19, 27),
+				   .titleBackground = Rgb(30, 33, 48)});
 
 	auto root = m_f.Column();
-	root.Gap(8.f).Pad(math::Sides{10.f, 8.f, 10.f, 2.f}).GrowW().GrowH().Parent(windowE);
+	root.Gap(8.f).Pad(math::Sides{10.f, 8.f, 10.f, 2.f}).GrowW().GrowH().Parent(m_frame.Content());
 	ecs::Entity rootE = root.Spawn();
 
 	// ── En-tête : pseudo, adresses locales ───────────────────────────────
@@ -414,13 +406,6 @@ void AdhocChatApp::Build() {
 	BuildWifiColumn(bodyE);
 	BuildChatColumn(bodyE);
 	BuildPeersColumn(bodyE);
-
-	// ── Barre d'état + poignée de redimensionnement ──────────────────────
-	m_statusBar = ui::StatusBar(m_f, {.text = "Prêt.", .icons = m_icons}, windowE);
-
-	// Déplacement (barre de titre) et redimensionnement (bords, poignée)
-	// par le hit-test du système : la fenêtre n'a pas de décoration.
-	m_chrome.Attach(m_window, m_ar, m_gui.Layout(), m_titleBar, &m_statusBar);
 
 	RefreshHeader();
 	if (m_opt.wifi) {
@@ -1221,13 +1206,11 @@ void AdhocChatApp::RefreshHeader() {
 }
 
 void AdhocChatApp::SetStatus(const String& text, sdl3::FColor color) {
-	m_statusBar.SetText(m_ar, text, color);
-	m_gui.Layout().MarkDirty();
+	m_frame.SetStatus(text, color);
 }
 
 void AdhocChatApp::Update() {
-	m_chrome.Update();
-	m_titleBar.Update(m_ar, m_window);
+	m_frame.Update();
 	m_node.Poll(SDL_GetTicks());
 	PollJobs();
 	{
@@ -1295,7 +1278,7 @@ int main(int argc, char** argv) {
 	auto& font = fontRes.Value();
 	auto winRes =
 		sdl3::Window::Create(u8"Chat Wi-Fi ad hoc - SDL3 Wrapper", WIN_W, WIN_H,
-							 sdl3::window_flags::RESIZABLE | sdl3::window_flags::BORDERLESS | sdl3::window_flags::TRANSPARENT);
+							 ui::WindowFrame::WINDOW_FLAGS | sdl3::window_flags::TRANSPARENT);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -1323,15 +1306,7 @@ int main(int argc, char** argv) {
 		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
 	};
 
-	// Police d'icônes de la barre de titre (assets/fonts du dépôt) ; sans
-	// elle, les boutons retombent sur des glyphes texte.
-	Option<sdl3::Font> iconFont = ui::OpenMaterialIconFont();
-	if (iconFont)
-		gui.RenderSystem().RegisterFont(ui::Glyphs::FontFamily<ui::MaterialIcons>(), *iconFont);
-	else
-		std::cerr << "MaterialIcons introuvable (assets/fonts) : boutons en texte.\n";
-
-	AdhocChatApp app(ar, gui, window, node, std::move(options), iconFont.IsSome());
+	AdhocChatApp app(ar, gui, window, node, std::move(options));
 	app.Build();
 
 	bool running = true;

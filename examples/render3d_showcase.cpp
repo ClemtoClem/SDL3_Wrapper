@@ -10,6 +10,7 @@
 #include "render3d/canvas.hpp"
 #include "render3d/shape.hpp"
 #include "sdl3/sdl3.hpp"
+#include "ui/canvas_window_frame.hpp"
 
 static constexpr int WIN_W = 1000;
 static constexpr int WIN_H = 600;
@@ -22,7 +23,7 @@ int main() {
 	}
 
 	auto windowResult =
-		sdl3::Window::Create(u8"render3d:: - showcase", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+		sdl3::Window::Create(u8"render3d:: - showcase", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!windowResult) {
 		std::cerr << "Window: " << windowResult.Error().CStr() << "\n";
 		return 1;
@@ -100,6 +101,16 @@ int main() {
 			render3d::Material::Pbr(sdl3::Color{200, 60, 200}, 0.2f, 0.4f))));
 		knot.SetPosition({4.5f, 0.f, 0.f});
 
+		// Encadrement de fenêtre (barre de titre, barre d'état) : rendu en
+		// logiciel puis copié par-dessus la scène 3D (cf. ui::CanvasWindowFrame).
+		auto frameResult = ui::CanvasWindowFrame::Create(
+			window, {.title = "render3d:: - géométries, PBR et lumières", .appIcon = Some(ui::MaterialIcons::CATEGORY), .status = "Box, Sphere, Torus, TorusKnot · deux lumières ponctuelles et un spot."});
+		if (!frameResult) {
+			std::cerr << "CanvasWindowFrame: " << frameResult.Error().CStr() << "\n";
+			return 1;
+		}
+		ui::CanvasWindowFrame &frame = *frameResult.Value();
+
 		sdl3::FrameTimestep timestep(60.f);
 		float rootAngle = 0.f, spinAngle = 0.f;
 		bool running = true;
@@ -111,7 +122,11 @@ int main() {
 				auto &e = ev.Value();
 				if (e.IsQuit() || e.IsKeyDown(SDLK_ESCAPE))
 					running = false;
+				frame.HandleEvent(e);
 			}
+			frame.Update(timestep.GetDelta());
+			if (frame.CloseRequested())
+				running = false;
 
 			float dt = timestep.GetDelta();
 			rootAngle += dt * 0.25f;
@@ -125,6 +140,7 @@ int main() {
 
 			if (canvas.Begin()) {
 				canvas.DrawObject(*root);
+				frame.Draw(canvas);
 				canvas.End();
 			}
 

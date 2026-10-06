@@ -1,0 +1,30 @@
+# ── Torche : flamme vacillante (attachée à chaque torche des pièces) ─────────
+# Propriétés lues sur le nœud : flicker_speed, flicker_min, flicker_max,
+# seed, flame (nom de l'ENFANT flamme). Les pièces étant instanciées
+# plusieurs fois, la flamme se désigne par son chemin sous la torche
+# (`this.child(nom)`) : chaque torche anime la sienne.
+class Torche extends Behaviour, Light3D {
+    let base = 0
+    let flamme = nil
+
+    fn reglage(clef, defaut) {
+        let valeur = this.prop(clef)
+        if (valeur == nil) { return defaut }
+        return valeur
+    }
+
+    fn on_start() {
+        this.base = this.intensity()
+        let nom = this.prop("flame")
+        if (nom != nil) { this.flamme = this.child(nom) }
+    }
+
+    fn on_update(dt) {
+        let t = editor.time() * this.reglage("flicker_speed", 1.5) + this.reglage("seed", 0)
+        # Somme de trois sinus incommensurables : un bruit sans motif visible.
+        let n = (math.sin(t * 7.3) + math.sin(t * 13.1 + 1.7) * 0.5 + math.sin(t * 23.7 + 0.4) * 0.25) / 1.75
+        let k = math.lerp(this.reglage("flicker_min", 0.75), this.reglage("flicker_max", 1.2), n * 0.5 + 0.5)
+        this.set_intensity(this.base * k)
+        if (this.flamme != nil) { object.set_scale(this.flamme, 1, 0.85 + k * 0.2, 1) }
+    }
+}

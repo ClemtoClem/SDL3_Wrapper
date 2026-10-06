@@ -37,7 +37,7 @@ int main() {
 	}
 	auto &font = fontRes.Value();
 
-	auto winRes = sdl3::Window::Create(u8"ui:: Aero - contrôles", WIN_W, WIN_H, sdl3::window_flags::BORDERLESS | sdl3::window_flags::RESIZABLE | sdl3::window_flags::TRANSPARENT);
+	auto winRes = sdl3::Window::Create(u8"ui:: Aero - contrôles", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS | sdl3::window_flags::TRANSPARENT);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -73,7 +73,11 @@ int main() {
 	desktop.Style(ui::UiStyle{}.SetBg(sdl3::FColor::UI_AERO_TITLE_DARK()).SetBgGradient(sdl3::FColor::UI_AERO_TITLE_LIGHT()));
 	desktop.Spawn();
 
-	ui::TitleBarWidgets tb = ui::TitleBar(f, window, u8"Contrôles Aero", [] { std::exit(0); });
+	// Encadrement de fenêtre « verre » : barre de titre sans fond (le dégradé
+	// du bureau reste visible), barre d'état et poignée de redimensionnement.
+	ui::WindowFrame frame;
+	frame.Build(gui, window, {.title = u8"Contrôles Aero", .appIcon = Some(ui::MaterialIcons::TUNE),
+							  .status = "Boutons, curseurs, valeurs et couleurs.", .fillTitleBar = false});
 
 	// ── Contenu : contrôles + édition de valeurs ────────────────────────────
 	int clicks = 0;
@@ -81,12 +85,7 @@ int main() {
 	sdl3::FColor pickedColor{80 / 255.f, 160 / 255.f, 230 / 255.f, 1.f};
 
 	auto content = f.Column();
-	content.Gap(12.f)
-		.Pad(16.f)
-		.Anchor(ui::Anchor::TopLeft)
-		.Offset(0.f, 32.f)
-		.W(ui::Dimension::Rpct(100.f))
-		.H(ui::Dimension::Rpct(100.f).Plus(-32.f));
+	content.Gap(12.f).Pad(16.f).GrowW().GrowH().Parent(frame.Content());
 
 	auto swatch = f.ColorSwatch(pickedColor);
 	swatch.Size(28.f, 28.f).Name("colorSwatch");
@@ -122,9 +121,6 @@ int main() {
 			cb.Unwrap()->onClick = [&ar, &gui, swatchE, pickerE] { ui::OpenPopup(ar, gui.Layout(), pickerE, swatchE); };
 	}
 
-	ui::WindowChrome chrome;
-	chrome.Attach(window, ar, gui.Layout(), tb.root, {tb.minimizeBtn, tb.maximizeBtn, tb.closeBtn});
-
 	bool running = true;
 	uint64_t lastTick = sdl3::GetTicksMS();
 	while (running) {
@@ -148,11 +144,13 @@ int main() {
 			gui.HandleEvent(e);
 		}
 		gui.Tick(dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
 		ren.SetDrawColor(sdl3::FColor::UI_WINDOW_BG());
 		ren.Clear();
 		gui.Render();
-		chrome.Update();
 		ren.Present();
 	}
 	return 0;

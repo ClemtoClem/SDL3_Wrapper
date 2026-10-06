@@ -70,6 +70,10 @@ public:
 
 	/// Renderer de la fenêtre (aperçus d'images du navigateur de ressources).
 	void SetRenderer(sdl3::Renderer &renderer) noexcept { m_ctx.renderer = &renderer; }
+	/// Fenêtre sans décoration à encadrer : barre de titre (déplacer,
+	/// réduire, agrandir, fermer), poignée de redimensionnement dans la barre
+	/// d'état et hit-test système. Sans fenêtre (tests), ni l'une ni l'autre.
+	void SetWindow(sdl3::Window &window) noexcept { m_window = &window; }
 
 	/// Racines des ressources (`--assets-dir`, lues seulement) et des
 	/// sauvegardes (`--saves-dir` : projets, scènes emballées, scripts).
@@ -575,6 +579,12 @@ private:
 	bool m_draggingRunPanel = false;
 	ecs::Entity m_statusFps{}, m_statusObjects{}, m_statusBodies{}, m_statusScene{}, m_statusMode{}, m_statusGizmo{};
 	ecs::Entity m_statusMessageLabel{};
+	sdl3::Window *m_window = nullptr;
+	void BuildWindowTitleBar();
+	void AttachWindowChrome();
+	ui::TitleBarWidgets m_titleBar;
+	ecs::Entity m_statusBar{}, m_statusGrip{};
+	ui::WindowChrome m_chrome;
 };
 
 } // namespace game_editor

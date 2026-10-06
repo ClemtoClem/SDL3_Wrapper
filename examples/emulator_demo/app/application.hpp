@@ -124,6 +124,7 @@ private:
 	void BuildSidebar(ecs::Entity parent);
 	void BuildViewport(ecs::Entity parent);
 	void BuildLogPanel(ecs::Entity parent);
+	void BuildStatusBar(ecs::Entity parent);
 
 	void DoCloseModal();
 	void HandleEvent(const sdl3::Event &event);
@@ -149,6 +150,7 @@ private:
 	Option<sdl3::TtfContext> m_ttf = NONE;
 	Option<sdl3::Font> m_font = NONE;
 	Option<sdl3::TextEngine> m_textEngine = NONE;
+	Option<sdl3::Font> m_iconFont = NONE; ///< MaterialIcons (barre de titre), avant l'interface qui la référence
 	std::unique_ptr<sdl3::FileLogSink> m_fileLogSink;
 	size_t m_fileSinkId = 0;
 
@@ -167,6 +169,12 @@ private:
 	ecs::Entity m_hudLabel{};
 	ecs::Entity m_pauseLabel{};
 	ecs::Entity m_titleLabel{};
+	// Encadrement de la fenêtre sans décoration (module ui) : barre de titre,
+	// barre d'état et hit-test système (déplacer, redimensionner) — déclaré
+	// après la fenêtre, détruit avant elle.
+	ui::TitleBarWidgets m_titleBar;
+	ui::StatusBarWidgets m_statusBar;
+	ui::WindowChrome m_chrome;
 	std::vector<std::pair<RomSystem, ecs::Entity>> m_systemStatus;
 	ecs::Entity m_romTitle{};
 	ecs::Entity m_romDetails{};

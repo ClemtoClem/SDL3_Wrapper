@@ -274,7 +274,7 @@ int App::RunWindowed() {
 
 	auto windowResult = sdl3::Window::Create(u8"Éditeur de jeux 2D/3D",
 											 m_options.windowWidth, m_options.windowHeight,
-											 sdl3::window_flags::RESIZABLE);
+											 ui::WindowFrame::WINDOW_FLAGS);
 	if (!windowResult)
 		return Fail(String::Format("création de la fenêtre : %s", windowResult.Error().CStr()));
 	sdl3::Window &window = windowResult.Value();
@@ -328,6 +328,7 @@ int App::RunWindowed() {
 
 	EditorUi editorUi(runtime, gui);
 	editorUi.SetRenderer(renderer);
+	editorUi.SetWindow(window);
 	editorUi.SetDirectories(m_options.assetsDir, m_options.savesDir);
 	m_ui = &editorUi;
 	(void)editorUi.SetTheme(m_options.theme);

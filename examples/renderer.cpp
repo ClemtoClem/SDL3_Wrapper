@@ -4,13 +4,16 @@
 
 #include "core/core.hpp"
 #include "sdl3/sdl3.hpp"
+#include "ui/ui.hpp"
 
 // ============================================================================
 // Constantes
 // ============================================================================
 
 static constexpr int WIN_W = 900;
-static constexpr int WIN_H = 600;
+static constexpr int WIN_H = 600; ///< zone de dessin (sous la barre de titre)
+/// Barres de titre et d'état de ui::WindowFrame, ajoutées autour de la zone.
+static constexpr int FRAME_H = 36 + 24;
 static constexpr float SPEED = 250.f; // pixels/seconde pour le carré
 static constexpr float FONT_PT = 14.f;
 
@@ -143,7 +146,7 @@ int main() {
 
 	// ── Window & Renderer ─────────────────────────────────────────────────────
 
-	auto winRes = sdl3::Window::Create(u8"SDL3 Wrapper Demo", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+	auto winRes = sdl3::Window::Create(u8"SDL3 Wrapper Demo", WIN_W, WIN_H + FRAME_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -165,6 +168,26 @@ int main() {
 		return 1;
 	}
 	auto &eng = engRes.Value();
+
+	// ── Encadrement de fenêtre (ui::) ─────────────────────────────────────────
+	// La scène est dessinée à la main dans la zone de contenu (viewport) ; la
+	// barre de titre et la barre d'état sont des widgets ui:: par-dessus.
+	ecs::ArchetypeRegistry ar;
+	ui::Ui gui(ar, window, ren);
+	gui.SetTextEngine(eng, font);
+	gui.Layout().measureText = [&font](const String &s, float fs) -> sdl3::FPoint {
+		if (auto sz = font.Measure(s); sz.IsSome())
+			return {float(sz.Unwrap().x) * (fs / FONT_PT), fs * 1.35f};
+		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
+	};
+	ui::WindowFrame frame;
+	frame.Build(gui, window,
+				{.title = "SDL3 Wrapper - rendu 2D", .appIcon = Some(ui::MaterialIcons::BRUSH),
+				 .status = "Flèches/WASD : déplacer · R G B Y M : couleur · Espace : fond · Clic : cercle · Molette : taille"});
+	auto contentOrigin = [&frame] {
+		sdl3::FRect r = frame.ContentRect();
+		return sdl3::FPoint{r.x, r.y};
+	};
 
 	// ── Properties test ───────────────────────────────────────────────────────
 
@@ -258,11 +281,19 @@ int main() {
 			if (e.IsWindowFocusLost())
 				std::cout << "[Window] Focus perdu\n";
 
-			// Souris — cercles sur clic gauche, effacer sur clic droit
+			// Barre de titre / d'état (boutons, infobulles)
+			gui.HandleEvent(e);
+
+			// Souris — cercles sur clic gauche (dans la zone de dessin, en
+			// coordonnées de la zone), effacer sur clic droit
 			if (e.IsMouseDown(SDL_BUTTON_LEFT)) {
-				uint8_t r = uint8_t((e.MouseButton().x * 255) / WIN_W);
-				uint8_t b = uint8_t((e.MouseButton().y * 255) / WIN_H);
-				state.clicks.push_back({e.MouseButton().x, e.MouseButton().y, sdl3::Color{r, 100, b}});
+				sdl3::FPoint o = contentOrigin();
+				float mx = e.MouseButton().x - o.x, my = e.MouseButton().y - o.y;
+				if (mx >= 0.f && my >= 0.f && mx < float(WIN_W) && my < float(WIN_H)) {
+					uint8_t r = uint8_t((mx * 255) / WIN_W);
+					uint8_t b = uint8_t((my * 255) / WIN_H);
+					state.clicks.push_back({mx, my, sdl3::Color{r, 100, b}});
+				}
 			}
 			if (e.IsMouseDown(SDL_BUTTON_RIGHT))
 				state.clicks.clear();
@@ -299,9 +330,19 @@ int main() {
 		state.sx = sdl3::Clamp(state.sx, 0.f, float(WIN_W) - state.sw);
 		state.sy = sdl3::Clamp(state.sy, 0.f, float(WIN_H) - state.sh);
 
+		gui.Tick(dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
+
 		// -- Rendu ------------------------------------------------------------
-		ren.SetDrawColor(state.bg);
+		ren.SetDrawColor(sdl3::FColor::UI_WINDOW_BG());
 		ren.Clear();
+		// La scène dans la zone de contenu : (0, 0) = son coin haut-gauche.
+		sdl3::FPoint o = contentOrigin();
+		ren.SetViewport(sdl3::FRect{o.x, o.y, float(WIN_W), float(WIN_H)});
+		ren.SetDrawColor(state.bg);
+		ren.FillRect(sdl3::FRect{0.f, 0.f, float(WIN_W), float(WIN_H)});
 
 		// Cercles de clic
 		for (auto &cp : state.clicks) {
@@ -340,6 +381,8 @@ int main() {
 		// HUD texte
 		DrawHud(ren, font, state, eng);
 
+		ren.ClearViewport();
+		gui.Render();
 		ren.Present();
 	}
 

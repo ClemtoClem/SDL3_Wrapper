@@ -79,6 +79,7 @@ void EditorUi::Build() {
 	root.W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Rpct(100.f));
 	m_root = root.Spawn();
 
+	BuildWindowTitleBar();
 	BuildMenuBar(m_root);
 
 	ui::WidgetBuilder body = m_ctx.factory.Row();
@@ -134,6 +135,7 @@ void EditorUi::Build() {
 	m_libraryDock.Build(librarySlotEntity, [](ui::WidgetBuilder &b) { b.GrowW().GrowH(); });
 
 	BuildStatusBar(m_root);
+	AttachWindowChrome();
 
 	// ── Contenu des panneaux ─────────────────────────────────────────
 	m_tree.Build(m_treeDock.AddPage(String("Arbre de scène"), false, false, 4.f));
@@ -190,6 +192,7 @@ void EditorUi::Rebuild() {
 }
 
 void EditorUi::Teardown() {
+	m_chrome.Detach();
 	CloseDialog();
 	ExitRunMode();
 	for (ecs::Entity popup : m_menuPopups)
@@ -486,6 +489,10 @@ void EditorUi::Tick(float dt, double fps) {
 		Rebuild();
 	}
 	ApplyBrowseResult();
+	if (m_window) {
+		m_chrome.Update();
+		m_titleBar.Update(m_ctx.registry, *m_window);
+	}
 	if (!m_editorBuilt)
 		return;
 	m_fps = fps;
@@ -1756,6 +1763,7 @@ void EditorUi::BuildStatusBar(ecs::Entity parent) {
 	bar.Gap(16.f).Pad(math::Sides{10.f, 3.f}).GrowW().HAuto().Align(ui::CrossAlign::Center);
 	bar.Bg(kit::PaletteOf(m_ctx).header).Parent(parent);
 	ecs::Entity barEntity = bar.Spawn();
+	m_statusBar = barEntity;
 	m_statusFps = StatusLabel(barEntity, "— img/s", 70.f);
 	m_statusObjects = StatusLabel(barEntity, "— objets", 90.f);
 	m_statusBodies = StatusLabel(barEntity, "— corps", 80.f);
@@ -1766,6 +1774,16 @@ void EditorUi::BuildStatusBar(ecs::Entity parent) {
 	message.GrowW().HAuto().FontSize(12.f).TextColor(m_ctx.Theme().muted).TextEllipsis().TextAlign(ui::TextAlign::Right);
 	message.Parent(barEntity);
 	m_statusMessageLabel = message.Spawn();
+	if (m_window) {
+		// Poignée de redimensionnement (coin bas-droit, cf. ui::WindowChrome).
+		bool icons = m_ctx.gui.RenderSystem().HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
+		ui::WidgetBuilder grip = icons ? m_ctx.factory.Icon(ui::MaterialIcons::SOUTH_EAST, 16.f)
+									   : m_ctx.factory.Label(String("\xe2\x87\xb2"));
+		grip.TextColor(m_ctx.Theme().muted).Tooltip(String("Glisser pour redimensionner la fenêtre")).Parent(barEntity);
+		m_statusGrip = grip.Spawn();
+	} else {
+		m_statusGrip = ecs::Entity{};
+	}
 }
 
 ecs::Entity EditorUi::StatusLabel(ecs::Entity parent, const char *text, float width) {
@@ -1966,12 +1984,43 @@ void EditorUi::OnSaveSelectionAsScene() {
 		Rt().LogSuccess(String::Format("Scène enregistrée : %s", path.CStr()));
 }
 
+void EditorUi::BuildWindowTitleBar() {
+	m_titleBar = ui::TitleBarWidgets{};
+	if (!m_window)
+		return;
+	ui::TitleBarOptions title;
+	title.title = u8"Éditeur de jeux 2D/3D";
+	title.appIcon = Some(ui::MaterialIcons::VIDEOGAME_ASSET);
+	title.icons = m_ctx.gui.RenderSystem().HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
+	title.height = 32.f;
+	title.titleSize = 13.f;
+	title.background = kit::PaletteOf(m_ctx).header;
+	title.onClose = [this] {
+		if (onQuit)
+			onQuit();
+	};
+	m_titleBar = ui::TitleBar(m_ctx.factory, *m_window, std::move(title), m_root);
+}
+
+void EditorUi::AttachWindowChrome() {
+	if (!m_window)
+		return;
+	// Déplacer par la barre de titre, redimensionner par les bords et la
+	// poignée de la barre d'état (rebranché à chaque reconstruction).
+	ui::StatusBarWidgets status;
+	status.root = m_statusBar;
+	status.label = m_statusMessageLabel;
+	status.grip = m_statusGrip;
+	m_chrome.Attach(*m_window, m_ctx.registry, m_ctx.gui.Layout(), m_titleBar, &status);
+}
+
 void EditorUi::BuildStartPage() {
 	const ui::UiTheme &theme = m_ctx.Theme();
 	ui::WidgetBuilder root = m_ctx.factory.Column();
 	root.Gap(0.f).Pad(0.f).Fixed().Anchor(ui::Anchor::TopLeft).Bg(kit::PaletteOf(m_ctx).base);
 	root.W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Rpct(100.f));
 	m_root = root.Spawn();
+	BuildWindowTitleBar();
 
 	ui::WidgetBuilder bar = m_ctx.factory.MenuBar();
 	bar.Parent(m_root).GrowW().HAuto().Pad(math::Sides{6.f, 2.f}).Bg(kit::PaletteOf(m_ctx).header);
@@ -2032,6 +2081,18 @@ void EditorUi::BuildStartPage() {
 	ui::WidgetBuilder status = m_ctx.factory.Label(String());
 	status.FontSize(12.f).TextColor(theme.muted).GrowW().HAuto().TextWrap().Parent(cardEntity);
 	m_statusMessageLabel = status.Spawn();
+
+	// Barre d'état minimale : la poignée de redimensionnement de la fenêtre.
+	m_statusBar = m_statusGrip = ecs::Entity{};
+	if (m_window) {
+		ui::StatusBarOptions options;
+		options.icons = m_ctx.gui.RenderSystem().HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
+		options.background = kit::PaletteOf(m_ctx).header;
+		ui::StatusBarWidgets bar = ui::StatusBar(m_ctx.factory, std::move(options), m_root);
+		m_statusBar = bar.root;
+		m_statusGrip = bar.grip;
+	}
+	AttachWindowChrome();
 }
 
 void EditorUi::SpawnProjectButton(ecs::Entity parent, const files::ProjectEntry &project) {

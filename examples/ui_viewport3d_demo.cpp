@@ -63,7 +63,7 @@
 #include "ui/ui.hpp"
 
 static constexpr int WIN_W = 1100;
-static constexpr int WIN_H = 640;
+static constexpr int WIN_H = 700; // 640 de contenu + barres de titre et d'état
 static constexpr float FONT_PT = 14.f;
 
 int main() {
@@ -84,7 +84,7 @@ int main() {
 	}
 	auto &font = fontRes.Value();
 
-	auto winRes = sdl3::Window::Create(u8"ui:: - Viewport3D demo", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+	auto winRes = sdl3::Window::Create(u8"ui:: - Viewport3D demo", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -168,12 +168,18 @@ int main() {
 		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
 	};
 
+	// ── Encadrement de fenêtre (barre de titre, barre d'état) ────────────────
+	// 2D pur : présent dès l'écran de chargement, sans toucher `canvas`.
+	ui::WindowFrame frame;
+	frame.Build(gui, window, {.title = "ui:: - Viewport3D", .appIcon = Some(ui::MaterialIcons::VIEW_IN_AR),
+							  .status = "Préchauffage des pipelines GPU…"});
+
 	// ── Phase de chargement asynchrone (cf. en-tête du fichier) ─────────────
 	// Frame de chargement : juste un label + une barre de progression, tous
 	// les deux en 2D pur (aucun widget Viewport3D ici) — le thread principal
 	// peut donc la dessiner/présenter en boucle sans jamais toucher `canvas`.
 	auto loadingRootBuilder = f.Column();
-	loadingRootBuilder.Anchor(ui::Anchor::Center).Gap(12.f).Pad(24.f).WAuto().HAuto().Children(
+	loadingRootBuilder.Absolute().Anchor(ui::Anchor::Center).Parent(frame.Content()).Gap(12.f).Pad(24.f).WAuto().HAuto().Children(
 		f.Label("Chargement de la scène 3D...").FontSize(16.f).Name("loadStage"),
 		f.Progress(0.f, 1.f, 0.f).Size(320.f, 14.f).Name("loadBar"));
 	ecs::Entity loadingRoot = loadingRootBuilder.Spawn();
@@ -281,6 +287,11 @@ int main() {
 				l.Unwrap()->text = stage;
 
 		gui.Tick(0.f);
+		frame.Update();
+		if (frame.CloseRequested()) {
+			running = false;
+			break;
+		}
 		ren.SetDrawColor(sdl3::FColor::UI_APP_BG());
 		ren.Clear();
 		gui.Render(); // aucun widget Viewport3D encore vivant : ne touche pas `canvas`, cf. en-tête du fichier
@@ -314,15 +325,16 @@ int main() {
 
 	// ── Vraie UI (deux Viewport3D, cf. en-tête du fichier) — les pipelines
 	// sont déjà compilés, ce premier vrai rendu sera donc immédiat. ─────────
+	frame.SetStatus("Même scène, deux caméras.");
 	auto root = f.Row();
-	root.Anchor(ui::Anchor::Center).Gap(16.f).Pad(20.f).WAuto().HAuto().Children(
+	root.Absolute().Anchor(ui::Anchor::Center).Parent(frame.Content()).Gap(16.f).Pad(20.f).WAuto().HAuto().Children(
 		f.Panel().Gap(8.f).Pad(12.f).Children(
 			f.Label("Panneau haut-étroit").FontSize(16.f),
-			f.Label("Caméra de face (aspect ~0.52)").TextColor({150, 156, 178}),
+			f.Label("Caméra de face (aspect ~0.52)").TextColor(sdl3::Color{150, 156, 178}),
 			f.Viewport3D(sceneRoot, cameraFront).Size(220.f, 420.f)),
 		f.Panel().Gap(8.f).Pad(12.f).Children(
 			f.Label("Panneau large-bas").FontSize(16.f),
-			f.Label("Caméra 3/4 côté (aspect ~1.9)").TextColor({150, 156, 178}),
+			f.Label("Caméra 3/4 côté (aspect ~1.9)").TextColor(sdl3::Color{150, 156, 178}),
 			f.Viewport3D(sceneRoot, cameraSide).Size(420.f, 220.f)));
 	root.Spawn();
 
@@ -343,6 +355,9 @@ int main() {
 			gui.HandleEvent(e);
 		}
 		gui.Tick(dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
 		// Fait tourner lentement la scène : les deux Viewport3D (même racine,
 		// caméras différentes) se mettent à jour indépendamment chaque frame

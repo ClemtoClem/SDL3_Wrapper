@@ -165,41 +165,40 @@ void Application::BuildShell() {
 	BuildSidebar(bodyEntity);
 	BuildViewport(bodyEntity);
 	BuildLogPanel(m_shellRoot);
+	BuildStatusBar(m_shellRoot);
 }
 
 void Application::BuildTitleBar(ecs::Entity parent) {
-	ui::UiFactory &f = Factory();
-	ui::WidgetBuilder bar = f.Row();
-	bar.H(ui::Dimension::Px(TITLE_BAR_HEIGHT)).GrowW().Bg(BG_DARK()).Pad(sdl3::Sides(8.f, 0.f, 4.f, 0.f)).Gap(4.f);
-	bar.Align(ui::CrossAlign::Center).Parent(parent);
-	ecs::Entity barEntity = bar.Spawn();
+	// Barre de titre du module ui : icône, titre, poignée de déplacement,
+	// réduire / agrandir-restaurer / fermer en icônes MaterialIcons (repli
+	// texte sans la police).
+	ui::RenderSystem &render = Gui().RenderSystem();
+	if (!render.HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>())) {
+		m_iconFont = ui::OpenMaterialIconFont();
+		if (m_iconFont.IsSome())
+			render.RegisterFont(ui::Glyphs::FontFamily<ui::MaterialIcons>(), m_iconFont.Value());
+	}
+	ui::TitleBarOptions options;
+	options.title = "EmulOS";
+	options.appIcon = Some(ui::MaterialIcons::VIDEOGAME_ASSET);
+	options.icons = render.HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
+	options.height = TITLE_BAR_HEIGHT;
+	options.titleSize = 14.f;
+	options.background = BG_DARK();
+	options.onClose = [this] { RequestQuit(); };
+	m_titleBar = ui::TitleBar(Factory(), Window(), std::move(options), parent);
+	m_titleLabel = m_titleBar.title;
+}
 
-	ui::WidgetBuilder title = f.Label("EmulOS");
-	title.FontSize(14.f).Bold().TextColor(TEXT_PRIMARY()).GrowW().HAuto().Parent(barEntity);
-	m_titleLabel = title.Spawn();
-
-	auto windowButton = [&](const char *text, std::function<void()> action) {
-		ui::WidgetBuilder button = f.Button(String(text));
-		button.Size(30.f, 24.f).FontSize(12.f).TextColor(TEXT_MUTED()).Parent(barEntity).OnClick(std::move(action));
-		(void)button.Spawn();
-	};
-	windowButton("\xe2\x80\x94", [this] { Window().Minimize(); });
-	windowButton("\xe2\x96\xa1", [this] {
-		if (Window().IsMaximized())
-			Window().Restore();
-		else
-			Window().Maximize();
-	});
-	windowButton("\xc3\x97", [this] { RequestQuit(); });
-
-	// Fenêtre sans bordure : la barre de titre sert de poignée de déplacement
-	// (hors des trois boutons de droite).
-	(void)Window().SetHitTest([this](const SDL_Point &point) -> SDL_HitTestResult {
-		sdl3::Point size = Window().GetSize();
-		if (point.y >= 0 && float(point.y) < TITLE_BAR_HEIGHT && point.x < size.x - 110)
-			return SDL_HITTEST_DRAGGABLE;
-		return SDL_HITTEST_NORMAL;
-	});
+void Application::BuildStatusBar(ecs::Entity parent) {
+	ui::StatusBarOptions options;
+	options.text = "F5 : sauvegarde rapide · F9 : chargement rapide · F12 : capture d'écran · P : pause";
+	options.icons = Gui().RenderSystem().HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
+	options.background = BG_DARK();
+	m_statusBar = ui::StatusBar(Factory(), std::move(options), parent);
+	// Fenêtre sans bordure : la barre de titre la déplace, les bords et la
+	// poignée de la barre d'état la redimensionnent.
+	m_chrome.Attach(Window(), World(), Gui().Layout(), m_titleBar, &m_statusBar);
 }
 
 void Application::BuildMenuBar(ecs::Entity parent) {
@@ -556,6 +555,8 @@ void Application::Run() {
 			m_report.frames.Push(period);
 		firstFrame = false;
 		m_ui->Tick(float(period));
+		m_chrome.Update();
+		m_titleBar.Update(World(), Window());
 
 		Renderer().SetDrawColor(BG_DARK());
 		Renderer().Clear();

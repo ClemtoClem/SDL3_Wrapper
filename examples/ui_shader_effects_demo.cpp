@@ -46,7 +46,7 @@ int main() {
     }
     auto &font = fontRes.Value();
 
-    auto winRes = sdl3::Window::Create(u8"ui:: - Shader effects demo", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+    auto winRes = sdl3::Window::Create(u8"ui:: - Shader effects demo", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
     if (!winRes) {
         std::cerr << "Window: " << winRes.Error().CStr() << "\n";
         return 1;
@@ -89,8 +89,13 @@ int main() {
 
     ui::UiFactory &f = gui.Factory();
 
+    // Encadrement de fenêtre : barre de titre, barre d'état, redimensionnement.
+    ui::WindowFrame frame;
+    frame.Build(gui, window, {.title = "ui:: - effets de shader", .appIcon = Some(ui::MaterialIcons::AUTO_AWESOME),
+                              .status = "Référence, TintShift, Glow."});
+
     auto root = f.Row();
-    root.Anchor(ui::Anchor::Center).Gap(24.f).Pad(24.f).WAuto().HAuto().Children(
+    root.Absolute().Anchor(ui::Anchor::Center).Parent(frame.Content()).Gap(24.f).Pad(24.f).WAuto().HAuto().Children(
         // ── Sans effet (référence) ───────────────────────────────────────
         f.Column().Gap(8.f).Children(
             f.Label("Normal").FontSize(15.f),
@@ -122,6 +127,9 @@ int main() {
             gui.HandleEvent(e);
         }
         gui.Tick(0.f);
+        frame.Update();
+        if (frame.CloseRequested())
+            running = false;
 
         ren.SetDrawColor(sdl3::FColor::UI_APP_BG());
         ren.Clear();

@@ -148,7 +148,21 @@ class Canvas {
 
 	Option<sdl3::GpuCommandBuffer> m_commandBuffer = NONE;
 	Borrowed<SDL_GPUTexture> m_swapchainTexture;
+	uint32_t m_swapchainWidth = 0;
+	uint32_t m_swapchainHeight = 0;
 	bool m_frameActive = false;
+
+	/// Calque 2D de la frame en cours (cf. SetOverlay) : une copie compacte
+	/// des pixels de chaque région, envoyée puis copiée par End().
+	struct OverlayRegion {
+		sdl3::Rect rect;
+		std::vector<uint8_t> pixels; ///< RGBA8, rect.w * rect.h * 4 octets
+	};
+	std::vector<OverlayRegion> m_overlayRegions;
+	Option<sdl3::GpuTexture> m_overlayTexture = NONE; ///< taille de la swapchain, recréée si elle change
+	uint32_t m_overlayWidth = 0;
+	uint32_t m_overlayHeight = 0;
+	void UploadAndBlitOverlay(sdl3::GpuCommandBuffer &cmd);
 
 	Canvas(sdl3::GpuDevice device, Option<Ref<sdl3::Window>> window, bool ownsDevice, int w, int h,
 		   sdl3::GpuTextureFormat colorFormat, sdl3::GpuTextureFormat depthFormat, sdl3::GpuTexture whiteTexture,
@@ -339,6 +353,17 @@ public:
 	[[nodiscard]] Result<bool, StringView> RenderObjectOffscreen(Object3D &root, const Camera &camera,
 																  const math::FMatrix4 &viewProjection,
 																  OffscreenTarget &target);
+
+	/// Calque 2D copié TEL QUEL dans la swapchain à End(), par-dessus la
+	/// scène — typiquement la barre de titre et la barre d'état d'une
+	/// interface ui:: rendue en logiciel (cf. ui::CanvasWindowFrame). Seules
+	/// les `regions` (en pixels de fenêtre) sont copiées, sans mélange alpha :
+	/// elles doivent être opaques. `pixels` : RGBA8 (octets R, G, B, A),
+	/// `width` × `height` pixels, `pitch` octets par ligne ; copiés
+	/// immédiatement. Vaut pour la frame en cours : à appeler entre Begin()
+	/// et End().
+	void SetOverlay(const uint8_t *pixels, uint32_t width, uint32_t height, uint32_t pitch,
+					std::span<const sdl3::Rect> regions);
 
 	void End();
 };

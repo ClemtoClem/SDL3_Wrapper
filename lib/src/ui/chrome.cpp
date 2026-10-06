@@ -266,6 +266,8 @@ StatusBarWidgets StatusBar(UiFactory &f, StatusBarOptions options, ecs::Entity p
 		row.GrowW().Parent(parent);
 	else
 		row.W(Dimension::Rpct(100.f));
+	if (options.background.a > 0.f)
+		row.Bg(options.background);
 	sb.root = row.Spawn();
 	WidgetBuilder label = f.Label(options.text);
 	label.TextColor(f.theme.muted).GrowW().TextEllipsis().Parent(sb.root);

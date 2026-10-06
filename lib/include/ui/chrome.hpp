@@ -42,6 +42,13 @@ struct StatusBarWidgets;
 
 class WindowChrome {
 public:
+	WindowChrome() = default;
+	WindowChrome(const WindowChrome &) = delete;
+	WindowChrome &operator=(const WindowChrome &) = delete;
+	/// Retire le hit-test (son rappel pointe sur cet objet). La fenêtre doit
+	/// donc encore exister : déclarer le WindowChrome APRÈS la fenêtre.
+	~WindowChrome() { Detach(); }
+
 	/// `titleBarEntity` : l'entité racine de la barre de titre (typiquement
 	/// un `.Row()` en haut de la fenêtre, cf. UiFactory::TitleBar()) — son
 	/// UiComputed.screen après layout définit la bande draggable.
@@ -110,7 +117,7 @@ ecs::Entity SpawnIconButton(UiFactory &f, ecs::Entity parent, MaterialIcons glyp
 [[nodiscard]] Option<sdl3::Font> OpenMaterialIconFont(float size = 22.f);
 
 struct TitleBarOptions {
-	String title;
+	String title{};
 	/// Icône d'application avant le titre (NONE : aucune).
 	Option<MaterialIcons> appIcon = NONE;
 	/// Poignée « déplacer » après le titre : purement indicative, elle fait
@@ -122,10 +129,13 @@ struct TitleBarOptions {
 	/// les boutons retombent sur des glyphes texte (—, □, ×, ✥).
 	bool icons = true;
 	/// Fermer : `onClose` si fourni, sinon `window.Hide()`.
-	std::function<void()> onClose;
+	std::function<void()> onClose{};
 	float height = 36.f;
 	float titleSize = 16.f;
-	bool boldTitle = true;
+	/// Titre en gras. Le layout mesure le texte avec la police normale : avec
+	/// une vraie police grasse enregistrée (RenderSystem::RegisterBoldFont),
+	/// plus large, le titre serait rogné.
+	bool boldTitle = false;
 	/// false : aucun fond (le verre d'une fenêtre Aero reste visible).
 	bool fillBackground = true;
 	/// Fond (alpha nul : celui du thème, `panelBg` opacifié).
@@ -172,10 +182,11 @@ struct TitleBarWidgets {
 // ============================================================================
 
 struct StatusBarOptions {
-	String text;
+	String text{};
 	bool resizeGrip = true; ///< poignée ↘ dans le coin bas-droit
 	bool icons = true;		///< glyphe MaterialIcons SOUTH_EAST, sinon ⇲
 	float height = 24.f;
+	sdl3::FColor background{}; ///< alpha nul : aucun fond
 };
 
 struct StatusBarWidgets {

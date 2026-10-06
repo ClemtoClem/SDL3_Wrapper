@@ -6,6 +6,7 @@
 
 #include "render3d/canvas.hpp"
 #include "sdl3/sdl3.hpp"
+#include "ui/canvas_window_frame.hpp"
 
 static constexpr int WIN_W = 900;
 static constexpr int WIN_H = 600;
@@ -17,7 +18,7 @@ int main() {
 		return 1;
 	}
 
-	auto windowResult = sdl3::Window::Create(u8"render3d:: - rotating cube", WIN_W, WIN_H, sdl3::window_flags::RESIZABLE);
+	auto windowResult = sdl3::Window::Create(u8"render3d:: - rotating cube", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!windowResult) {
 		std::cerr << "Window: " << windowResult.Error().CStr() << "\n";
 		return 1;
@@ -57,6 +58,17 @@ int main() {
 		canvas.SetLighting(sun, ambient);
 		canvas.SetBackgroundColor(sdl3::Color{20, 22, 30});
 
+		// Encadrement de fenêtre (barre de titre, barre d'état) : rendu en
+		// logiciel puis copié par-dessus la scène 3D (cf. ui::CanvasWindowFrame).
+		auto frameResult = ui::CanvasWindowFrame::Create(
+			window, {.title = "render3d:: - cube en rotation", .appIcon = Some(ui::MaterialIcons::THREED_ROTATION),
+					 .status = "Échap ou × pour quitter."});
+		if (!frameResult) {
+			std::cerr << "CanvasWindowFrame: " << frameResult.Error().CStr() << "\n";
+			return 1;
+		}
+		ui::CanvasWindowFrame &frame = *frameResult.Value();
+
 		sdl3::FrameTimestep timestep(60.f);
 		float angle = 0.f;
 		bool running = true;
@@ -68,13 +80,18 @@ int main() {
 				auto &e = ev.Value();
 				if (e.IsQuit() || e.IsKeyDown(SDLK_ESCAPE))
 					running = false;
+				frame.HandleEvent(e);
 			}
+			frame.Update(timestep.GetDelta());
+			if (frame.CloseRequested())
+				running = false;
 
 			angle += timestep.GetDelta() * 0.8f;
 			math::FMatrix4 transform = math::FMatrix4::RotateY(angle) * math::FMatrix4::RotateX(angle * 0.6f);
 
 			if (canvas.Begin()) {
 				canvas.DrawMesh(cube, transform, material);
+				frame.Draw(canvas);
 				canvas.End();
 			}
 

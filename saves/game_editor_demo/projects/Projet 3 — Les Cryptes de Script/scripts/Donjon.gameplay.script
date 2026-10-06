@@ -1,0 +1,438 @@
+# ── Donjon : assemble les pièces d'après le plan, puis la partie ─────────────
+#
+# Le plan (game.state().plan, cf. scène « Génération ») est une grille de
+# cases ; chaque case nomme une pièce (scenes/pieces/<nom>.scene) et une rotation
+# en quarts de tour. Toutes les pièces partagent la même convention (case
+# de 8 m, portes centrées sur les côtés) : posées côte à côte, leurs portes
+# se raccordent. Les salles ont quatre portes : celles qui ne mènent nulle
+# part reçoivent une « porte murée ».
+#
+# Chaque modèle de pièce est un SceneAsset (ses instances partent avec lui) ;
+# chaque squelette aussi : le détruire retire son nœud de la scène.
+#
+# Vue à la première personne (Behaviour « Joueur », script de nœud
+# « player ») ; la souris est capturée — F7 la libère pour cliquer
+# l'interface. Sans joueur, le chevalier suit seul le chemin jusqu'au
+# portail et combat en route.
+
+const CASE = 8.0
+const PV_MAX = 100
+const PV_SQUELETTE = 3
+const DEGATS = {"Facile": 6, "Normal": 10, "Difficile": 14}
+const PX = 16   # taille d'une case sur la mini-carte
+
+fn distance_plane(a, b) {
+    let dx = a[0] - b[0]
+    let dz = a[2] - b[2]
+    return math.sqrt(dx * dx + dz * dz)
+}
+
+fn plan_par_defaut() {
+    # Scène lancée seule depuis l'éditeur : un petit donjon fixe de 2 × 2.
+    return {nom: "Crypte d'essai", graine: 0, difficulte: "Normal", largeur: 2, hauteur: 2,
+            cases: [
+                {x: 0, y: 0, ouvert: [true, true, false, false], piece: "entree", rotation: 0, salle: true},
+                {x: 1, y: 0, ouvert: [true, false, false, true], piece: "couloir_angle", rotation: 3, salle: false},
+                {x: 0, y: 1, ouvert: [false, false, true, false], piece: "salle_tresor", rotation: 0, salle: true},
+                {x: 1, y: 1, ouvert: [false, false, true, false], piece: "sortie", rotation: 0, salle: true},
+            ],
+            depart: [0, 0], sortie: [1, 1], chemin: [0, 1, 3], monstres: [[1, 1, 1.0, 1.0]]}
+}
+
+# ── La grille du plan (objet de script ordinaire : aucune ressource) ─────────
+
+class Grille {
+    let w = 0
+    let h = 0
+    let cases = []
+
+    fn init(plan) {
+        this.w = plan.largeur
+        this.h = plan.hauteur
+        this.cases = plan.cases
+    }
+
+    fn centre(x, y) {
+        return [(x - (this.w - 1) / 2) * CASE, (y - (this.h - 1) / 2) * CASE]
+    }
+
+    fn centre_indice(i) { return this.centre(i % this.w, i32(i / this.w)) }
+
+    fn case_de(px, pz) {
+        return [i64(math.round(px / CASE + (this.w - 1) / 2)), i64(math.round(pz / CASE + (this.h - 1) / 2))]
+    }
+
+    fn dedans(c) { return c[0] >= 0 and c[1] >= 0 and c[0] < this.w and c[1] < this.h }
+
+    # Un squelette (rayon ~0,4 m) peut-il se tenir en (px, pz) ? Intérieur des
+    # salles, voies des couloirs, et passages par les portes ouvertes.
+    fn praticable(px, pz) {
+        let c = this.case_de(px, pz)
+        if (not this.dedans(c)) { return false }
+        let k = this.cases[c[1] * this.w + c[0]]
+        let o = this.centre(c[0], c[1])
+        let lx = px - o[0]
+        let lz = pz - o[1]
+        let voie = 1.05
+        if (k.salle and math.abs(lx) < 2.9 and math.abs(lz) < 2.9) { return true }
+        if (math.abs(lx) < voie and math.abs(lz) < voie) { return true }
+        if (k.ouvert[0] and math.abs(lx) < voie and lz > 0) { return true }
+        if (k.ouvert[1] and math.abs(lz) < voie and lx > 0) { return true }
+        if (k.ouvert[2] and math.abs(lx) < voie and lz < 0) { return true }
+        if (k.ouvert[3] and math.abs(lz) < voie and lx < 0) { return true }
+        return false
+    }
+}
+
+# ── Les ressources : pièces et squelettes ────────────────────────────────────
+
+# Un modèle de pièce : chaque `poser` en crée une instance sous « Niveau ».
+class Piece extends SceneAsset {
+    fn init(nom) { super.init("scenes/pieces/" .. nom .. ".scene") }
+
+    fn poser(x, z, quarts) {
+        return this.instantiate({parent: "Niveau", pos: [x, 0, z], rot: [0, quarts * 90, 0]})
+    }
+}
+
+# Un squelette : une instance de la pièce « squelette », qui chasse le joueur.
+class Squelette extends SceneAsset {
+    let nom = nil
+    let pv = PV_SQUELETTE
+    let recharge = 0
+
+    fn init(x, z) {
+        super.init("scenes/pieces/squelette.scene")
+        this.nom = this.instantiate({parent: "Niveau", pos: [x, 0, z]})
+    }
+
+    fn position() { return object.position(this.nom) }
+
+    # Pas vers le joueur, en glissant le long des murs ; rend la distance.
+    fn avancer(p, grille, temps, dt) {
+        let q = this.position()
+        let d = distance_plane(p, q)
+        let dx = p[0] - q[0]
+        let dz = p[2] - q[2]
+        if (d < 9 and d > 1.1) {
+            let pas = 1.5 * dt / d
+            let nx = q[0] + dx * pas
+            let nz = q[2] + dz * pas
+            if (grille.praticable(nx, nz)) {
+                q = [nx, 0, nz]
+            } else if (grille.praticable(nx, q[2])) {
+                q = [nx, 0, q[2]]
+            } else if (grille.praticable(q[0], nz)) {
+                q = [q[0], 0, nz]
+            }
+            object.set_position(this.nom, q[0], 0, q[2])
+        }
+        object.set_rotation(this.nom, 0, math.atan2(dx, dz) * 180 / math.pi, math.sin(temps * 6) * 4)
+        this.recharge -= dt
+        return d
+    }
+
+    # Un coup d'épée ; rend vrai s'il l'achève (la destruction retire son nœud).
+    fn blesser() {
+        this.pv -= 1
+        if (this.pv > 0) { return false }
+        this.destroy()
+        return true
+    }
+}
+
+# ── La partie ────────────────────────────────────────────────────────────────
+
+class Donjon extends Scene {
+    let plan = nil
+    let grille = nil
+    let pieces = {}       # nom de pièce → Piece (un SceneAsset par modèle)
+    let pv = PV_MAX
+    let or_ = 0
+    let tues = 0
+    let temps = 0
+    let fini = false
+    let degats = 10
+    let recharge_coup = 0
+    let frappe_avant = false
+    let squelettes = []
+    let coffres = []      # {chemin, pos, ouvert}
+    let portail = nil     # {chemin, pos} du portail
+    let visite = []       # cases découvertes (brouillard de la mini-carte)
+    let hud = {}
+    let message_temps = 0
+
+    fn on_start() {
+        this.plan = this.state().plan or plan_par_defaut()
+        this.grille = Grille(this.plan)
+        this.degats = DEGATS[this.plan.difficulte] or 10
+        for (i in range(this.grille.w * this.grille.h)) { this.visite.append(false) }
+        this.construire()
+        this.creer_interface()
+        input.set_mouse_mode("captured")
+        this.annoncer(this.plan.nom)
+        editor.log(format("{} : {} pièces, {} squelettes, {} coffres", this.plan.nom, len(this.grille.cases),
+                          len(this.squelettes), len(this.coffres)))
+    }
+
+    # ── Construction ─────────────────────────────────────────────────────────
+
+    fn piece(nom) {
+        if (not this.pieces[nom]) { this.pieces[nom] = Piece(nom) }
+        return this.pieces[nom]
+    }
+
+    # Premier enfant de `racine` portant l'un des `noms` (les pièces peuvent
+    # être renommées dans l'atelier) : {chemin, pos}, ou nil s'il n'y en a pas.
+    fn repere(racine, noms) {
+        for (n in noms) {
+            let chemin = racine .. "/" .. n
+            let pos = node.world_position(chemin)
+            if (pos != nil) { return {chemin: chemin, pos: pos} }
+        }
+        editor.log(format("{} : aucun nœud parmi {}", racine, noms))
+        return nil
+    }
+
+    fn construire() {
+        let g = this.grille
+        for (k in g.cases) {
+            let c = g.centre(k.x, k.y)
+            let nom = this.piece(k.piece).poser(c[0], c[1], k.rotation)
+            if (k.salle) {
+                for (s in range(4)) {
+                    if (not k.ouvert[s]) { this.piece("porte_muree").poser(c[0], c[1], s) }
+                }
+            }
+            let racine = node.path(nom)
+            if (k.piece == "salle_tresor") {
+                let r = this.repere(racine, ["Coffre", "chest", "Chest"])
+                if (r != nil) { this.coffres.append({chemin: r.chemin, pos: r.pos, ouvert: false}) }
+            }
+            if (k.piece == "sortie") { this.portail = this.repere(racine, ["Portail", "portal", "Portal"]) }
+        }
+        for (m in this.plan.monstres) {
+            let c = g.centre(m[0], m[1])
+            this.squelettes.append(Squelette(c[0] + m[2], c[1] + m[3]))
+        }
+        # Étapes de la visite guidée : le centre de chaque case du chemin.
+        node.create_group("Chemin")
+        let n = 0
+        for (i in this.plan.chemin) {
+            n += 1
+            if (n == 1) { continue }
+            let c = g.centre_indice(i)
+            scene.spawn({name: "Étape " .. n, parent: "Chemin", shape: "box", size: [0.2, 0.2, 0.2],
+                         pos: [c[0], 1, c[1]], visible: false, tag: "etape"})
+        }
+        # Le joueur au pied de l'escalier, tourné vers la première étape.
+        let d = g.centre(this.plan.depart[0], this.plan.depart[1])
+        let cap = 0
+        if (len(this.plan.chemin) > 1) {
+            let v = g.centre_indice(this.plan.chemin[1])
+            cap = math.atan2(v[0] - d[0], v[1] - d[1]) * 180 / math.pi
+        }
+        object.set_position("Joueur", d[0], 1, d[1])
+        object.set_rotation("Joueur", 0, cap, 0)
+    }
+
+    # ── Interface ────────────────────────────────────────────────────────────
+
+    fn creer_interface() {
+        let bloc = ui.column({anchor: "top_left", offset: [16, 14], gap: 6, pad: 12, bg: "#120e0cc8", radius: 8, w: 240})
+        this.hud.pv = ui.progress(PV_MAX, PV_MAX, {parent: bloc, w: 200})
+        this.hud.pv_texte = ui.label("PV", {parent: bloc, font_size: 13})
+        this.hud.or_ = ui.label("Or : 0", {parent: bloc, font_size: 16, color: "#ffd060"})
+        this.hud.tues = ui.label("Squelettes vaincus : 0", {parent: bloc, font_size: 13})
+        ui.label(this.plan.nom, {anchor: "top", offset: [0, 14], font_size: 26, bold: true, color: "#e8c27a"})
+        this.hud.message = ui.label("", {anchor: "center", offset: [0, -120], font_size: 22, bold: true,
+                                         color: "#ffe9b0"})
+        ui.button("Menu", fn(b) { this.load("Menu principal") }, {anchor: "top_right", offset: [-14, 14], w: 80})
+        ui.label("ZQSD / WASD : marcher · souris : regarder · Espace ou clic : frapper · F7 : libérer la souris",
+                 {anchor: "bottom", offset: [0, -14], font_size: 13, color: "#c9bfaea0"})
+    }
+
+    fn annoncer(texte) {
+        this.hud.message.text = texte
+        this.message_temps = 2.5
+    }
+
+    fn rafraichir_interface(dt) {
+        this.hud.pv.value = this.pv
+        this.hud.pv_texte.text = format("PV {} / {}", this.pv, PV_MAX)
+        this.hud.or_.text = format("Or : {}", this.or_)
+        this.hud.tues.text = format("Squelettes vaincus : {}", this.tues)
+        this.message_temps -= dt
+        if (this.message_temps <= 0) { this.hud.message.text = "" }
+    }
+
+    # Mini-carte (2D, coin bas-droit) : seules les cases découvertes et leurs
+    # voisines ouvertes apparaissent.
+    fn dessiner_carte() {
+        let g = this.grille
+        let taille = canvas.size()
+        let ox = taille[0] - 24 - g.w * PX
+        let oy = taille[1] - 60 - g.h * PX
+        draw2d.rect(ox - 6, oy - 6, g.w * PX + 12, g.h * PX + 12, "#0c0a09c0",
+                    {z: 40, outline: 1, outline_color: "#8a7f7480"})
+        for (i in range(g.w * g.h)) {
+            let k = g.cases[i]
+            let connu = this.visite[i]
+            if (not connu) {
+                for (s in range(4)) {
+                    let nx = k.x + [0, 1, 0, -1][s]
+                    let ny = k.y + [1, 0, -1, 0][s]
+                    if (k.ouvert[s] and g.dedans([nx, ny]) and this.visite[ny * g.w + nx]) { connu = true }
+                }
+            }
+            if (not connu) { continue }
+            # Case (y vers le haut à l'écran = nord).
+            let cx = ox + (k.x + 0.5) * PX
+            let cy = oy + (g.h - k.y - 0.5) * PX
+            let teinte = "#9c8f80"
+            if (not this.visite[i]) { teinte = "#5a5048" }
+            if (k.salle) {
+                draw2d.rect(cx - 6, cy - 6, 12, 12, teinte, {z: 41})
+            } else {
+                draw2d.rect(cx - 2, cy - 2, 4, 4, teinte, {z: 41})
+            }
+            let bras = [[0, -1], [1, 0], [0, 1], [-1, 0]] # nord = haut de l'écran
+            for (s in range(4)) {
+                if (k.ouvert[s]) {
+                    draw2d.line(cx, cy, cx + bras[s][0] * PX / 2, cy + bras[s][1] * PX / 2, teinte, {z: 41, width: 3})
+                }
+            }
+            if (k.piece == "sortie") { draw2d.circle(cx, cy, 3.5, "#78dcff", {z: 43}) }
+        }
+        let p = object.position("Joueur")
+        let px = ox + (p[0] / CASE + (g.w - 1) / 2 + 0.5) * PX
+        let py = oy + (g.h - (p[2] / CASE + (g.h - 1) / 2) - 0.5) * PX
+        let a = object.rotation("Joueur")[1] * math.pi / 180
+        draw2d.line(px, py, px + math.sin(a) * 8, py - math.cos(a) * 8, "#ffd873", {z: 46, width: 2})
+        draw2d.circle(px, py, 3.5, "#ffd873", {z: 46, outline: 1, outline_color: "#000000"})
+    }
+
+    fn dessiner_viseur() {
+        if (input.mouse_mode() != "captured") { return nil }
+        let t = canvas.size()
+        let cx = t[0] / 2
+        let cy = t[1] / 2
+        draw2d.line(cx - 9, cy, cx - 3, cy, "#ffffffc0", {z: 50, width: 2})
+        draw2d.line(cx + 3, cy, cx + 9, cy, "#ffffffc0", {z: 50, width: 2})
+        draw2d.line(cx, cy - 9, cx, cy - 3, "#ffffffc0", {z: 50, width: 2})
+        draw2d.line(cx, cy + 3, cx, cy + 9, "#ffffffc0", {z: 50, width: 2})
+    }
+
+    # ── Combat ───────────────────────────────────────────────────────────────
+
+    # Coup d'épée : les squelettes à portée, devant le joueur.
+    fn frapper() {
+        let p = object.position("Joueur")
+        let cap = object.rotation("Joueur")[1] * math.pi / 180
+        let vivants = []
+        for (s in this.squelettes) {
+            let q = s.position()
+            let dx = q[0] - p[0]
+            let dz = q[2] - p[2]
+            let d = math.sqrt(dx * dx + dz * dz)
+            if (d < 2.4 and (dx * math.sin(cap) + dz * math.cos(cap)) > d * 0.3 and s.blesser()) {
+                this.tues += 1
+                this.or_ += 5
+                this.annoncer("Squelette vaincu !")
+            } else {
+                vivants.append(s)
+            }
+        }
+        this.squelettes = vivants
+        this.recharge_coup = 0.5
+    }
+
+    fn animer_squelettes(dt) {
+        let p = object.position("Joueur")
+        let cible = ""
+        let plus_proche = 1e9
+        for (s in this.squelettes) {
+            let d = s.avancer(p, this.grille, this.temps, dt)
+            if (d < 1.5 and s.recharge <= 0) {
+                this.pv = math.max(0, this.pv - this.degats)
+                s.recharge = 1.2
+                this.annoncer("Un squelette vous frappe !")
+            }
+            if (d < 4 and d < plus_proche) {
+                plus_proche = d
+                cible = s.nom
+            }
+        }
+        # Visite guidée : le chevalier fait face au plus proche et frappe.
+        let manuel = node.prop("Joueur", "manuel") == true
+        if (manuel) { cible = "" }
+        node.prop("Joueur", "cible", cible)
+        if (not manuel and cible != "" and plus_proche < 2.3 and this.recharge_coup <= 0) { this.frapper() }
+    }
+
+    # ── Partie ───────────────────────────────────────────────────────────────
+
+    fn terminer(victoire) {
+        this.fini = true
+        input.set_mouse_mode("free") # boutons de fin de partie
+        node.prop("Joueur", "cible", "")
+        let titre = "Vous êtes tombé…"
+        if (victoire) { titre = "Vous avez trouvé la sortie !" }
+        let panneau = ui.column({anchor: "center", gap: 10, pad: 26, bg: "#120e0ce8", radius: 10, align: "center"})
+        ui.label(titre, {parent: panneau, font_size: 26, bold: true, color: "#e8c27a"})
+        ui.label(format("{} — {} s, {} pièces d'or, {} squelettes vaincus", this.plan.nom, math.round(this.temps),
+                        this.or_, this.tues), {parent: panneau, color: "#c9bfae"})
+        ui.button("Rejouer ce donjon", fn(b) { this.load("Donjon") }, {parent: panneau, w: 300})
+        ui.button("Nouveau donjon", fn(b) {
+            let etat = this.state()
+            etat.graine = (etat.graine or 1234) + 1
+            this.load("Génération")
+        }, {parent: panneau, w: 300})
+        ui.button("Menu principal", fn(b) { this.load("Menu principal") }, {parent: panneau, w: 300})
+        editor.log(format("{} : {} en {} s (PV {}, or {}, tués {})", this.plan.nom, titre,
+                          math.round(this.temps * 10) / 10, this.pv, this.or_, this.tues))
+    }
+
+    fn on_mouse_mode(mode) {
+        if (mode == "captured") {
+            this.annoncer("Souris capturée · F7 pour la libérer")
+        } else {
+            this.annoncer("Souris libre · F7 pour la capturer")
+        }
+    }
+
+    fn on_update(dt) {
+        this.dessiner_carte()
+        this.dessiner_viseur()
+        this.rafraichir_interface(dt)
+        if (this.fini) { return nil }
+        this.temps += dt
+        let p = object.position("Joueur")
+        let c = this.grille.case_de(p[0], p[2])
+        if (this.grille.dedans(c)) { this.visite[c[1] * this.grille.w + c[0]] = true }
+
+        this.recharge_coup -= dt
+        let frappe = input.key("space") or (input.mouse_mode() == "captured" and canvas.mouse_pressed(1))
+        if (frappe and not this.frappe_avant and this.recharge_coup <= 0) { this.frapper() }
+        this.frappe_avant = frappe
+        this.animer_squelettes(dt)
+
+        for (k in this.coffres) {
+            if (not k.ouvert and distance_plane(p, k.pos) < 2.2) {
+                k.ouvert = true
+                node.prop(k.chemin, "open", true)
+                this.or_ += 25
+                this.annoncer("Un coffre plein d'or : +25")
+            }
+        }
+        if (this.portail != nil and distance_plane(p, this.portail.pos) < 2.4) {
+            this.terminer(true)
+        } else if (this.pv <= 0) {
+            this.terminer(false)
+        } else if (p[1] < -5) {
+            # Filet de sécurité : tombé sous le sol, retour à l'entrée.
+            let d = this.grille.centre(this.plan.depart[0], this.plan.depart[1])
+            object.set_position("Joueur", d[0], 1, d[1])
+        }
+    }
+}

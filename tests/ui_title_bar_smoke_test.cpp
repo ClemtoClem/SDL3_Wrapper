@@ -7,6 +7,7 @@
 #include "core/core.hpp"
 #include "core/test.hpp"
 #include "sdl3/sdl3.hpp"
+#include "ui/canvas_window_frame.hpp"
 #include "ui/chrome.hpp"
 #include "ui/ui.hpp"
 
@@ -170,6 +171,74 @@ TEST(StatusBar, TextAndGrip) {
 	ui::StatusBarWidgets textGrip = ui::StatusBar(keep->f, {.text = "x", .icons = false});
 	EXPECT_TRUE(ar.GetComponent<ui::UiLabel>(textGrip.grip).Unwrap()->text == "\xe2\x87\xb2");
 	std::cout << "StatusBar (texte, couleur, poignée icône / texte / absente): ok\n";
+}
+
+TEST(WindowFrame, ContentBetweenBarsAndClose) {
+	auto fx = Fixture::Make();
+	ASSERT_TRUE(fx.IsSome());
+	std::unique_ptr<Fixture> keep(*fx);
+	auto& ar = keep->ar;
+	auto ttf = sdl3::TtfContext::Create(); // pour ouvrir la police d'icônes
+	ASSERT_TRUE(ttf.IsOk());
+	ui::RenderSystem render;
+	bool closedCallback = false;
+	ui::WindowFrame frame;
+	frame.Build(keep->f, keep->layout, render, keep->window,
+				{.title = "Cadre",
+				 .appIcon = Some(ui::MaterialIcons::WIDGETS),
+				 .status = "Prêt.",
+				 .onClose = [&closedCallback] { closedCallback = true; }});
+	// Police d'icônes trouvée dans assets/fonts (tests lancés depuis la racine).
+	EXPECT_TRUE(frame.HasIcons());
+	EXPECT_TRUE(render.HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>()));
+	EXPECT_TRUE(String(SDL_GetWindowTitle(keep->window.Get())) == "Cadre");
+
+	auto content = keep->f.Panel();
+	content.GrowW().GrowH().Parent(frame.Content());
+	ecs::Entity contentE = content.Spawn();
+	keep->layout.RunIfNeeded(ar, 800, 600);
+	sdl3::FRect title = Screen(ar, frame.TitleBar().root);
+	sdl3::FRect status = Screen(ar, frame.StatusBar().root);
+	sdl3::FRect area = frame.ContentRect();
+	EXPECT_TRUE(title.y < 1.f && title.h > 35.f && title.h < 37.f);
+	EXPECT_TRUE(status.y + status.h > 599.f && status.h > 23.f && status.h < 25.f);
+	EXPECT_TRUE(std::abs(area.y - (title.y + title.h)) < 1.f);
+	EXPECT_TRUE(std::abs((area.y + area.h) - status.y) < 1.f);
+	EXPECT_TRUE(std::abs(Screen(ar, contentE).h - area.h) < 1.f);
+
+	frame.SetStatus("Connecté");
+	EXPECT_TRUE(ar.GetComponent<ui::UiLabel>(frame.StatusBar().label).Unwrap()->text == "Connecté");
+	frame.SetTitle("Autre");
+	EXPECT_TRUE(ar.GetComponent<ui::UiLabel>(frame.TitleBar().title).Unwrap()->text == "Autre");
+
+	EXPECT_FALSE(frame.CloseRequested());
+	auto cb = ar.GetComponent<ui::UiCallbacks>(frame.TitleBar().closeBtn);
+	ASSERT_TRUE(cb.IsSome() && cb.Unwrap()->onClick);
+	cb.Unwrap()->onClick();
+	EXPECT_TRUE(frame.CloseRequested());
+	EXPECT_TRUE(closedCallback);
+	frame.ClearCloseRequest();
+	frame.RequestClose();
+	EXPECT_TRUE(frame.CloseRequested());
+	frame.Update(); // hit-test reconstruit, icône agrandir : sans plantage
+	std::cout << "WindowFrame (contenu entre les barres, état, titre, fermeture): ok\n";
+}
+
+TEST(CanvasWindowFrame, SoftwareUiAndChromeHitTest) {
+	auto fx = Fixture::Make();
+	ASSERT_TRUE(fx.IsSome());
+	std::unique_ptr<Fixture> keep(*fx);
+	auto frame = ui::CanvasWindowFrame::Create(keep->window, {.title = "Scène 3D", .status = "x"});
+	ASSERT_TRUE(frame.IsOk());
+	auto& f = *frame.Value();
+	f.Update(0.016f);							  // layout + rendu logiciel des barres
+	EXPECT_TRUE(f.IsOverChrome({400.f, 10.f}));	  // barre de titre
+	EXPECT_TRUE(f.IsOverChrome({400.f, 590.f}));  // barre d'état
+	EXPECT_FALSE(f.IsOverChrome({400.f, 300.f})); // scène
+	EXPECT_FALSE(f.CloseRequested());
+	f.Frame().RequestClose();
+	EXPECT_TRUE(f.CloseRequested());
+	std::cout << "CanvasWindowFrame (interface logicielle, zones des barres): ok\n";
 }
 
 int main() {
