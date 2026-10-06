@@ -1,6 +1,4 @@
-// Définitions de runtime2d.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de runtime2d.hpp
 #include "runtime2d.hpp"
 
 namespace game_editor {

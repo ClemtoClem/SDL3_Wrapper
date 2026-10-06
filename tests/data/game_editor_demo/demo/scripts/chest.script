@@ -1,11 +1,11 @@
 # chest — ouvre le couvercle (propriété `lid`) quand `open` est vrai
-let angle = map()
+class Coffre extends Behaviour {
+    let angle = 0
 
-fn on_start(self) { angle[self] = 0 }
-
-fn on_update(self, dt) {
-    if (node.prop(self, "open") == true and angle[self] < 105) {
-        angle[self] = math.min(105, angle[self] + dt * 80)
-        object.set_rotation(node.prop(self, "lid"), -angle[self], 0, 0)
+    fn on_update(dt) {
+        if (this.prop("open") == true and this.angle < 105) {
+            this.angle = math.min(105, this.angle + dt * 80)
+            object.set_rotation(this.prop("lid"), -this.angle, 0, 0)
+        }
     }
 }

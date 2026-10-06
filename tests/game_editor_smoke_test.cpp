@@ -13,6 +13,7 @@
 #include "core/test.hpp"
 
 #include <filesystem>
+#include <fstream>
 
 // Chemins relatifs : les en-têtes de `examples/` ne sont pas dans le chemin
 // d'inclusion du Makefile (seul `lib/include` l'est), et une inclusion
@@ -23,6 +24,7 @@
 #include "../examples/game_editor_demo/document/project.hpp"
 #include "../examples/game_editor_demo/app/report.hpp"
 #include "../examples/game_editor_demo/engine/runtime.hpp"
+#include "../examples/game_editor_demo/editor/asset_ops.hpp"
 #include "../examples/game_editor_demo/app/scenarios.hpp"
 
 using namespace game_editor;
@@ -206,7 +208,7 @@ TEST(Project, ResavingKeepsGameplayScriptFiles) {
 	std::filesystem::create_directories(dir);
 	const String manifest((dir / "resave.json").string().c_str());
 	Project project = files::MakeBlankProject(String("Resave"));
-	project.scenes.front().gameplayScript = String("fn on_update(dt) { }\n");
+	project.scenes.front().gameplayScript = String("class Vide extends Scene {\n    fn on_update(dt) { }\n}\n");
 	ASSERT_TRUE(files::SaveProject(project, manifest).IsOk());
 	files::FileList loaded;
 	auto reloaded = files::LoadProject(manifest, &loaded);
@@ -610,7 +612,7 @@ TEST(Runtime, ABrokenGameplayScriptIsDisabledInsteadOfSpamming) {
 	Harness harness;
 	SceneDesc *scene = harness.runtime.ActiveScene();
 	ASSERT_TRUE(scene != nullptr);
-	scene->gameplayScript = String("fn on_update(dt) { return inexistant() }");
+	scene->gameplayScript = String("class Cassee extends Scene { fn on_update(dt) { return inexistant() } }");
 
 	harness.runtime.Play();
 	for (int i = 0; i < 50; ++i)
@@ -1045,7 +1047,7 @@ TEST(Gizmo, AxisPickingRequiresAimingAtTheHandle) {
 
 TEST(Gizmo, ScriptsDriveSelectionAndTheGizmo) {
 	Harness h;
-	ASSERT_TRUE(h.Run(R"SLED(
+	ASSERT_TRUE(h.Run(R"SCRIPT(
         editor.select("Tore")
         editor.focus("Tore")
         assert(editor.gizmo_mode("rotate") == "rotate", "mode non appliqué")
@@ -1058,7 +1060,7 @@ TEST(Gizmo, ScriptsDriveSelectionAndTheGizmo) {
         assert(retour[1] < avant[1] + 0.01, "l'annulation n'a pas rendu l'angle d'origine")
         let touche = editor.select_at(400, 300, 800, 600)
         assert(touche != nil, "aucun objet sous le centre du viewport")
-    )SLED"));
+    )SCRIPT"));
 }
 
 // ============================================================================
@@ -1170,7 +1172,7 @@ TEST(Camera, FlyMovesForwardRightAndAlongWorldUp) {
 
 TEST(Camera, ScriptsDriveEveryCameraMove) {
 	Harness h;
-	ASSERT_TRUE(h.Run(R"SLED(
+	ASSERT_TRUE(h.Run(R"SCRIPT(
         editor.select("Cristal")
         editor.focus("Cristal")
         let pivot = camera.pivot()
@@ -1195,7 +1197,7 @@ TEST(Camera, ScriptsDriveEveryCameraMove) {
         avant = camera.position()
         camera.pan(2, 1)
         assert(distance(camera.position(), avant) > 1, "le panoramique n'a pas bougé la caméra")
-    )SLED"));
+    )SCRIPT"));
 }
 
 // ============================================================================
@@ -1763,7 +1765,8 @@ TEST(NodeScripts, TorchesFlickerIndependentlyAndStopRestoresThem) {
 
 TEST(NodeScripts, EachNodeReceivesItsOwnSelf) {
 	Harness h;
-	(void)h.runtime.AddScript(String("tagger"), String("fn on_start(self) { node.prop(self, \"seen\", self) }"));
+	(void)h.runtime.AddScript(String("tagger"),
+							 String("class Marqueur extends Behaviour { fn on_start() { this.prop(\"seen\", this.node()) } }"));
 	const scene::NodeId a = h.runtime.ResolveId(String("Tore"));
 	const scene::NodeId b = h.runtime.ResolveId(String("Cristal"));
 	ASSERT_TRUE(a.Valid() && b.Valid());
@@ -1778,7 +1781,7 @@ TEST(NodeScripts, EachNodeReceivesItsOwnSelf) {
 TEST(NodeScripts, ABrokenScriptIsDisabledAloneAndReported) {
 	Harness h;
 	ASSERT_TRUE(h.runtime.SwitchScene("Donjon"));
-	(void)h.runtime.AddScript(String("broken"), String("fn on_update(self, dt) { let x = nil + 1 }"));
+	(void)h.runtime.AddScript(String("broken"), String("class Casse extends Behaviour { fn on_update(dt) { let x = nil + 1 } }"));
 	ASSERT_TRUE(h.runtime.SetScriptRef(h.runtime.ResolveId(String("Sortie")), String("broken")));
 	h.runtime.Play();
 	Simulate(h, 10);
@@ -1794,14 +1797,240 @@ TEST(NodeScripts, ABrokenScriptIsDisabledAloneAndReported) {
 	EXPECT_EQ(int(h.runtime.ScriptErrorCount()), 1); // une fois, pas une par image
 }
 
+// ============================================================================
+// Bases du moteur dérivées par les scripts (Scene, Behaviour, Mesh3D…)
+// ============================================================================
+
+TEST(EngineBases, EachNodeGetsItsOwnBehaviourInstanceDestroyedWithTheScene) {
+	Harness h;
+	(void)h.runtime.AddScript(String("compteur"),
+							  String("var detruits = []\n"
+									 "class Compteur extends Behaviour {\n"
+									 "    let images = 0\n"
+									 "    fn on_update(dt) { this.images += 1\n"
+									 "                       this.prop(\"images\", this.images) }\n"
+									 "    fn on_destroy() { detruits.append(this.node()) }\n"
+									 "}\n"));
+	ASSERT_TRUE(h.runtime.SetScriptRef(h.runtime.ResolveId(String("Tore")), String("compteur")));
+	ASSERT_TRUE(h.runtime.SetScriptRef(h.runtime.ResolveId(String("Cristal")), String("compteur")));
+	h.runtime.Play();
+	Simulate(h, 3);
+	// Un état PAR NŒUD, dans les champs de l'instance (plus de table par `self`).
+	EXPECT_TRUE(Node(h, "Tore")->Get(String("images"))->AsFloat() == 3.f);
+	EXPECT_TRUE(Node(h, "Cristal")->Get(String("images"))->AsFloat() == 3.f);
+	size_t behaviours = 0;
+	for (const data::script::OwnerInfo &info : h.runtime.LiveOwners())
+		behaviours += info.typeName == "game.Behaviour" ? 1 : 0;
+	EXPECT_EQ(behaviours, size_t(2));
+	h.runtime.Stop();
+	EXPECT_EQ(h.runtime.LiveOwners().size(), size_t(0));
+	EXPECT_EQ(int(h.runtime.ScriptErrorCount()), 0);
+}
+
+TEST(EngineBases, AScriptWithoutBehaviourClassIsReported) {
+	Harness h;
+	(void)h.runtime.AddScript(String("ancien"), String("fn on_update(self, dt) { }"));
+	ASSERT_TRUE(h.runtime.SetScriptRef(h.runtime.ResolveId(String("Tore")), String("ancien")));
+	h.runtime.Play();
+	Simulate(h, 2);
+	bool reported = false;
+	for (const ScriptStatus &status : h.runtime.ScriptStatuses())
+		if (status.name == "ancien")
+			reported = !status.running && status.error.Contains("Behaviour");
+	EXPECT_TRUE(reported);
+	h.runtime.Stop();
+}
+
+TEST(EngineBases, MeshAndBodyAreCreatedThenRemovedInRaiiOrder) {
+	Harness h;
+	ASSERT_TRUE(h.runtime.SetGameplayScript(
+					String("Vitrine"),
+					String("var journal = []\n"
+						   "class Bille extends Mesh3D, PhysicsBody {\n"
+						   "    fn init(n) { super.init(\"Bille \" .. n, {shape: \"sphere\", pos: [n, 6, 0], body: \"dynamic\"}) }\n"
+						   "    fn on_destroy() { journal.append(\"on_destroy \" .. this.name) }\n"
+						   "    fn deinit() { journal.append(\"deinit\") }\n"
+						   "}\n"
+						   "class Essai extends Scene {\n"
+						   "    let billes = []\n"
+						   "    fn on_start() { this.billes = [Bille(1), Bille(2)]\n"
+						   "                    this.billes[0].impulse(0, 3, 0) }\n"
+						   "    fn on_update(dt) { if (this.time() > 0.1 and not this.billes[1].is_destroyed()) {\n"
+						   "        this.billes[1].destroy() } }\n"
+						   "}\n"))
+					.IsNone());
+	h.runtime.Play();
+	ASSERT_TRUE(Node(h, "Bille 1") != nullptr && Node(h, "Bille 2") != nullptr);
+	EXPECT_TRUE(PhysicsDesc::Read(*Node(h, "Bille 1")).body == BodyKind::DYNAMIC);
+	Simulate(h, 12);
+	// Détruite à la main : son nœud est parti, l'autre bille vole toujours —
+	// le retrait d'un nœud en partie ne remet pas la physique à zéro.
+	EXPECT_TRUE(Node(h, "Bille 2") == nullptr);
+	Option<math::FVector3> v = h.runtime.GetVelocity(h.runtime.ResolveId(String("Bille 1")));
+	ASSERT_TRUE(v.IsSome());
+	EXPECT_TRUE(sdl3::Abs(v.Unwrap().y) > 0.01f);
+	EXPECT_EQ(h.runtime.GameplayGlobal(String("journal")).Unwrap().ToDisplayString(),
+			  "[on_destroy Bille 2, deinit]");
+	EXPECT_EQ(h.runtime.LiveOwners().size(), size_t(1 * 2 + 1)); // Bille 1 (2 bases) + Scene
+	h.runtime.Stop();
+	EXPECT_TRUE(Node(h, "Bille 1") == nullptr);
+	EXPECT_EQ(h.runtime.LiveOwners().size(), size_t(0));
+	EXPECT_EQ(int(h.runtime.ScriptErrorCount()), 0);
+	// La partie n'a laissé aucune étape d'annulation.
+	EXPECT_TRUE(h.runtime.UndoLabel().IsEmpty());
+}
+
+TEST(EngineBases, BasesRefuseInconsistentCombinations) {
+	Harness h;
+	h.runtime.Play();
+	auto error = [&](const char *source) -> String {
+		auto result = h.runtime.GameplayVm().Run(StringView(source));
+		return result.IsOk() ? String() : result.Error().Format();
+	};
+	EXPECT_TRUE(error("class A extends PhysicsBody, Mesh3D {}\nA()").Contains("déclarée AVANT"));
+	EXPECT_TRUE(error("class B extends Mesh3D, Node3D {}\nB()").Contains("porte déjà un nœud"));
+	EXPECT_TRUE(error("class C extends Behaviour {}\nC()").Contains("s'attache à un nœud"));
+	EXPECT_TRUE(error("class D extends Behaviour {}\nD(\"Inexistant\")").Contains("introuvable"));
+	EXPECT_TRUE(error("class E extends SceneAsset {}\nE()").Contains("chemin"));
+	h.runtime.Stop();
+	EXPECT_EQ(h.runtime.LiveOwners().size(), size_t(0));
+}
+
+TEST(EngineBases, GameplayEventsReachListenersAndAreForgottenOnDestroy) {
+	Harness h;
+	h.runtime.Play();
+	auto result = h.runtime.GameplayVm().Run(StringView(
+		"class Cible extends Gameplay {\n"
+		"    let pv = 10\n"
+		"    fn init() { super.init()\n"
+		"                this.on(\"hit\", fn(d) { this.pv -= d }) }\n"
+		"}\n"
+		"let c = Cible()\n"
+		"c.emit(\"hit\", 3)\nc.emit(\"hit\", 2)\n"
+		"let avant = c.listeners()\n"
+		"c.destroy()\n"
+		"return [c.pv, avant, c is Gameplay]"));
+	ASSERT_TRUE(result.IsOk());
+	EXPECT_EQ(result.Value().ToDisplayString(), "[5, 1, true]");
+	h.runtime.Stop();
+}
+
+// ============================================================================
+// Analyse statique des scripts (ce que le moteur en fera, sans exécution)
+// ============================================================================
+
+TEST(ScriptOutlines, RolesFollowTheEngineRules) {
+	const ModuleSource none = [](const String &) -> Option<String> { return NONE; };
+	ScriptOutline behaviour = OutlineScript(
+		String("class Torche extends Behaviour, Light3D {\n    fn on_update(dt) { }\n    fn deinit() { }\n}\n"),
+		ScriptUse::LIBRARY, none);
+	EXPECT_TRUE(behaviour.role == ScriptRole::BEHAVIOUR);
+	EXPECT_EQ(behaviour.mainClass, "Torche");
+	ASSERT_TRUE(behaviour.Find(String("Torche")) != nullptr);
+	EXPECT_EQ(behaviour.Find(String("Torche"))->Signature(), "Torche (Behaviour, Light3D)");
+	EXPECT_EQ(behaviour.Summary(), "comportement Torche (Behaviour, Light3D)");
+	ASSERT_TRUE(behaviour.Find(String("Torche"))->hooks.size() == 2u);
+
+	// Un parent abstrait et une feuille : seule la feuille compte ; les bases
+	// héritées du parent sont reportées sur la feuille.
+	ScriptOutline inherited = OutlineScript(String("abstract class Base extends Scene { }\n"
+												   "namespace jeu { class Niveau extends Base, Gameplay { } }\n"),
+											ScriptUse::SCENE, none);
+	EXPECT_TRUE(inherited.role == ScriptRole::SCENE);
+	EXPECT_EQ(inherited.mainClass, "jeu.Niveau");
+	EXPECT_EQ(inherited.Find(String("jeu.Niveau"))->Signature(), "jeu.Niveau (Base, Scene, Gameplay)");
+
+	EXPECT_TRUE(OutlineScript(String("fn on_update(dt) { }"), ScriptUse::SCENE, none).role == ScriptRole::INVALID);
+	ScriptOutline two = OutlineScript(String("class A extends Behaviour {}\nclass B extends Behaviour {}"),
+									  ScriptUse::LIBRARY, none);
+	// Plusieurs Behaviour : un module valide (importable), mais pas attachable.
+	EXPECT_TRUE(two.role == ScriptRole::MODULE);
+	EXPECT_TRUE(two.attachProblem.Contains("A, B"));
+	EXPECT_EQ(two.Summary(), "module : 2 classes dont 2 Behaviour");
+	EXPECT_TRUE(OutlineScript(String("class Outil { }"), ScriptUse::LIBRARY, none).role == ScriptRole::MODULE);
+	EXPECT_TRUE(OutlineScript(String(""), ScriptUse::SCENE, none).role == ScriptRole::EMPTY);
+	ScriptOutline broken = OutlineScript(String("class {"), ScriptUse::LIBRARY, none);
+	EXPECT_TRUE(broken.error.IsSome());
+	EXPECT_TRUE(broken.Summary().StartsWith("erreur ligne"));
+	// Une classe locale du même nom qu'une base du moteur la masque.
+	ScriptOutline shadow = OutlineScript(String("class Scene { }\nclass X extends Scene { }"), ScriptUse::SCENE, none);
+	EXPECT_TRUE(shadow.role == ScriptRole::INVALID);
+}
+
+TEST(ScriptOutlines, ImportedModulesAreResolvedWithoutRunning) {
+	// Le module définit une base abstraite ET une feuille Behaviour : comme à
+	// l'exécution, une Behaviour d'un module importé compte.
+	const ModuleSource modules = [](const String &specifier) -> Option<String> {
+		if (specifier == "course")
+			return Some(String("abstract class Course extends Scene { fn on_update(dt) { } }\n"
+							   "editor.save()  # jamais exécuté par l'analyse\n"));
+		return NONE;
+	};
+	ScriptOutline scene = OutlineScript(String("const course = import \"course\"\nclass Ovale extends course.Course {}\n"),
+										ScriptUse::SCENE, modules);
+	EXPECT_TRUE(scene.role == ScriptRole::SCENE);
+	EXPECT_EQ(scene.mainClass, "Ovale");
+	ASSERT_TRUE(scene.imports.size() == 1u);
+	EXPECT_EQ(scene.Find(String("Ovale"))->Signature(), "Ovale (Course, Scene)");
+	ScriptOutline missing = OutlineScript(String("const x = import \"absent\"\nclass S extends x.Base {}\n"),
+										  ScriptUse::SCENE, modules);
+	EXPECT_TRUE(missing.role == ScriptRole::INVALID);
+	ASSERT_TRUE(missing.Find(String("S")) != nullptr);
+	ASSERT_TRUE(missing.Find(String("S"))->unresolved.size() == 1u);
+}
+
+TEST(ScriptOutlines, AgreeWithTheEngineOnTheDemoProject) {
+	Harness h;
+	const Project &project = h.runtime.GetProject();
+	for (const ScriptAsset &script : project.scripts) {
+		const ScriptOutline outline = h.runtime.OutlineScript(script.source, ScriptUse::LIBRARY);
+		EXPECT_TRUE(outline.role == ScriptRole::BEHAVIOUR);
+	}
+	for (const SceneDesc &scene : project.scenes)
+		if (!scene.gameplayScript.IsEmpty())
+			EXPECT_TRUE(h.runtime.OutlineScript(scene.gameplayScript, ScriptUse::SCENE).role == ScriptRole::SCENE);
+}
+
+TEST(EngineBases, LiveObjectsAreListedPerNodeAndDestroyableFromTheEditor) {
+	Harness h;
+	ASSERT_TRUE(h.runtime.SwitchScene("Donjon"));
+	h.runtime.Play();
+	Simulate(h, 2);
+	const scene::NodeId torch = h.runtime.ResolveId(String("Torche 1"));
+	std::vector<ScriptObjectInfo> objects = h.runtime.ScriptObjectsOf(torch);
+	ASSERT_TRUE(objects.size() == 1u);
+	EXPECT_EQ(objects[0].Signature(), "Torche (Behaviour, Light3D)");
+	EXPECT_TRUE(objects[0].attached);
+	EXPECT_EQ(objects[0].origin, "torchlight");
+	bool hasBase = false;
+	for (const auto &[name, value] : objects[0].Fields())
+		hasBase = hasBase || name == "base";
+	EXPECT_TRUE(hasBase);
+	bool sceneObject = false;
+	for (const ScriptObjectInfo &info : h.runtime.LiveScriptObjects())
+		sceneObject = sceneObject || (info.origin == "scène" && info.className == "Donjon");
+	EXPECT_TRUE(sceneObject);
+	// Détruire depuis l'éditeur : séquence RAII, le nœud (non possédé) reste.
+	EXPECT_TRUE(h.runtime.DestroyScriptObject(objects[0]));
+	EXPECT_FALSE(h.runtime.DestroyScriptObject(objects[0]));
+	EXPECT_TRUE(h.runtime.ScriptObjectsOf(torch).empty());
+	EXPECT_TRUE(Node(h, "Torche 1") != nullptr);
+	Simulate(h, 2);
+	EXPECT_EQ(int(h.runtime.ScriptErrorCount()), 0);
+	h.runtime.Stop();
+	EXPECT_TRUE(h.runtime.LiveScriptObjects().empty());
+}
+
 TEST(Triggers, OnlyTransitionsAreNotifiedAndOnceMeansOnce) {
 	Harness h;
 	ASSERT_TRUE(h.runtime.SwitchScene("Donjon"));
 	// Script de scène de test : compte les entrées et sorties.
 	ASSERT_TRUE(h.runtime.SetGameplayScript(String("Donjon"),
-											String("let enters = 0\nlet exits = 0\n"
-												   "fn on_trigger(zone, other, event) { enters += 1 }\n"
-												   "fn on_trigger_exit(zone, other, event) { exits += 1 }"))
+											String("class Compteur extends Scene {\n"
+												   "    let enters = 0\n    let exits = 0\n"
+												   "    fn on_trigger(zone, other, event) { this.enters += 1 }\n"
+												   "    fn on_trigger_exit(zone, other, event) { this.exits += 1 }\n"
+												   "}"))
 					.IsNone());
 	// Une zone RÉPÉTABLE, loin du chemin du joueur.
 	ObjectDesc zone = ObjectDesc::Group(String("Zone test"));
@@ -1928,9 +2157,9 @@ TEST(Scripts, CheckReportsTheFirstErrorWithItsLine) {
 	EXPECT_EQ(error.Unwrap().line, 2);
 
 	Harness h;
-	EXPECT_TRUE(h.runtime.SetScriptSource(String("door"), String("fn on_update(self, dt) {")).IsSome());
+	EXPECT_TRUE(h.runtime.SetScriptSource(String("door"), String("class Herse extends Behaviour {")).IsSome());
 	// Le texte est gardé malgré l'erreur : on ne perd pas un travail en cours.
-	EXPECT_EQ(h.runtime.GetProject().FindScript(String("door"))->source, "fn on_update(self, dt) {");
+	EXPECT_EQ(h.runtime.GetProject().FindScript(String("door"))->source, "class Herse extends Behaviour {");
 }
 
 TEST(ScriptApi, LightsAreDrivenByName) {
@@ -2104,6 +2333,156 @@ TEST(AssetBrowser, SavesAreAFolderOfTheirOwn) {
 	EXPECT_EQ(crumbs[1].first, "Sauvegardes");
 	ASSERT_TRUE(model.Up());
 	EXPECT_EQ(model.Location(), AssetBrowserModel::ROOT);
+}
+
+// ── Opérations sur les fichiers (navigateur de ressources) ──────────────────
+
+namespace {
+
+/// Copie du projet de démonstration dans un dossier temporaire, ouverte par
+/// un runtime : les opérations y écrivent sans toucher aux données des tests.
+struct FileHarness {
+	std::filesystem::path dir = std::filesystem::temp_directory_path() / "game_editor_asset_ops";
+	ecs::ArchetypeRegistry registry;
+	Runtime runtime{registry};
+	AssetBrowserModel model;
+	String root;
+
+	FileHarness() {
+		std::filesystem::remove_all(dir);
+		std::filesystem::copy(std::filesystem::path(DEMO_PROJECT).parent_path(), dir,
+							  std::filesystem::copy_options::recursive);
+		std::filesystem::create_directories(dir / "scenes" / "pieces");
+		std::ofstream(dir / "scenes" / "pieces" / "mur.scene") << "{}";
+		std::filesystem::create_directories(dir / "scripts" / "outils");
+		std::ofstream(dir / "scripts" / "outils" / "maths.script") << "fn double(x) { return 2 * x }";
+		(void)runtime.LoadProjectFile(String((dir / "demo.json").string().c_str()));
+		root = String(dir.string().c_str());
+		model = AssetBrowserModel(&runtime.GetProject(), String("assets"), root, String("Dossier du projet"));
+		model.SetProjectDirectory(root);
+	}
+	~FileHarness() { std::filesystem::remove_all(dir); }
+
+	Option<AssetEntry> Entry(const String &location, const char *name) {
+		for (const AssetEntry &entry : model.List(location))
+			if (entry.name == name)
+				return Some(entry);
+		return NONE;
+	}
+};
+
+} // namespace
+
+TEST(AssetFiles, ScenesAndScriptsShowTheirSubfolders) {
+	FileHarness h;
+	// « Scènes » : les scènes du projet ET le sous-dossier `pieces/` du disque,
+	// sans doublon des fichiers que le projet écrit lui-même.
+	Option<AssetEntry> pieces = h.Entry(String(AssetBrowserModel::SCENES), "pieces");
+	ASSERT_TRUE(pieces.IsSome());
+	EXPECT_TRUE(pieces.Value().kind == AssetKind::FOLDER && !pieces.Value().managed);
+	ASSERT_TRUE(h.Entry(String(AssetBrowserModel::SCENES), "Donjon").IsSome());
+	EXPECT_TRUE(h.Entry(String(AssetBrowserModel::SCENES), "Donjon").Value().managed);
+	EXPECT_TRUE(h.Entry(String(AssetBrowserModel::SCENES), "Donjon.scene").IsNone());
+	EXPECT_TRUE(h.Entry(String(AssetBrowserModel::SCRIPTS), "outils").IsSome());
+	EXPECT_TRUE(h.Entry(String(AssetBrowserModel::SCRIPTS), "torchlight.script").Value().managed);
+	// Le chemin disque du dossier EST « Scènes » ; un sous-dossier remonte à lui.
+	ASSERT_TRUE(h.model.Navigate(h.model.SceneFolder()));
+	EXPECT_EQ(h.model.Location(), AssetBrowserModel::SCENES);
+	ASSERT_TRUE(h.model.Navigate(pieces.Value().location));
+	const auto crumbs = h.model.Breadcrumb();
+	ASSERT_TRUE(crumbs.size() == 3u);
+	EXPECT_EQ(crumbs[1].first, "Scènes");
+	EXPECT_EQ(crumbs[2].first, "pieces");
+	ASSERT_TRUE(h.model.Up());
+	EXPECT_EQ(h.model.Location(), AssetBrowserModel::SCENES);
+}
+
+TEST(AssetFiles, DiskFilesAreCreatedRenamedDuplicatedMovedAndDeleted) {
+	FileHarness h;
+	AssetOperations ops(h.runtime, h.model);
+	const String scenes(AssetBrowserModel::SCENES);
+	auto folder = ops.CreateFolder(scenes, String("niveaux"));
+	ASSERT_TRUE(folder.IsOk());
+	EXPECT_TRUE(ops.CreateFolder(scenes, String("niveaux")).IsError()); // existe déjà
+	EXPECT_TRUE(ops.CreateFolder(scenes, String("a/b")).IsError());     // séparateur interdit
+	EXPECT_TRUE(ops.CreateFolder(String("assets/models"), String("x")).IsError()); // ressources partagées
+
+	// Renommer un fichier garde son extension si on ne la donne pas.
+	const String pieces = h.model.SceneFolder() + String("/pieces");
+	AssetEntry wall = h.Entry(pieces, "mur.scene").Unwrap();
+	auto renamed = ops.Rename(wall, String("muraille"));
+	ASSERT_TRUE(renamed.IsOk());
+	EXPECT_TRUE(renamed.Value().EndsWith("/pieces/muraille.scene"));
+
+	// Dupliquer, puis déplacer la sélection (copie + original) dans `niveaux/`.
+	AssetEntry wall2 = h.Entry(pieces, "muraille.scene").Unwrap();
+	AssetOpReport copies = ops.Duplicate({wall2});
+	ASSERT_TRUE(copies.done == 1 && copies.Ok());
+	EXPECT_TRUE(h.Entry(pieces, "muraille (copie).scene").IsSome());
+	AssetOpReport moved = ops.Move({h.Entry(pieces, "muraille.scene").Unwrap(),
+									h.Entry(pieces, "muraille (copie).scene").Unwrap()},
+								   folder.Value());
+	EXPECT_EQ(moved.done, 2);
+	EXPECT_TRUE(h.Entry(folder.Value(), "muraille (copie).scene").IsSome());
+	EXPECT_TRUE(h.model.List(pieces).empty());
+
+	// Un dossier ne se range pas en lui-même ; la structure du projet ne bouge pas.
+	AssetEntry levels = h.Entry(scenes, "niveaux").Unwrap();
+	EXPECT_FALSE(ops.Move({levels}, levels.location).Ok());
+	AssetEntry scenesDir = h.Entry(h.root, "scenes").Unwrap();
+	EXPECT_TRUE(ops.WhyLocked(scenesDir, "delete").IsSome());
+	EXPECT_TRUE(ops.WhyLocked(h.Entry(String("assets"), "models").Unwrap(), "rename").IsSome());
+
+	// Supprimer un dossier non vide (récursif).
+	AssetOpReport deleted = ops.Delete({levels});
+	EXPECT_EQ(deleted.done, 1);
+	EXPECT_TRUE(h.Entry(scenes, "niveaux").IsNone());
+}
+
+TEST(AssetFiles, ProjectItemsGoThroughTheProject) {
+	FileHarness h;
+	AssetOperations ops(h.runtime, h.model);
+	const String scenes(AssetBrowserModel::SCENES), scripts(AssetBrowserModel::SCRIPTS);
+	// Renommer un script : les nœuds qui le portent suivent.
+	auto renamed = ops.Rename(h.Entry(scripts, "torchlight.script").Unwrap(), String("flamme.script"));
+	ASSERT_TRUE(renamed.IsOk());
+	EXPECT_EQ(renamed.Value(), String(scripts) + String("/flamme"));
+	EXPECT_TRUE(h.runtime.GetProject().FindScript(String("flamme")) != nullptr);
+	ASSERT_TRUE(h.runtime.SwitchScene(String("Donjon")));
+	EXPECT_EQ(ScriptRef::Read(*h.runtime.ActiveScene()->Find(String("Torche 1"))).script, "flamme");
+
+	// Dupliquer et renommer une scène ; le script de jeu suit son nom.
+	AssetOpReport copy = ops.Duplicate({h.Entry(scenes, "Vitrine").Unwrap()});
+	ASSERT_TRUE(copy.done == 1);
+	ASSERT_TRUE(h.runtime.GetProject().FindScene(String("Vitrine (copie)")) != nullptr);
+	EXPECT_TRUE(ops.Rename(h.Entry(scenes, "Vitrine (copie)").Unwrap(), String("Galerie")).IsOk());
+	EXPECT_TRUE(h.Entry(scripts, "Galerie.main.script").IsSome());
+	EXPECT_TRUE(ops.WhyLocked(h.Entry(scripts, "Galerie.main.script").Unwrap(), "rename").IsSome());
+	EXPECT_TRUE(ops.WhyLocked(h.Entry(scenes, "Galerie").Unwrap(), "move").IsSome());
+
+	// Renommée, une scène laisse son ancien fichier jusqu'à l'enregistrement :
+	// il appartient encore au projet, il n'est pas montré comme fichier libre.
+	ASSERT_TRUE(ops.Rename(h.Entry(scenes, "Assemblages").Unwrap(), String("Ateliers")).IsOk());
+	EXPECT_TRUE(std::filesystem::exists(h.dir / "scenes" / "Assemblages.scene"));
+	h.model.SetOwnedFiles(h.runtime.ProjectFiles());
+	EXPECT_TRUE(h.Entry(scenes, "Assemblages.scene").IsNone());
+	EXPECT_TRUE(h.Entry(scenes, "Ateliers").IsSome());
+
+	// Supprimer : la scène quitte le projet ; l'enregistrement efface ses fichiers.
+	const size_t before = h.runtime.GetProject().scenes.size();
+	AssetOpReport deleted = ops.Delete({h.Entry(scenes, "Galerie").Unwrap(), h.Entry(scripts, "door.script").Unwrap()});
+	EXPECT_EQ(deleted.done, 2);
+	EXPECT_EQ(h.runtime.GetProject().scenes.size(), before - 1);
+	EXPECT_TRUE(h.runtime.GetProject().FindScript(String("door")) == nullptr);
+	ASSERT_TRUE(h.runtime.SaveProject().IsOk());
+	EXPECT_FALSE(std::filesystem::exists(h.dir / "scripts" / "door.script"));
+	EXPECT_TRUE(std::filesystem::exists(h.dir / "scripts" / "flamme.script"));
+	EXPECT_FALSE(std::filesystem::exists(h.dir / "scripts" / "torchlight.script"));
+	EXPECT_FALSE(std::filesystem::exists(h.dir / "scenes" / "Assemblages.scene"));
+	EXPECT_TRUE(std::filesystem::exists(h.dir / "scenes" / "Ateliers.scene"));
+	// Les fichiers hors projet (sous-dossiers) survivent à l'enregistrement.
+	EXPECT_TRUE(std::filesystem::exists(h.dir / "scripts" / "outils" / "maths.script"));
+	EXPECT_TRUE(std::filesystem::exists(h.dir / "scenes" / "pieces" / "mur.scene"));
 }
 
 int main() { return RUN_ALL_TESTS(); }

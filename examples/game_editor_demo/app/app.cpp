@@ -1,6 +1,3 @@
-// Définitions de app.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
 #include "app.hpp"
 
 namespace game_editor {

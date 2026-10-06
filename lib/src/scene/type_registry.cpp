@@ -1,6 +1,4 @@
-// Définitions de scene/type_registry.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de scene/type_registry.hpp
 #include "scene/type_registry.hpp"
 
 namespace scene {

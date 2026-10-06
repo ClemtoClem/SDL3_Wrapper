@@ -1,6 +1,6 @@
 #pragma once
 /**
- * data::script — langage de script interprété embarqué (« Sled »), point
+ * data::script — langage de script interprété embarqué (« Script »), point
  * d'entrée unique du sous-module.
  *
  * Ce fichier assemble lexeur → parseur → interpréteur (voir chaque en-tête

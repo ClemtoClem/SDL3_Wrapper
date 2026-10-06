@@ -109,6 +109,8 @@ private:
 	void BuildPhysicsSection(kit::PropertyRows &rows, scene::NodeId id, const PhysicsDesc &physics);
 
 	void BuildScriptSection(kit::PropertyRows &rows, scene::NodeId id, const ScriptRef &ref);
+	/// Objets de script vivants qui portent le nœud (champs, destruction).
+	void BuildScriptObjects(kit::PropertyRows &rows, scene::NodeId id);
 
 	/// Apparence 2D (forme, couleur, taille, texte, image, contour, z).
 	void BuildCanvasItemSection(kit::PropertyRows &rows, scene::NodeId id, const CanvasItemDesc &item);

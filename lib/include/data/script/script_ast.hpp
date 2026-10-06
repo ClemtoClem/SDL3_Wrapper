@@ -46,6 +46,7 @@ enum class ExprKind : uint8_t {
 	THIS,
 	SUPER,
 	AWAIT,
+	IMPORT
 };
 
 struct Expr {
@@ -253,6 +254,22 @@ struct FunctionExpr : Expr {
 	FunctionDefPtr def;
 	FunctionExpr(FunctionDefPtr d, int lineNo, int columnNo)
 		: Expr(ExprKind::FUNCTION, lineNo, columnNo), def(std::move(d)) {}
+};
+
+/// `import "chemin"` : exécute UNE SEULE FOIS le module nommé et rend sa
+/// valeur — son `return` de plus haut niveau, ou, à défaut, un `namespace`
+/// de ses déclarations de premier niveau. Le fichier est cherché (dans
+/// l'ordre) : chemin absolu, répertoire du script importateur, répertoires
+/// enregistrés par l'hôte (`Interpreter::AddImportPath`) ; extension
+/// `.script` ajoutée si absente. Un module déjà chargé rend la
+/// MÊME valeur (cache par chemin canonique). Les imports cycliques sont une
+/// erreur. Le module s'exécute dans sa propre portée de FONCTION (hissage
+/// des `var` compris), dont le parent est la portée globale de
+/// l'interpréteur — les natives (`print`, `std`, `math`…) restent visibles.
+struct ImportExpr : Expr {
+	ExprPtr specifier;
+	ImportExpr(ExprPtr e, int lineNo, int columnNo)
+		: Expr(ExprKind::IMPORT, lineNo, columnNo), specifier(std::move(e)) {}
 };
 
 // ============================================================================
@@ -464,8 +481,13 @@ struct ClassDef {
 	std::vector<EnumEntry> enumEntries;
 	/// `class Boîte<T>` — cf. FunctionDef::typeParams.
 	std::vector<TypeParam> typeParams;
-	Option<TypePath> superclass; ///< `extends` (classe) — pour une interface, cf. `interfaces`
+	/// `extends A, B, C` — chaque base est résolue à l'exécution de la
+	/// déclaration : au plus UNE classe de script, et zéro ou plusieurs bases
+	/// fournies par l'hôte (« owners » : `Mesh3D`, `Gameplay`…), cf.
+	/// Interpreter::ExecClass et data/script/script_owners.hpp.
+	std::vector<TypePath> bases;
 	std::vector<TypeRef> superTypeArgs; ///< `extends Boîte<i32>`
+	size_t superTypeArgsBase = 0;		///< index, dans `bases`, de la base qui reçoit `superTypeArgs`
 	std::vector<TypePath> interfaces; ///< `implements` (classe) ou `extends` (interface)
 	std::vector<FieldDef> fields;
 	std::vector<MethodDef> methods;

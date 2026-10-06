@@ -1,6 +1,4 @@
-// Définitions de canvas2d_render.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de canvas2d_render.hpp
 #include "canvas2d_render.hpp"
 
 namespace game_editor {

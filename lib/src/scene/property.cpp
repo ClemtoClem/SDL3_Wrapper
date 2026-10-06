@@ -1,6 +1,4 @@
-// Définitions de scene/property.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de scene/property.hpp
 #include "scene/property.hpp"
 
 namespace scene {

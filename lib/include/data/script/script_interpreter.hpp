@@ -47,6 +47,7 @@
 #include <vector>
 
 #include "../../core/core.hpp"
+#include "script_owners.hpp"
 #include "script_parser.hpp"
 #include "script_value.hpp"
 
@@ -202,8 +203,7 @@ void InstallStdLibrary(Interpreter& vm);
 void InstallMathLibrary(Interpreter& vm);
 
 class Interpreter {
-
-  public:
+public:
 	Interpreter();
 
 	Interpreter(const Interpreter&) = delete;
@@ -246,6 +246,48 @@ class Interpreter {
 	/// défaut pour que deux exécutions d'un même script donnent EXACTEMENT
 	/// la même chose (rapports et captures d'écran reproductibles).
 	void SetRandomSeed(uint64_t seed) noexcept;
+
+	// ── Bases fournies par l'hôte (owners) ───────────────────────────────────
+
+	/// Détruit une instance dont la classe dérive d'une base de l'hôte, selon
+	/// la séquence RAII de script_owners.hpp : `on_destroy()` → `deinit()` de
+	/// chaque classe (dérivée d'abord) → `OnDeinit` des bases en ordre inverse
+	/// → retrait du registre. Idempotent ; sans effet sur une instance qui ne
+	/// dérive d'aucune base de l'hôte. Sur le fil principal uniquement.
+	void DestroyInstance(const std::shared_ptr<InstanceObject>& instance);
+
+	/// Instances vivantes qui possèdent une base de l'hôte (cf. OwnerRegistry).
+	[[nodiscard]] OwnerRegistry& Owners() noexcept { return m_owners; }
+	[[nodiscard]] const OwnerRegistry& Owners() const noexcept { return m_owners; }
+
+	// ── Imports ──────────────────────────────────────────────────────────────
+
+	/// Répertoires de recherche des modules, dans l'ordre. Le répertoire du
+	/// script importateur est essayé AVANT ceux-ci (imports relatifs) ; un
+	/// chemin absolu est essayé tel quel en premier.
+	void AddImportPath(const String& directory);
+
+	/// Copie de la liste (lecture).
+	[[nodiscard]] std::vector<String> ImportPaths() const;
+
+	/// Résolveur personnalisé, consulté AVANT tout accès disque. Rend, pour
+	/// un spécificateur, une paire (clé de cache, code source) — utile pour
+	/// exposer des modules EMBARQUÉS (scripts de l'hôte, ressources,
+	/// patches). NONE : l'interpréteur cherche un fichier.
+	using ImportResolver = std::function<Option<std::pair<String, String>>(const String&)>;
+	void SetImportResolver(ImportResolver resolver);
+
+	/// Exécute (au plus une fois par chemin résolu) le module et rend sa
+	/// valeur (cf. ImportExpr). Les erreurs internes sont préfixées du nom
+	/// du module, sans écraser leur position source.
+	[[nodiscard]] Result<Value, ScriptError> ImportModule(const String& specifier, int line, int column);
+
+	/// Vrai si `specifier` résout vers un module déjà chargé.
+	[[nodiscard]] bool IsModuleLoaded(const String& specifier) const;
+
+	/// Chemin canonique d'un spécificateur, ou NONE s'il est introuvable.
+	/// Utilisable par l'hôte pour VALIDER une liste d'imports sans exécuter.
+	[[nodiscard]] Option<String> ResolveImport(const String& specifier) const;
 
 	// ── Globales et fonctions natives ────────────────────────────────────────
 
@@ -321,6 +363,18 @@ class Interpreter {
 	/// `on_start`…). `NONE` si elle n'existe pas — l'hôte distingue ainsi
 	/// « pas de rappel déclaré » (normal) d'une vraie erreur d'exécution.
 	[[nodiscard]] Option<Result<Value, ScriptError>> CallGlobalIfPresent(const String& name, std::vector<Value> args);
+
+	/// Appelle la méthode de SCRIPT `name` d'une instance si sa classe (ou un
+	/// ancêtre) la définit — NONE sinon. C'est ainsi qu'un hôte appelle les
+	/// rappels d'un objet (`on_update`…) sans exiger qu'ils existent tous.
+	[[nodiscard]] Option<Result<Value, ScriptError>> CallMethodIfPresent(const Value& object, const String& name,
+																		 std::vector<Value> args);
+
+	/// Classes déclarées par cet interpréteur qui dérivent (directement ou
+	/// non) de la base de l'hôte nommée `qualifiedName` (`game.Scene`) — les
+	/// FEUILLES seulement : ni abstraites, ni parentes d'une autre classe
+	/// retenue. Dans l'ordre de déclaration.
+	[[nodiscard]] std::vector<std::shared_ptr<ClassObject>> ClassesDerivedFrom(const String& qualifiedName) const;
 
 	/// Appelle une valeur appelable (fonction du script ou native).
 	[[nodiscard]] Result<Value, ScriptError> CallValue(const Value& callee, std::vector<Value> args, int line,
@@ -414,7 +468,7 @@ class Interpreter {
 	/// quand d'autres fils tournent — comme les messages entre isolats Dart.
 	[[nodiscard]] static std::vector<Value> CopyForHost(const std::vector<Value>& values);
 
-  private:
+private:
 	// ── Fils d'exécution ─────────────────────────────────────────────────────
 
 	/// État propre à un fil : budget d'instructions et profondeur d'appel.
@@ -827,11 +881,19 @@ class Interpreter {
 	[[nodiscard]] Result<ExecOutcome, ScriptError> ExecClass(const ClassStmt& stmt,
 															 const std::shared_ptr<Environment>& env);
 
+	// ── Imports ──────────────────────────────────────────────────────────────
+
+	/// Résolution effective : résolveur → absolu → relatif → répertoires.
+	[[nodiscard]] Option<std::pair<String, String>> LoadModuleSource(const String& specifier) const;
+
+	/// Retire le module courant de la pile (RAII dans ImportModule).
+	void PopImportStack() noexcept;
+
 	// ── Membres ──────────────────────────────────────────────────────────────
 
 	std::shared_ptr<Environment> m_globals;
 	std::shared_ptr<Program> m_program; ///< garde l'AST du dernier Run() en vie
-	std::mutex m_environmentsMutex;
+	mutable std::mutex m_environmentsMutex;
 	std::vector<std::weak_ptr<Environment>> m_environments;
 	size_t m_environmentPurgeThreshold = 256;
 	std::mutex m_outputMutex; ///< sortie, `print` en attente et erreurs orphelines
@@ -855,6 +917,16 @@ class Interpreter {
 	std::shared_ptr<std::atomic<bool>> m_alive;
 	std::atomic<bool> m_teardown{false};			   ///< `deinit` de fin : l'exécution reste permise
 	std::vector<std::weak_ptr<ClassObject>> m_classes; ///< sous m_environmentsMutex
+
+	mutable std::mutex m_importMutex;
+	std::vector<String> m_importPaths;
+	ImportResolver m_importResolver;
+	/// Chemin canonique → valeur du module (rendue à l'identique).
+	std::vector<std::pair<String, Value>> m_importCache;
+	/// Chaîne des imports en cours (détection de cycle).
+	std::vector<String> m_importStack;
+
+	OwnerRegistry m_owners;
 };
 
 // ============================================================================

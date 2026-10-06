@@ -1495,4 +1495,159 @@ TEST(ScriptMath, ComplexAndRandomEngine) {
 	EXPECT_TRUE(EvalError("return math.random_engine().normal(0, -1)").Contains("écart type"));
 }
 
+// ============================================================================
+// Bases fournies par l'hôte (owners) : héritage multiple, RAII explicite
+// ============================================================================
+
+namespace {
+
+/// Base de test : journalise sa construction et sa destruction dans `log`.
+struct ProbeOwner : OwnerObject {
+	std::shared_ptr<std::vector<String>> log;
+	String label;
+	Option<ScriptError> OnInit(Interpreter &, std::vector<Value> &args) override {
+		label = !args.empty() && args[0].IsString() ? args[0].AsString() : String("?");
+		if (label == "boom")
+			return Some(ScriptError(String("refusé par l'hôte"), 0, 0));
+		log->push_back(String::Format("%s.init(%s)", type->name.CStr(), label.CStr()));
+		return NONE;
+	}
+	void OnDeinit(Interpreter &) override { log->push_back(String::Format("%s.deinit(%s)", type->name.CStr(), label.CStr())); }
+};
+
+void InstallProbes(Interpreter &vm, const std::shared_ptr<std::vector<String>> &log) {
+	for (const char *name : {"Mesh", "Body"}) {
+		OwnerTypeBuilder<ProbeOwner> builder([log] {
+			auto owner = std::make_shared<ProbeOwner>();
+			owner->log = log;
+			return owner;
+		});
+		builder.Method("label", 0, 0, [](Interpreter &, ProbeOwner &self, std::vector<Value> &) -> Result<Value, ScriptError> {
+			return Ok(Value::Str(self.label));
+		});
+		builder.Method("note", 1, 1, [](Interpreter &, ProbeOwner &self, std::vector<Value> &args) -> Result<Value, ScriptError> {
+			self.log->push_back(String::Format("%s.note(%s)", self.type->name.CStr(), args[0].ToDisplayString().CStr()));
+			return Ok(Value::Nil());
+		});
+		builder.Property("kind", [](const ProbeOwner &self) { return Value::Str(self.type->name); });
+		vm.RegisterHostType(String("host"), String(name), builder.Type());
+	}
+}
+
+String Joined(const std::vector<String> &log) {
+	String out;
+	for (const String &line : log) {
+		out.Concat(out.IsEmpty() ? "" : " | ");
+		out.Concat(line);
+	}
+	return out;
+}
+
+} // namespace
+
+TEST(ScriptOwners, SuperInitChainsScriptParentThenHostBasesAndDestroyRunsInReverse) {
+	auto log = std::make_shared<std::vector<String>>();
+	Interpreter vm;
+	InstallProbes(vm, log);
+	vm.onPrint = [log](const String &line) { log->push_back(line); };
+	auto result = vm.Run(StringView(R"(
+class Acteur {
+    let name = ""
+    fn init(nom) { this.name = nom
+                   print("Acteur.init") }
+    fn deinit() { print("Acteur.deinit") }
+}
+class Ennemi extends Acteur, host.Mesh, host.Body {
+    fn init(nom) {
+        super.init(nom)
+        this.note(this.label())
+    }
+    fn on_destroy() { print("adieu " .. this.name .. " " .. this.kind) }
+    fn deinit() { print("Ennemi.deinit") }
+}
+let e = Ennemi("gobelin")
+let ok = [e is host.Mesh, e is host.Body, e is Acteur, e.destroy(), e.destroy(), e.is_destroyed()]
+return ok
+)"));
+	ASSERT_TRUE(result.IsOk());
+	EXPECT_EQ(result.Value().ToDisplayString(), "[true, true, true, true, false, true]");
+	EXPECT_EQ(Joined(*log), "Acteur.init | host.Mesh.init(gobelin) | host.Body.init(gobelin) | host.Mesh.note(gobelin) | "
+							"adieu gobelin host.Mesh | Ennemi.deinit | Acteur.deinit | host.Body.deinit(gobelin) | "
+							"host.Mesh.deinit(gobelin)");
+	EXPECT_EQ(vm.Owners().Count(), size_t(0));
+}
+
+TEST(ScriptOwners, RegistryKeepsResourcesAliveUntilDestroyAll) {
+	auto log = std::make_shared<std::vector<String>>();
+	{
+		Interpreter vm;
+		InstallProbes(vm, log);
+		// Pas d'`init` : les arguments vont aux bases ; la variable est
+		// perdue, mais le registre garde la ressource en vie.
+		auto result = vm.Run(StringView(R"(
+class Caisse extends host.Body {}
+fn fabriquer() { Caisse("a")
+                 Caisse("b") }
+fabriquer()
+)"));
+		ASSERT_TRUE(result.IsOk());
+		EXPECT_EQ(vm.Owners().Count(), size_t(2));
+		ASSERT_TRUE(vm.Owners().Describe().size() == 2);
+		EXPECT_EQ(vm.Owners().Describe()[0].scriptName, "Caisse");
+		vm.Owners().DestroyAll(vm);
+		EXPECT_EQ(vm.Owners().Count(), size_t(0));
+		// Du plus récent au plus ancien.
+		EXPECT_EQ(Joined(*log), "host.Body.init(a) | host.Body.init(b) | host.Body.deinit(b) | host.Body.deinit(a)");
+		log->clear();
+		ASSERT_TRUE(vm.Run(StringView("class Restante extends host.Mesh {}\nRestante(\"r\")")).IsOk());
+	}
+	// La destruction de l'interpréteur libère ce qui restait.
+	EXPECT_EQ(Joined(*log), "host.Mesh.init(r) | host.Mesh.deinit(r)");
+}
+
+TEST(ScriptOwners, ErrorsAreExplicit) {
+	auto log = std::make_shared<std::vector<String>>();
+	auto run = [&](const char *source) -> String {
+		Interpreter vm;
+		InstallProbes(vm, log);
+		auto result = vm.Run(StringView(source));
+		return result.IsOk() ? String() : result.Error().Format();
+	};
+	// Méthode d'une base avant `super.init`.
+	EXPECT_TRUE(run("class A extends host.Mesh { fn init() { this.label()\n super.init(\"x\") } }\nA()").Contains("pas encore initialisée"));
+	// Méthode après destruction.
+	EXPECT_TRUE(run("class A extends host.Mesh {}\nlet a = A(\"x\")\na.destroy()\na.label()").Contains("détruite"));
+	// L'hôte refuse : construction annulée, rien ne reste enregistré.
+	log->clear();
+	EXPECT_TRUE(run("class A extends host.Mesh, host.Body {}\nA(\"boom\")").Contains("refusé par l'hôte"));
+	EXPECT_EQ(Joined(*log), "");
+	log->clear();
+	EXPECT_TRUE(run("class A extends host.Mesh {}\nclass B extends host.Body { fn init() { super.init(\"boom\") } }\n"
+					"class C extends A, B {}").Contains("deux classes parentes"));
+	EXPECT_TRUE(run("class A extends host.Mesh, host.Mesh {}").Contains("deux fois"));
+	EXPECT_TRUE(run("class A extends std.vector {}").Contains("ne se dérive pas"));
+	EXPECT_TRUE(run("class A extends host.Mesh<i32> {}").Contains("pas générique"));
+	// Une classe dérivée d'une classe qui a déjà la base ne la redéclare pas.
+	EXPECT_TRUE(run("class A extends host.Mesh {}\nclass B extends A, host.Mesh {}").Contains("déjà une base"));
+}
+
+TEST(ScriptOwners, InheritedBasesAndGenericParentStillWork) {
+	auto log = std::make_shared<std::vector<String>>();
+	Interpreter vm;
+	InstallProbes(vm, log);
+	auto result = vm.Run(StringView(R"(
+class Boite<T> { let v = nil
+                 fn init(v) { this.v = v } }
+class Entier extends Boite<i64> {}
+class Base extends host.Mesh { fn init(n) { super.init(n) } }
+class Derivee extends Base, host.Body { fn init() { super.init("d") } }
+let d = Derivee()
+return [Entier(3).v, d.label(), super_ok(d)]
+fn super_ok(o) { return o is host.Body }
+)"));
+	ASSERT_TRUE(result.IsOk());
+	EXPECT_EQ(result.Value().ToDisplayString(), "[3, d, true]");
+	EXPECT_EQ(Joined(*log), "host.Mesh.init(d) | host.Body.init(d)");
+}
+
 int main() { return RUN_ALL_TESTS(); }

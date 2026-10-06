@@ -1,6 +1,6 @@
 #pragma once
 /**
- * data::script — l'espace de noms `math` du langage (« Sled ») : une
+ * data::script — l'espace de noms `math` du langage (« Script ») : une
  * enveloppe complète des mathématiques de la bibliothèque C++ ET de celles
  * du dépôt (math::, lib/include/math/math.hpp).
  *

@@ -1,7 +1,7 @@
 {
   "name": "Formes et matériaux",
   "description": "Sept primitives, cinq familles de matériaux",
-  "gameplay_script": "",
+  "gameplay_script": "# ── Formes et matériaux : chaque primitive tourne sur son socle ──────────────\nconst demo = import \"demo\"\n\nclass FormesEtMateriaux extends demo.SceneDemo {\n    let formes = []\n\n    fn on_start() {\n        this.afficher_titre(\"Formes et matériaux\",\n                            \"Plastique, métal, bois, PBR et sans éclairage sur les sept primitives.\", 380)\n        this.formes = scene.find_tag(\"forme\")\n    }\n\n    fn on_update(dt) {\n        super.on_update(dt)\n        let i = 0\n        for (nom in this.formes) {\n            i += 1\n            object.set_rotation(nom, math.sin(this.temps + i) * 20, this.temps * (25 + i * 6), 0)\n        }\n    }\n}\n",
   "environment": {
     "sun_direction": [
       0.30000001192092896,
@@ -1768,7 +1768,7 @@
                 },
                 "intensity": {
                   "type": "float",
-                  "value": 3.0
+                  "value": 26.999998092651367
                 },
                 "range": {
                   "type": "float",
@@ -1830,7 +1830,7 @@
                 },
                 "intensity": {
                   "type": "float",
-                  "value": 3.0
+                  "value": 27.0
                 },
                 "range": {
                   "type": "float",
@@ -1856,6 +1856,5 @@
     }
   },
   "format": "game_editor.scene",
-  "version": 1,
-  "gameplay_script_file": "../scripts/Formes et matériaux.gameplay.script"
+  "version": 1
 }

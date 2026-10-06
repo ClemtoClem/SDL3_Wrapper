@@ -1,6 +1,4 @@
-// Définitions de ui/render_backend.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de ui/render_backend.hpp
 #include "ui/render_backend.hpp"
 
 namespace ui {

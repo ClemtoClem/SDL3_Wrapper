@@ -1,0 +1,26 @@
+# ── demo : base commune des scènes de démonstration ─────────────────────────
+#
+# Un MODULE de la bibliothèque : chaque scène l'importe (`import "demo"`) et
+# dérive sa classe de `demo.SceneDemo`. La classe est abstraite : le moteur
+# n'instancie que la classe concrète de chaque scène.
+
+abstract class SceneDemo extends Scene {
+    let temps = 0
+
+    # Bandeau de titre en haut à gauche + bouton de retour à l'accueil.
+    # Rend le bandeau pour que la scène y ajoute ses propres contrôles.
+    fn afficher_titre(titre, texte, largeur) {
+        let bandeau = ui.column({anchor: "top_left", offset: [16, 14], gap: 4, pad: 14, bg: "#10141cd0", radius: 8,
+                                 w: largeur})
+        ui.label(titre, {parent: bandeau, font_size: 20, bold: true, color: "#ffd873"})
+        ui.label(texte, {parent: bandeau, font_size: 13, color: "#c8d0dc"})
+        ui.button("Retour à l'accueil", fn(b) { this.load("Accueil") }, {anchor: "top_right", offset: [-14, 14], w: 180})
+        return bandeau
+    }
+
+    # Le temps de la scène avance pour toutes les démonstrations ; une scène
+    # qui redéfinit on_update appelle `super.on_update(dt)` pour le garder.
+    fn on_update(dt) {
+        this.temps += dt
+    }
+}

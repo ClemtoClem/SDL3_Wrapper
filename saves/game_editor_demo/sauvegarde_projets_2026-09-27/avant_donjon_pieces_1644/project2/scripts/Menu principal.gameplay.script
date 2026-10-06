@@ -27,7 +27,7 @@ fn demarrer(circuit) {
 fn on_start() {
     let etat = game.state()
     tours = etat.tours or 3
-    ui.label("TURBO SLED", {anchor: "top_right", offset: [-40, 30], font_size: 56, bold: true, color: "#ffd873"})
+    ui.label("TURBO SCRIPT", {anchor: "top_right", offset: [-40, 30], font_size: 56, bold: true, color: "#ffd873"})
     ui.label("Championnat procédural", {anchor: "top_right", offset: [-44, 98], font_size: 18, color: "#dfe6f0"})
 
     let panneau = ui.column({anchor: "bottom_left", offset: [40, -40], gap: 10, pad: 22, bg: "#0c1016d8", radius: 12, w: 380})

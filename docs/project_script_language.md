@@ -22,7 +22,7 @@ compiler et exécuter un langage de PROGRAMMATION.
 | `lib/include/data/script.hpp` | ombrelle + `InstallDataLibrary` (parse/encode/read_file/write_file/load) |
 | `tests/script_smoke_test.cpp` | 40 tests, 100 % CPU |
 
-## Le langage (« Sled »)
+## Le langage (« Script »)
 
 Typage dynamique façon Lua/Python, syntaxe à ACCOLADES :
 `let`/`var`, `fn`/`func`, `if`/`else if`/`else`, `while`, `for x in`,

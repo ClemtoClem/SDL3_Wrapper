@@ -1,6 +1,4 @@
-// Définitions de data/script/script_value.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/script/script_value.hpp
 #include "data/script/script_value.hpp"
 
 namespace data::script {
@@ -378,6 +376,9 @@ FinalizerQueue & PendingFinalizers() noexcept {
 }
 
 InstanceObject::~InstanceObject() {
+	// Une instance qui possède des bases de l'hôte est tenue par le registre
+	// de son interpréteur jusqu'à `destroy()`, qui passe `finalized` : elle
+	// n'arrive donc ici qu'après sa séquence RAII complète.
 	if (finalized || !klass || !klass->hasDeinit || !klass->ownerAlive || !klass->ownerAlive->load())
 		return;
 	FinalizerQueue &queue = PendingFinalizers();

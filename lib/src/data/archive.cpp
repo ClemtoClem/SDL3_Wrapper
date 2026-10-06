@@ -1,6 +1,4 @@
-// Définitions de data/archive.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/archive.hpp
 #include "data/archive.hpp"
 
 namespace data::archive {

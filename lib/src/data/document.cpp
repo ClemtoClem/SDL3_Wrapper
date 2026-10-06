@@ -1,6 +1,4 @@
-// Définitions de data/document.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/document.hpp
 #include "data/document.hpp"
 
 namespace data {

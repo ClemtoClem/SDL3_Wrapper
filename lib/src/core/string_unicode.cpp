@@ -1,6 +1,4 @@
-// Définitions de core/string_unicode.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de core/string_unicode.hpp
 #include "core/string_unicode.hpp"
 
 namespace unicode {

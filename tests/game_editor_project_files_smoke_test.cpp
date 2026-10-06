@@ -78,7 +78,7 @@ TEST(ProjectFiles, SaveSplitsTheProjectIntoDataFilesAndLoadsItBack) {
 	EXPECT_TRUE(Exists(files::Join(dir, String("scripts/Circuit.gameplay.script"))));
 	auto script = files::ReadText(files::Join(dir, String("scripts/torchlight.script")));
 	ASSERT_TRUE(script.IsOk());
-	EXPECT_EQ(script.Value(), original.FindScript(String("torchlight"))->source); // du Sled brut, pas du JSON
+	EXPECT_EQ(script.Value(), original.FindScript(String("torchlight"))->source); // du Script brut, pas du JSON
 
 	files::FileList files;
 	auto loaded = files::LoadProject(manifest, &files);
@@ -147,7 +147,7 @@ TEST(ProjectFiles, ScenesAndScriptsSaveAsSingleFiles) {
 	ASSERT_TRUE(runtime.SavePackedScene(runtime.ActiveScene()->Objects().front(), packed).IsOk());
 	EXPECT_TRUE(runtime.ImportSceneFile(packed).IsError());
 
-	// Script : du Sled brut, réimportable dans la bibliothèque.
+	// Script : du Script brut, réimportable dans la bibliothèque.
 	const String scriptPath = files::Join(dir, String("torche.script"));
 	ASSERT_TRUE(runtime.SaveScriptAs(String("torchlight"), scriptPath).IsOk());
 	auto importedScript = runtime.ImportScriptFile(scriptPath);

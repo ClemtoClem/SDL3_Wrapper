@@ -1,6 +1,4 @@
-// Définitions de scene/tree.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de scene/tree.hpp
 #include "scene/tree.hpp"
 
 namespace scene {

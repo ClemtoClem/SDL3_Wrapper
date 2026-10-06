@@ -96,6 +96,18 @@ struct Palette {
 
 [[nodiscard]] inline Palette PaletteOf(const UiContext &ctx) { return PaletteOf(ctx.Theme()); }
 
+/// Ce que l'interface montre d'un script analysé (cf. ScriptOutline) :
+/// erreur de syntaxe ou refus du moteur en rouge/orange, comportement ou
+/// scène valide en vert, module (à importer) en gris.
+struct ScriptBadge {
+	ui::MaterialIcons icon;
+	sdl3::FColor color;
+	String text;	 ///< ScriptOutline::Summary
+	bool broken = false; ///< syntaxe invalide, ou refusé au lancement du mode Jeu
+};
+
+[[nodiscard]] ScriptBadge BadgeOf(const UiContext &ctx, const ScriptOutline &outline);
+
 /// Teinte d'icône lisible sur le fond du thème : les couleurs de code des
 /// nœuds et des fichiers sont des pastels pensés pour un fond sombre ; sur un
 /// thème clair, on les fonce d'autant pour garder le contraste.
@@ -128,6 +140,7 @@ namespace syntax {
 struct Scheme {
 	sdl3::FColor keyword, string, number, comment, function, nameSpace, key, brace, literal;
 	sdl3::FColor error, warning, ok, dim;
+	sdl3::FColor type; ///< bases du moteur (`Scene`, `Mesh3D`…) dans le code
 
 	[[nodiscard]] static Scheme Dark() noexcept;
 	[[nodiscard]] static Scheme Light() noexcept;
@@ -147,7 +160,7 @@ struct Scheme {
 
 [[nodiscard]] size_t NumberEnd(const String &line, size_t i) noexcept;
 
-/// Langage de script de l'éditeur (« Sled ») : mots-clés, chaînes, nombres,
+/// Langage de script de l'éditeur (« Script ») : mots-clés, chaînes, nombres,
 /// commentaires (`#`, `//`), appels de fonction et tables d'API
 /// (`editor.`, `node.`…).
 void HighlightSled(const String &line, std::vector<ui::UiTextSpan> &out);

@@ -1,6 +1,4 @@
-// Définitions de data/archive/archive_crypto.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/archive/archive_crypto.hpp
 #include "data/archive/archive_crypto.hpp"
 
 namespace data::archive {

@@ -1,16 +1,17 @@
 # ── Coffre : le couvercle (enfant nommé par la propriété `lid`) s'ouvre ─────
 # quand la propriété `open` devient vraie (le script du donjon la pose).
-let angle = map()
-let couvercle = map()
+class Coffre extends Behaviour {
+    let angle = 0
+    let couvercle = nil
 
-fn on_start(self) {
-    angle[self] = 0
-    couvercle[self] = node.path(self) .. "/" .. (node.prop(self, "lid") or "Couvercle")
-}
+    fn on_start() {
+        this.couvercle = this.child(this.prop("lid") or "Couvercle")
+    }
 
-fn on_update(self, dt) {
-    if (node.prop(self, "open") == true and angle[self] < 105) {
-        angle[self] = math.min(105, angle[self] + dt * 80)
-        object.set_rotation(couvercle[self], -angle[self], 0, 0)
+    fn on_update(dt) {
+        if (this.prop("open") == true and this.angle < 105 and this.couvercle != nil) {
+            this.angle = math.min(105, this.angle + dt * 80)
+            object.set_rotation(this.couvercle, -this.angle, 0, 0)
+        }
     }
 }

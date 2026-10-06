@@ -1,5 +1,4 @@
-// Définitions de runtime.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
+
 
 #include "runtime.hpp"
 
@@ -42,6 +41,170 @@ Runtime::Runtime(ecs::ArchetypeRegistry &registry, int jobWorkers)
 	InstallHostApi(m_toolVm);
 }
 
+Runtime::~Runtime() {
+	// L'interface qui a branché ces rappels est peut-être déjà détruite :
+	// plus aucune notification vers elle.
+	onGameUiReset = nullptr;
+	onLog = nullptr;
+	onSceneStructureChanged = nullptr;
+	onProjectChanged = nullptr;
+	onSelectionChanged = nullptr;
+	onObjectChanged = nullptr;
+	onScreenshot = nullptr;
+	onThemeChange = nullptr;
+	onPanelFocus = nullptr;
+	onUiCommand = nullptr;
+	onStatusMessage = nullptr;
+	onQueryFps = nullptr;
+	onHistoryChanged = nullptr;
+	// Les bases des objets de script retirent leurs nœuds et leurs corps : il
+	// faut un runtime ENTIER pour cela, donc avant la destruction des membres.
+	if (m_playing) {
+		EndScenePlay();
+		m_playing = false;
+	}
+	(void)DestroyAllScriptObjects();
+}
+
+size_t NodeScriptInstance::LiveCount() const noexcept {
+	size_t n = 0;
+	for (const Attached &entry : attached)
+		n += entry.detached ? 0 : 1;
+	return n;
+}
+
+std::vector<data::script::OwnerInfo> Runtime::LiveOwners() const {
+	std::vector<data::script::OwnerInfo> out;
+	auto append = [&out](const data::script::Interpreter &vm) {
+		std::vector<data::script::OwnerInfo> part = vm.Owners().Describe();
+		out.insert(out.end(), std::make_move_iterator(part.begin()), std::make_move_iterator(part.end()));
+	};
+	if (m_gameplayVm)
+		append(*m_gameplayVm);
+	for (const auto &instance : m_nodeScripts)
+		if (instance->vm)
+			append(*instance->vm);
+	append(m_toolVm);
+	return out;
+}
+
+String ScriptObjectInfo::Signature() const {
+	String list;
+	for (const String &base : bases) {
+		list.Concat(list.IsEmpty() ? "" : ", ");
+		list.Concat(base);
+	}
+	return list.IsEmpty() ? className : String::Format("%s (%s)", className.CStr(), list.CStr());
+}
+
+std::vector<std::pair<String, String>> ScriptObjectInfo::Fields() const {
+	std::vector<std::pair<String, String>> out;
+	if (!object.IsInstance() || !object.AsInstance())
+		return out;
+	for (const data::script::FieldSlot &slot : object.AsInstance()->fields.Snapshot())
+		out.emplace_back(slot.name, slot.value.ToDisplayString());
+	return out;
+}
+
+std::vector<ScriptObjectInfo> Runtime::LiveScriptObjects() {
+	std::vector<ScriptObjectInfo> out;
+	auto collect = [&](data::script::Interpreter &vm, const String &origin, const NodeScriptInstance *script) {
+		for (const auto &instance : vm.Owners().Snapshot()) {
+			ScriptObjectInfo info;
+			info.vm = &vm;
+			info.object = data::script::Value::Instance(instance);
+			info.origin = origin;
+			info.className = instance->klass ? instance->klass->Name() : String("?");
+			info.destroyed = instance->destroyed;
+			for (const auto &base : instance->owners) {
+				if (!base || !base->type)
+					continue;
+				info.bases.push_back(engine_base::ShortName(base->type->name).UnwrapOr(base->type->name));
+				if (auto carrier = std::dynamic_pointer_cast<NodeOwner>(base); carrier && carrier->Node())
+					info.node = carrier->node;
+			}
+			if (script)
+				for (const NodeScriptInstance::Attached &entry : script->attached)
+					if (!entry.detached && entry.object.IsInstance() && entry.object.AsInstance() == instance)
+						info.attached = true;
+			out.push_back(std::move(info));
+		}
+	};
+	if (m_gameplayVm)
+		collect(*m_gameplayVm, String("scène"), nullptr);
+	for (const auto &script : m_nodeScripts)
+		if (script->vm)
+			collect(*script->vm, script->script, script.get());
+	collect(m_toolVm, String("outil"), nullptr);
+	return out;
+}
+
+std::vector<ScriptObjectInfo> Runtime::ScriptObjectsOf(scene::NodeId id) {
+	std::vector<ScriptObjectInfo> out;
+	if (!id.Valid())
+		return out;
+	for (ScriptObjectInfo &info : LiveScriptObjects())
+		if (info.node == id)
+			out.push_back(std::move(info));
+	return out;
+}
+
+bool Runtime::DestroyScriptObject(const ScriptObjectInfo &info) {
+	if (!info.vm || !info.object.IsInstance() || !info.object.AsInstance())
+		return false;
+	const std::shared_ptr<data::script::InstanceObject> instance = info.object.AsInstance();
+	if (instance->destroyed)
+		return false;
+	// L'interpréteur doit encore exister : on ne détruit que ce qu'un
+	// registre vivant tient.
+	bool known = m_gameplayVm && info.vm == m_gameplayVm.get();
+	for (const auto &script : m_nodeScripts)
+		known = known || info.vm == script->vm.get();
+	known = known || info.vm == &m_toolVm;
+	if (!known)
+		return false;
+	info.vm->DestroyInstance(instance);
+	if (onSceneStructureChanged)
+		onSceneStructureChanged();
+	return true;
+}
+
+Option<String> Runtime::ModuleSource(const String &specifier) const {
+	String name = specifier;
+	if (name.EndsWith(".script"))
+		name = name.Substring(0, name.GetSize() - 7);
+	if (const ScriptAsset *asset = m_project.FindScript(name))
+		return Some(asset->source);
+	const String directory = ProjectDirectory();
+	if (directory.IsEmpty())
+		return NONE;
+	auto text = data::script::LoadScriptFile(directory + String("/scripts/") + name + String(".script"));
+	if (text.IsError())
+		return NONE;
+	return Some(text.Unwrap());
+}
+
+ScriptOutline Runtime::OutlineScript(const String &source, ScriptUse use) const {
+	return game_editor::OutlineScript(source, use, [this](const String &specifier) { return ModuleSource(specifier); });
+}
+
+size_t Runtime::DestroyAllScriptObjects() {
+	size_t count = 0;
+	// Ordre inverse de la création : nœuds, puis scène, puis outil.
+	for (auto it = m_nodeScripts.rbegin(); it != m_nodeScripts.rend(); ++it)
+		if ((*it)->vm) {
+			count += (*it)->vm->Owners().Count();
+			(*it)->vm->Owners().DestroyAll(*(*it)->vm);
+		}
+	if (m_gameplayVm) {
+		count += m_gameplayVm->Owners().Count();
+		m_gameplayVm->Owners().DestroyAll(*m_gameplayVm);
+	}
+	count += m_toolVm.Owners().Count();
+	m_toolVm.Owners().DestroyAll(m_toolVm);
+	return count;
+}
+
 void Runtime::AttachCanvas(render3d::Canvas &canvas) {
 	m_canvas = &canvas;
 	ApplyEnvironment();
@@ -56,9 +219,9 @@ void Runtime::SetRandomSeed(uint64_t seed) {
 void Runtime::PumpScriptThreads() {
 	m_toolVm.PumpMainThread();
 	m_gameplayVm->PumpMainThread();
-	for (NodeScriptInstance &instance : m_nodeScripts)
-		if (instance.vm)
-			instance.vm->PumpMainThread();
+	for (size_t i = 0; i < m_nodeScripts.size(); ++i)
+		if (m_nodeScripts[i]->vm)
+			m_nodeScripts[i]->vm->PumpMainThread();
 }
 
 const render3d::Camera & Runtime::ActiveCamera() const noexcept {
@@ -287,8 +450,15 @@ bool Runtime::SwitchScene(const String &sceneName) {
 		return false;
 	if (m_playing)
 		Stop();
+	// Un identifiant de nœud ne vaut que dans SON arbre : gardée, la sélection
+	// désignerait un nœud quelconque de la nouvelle scène.
+	const bool changed = !ActiveScene() || ActiveScene()->name != sceneName;
+	if (changed)
+		m_selection = scene::NodeId{};
 	m_project.SetActiveScene(sceneName);
 	RebuildRuntime();
+	if (changed)
+		ClearSelection(); // marqueur ECS et notification à l'interface
 	LogInfo(String::Format("Scène active : %s", sceneName.CStr()));
 	return true;
 }
@@ -432,8 +602,11 @@ void Runtime::Play() {
 void Runtime::Stop() {
 	if (!m_playing)
 		return;
-	m_playing = false;
+	// EndScenePlay AVANT de quitter la partie : les objets des scripts y sont
+	// détruits et retirent leurs nœuds par le chemin « partie » (ni
+	// historique d'annulation, ni reconstruction du runtime).
 	EndScenePlay();
+	m_playing = false;
 	if (!m_sessionOrigin.IsEmpty() && m_project.FindScene(m_sessionOrigin))
 		m_project.SetActiveScene(m_sessionOrigin);
 	RebuildRuntime();
@@ -455,8 +628,10 @@ bool Runtime::LoadSceneInPlay(const String &sceneName) {
 	if (!m_playing)
 		return SwitchScene(sceneName);
 	EndScenePlay();
+	m_selection = scene::NodeId{}; // cf. SwitchScene
 	m_project.SetActiveScene(sceneName);
 	RebuildRuntime();
+	ClearSelection();
 	StartScenePlay();
 	LogInfo(String::Format("▶ Scène « %s »", sceneName.CStr()));
 	return true;
@@ -1153,6 +1328,141 @@ String Runtime::AddScript(const String &baseName, const String &source, const St
 	return name;
 }
 
+Result<String, String> Runtime::RenameScene(const String &sceneName, const String &wanted) {
+	if (m_playing)
+		return Err(String("impossible pendant une partie"));
+	SceneDesc *scene = m_project.FindScene(sceneName);
+	if (!scene)
+		return Err(String::Format("scène « %s » introuvable", sceneName.CStr()));
+	const String clean = wanted.Trim();
+	if (clean.IsEmpty())
+		return Err(String("nom vide"));
+	if (clean == sceneName)
+		return Ok(clean);
+	const String name = UniqueSceneName(clean);
+	const bool active = m_project.activeScene == sceneName;
+	scene->SetName(name);
+	if (active)
+		m_project.activeScene = name;
+	if (onProjectChanged)
+		onProjectChanged();
+	if (onSceneStructureChanged)
+		onSceneStructureChanged();
+	LogInfo(String::Format("Scène renommée : %s → %s", sceneName.CStr(), name.CStr()));
+	return Ok(name);
+}
+
+Result<bool, String> Runtime::RemoveScene(const String &sceneName) {
+	if (m_playing)
+		return Err(String("impossible pendant une partie"));
+	auto it = std::find_if(m_project.scenes.begin(), m_project.scenes.end(),
+						   [&](const SceneDesc &scene) { return scene.name == sceneName; });
+	if (it == m_project.scenes.end())
+		return Err(String::Format("scène « %s » introuvable", sceneName.CStr()));
+	if (m_project.scenes.size() == 1)
+		return Err(String("un projet garde au moins une scène"));
+	if (m_project.activeScene == sceneName) {
+		const String other = (it == m_project.scenes.begin() ? it + 1 : m_project.scenes.begin())->name;
+		(void)SwitchScene(other);
+		it = std::find_if(m_project.scenes.begin(), m_project.scenes.end(),
+						  [&](const SceneDesc &scene) { return scene.name == sceneName; });
+	}
+	m_project.scenes.erase(it);
+	ClearHistory(); // l'historique pouvait viser la scène retirée
+	if (onProjectChanged)
+		onProjectChanged();
+	LogInfo(String::Format("Scène retirée du projet : %s", sceneName.CStr()));
+	return Ok(true);
+}
+
+Result<String, String> Runtime::DuplicateScene(const String &sceneName) {
+	if (m_playing)
+		return Err(String("impossible pendant une partie"));
+	const SceneDesc *scene = m_project.FindScene(sceneName);
+	if (!scene)
+		return Err(String::Format("scène « %s » introuvable", sceneName.CStr()));
+	SceneDesc copy = *scene;
+	copy.SetName(UniqueSceneName(sceneName + String(" (copie)")));
+	const String name = copy.name;
+	m_project.scenes.push_back(std::move(copy));
+	if (onProjectChanged)
+		onProjectChanged();
+	LogInfo(String::Format("Scène dupliquée : %s", name.CStr()));
+	return Ok(name);
+}
+
+Result<String, String> Runtime::RenameScript(const String &scriptName, const String &wanted) {
+	if (m_playing)
+		return Err(String("impossible pendant une partie"));
+	ScriptAsset *asset = m_project.FindScript(scriptName);
+	if (!asset)
+		return Err(String::Format("script « %s » introuvable", scriptName.CStr()));
+	String clean = wanted.Trim();
+	if (clean.EndsWith(".script"))
+		clean = clean.Substring(0, clean.GetSize() - 7);
+	if (clean.IsEmpty())
+		return Err(String("nom vide"));
+	if (clean == scriptName)
+		return Ok(clean);
+	String name = clean;
+	for (int suffix = 2; m_project.FindScript(name) && suffix < 10000; ++suffix)
+		name = String::Format("%s_%d", clean.CStr(), suffix);
+	asset->name = name;
+	// Les nœuds qui portent ce script le portent sous son nouveau nom.
+	size_t nodes = 0;
+	for (SceneDesc &scene : m_project.scenes)
+		scene.tree.Traverse(scene.tree.Root(), [&](scene::NodeId id, const scene::Node &) {
+			scene::Node *node = scene.tree.Get(id);
+			if (!node || !ScriptRef::Has(*node) || ScriptRef::Read(*node).script != scriptName)
+				return;
+			ScriptRef{name}.Write(*node);
+			++nodes;
+		});
+	if (onProjectChanged)
+		onProjectChanged();
+	if (onObjectChanged)
+		onObjectChanged();
+	LogInfo(String::Format("Script renommé : %s → %s (%d nœud%s mis à jour)", scriptName.CStr(), name.CStr(),
+						   int(nodes), nodes > 1 ? "s" : ""));
+	return Ok(name);
+}
+
+Result<size_t, String> Runtime::RemoveScript(const String &scriptName) {
+	if (m_playing)
+		return Err(String("impossible pendant une partie"));
+	auto it = std::find_if(m_project.scripts.begin(), m_project.scripts.end(),
+						   [&](const ScriptAsset &script) { return script.name == scriptName; });
+	if (it == m_project.scripts.end())
+		return Err(String::Format("script « %s » introuvable", scriptName.CStr()));
+	m_project.scripts.erase(it);
+	size_t nodes = 0;
+	for (const SceneDesc &scene : m_project.scenes)
+		scene.tree.Traverse(scene.tree.Root(), [&](scene::NodeId, const scene::Node &node) {
+			nodes += ScriptRef::Has(node) && ScriptRef::Read(node).script == scriptName ? 1 : 0;
+		});
+	if (onProjectChanged)
+		onProjectChanged();
+	if (nodes > 0)
+		LogWarning(String::Format("Script « %s » retiré : %d nœud%s le portai%s encore", scriptName.CStr(), int(nodes),
+								  nodes > 1 ? "s" : "", nodes > 1 ? "ent" : "t"));
+	else
+		LogInfo(String::Format("Script retiré : %s", scriptName.CStr()));
+	return Ok(nodes);
+}
+
+Result<String, String> Runtime::DuplicateScript(const String &scriptName) {
+	if (m_playing)
+		return Err(String("impossible pendant une partie"));
+	const ScriptAsset *asset = m_project.FindScript(scriptName);
+	if (!asset)
+		return Err(String::Format("script « %s » introuvable", scriptName.CStr()));
+	const ScriptAsset copy = *asset;
+	const String name = AddScript(copy.name + String("_copie"), copy.source, copy.description);
+	if (onProjectChanged)
+		onProjectChanged();
+	return Ok(name);
+}
+
 Option<data::script::ScriptError> Runtime::SetScriptSource(const String &scriptName, const String &source) {
 	ScriptAsset *asset = m_project.FindScript(scriptName);
 	if (!asset)
@@ -1189,9 +1499,9 @@ std::vector<ScriptStatus> Runtime::ScriptStatuses() const {
 		out.push_back(std::move(main));
 	}
 	if (m_playing) {
-		for (const NodeScriptInstance &instance : m_nodeScripts)
-			out.push_back(ScriptStatus{instance.script, String("nœud"), instance.nodes.size(), instance.ready,
-									   instance.error});
+		for (const auto &instance : m_nodeScripts)
+			out.push_back(ScriptStatus{instance->script, String("nœud"), instance->LiveCount(), instance->ready,
+									   instance->error});
 		return out;
 	}
 	scene->tree.Traverse(scene->tree.Root(), [&](scene::NodeId, const scene::Node &node) {
@@ -1433,6 +1743,30 @@ bool Runtime::RemoveNode(scene::NodeId id) {
 		return false;
 	RecordHistory(String::Format("Supprimer %s", node->name.CStr()));
 	const bool wasSelected = m_selection.Valid() && sceneDesc->tree.IsAncestorOf(id, m_selection);
+	if (m_playing) {
+		// En partie : retirer le seul sous-arbre. Reconstruire tout le
+		// runtime remettrait chaque corps physique à son état initial (une
+		// voiture lancée s'arrêterait net parce qu'un débris disparaît).
+		std::vector<scene::NodeId> doomed;
+		sceneDesc->tree.Traverse(id, [&](scene::NodeId n, const scene::Node &) { doomed.push_back(n); });
+		DestroyObjectsOfNodes(doomed);
+		if (!sceneDesc->tree.Contains(id)) // un `on_destroy` l'a déjà retiré
+			return true;
+		for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
+			DestroyEntity(*it);
+		if (!sceneDesc->tree.Remove(id))
+			return false;
+		std::erase_if(m_triggerCandidates, [&](scene::NodeId n) { return !sceneDesc->tree.Contains(n); });
+		LinkPortals(*sceneDesc); // un portail a pu partir avec le sous-arbre
+		if (wasSelected)
+			ClearSelection();
+		if (onSceneStructureChanged)
+			onSceneStructureChanged();
+		return true;
+	}
+	std::vector<scene::NodeId> doomed;
+	sceneDesc->tree.Traverse(id, [&](scene::NodeId n, const scene::Node &) { doomed.push_back(n); });
+	DestroyObjectsOfNodes(doomed);
 	if (!sceneDesc->tree.Remove(id)) {
 		DropLastHistory();
 		return false;
@@ -1524,9 +1858,10 @@ Result<scene::NodeId, String> Runtime::InstantiateSceneFile(const String &path, 
 	if (m_playing) {
 		SetHelpersVisible(false);
 		StartNodeScriptsOf(created);
-		// Les déclencheurs sont relus à chaque image (m_triggerIds) ; seuls
-		// les candidats (joueur, corps dynamiques) sont établis au départ.
-		PrepareTriggers();
+		// Les zones sont relues à chaque image (m_triggerIds) ; seuls les
+		// candidats (joueur, corps dynamiques) sont à compléter — sans
+		// réarmer les zones `once` déjà franchies.
+		PrepareTriggers(false);
 	}
 	if (onSceneStructureChanged)
 		onSceneStructureChanged();
@@ -1548,7 +1883,15 @@ Option<math::FVector3> Runtime::GetVelocity(scene::NodeId id) {
 }
 
 bool Runtime::SetVelocity(const String &objectName, const math::FVector3 &velocity) {
-	Option<ecs::Entity> entity = FindEntity(objectName);
+	return SetVelocity(ResolveId(objectName), velocity);
+}
+
+bool Runtime::ApplyImpulse(const String &objectName, const math::FVector3 &impulse) {
+	return ApplyImpulse(ResolveId(objectName), impulse);
+}
+
+bool Runtime::SetVelocity(scene::NodeId id, const math::FVector3 &velocity) {
+	Option<ecs::Entity> entity = FindEntity(id);
 	if (entity.IsNone())
 		return false;
 	auto body = m_registry.GetComponent<physics::RigidBody>(entity.Unwrap());
@@ -1558,8 +1901,8 @@ bool Runtime::SetVelocity(const String &objectName, const math::FVector3 &veloci
 	return true;
 }
 
-bool Runtime::ApplyImpulse(const String &objectName, const math::FVector3 &impulse) {
-	Option<ecs::Entity> entity = FindEntity(objectName);
+bool Runtime::ApplyImpulse(scene::NodeId id, const math::FVector3 &impulse) {
+	Option<ecs::Entity> entity = FindEntity(id);
 	if (entity.IsNone())
 		return false;
 	auto body = m_registry.GetComponent<physics::RigidBody>(entity.Unwrap());
@@ -1676,7 +2019,25 @@ void Runtime::CallToolHook(const String &hook, std::vector<data::script::Value> 
 }
 
 Option<data::script::Value> Runtime::GameplayGlobal(const String &name) {
+	if (m_sceneObject.IsInstance() && m_sceneObject.AsInstance())
+		if (Option<data::script::Value> field = m_sceneObject.AsInstance()->fields.Get(name); field.IsSome())
+			return field;
 	return m_gameplayVm->GetGlobal(name);
+}
+
+bool Runtime::RequestScene(const String &sceneName) {
+	if (!m_project.FindScene(sceneName))
+		return false;
+	if (m_playing)
+		m_pendingScene = Some(sceneName);
+	else
+		(void)SwitchScene(sceneName);
+	return true;
+}
+
+void Runtime::RequestQuit() {
+	if (m_playing)
+		m_pendingQuit = true;
 }
 
 scene::NodeTypeRegistry Runtime::MakeTypeRegistry() {
@@ -2591,10 +2952,12 @@ scene::NodeId Runtime::FindCurrentCamera() const {
 	return found;
 }
 
-void Runtime::PrepareTriggers() {
+void Runtime::PrepareTriggers(bool resetState) {
 	m_triggerCandidates.clear();
-	m_triggerInside.clear();
-	m_triggerFired.clear();
+	if (resetState) {
+		m_triggerInside.clear();
+		m_triggerFired.clear();
+	}
 	const SceneDesc *scene = ActiveScene();
 	if (!scene)
 		return;
@@ -2652,14 +3015,15 @@ void Runtime::FireTrigger(const String &hook, scene::NodeId zone, const String &
 	using data::script::Value;
 	if (m_gameplayReady)
 		CallGameplayHook(hook, {Value::Str(zoneName), Value::Str(otherName), Value::Str(event)});
-	for (NodeScriptInstance &instance : m_nodeScripts) {
-		if (!instance.ready)
-			continue;
-		for (scene::NodeId node : instance.nodes)
-			if (node == zone)
-				CallNodeHook(instance, node, hook,
-							 {Value::Str(zoneName), Value::Str(otherName), Value::Str(event)});
+	++m_nodeScriptWalk;
+	for (size_t s = 0; s < m_nodeScripts.size(); ++s) {
+		NodeScriptInstance &instance = *m_nodeScripts[s];
+		for (size_t i = 0; i < instance.attached.size() && instance.ready; ++i)
+			if (!instance.attached[i].detached && instance.attached[i].node == zone)
+				CallNodeHook(instance, i, hook, {Value::Str(otherName), Value::Str(event)});
 	}
+	--m_nodeScriptWalk;
+	CompactNodeScripts();
 }
 
 void Runtime::StartNodeScripts() {
@@ -2667,79 +3031,53 @@ void Runtime::StartNodeScripts() {
 	const SceneDesc *scene = ActiveScene();
 	if (!scene)
 		return;
-	scene->tree.Traverse(scene->tree.Root(), [&](scene::NodeId id, const scene::Node &node) {
-		if (!ScriptRef::Has(node))
-			return;
-		const String name = ScriptRef::Read(node).script;
-		if (name.IsEmpty())
-			return;
-		for (NodeScriptInstance &instance : m_nodeScripts) {
-			if (instance.script == name) {
-				instance.nodes.push_back(id);
-				return;
-			}
-		}
-		NodeScriptInstance instance;
-		instance.script = name;
-		instance.nodes.push_back(id);
-		m_nodeScripts.push_back(std::move(instance));
-	});
-
-	uint64_t seedOffset = 1;
-	for (NodeScriptInstance &instance : m_nodeScripts) {
-		const ScriptAsset *asset = m_project.FindScript(instance.script);
-		if (!asset) {
-			instance.error = String("script introuvable dans le projet");
-			LogWarning(String::Format("Script « %s » : introuvable dans la bibliothèque du projet",
-									  instance.script.CStr()));
-			continue;
-		}
-		instance.vm = std::make_unique<data::script::Interpreter>();
-		InstallHostApi(*instance.vm);
-		instance.vm->SetRandomSeed(m_randomSeed + 0x9E3779B97F4A7C15ull * seedOffset++);
-		++m_scriptRunCount;
-		m_loadedScripts.push_back(String::Format("script:%s", instance.script.CStr()));
-		auto loaded = instance.vm->Run(asset->source.View());
-		if (loaded.IsError()) {
-			++m_scriptErrorCount;
-			instance.error = loaded.Error().Format();
-			LogError(String::Format("Script « %s » : %s", instance.script.CStr(), instance.error.CStr()));
-			continue;
-		}
-		instance.ready = true;
-		for (scene::NodeId node : instance.nodes)
-			CallNodeHook(instance, node, String("on_start"), {});
-	}
+	StartNodeScriptsOf(scene->tree.Root());
 }
 
 NodeScriptInstance *Runtime::NodeScriptFor(const String &name) {
-	for (NodeScriptInstance &instance : m_nodeScripts)
-		if (instance.script == name)
-			return instance.ready ? &instance : nullptr;
-	NodeScriptInstance instance;
-	instance.script = name;
+	for (const auto &instance : m_nodeScripts)
+		if (instance->script == name)
+			return instance->ready ? instance.get() : nullptr;
+	auto instance = std::make_unique<NodeScriptInstance>();
+	instance->script = name;
+	NodeScriptInstance &loaded = *instance;
+	m_nodeScripts.push_back(std::move(instance));
+
 	const ScriptAsset *asset = m_project.FindScript(name);
 	if (!asset) {
-		instance.error = String("script introuvable dans le projet");
+		loaded.error = String("script introuvable dans le projet");
 		LogWarning(String::Format("Script « %s » : introuvable dans la bibliothèque du projet", name.CStr()));
-		m_nodeScripts.push_back(std::move(instance));
 		return nullptr;
 	}
-	instance.vm = std::make_unique<data::script::Interpreter>();
-	InstallHostApi(*instance.vm);
-	instance.vm->SetRandomSeed(m_randomSeed + 0x9E3779B97F4A7C15ull * uint64_t(m_nodeScripts.size() + 1));
+	loaded.vm = std::make_unique<data::script::Interpreter>();
+	InstallHostApi(*loaded.vm);
+	loaded.vm->SetRandomSeed(m_randomSeed + 0x9E3779B97F4A7C15ull * uint64_t(m_nodeScripts.size()));
 	++m_scriptRunCount;
 	m_loadedScripts.push_back(String::Format("script:%s", name.CStr()));
-	auto loaded = instance.vm->Run(asset->source.View());
-	if (loaded.IsError()) {
+	auto run = loaded.vm->Run(asset->source.View());
+	if (run.IsError()) {
 		++m_scriptErrorCount;
-		instance.error = loaded.Error().Format();
-		LogError(String::Format("Script « %s » : %s", name.CStr(), instance.error.CStr()));
-	} else {
-		instance.ready = true;
+		loaded.error = run.Error().Format();
+		LogError(String::Format("Script « %s » : %s", name.CStr(), loaded.error.CStr()));
+		return nullptr;
 	}
-	m_nodeScripts.push_back(std::move(instance));
-	return m_nodeScripts.back().ready ? &m_nodeScripts.back() : nullptr;
+	// Le script DÉFINIT un comportement ; c'est le moteur qui l'instancie,
+	// une fois par nœud.
+	auto classes = loaded.vm->ClassesDerivedFrom(String(engine_base::BEHAVIOUR));
+	if (classes.size() != 1) {
+		++m_scriptErrorCount;
+		loaded.error = classes.empty()
+						   ? String("le script ne définit aucune classe dérivée de `Behaviour` "
+									"(class MonComportement extends Behaviour { fn on_update(dt) { … } })")
+						   : String::Format("le script définit %d classes dérivées de `Behaviour` : une seule est "
+											"attachée aux nœuds (rendez les autres `abstract`)",
+											int(classes.size()));
+		LogError(String::Format("Script « %s » : %s", name.CStr(), loaded.error.CStr()));
+		return nullptr;
+	}
+	loaded.behaviour = classes.front();
+	loaded.ready = true;
+	return &loaded;
 }
 
 String Runtime::ScriptHandle(scene::NodeId id) const {
@@ -2758,56 +3096,149 @@ String Runtime::ScriptHandle(scene::NodeId id) const {
 }
 
 void Runtime::StartNodeScriptsOf(scene::NodeId root) {
+	using data::script::Value;
 	const SceneDesc *scene = ActiveScene();
 	if (!scene || !m_playing)
 		return;
-	std::vector<std::pair<String, scene::NodeId>> started;
+	std::vector<std::pair<String, scene::NodeId>> carriers;
 	scene->tree.Traverse(root, [&](scene::NodeId id, const scene::Node &node) {
 		if (ScriptRef::Has(node) && !ScriptRef::Read(node).script.IsEmpty())
-			started.emplace_back(ScriptRef::Read(node).script, id);
+			carriers.emplace_back(ScriptRef::Read(node).script, id);
 	});
-	for (const auto &[name, id] : started) {
+	// 1) Construire toutes les instances (leur `init`)…
+	std::vector<std::pair<NodeScriptInstance *, size_t>> created;
+	for (const auto &[name, id] : carriers) {
 		NodeScriptInstance *instance = NodeScriptFor(name);
-		if (!instance)
+		if (!instance || !FindObject(id))
 			continue;
-		instance->nodes.push_back(id);
-		CallNodeHook(*instance, id, String("on_start"), {});
+		m_bindingNode = id;
+		++m_scriptCallCount;
+		auto made = instance->vm->CallValue(Value::Class(instance->behaviour), {}, 0, 0);
+		m_bindingNode = scene::NodeId{};
+		if (made.IsError()) {
+			++m_scriptErrorCount;
+			instance->error = made.Error().Format();
+			LogError(String::Format("Script « %s » (%s) : construction : %s", name.CStr(),
+									FindObject(id) ? FindObject(id)->name.CStr() : "?", instance->error.CStr()));
+			continue;
+		}
+		instance->attached.push_back(NodeScriptInstance::Attached{id, made.Unwrap(), false});
+		created.emplace_back(instance, instance->attached.size() - 1);
 	}
+	// 2) …puis leurs `on_start` : chacune trouve les autres déjà en place.
+	++m_nodeScriptWalk;
+	for (const auto &[instance, index] : created) {
+		if (!instance->ready || instance->attached[index].detached)
+			continue;
+		CallNodeHook(*instance, index, String("on_start"), {});
+	}
+	--m_nodeScriptWalk;
+	CompactNodeScripts();
 }
 
 void Runtime::UpdateNodeScripts(float dt) {
 	using data::script::Value;
-	// Par indices, et tailles relues : un script peut instancier une scène
-	// (et donc ajouter des scripts ou des nœuds) pendant son propre appel.
-	const size_t scripts = m_nodeScripts.size();
-	for (size_t i = 0; i < scripts; ++i) {
-		const size_t nodes = m_nodeScripts[i].nodes.size();
-		for (size_t n = 0; n < nodes && m_nodeScripts[i].ready; ++n) {
-			const scene::NodeId node = m_nodeScripts[i].nodes[n];
-			CallNodeHook(m_nodeScripts[i], node, String("on_update"), {Value::Number(double(dt))});
+	// Tout objet vivant de l'interpréteur d'un script de nœud reçoit
+	// `on_update` : les Behaviour attachées par l'éditeur ET ce qu'elles ont
+	// créé (projectiles, effets…). Par indices, tailles relues : un script
+	// peut charger une pièce (et donc d'autres scripts) pendant son appel.
+	++m_nodeScriptWalk;
+	for (size_t s = 0; s < m_nodeScripts.size(); ++s) {
+		NodeScriptInstance &instance = *m_nodeScripts[s];
+		if (!instance.ready || !instance.vm)
+			continue;
+		for (const auto &object : instance.vm->Owners().Snapshot()) {
+			if (!instance.ready)
+				break;
+			if (object->destroyed)
+				continue;
+			auto called = instance.vm->CallMethodIfPresent(Value::Instance(object), String("on_update"),
+														   {Value::Number(double(dt))});
+			if (called.IsNone())
+				continue;
+			++m_scriptCallCount;
+			if (called.Unwrap().IsError())
+				DisableNodeScript(instance, object->klass->Name(), String("on_update"), called.Unwrap().Error());
 		}
 	}
+	--m_nodeScriptWalk;
+	CompactNodeScripts();
 }
 
-void Runtime::CallNodeHook(NodeScriptInstance &instance, scene::NodeId node, const String &hook,
+void Runtime::DisableNodeScript(NodeScriptInstance &instance, const String &className, const String &hook,
+								const data::script::ScriptError &error) {
+	++m_scriptErrorCount;
+	instance.ready = false;
+	instance.error = error.Format();
+	LogError(String::Format("Script « %s » (%s) `%s` : %s", instance.script.CStr(), className.CStr(), hook.CStr(),
+							instance.error.CStr()));
+	LogWarning(String::Format("Script « %s » désactivé jusqu'au prochain démarrage du mode Jeu", instance.script.CStr()));
+}
+
+void Runtime::CallNodeHook(NodeScriptInstance &instance, size_t index, const String &hook,
 		std::vector<data::script::Value> args) {
-	const scene::Node *target = FindObject(node);
-	if (!target || !instance.vm)
+	if (!instance.vm || index >= instance.attached.size())
 		return;
-	args.insert(args.begin(), data::script::Value::Str(ScriptHandle(node)));
-	auto called = instance.vm->CallGlobalIfPresent(hook, std::move(args));
+	const NodeScriptInstance::Attached entry = instance.attached[index]; // copie : la liste peut grandir
+	const scene::Node *target = FindObject(entry.node);
+	if (!target || entry.detached)
+		return;
+	const String targetName = target->name;
+	auto called = instance.vm->CallMethodIfPresent(entry.object, hook, std::move(args));
 	if (called.IsNone())
 		return;
 	++m_scriptCallCount;
-	if (called.Unwrap().IsError()) {
-		++m_scriptErrorCount;
-		instance.ready = false;
-		instance.error = called.Unwrap().Error().Format();
-		LogError(String::Format("Script « %s » (%s) `%s` : %s", instance.script.CStr(), target->name.CStr(),
-								hook.CStr(), instance.error.CStr()));
-		LogWarning(String::Format("Script « %s » désactivé jusqu'au prochain démarrage du mode Jeu",
-								  instance.script.CStr()));
+	if (called.Unwrap().IsError())
+		DisableNodeScript(instance, targetName, hook, called.Unwrap().Error());
+}
+
+void Runtime::DestroyObjectsOfNodes(const std::vector<scene::NodeId> &doomed) {
+	if (doomed.empty())
+		return;
+	const std::unordered_set<scene::NodeId> ids(doomed.begin(), doomed.end());
+	const scene::NodeTree *tree = Tree();
+	// Une ressource dont le nœud disparaît est DÉTRUITE (séquence RAII
+	// complète), quel que soit l'interpréteur qui l'a créée.
+	auto sweep = [&](data::script::Interpreter &vm) {
+		for (const auto &object : vm.Owners().Snapshot()) {
+			if (object->destroyed)
+				continue;
+			bool hit = false;
+			for (const auto &base : object->owners) {
+				auto carrier = std::dynamic_pointer_cast<NodeOwner>(base);
+				if (!carrier || carrier->tree != tree || !ids.contains(carrier->node))
+					continue;
+				hit = true;
+				carrier->ownsNode = false; // son retrait est déjà en cours
+			}
+			if (hit)
+				vm.DestroyInstance(object);
+		}
+	};
+	++m_nodeScriptWalk;
+	for (size_t s = 0; s < m_nodeScripts.size(); ++s) {
+		NodeScriptInstance &instance = *m_nodeScripts[s];
+		for (NodeScriptInstance::Attached &entry : instance.attached)
+			if (!entry.detached && ids.contains(entry.node)) {
+				entry.detached = true;
+				m_nodeScriptsDirty = true;
+			}
+		if (instance.vm)
+			sweep(*instance.vm);
 	}
+	if (m_gameplayVm)
+		sweep(*m_gameplayVm);
+	sweep(m_toolVm);
+	--m_nodeScriptWalk;
+	CompactNodeScripts();
+}
+
+void Runtime::CompactNodeScripts() {
+	if (m_nodeScriptWalk > 0 || !m_nodeScriptsDirty)
+		return;
+	m_nodeScriptsDirty = false;
+	for (const auto &instance : m_nodeScripts)
+		std::erase_if(instance->attached, [](const NodeScriptInstance::Attached &entry) { return entry.detached; });
 }
 
 scene::NodeId Runtime::FollowTarget() const {
@@ -2824,8 +3255,34 @@ Result<data::script::Value, data::script::ScriptError> Runtime::RunGameplayScrip
 	return m_gameplayVm->Run(source.View());
 }
 
+bool Runtime::CreateSceneObject() {
+	auto classes = m_gameplayVm->ClassesDerivedFrom(String(engine_base::SCENE));
+	if (classes.size() != 1) {
+		++m_scriptErrorCount;
+		LogError(classes.empty()
+					 ? String("Script de jeu : aucune classe dérivée de `Scene` (class MaScène extends Scene { "
+							  "fn on_start() { … } fn on_update(dt) { … } })")
+					 : String::Format("Script de jeu : %d classes dérivées de `Scene` — une seule est instanciée "
+									  "(rendez les autres `abstract`)",
+									  int(classes.size())));
+		return false;
+	}
+	++m_scriptCallCount;
+	auto made = m_gameplayVm->CallValue(data::script::Value::Class(classes.front()), {}, 0, 0);
+	if (made.IsError()) {
+		++m_scriptErrorCount;
+		LogError(String::Format("Script de jeu : construction de `%s` : %s", classes.front()->Name().CStr(),
+								made.Error().Format().CStr()));
+		return false;
+	}
+	m_sceneObject = made.Unwrap();
+	return true;
+}
+
 void Runtime::CallGameplayHook(const String &hook, std::vector<data::script::Value> args) {
-	auto called = m_gameplayVm->CallGlobalIfPresent(hook, std::move(args));
+	if (m_sceneObject.IsNil())
+		return;
+	auto called = m_gameplayVm->CallMethodIfPresent(m_sceneObject, hook, std::move(args));
 	if (called.IsNone())
 		return;
 	++m_scriptCallCount;
@@ -2842,9 +3299,27 @@ void Runtime::CallGameplayHook(const String &hook, std::vector<data::script::Val
 }
 
 void Runtime::RunGameplayHook(float dt) {
-	if (!m_gameplayReady)
-		return;
-	CallGameplayHook(String("on_update"), {data::script::Value::Number(double(dt))});
+	using data::script::Value;
+	// L'objet Scene (créé le premier, donc en tête du registre) puis tous les
+	// objets que le script de scène a créés et qui définissent `on_update`.
+	for (const auto &object : m_gameplayVm->Owners().Snapshot()) {
+		if (!m_gameplayReady)
+			return;
+		if (object->destroyed)
+			continue;
+		auto called = m_gameplayVm->CallMethodIfPresent(Value::Instance(object), String("on_update"),
+														{Value::Number(double(dt))});
+		if (called.IsNone())
+			continue;
+		++m_scriptCallCount;
+		if (called.Unwrap().IsError()) {
+			++m_scriptErrorCount;
+			LogError(String::Format("Script de jeu (%s) `on_update` : %s", object->klass->Name().CStr(),
+									called.Unwrap().Error().Format().CStr()));
+			m_gameplayReady = false;
+			LogWarning(String("Script de jeu désactivé jusqu'au prochain démarrage du mode Jeu"));
+		}
+	}
 }
 
 void Runtime::StartScenePlay() {
@@ -2865,23 +3340,40 @@ void Runtime::StartScenePlay() {
 		onGameUiReset(); // calque d'interface vierge AVANT `on_start`
 
 	m_gameplayReady = false;
+	m_sceneObject = data::script::Value::Nil();
 	if (!scene->gameplayScript.IsEmpty()) {
 		auto loaded = RunGameplayScript(scene->gameplayScript);
 		if (loaded.IsError()) {
 			++m_scriptErrorCount;
 			LogError(String::Format("Script de jeu : %s", loaded.Error().Format().CStr()));
-		} else {
+		} else if (CreateSceneObject()) {
 			m_gameplayReady = true;
 			CallGameplayHook(String("on_start"), {});
 		}
 	}
 	SetHelpersVisible(false);
 	m_currentCamera = FindCurrentCamera();
-	PrepareTriggers();
+	PrepareTriggers(true);
 	StartNodeScripts();
+	// Les objets de script viennent de naître : l'arbre affiche leurs classes.
+	if (onSceneStructureChanged)
+		onSceneStructureChanged();
 }
 
 void Runtime::EndScenePlay() {
+	// Fin de scène = destruction collective, dans l'ordre RAII
+	// (`on_destroy` → `deinit` → bases du moteur en ordre inverse) : les
+	// Behaviour des nœuds, puis l'objet Scene et ce que les scripts ont créé.
+	// Aucun script n'a à s'en soucier ; un objet déjà détruit à la main
+	// (`destroy()`) ne repasse pas.
+	for (auto it = m_nodeScripts.rbegin(); it != m_nodeScripts.rend(); ++it)
+		if ((*it)->vm)
+			(*it)->vm->Owners().DestroyAll(*(*it)->vm);
+	if (m_gameplayVm)
+		m_gameplayVm->Owners().DestroyAll(*m_gameplayVm);
+	m_sceneObject = data::script::Value::Nil();
+	m_gameplayReady = false;
+
 	m_nodeScripts.clear();
 	m_draw2d.clear();
 	m_triggerInside.clear();
@@ -2894,6 +3386,7 @@ void Runtime::EndScenePlay() {
 }
 
 void Runtime::ResetGameplayVm() {
+	m_sceneObject = data::script::Value::Nil();
 	m_gameplayVm = std::make_unique<data::script::Interpreter>();
 	InstallHostApi(*m_gameplayVm);
 	m_gameplayVm->SetRandomSeed(m_randomSeed);
@@ -3006,6 +3499,129 @@ Option<sdl3::Color> FieldColor(const data::script::MapObject &map, const char *k
 	return Some(sdl3::Color{channel(items[0]), channel(items[1]), channel(items[2]), 255});
 }
 
+sdl3::Color ColorFromVec3(const math::FVector3 &rgb) {
+	auto channel = [](float v) { return uint8_t(sdl3::Clamp(v, 0.f, 255.f)); };
+	return sdl3::Color{channel(rgb.x), channel(rgb.y), channel(rgb.z), 255};
+}
+
+Value PropertyToValue(const scene::PropertyValue *value) {
+	if (!value)
+		return Value::Nil();
+	switch (value->Type()) {
+		case scene::PropertyType::BOOL:
+			return Value::Boolean(value->AsBool());
+		case scene::PropertyType::INT:
+		case scene::PropertyType::FLOAT:
+			return Value::Number(double(value->AsFloat()));
+		case scene::PropertyType::VEC3:
+			return Vec3ToValue(value->AsVec3());
+		default:
+			return Value::Str(value->ToDisplayString());
+	}
+}
+
+void WriteProperty(scene::Node &node, const String &key, const Value &value) {
+	if (value.IsBoolean())
+		node.Set(key, scene::PropertyValue::Bool(value.IsTruthy()));
+	else if (value.IsNumber())
+		node.Set(key, scene::PropertyValue::Float(value.AsFloat()));
+	else if (value.IsNil())
+		(void)node.properties.Remove(key);
+	else
+		node.Set(key, scene::PropertyValue::Str(value.ToDisplayString()));
+}
+
+void ReadMaterialTable(const data::script::MapObject &map, MaterialDesc &material) {
+	// `kind` (forme de set_material) ou `material` (forme de scene.spawn).
+	const String kind = FieldString(map, "kind", FieldString(map, "material", "").CStr());
+	if (!kind.IsEmpty())
+		material.kind = MaterialKindFromName(kind).UnwrapOr(material.kind);
+	if (auto color = FieldColor(map, "color"); color.IsSome())
+		material.baseColor = color.Unwrap();
+	material.metallic = FieldFloat(map, "metallic", material.metallic);
+	material.roughness = FieldFloat(map, "roughness", material.roughness);
+	material.doubleSided = FieldBool(map, "double_sided", material.doubleSided);
+	material.wireframe = FieldBool(map, "wireframe", material.wireframe);
+}
+
+void ReadPhysicsTable(const data::script::MapObject &map, PhysicsDesc &physics) {
+	if (const Value *body = map.Find(String("body")); body && body->IsMap() && body->AsMap())
+		ReadPhysicsTable(*body->AsMap(), physics);
+	const String kind = FieldString(map, "body", FieldString(map, "kind", "").CStr());
+	if (!kind.IsEmpty())
+		physics.body = BodyKindFromName(kind).UnwrapOr(physics.body);
+	physics.collider =
+		ColliderKindFromName(FieldString(map, "collider", ColliderKindName(physics.collider))).UnwrapOr(physics.collider);
+	physics.halfExtents = FieldVec3(map, "half_extents", physics.halfExtents);
+	physics.mass = FieldFloat(map, "mass", physics.mass);
+	physics.restitution = FieldFloat(map, "restitution", physics.restitution);
+	physics.friction = FieldFloat(map, "friction", physics.friction);
+}
+
+ObjectDesc ObjectFromTable(const data::script::MapObject &map) {
+	ObjectDesc object;
+	object.name = FieldString(map, "name", "Objet");
+	object.parent = FieldString(map, "parent", "");
+	object.tag = FieldString(map, "tag", "");
+	object.shape = ShapeKindFromName(FieldString(map, "shape", "box")).UnwrapOr(ShapeKind::BOX);
+	const String model = FieldString(map, "model", "");
+	if (!model.IsEmpty()) {
+		object.shape = ShapeKind::MODEL;
+		object.source = model; // relatif au projet : résolu par l'appelant
+	}
+	object.dimensions = FieldVec3(map, "size", math::FVector3{1.f, 1.f, 1.f});
+	object.segments = int(FieldFloat(map, "segments", 24.f));
+	object.visible = FieldBool(map, "visible", true);
+	object.transform.position = FieldVec3(map, "pos", math::FVector3{});
+	object.transform.SetEulerDegrees(FieldVec3(map, "rot", math::FVector3{}));
+	object.transform.scale = FieldVec3(map, "scale", math::FVector3{1.f, 1.f, 1.f});
+
+	object.material.kind = MaterialKind::PLASTIC;
+	ReadMaterialTable(map, object.material);
+	if (!map.Find(String("roughness")))
+		object.material.roughness = 0.5f;
+
+	object.physics.body = BodyKind::NONE;
+	object.physics.collider = ColliderKind::BOX;
+	object.physics.mass = 1.f;
+	object.physics.restitution = 0.3f;
+	object.physics.friction = 0.5f;
+	// Par défaut, le volume de collision épouse la forme affichée : un
+	// script n'a à préciser `half_extents` que s'il veut l'en détacher (une
+	// piste plate qui collisionne plus épais, etc.).
+	object.physics.halfExtents = object.dimensions * 0.5f * object.transform.scale;
+	ReadPhysicsTable(map, object.physics);
+	return object;
+}
+
+LightDesc LightFromTable(const data::script::MapObject &map, LightDesc base) {
+	const String kind = FieldString(map, "kind", "");
+	if (!kind.IsEmpty())
+		base.kind = LightKindFromName(kind).UnwrapOr(base.kind);
+	if (auto color = FieldColor(map, "color"); color.IsSome())
+		base.color = color.Unwrap();
+	base.intensity = sdl3::Max(0.f, FieldFloat(map, "intensity", base.intensity));
+	base.range = sdl3::Max(0.f, FieldFloat(map, "range", base.range));
+	base.spotAngle = FieldFloat(map, "spot_angle", base.spotAngle);
+	base.penumbra = FieldFloat(map, "penumbra", base.penumbra);
+	base.castShadow = FieldBool(map, "shadow", base.castShadow);
+	return base;
+}
+
+Option<scene::Transform> PlacementFromTable(const Runtime &runtime, const data::script::MapObject &map,
+											scene::NodeId &parent) {
+	const String parentName = FieldString(map, "parent", "");
+	if (!parentName.IsEmpty())
+		parent = runtime.ResolveId(parentName);
+	if (!map.Find(String("pos")) && !map.Find(String("rot")) && !map.Find(String("scale")))
+		return NONE;
+	scene::Transform t;
+	t.position = FieldVec3(map, "pos", math::FVector3{});
+	t.SetEulerDegrees(FieldVec3(map, "rot", math::FVector3{}));
+	t.scale = FieldVec3(map, "scale", math::FVector3{1.f, 1.f, 1.f});
+	return Some(t);
+}
+
 Option<SDL_Keycode> ScancodeFromName(const String &name) {
 	struct Entry {
 		const char *name;
@@ -3045,6 +3661,23 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 	using data::script::Value;
 	namespace sd = script_detail;
 
+	// Les classes de base du moteur (`Scene`, `Behaviour`, `Mesh3D`…) dont
+	// dérivent les classes des scripts de jeu (cf. script_owners.hpp).
+	InstallEngineBases(vm, *this);
+	// `import "commun"` : un script de la bibliothèque du projet, lu EN
+	// MÉMOIRE (les modifications non enregistrées comptent) — sinon un
+	// fichier du dossier `scripts/` du projet. C'est ainsi que des scènes
+	// partagent une classe de base commune.
+	vm.SetImportResolver([this](const String &specifier) -> Option<std::pair<String, String>> {
+		String name = specifier;
+		if (name.EndsWith(".script"))
+			name = name.Substring(0, name.GetSize() - 7);
+		if (const ScriptAsset *asset = m_project.FindScript(name))
+			return Some(std::make_pair(String::Format("project:%s", name.CStr()), asset->source));
+		return NONE; // l'interpréteur cherchera le fichier (cf. AddImportPath)
+	});
+	if (const String directory = ProjectDirectory(); !directory.IsEmpty())
+		vm.AddImportPath(directory + String("/scripts"));
 	// Les codecs data:: (parse/encode/read_file/write_file/load) : un script
 	// d'éditeur lit ainsi directement un .gltf, un .json de projet ou une
 	// table de réglages YAML.
@@ -3066,19 +3699,14 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   auto name = data::script::detail::ArgString(args, 0, "game.load_scene");
 								   if (name.IsError())
 									   return Err(name.Error());
-								   if (!game->m_project.FindScene(name.Value()))
+								   if (!game->RequestScene(name.Value()))
 									   return Err(Interpreter::MakeError(String::Format(
 										   "`game.load_scene` : scène « %s » introuvable", name.Value().CStr())));
-								   if (game->m_playing)
-									   game->m_pendingScene = Some(name.Unwrap());
-								   else
-									   (void)game->SwitchScene(name.Value());
 								   return Ok(Value::Boolean(true));
 							   });
 	vm.RegisterNamespacedNative(String("game"), String("quit"), 0, 0,
 							   [game](Interpreter &, std::vector<Value> &) -> Result<Value, ScriptError> {
-								   if (game->m_playing)
-									   game->m_pendingQuit = true;
+								   game->RequestQuit();
 								   return Ok(Value::Nil());
 							   });
 	vm.RegisterNamespacedNative(String("game"), String("state"), 0, 0,
@@ -3187,6 +3815,51 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   if (name.IsNone())
 									   return Ok(Value::Nil());
 								   return Ok(Value::Str(name.Unwrap()));
+							   });
+	/// `editor.owners()` → liste de tables {type, script, name, display,
+	/// alive} : les objets des scripts dérivés d'une base du moteur, lus dans
+	/// les registres C++ (un script bogué ne fige pas l'outliner).
+	vm.RegisterNamespacedNative(String("editor"), String("owners"), 0, 0,
+							   [self](Interpreter &, std::vector<Value> &) -> Result<Value, ScriptError> {
+								   auto list = std::make_shared<data::script::ListObject>();
+								   for (const data::script::OwnerInfo &info : self->LiveOwners()) {
+									   auto entry = std::make_shared<data::script::MapObject>();
+									   entry->SetKey(String("type"), Value::Str(info.typeName));
+									   entry->SetKey(String("script"), Value::Str(info.scriptName));
+									   entry->SetKey(String("name"), Value::Str(info.name));
+									   entry->SetKey(String("display"), Value::Str(info.display));
+									   entry->SetKey(String("alive"), Value::Boolean(info.alive));
+									   list->items.push_back(Value::Map(std::move(entry)));
+								   }
+								   return Ok(Value::List(std::move(list)));
+							   });
+
+	/// `editor.owner_count(type?)` → nombre de bases vivantes (toutes, ou du
+	/// type qualifié donné : `editor.owner_count("game.Mesh3D")`).
+	vm.RegisterNamespacedNative(String("editor"), String("owner_count"), 0, 1,
+							   [self](Interpreter &, std::vector<Value> &args) -> Result<Value, ScriptError> {
+								   const std::vector<data::script::OwnerInfo> all = self->LiveOwners();
+								   if (args.empty())
+									   return Ok(Value::Number(double(all.size())));
+								   auto wanted = data::script::detail::ArgString(args, 0, "editor.owner_count");
+								   if (wanted.IsError())
+									   return Err(wanted.Error());
+								   size_t n = 0;
+								   for (const auto &info : all)
+									   n += info.typeName == wanted.Value() ? 1 : 0;
+								   return Ok(Value::Number(double(n)));
+							   });
+
+	/// `editor.destroy_all_owners()` → nombre d'objets détruits. Hors partie
+	/// uniquement : en partie, la fin de scène s'en charge, et détruire
+	/// l'objet Scene en cours d'appel n'aurait pas de sens.
+	vm.RegisterNamespacedNative(String("editor"), String("destroy_all_owners"), 0, 0,
+							   [self](Interpreter &, std::vector<Value> &) -> Result<Value, ScriptError> {
+								   if (self->IsPlaying())
+									   return Err(Interpreter::MakeError(String(
+										   "`editor.destroy_all_owners` : pas pendant une partie (la fin de scène "
+										   "détruit déjà tout)")));
+								   return Ok(Value::Number(double(self->DestroyAllScriptObjects())));
 							   });
 
 	// ── Édition : historique, sélection au rayon, manipulateur ──────────────
@@ -3539,40 +4212,9 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 			auto table = data::script::detail::ArgMap(args, 0, "scene.spawn");
 			if (table.IsError())
 				return Err(table.Error());
-			const data::script::MapObject &map = *table.Value();
-
-			ObjectDesc object;
-			object.name = sd::FieldString(map, "name", "Objet");
-			object.parent = sd::FieldString(map, "parent", "");
-			object.tag = sd::FieldString(map, "tag", "");
-			object.shape = ShapeKindFromName(sd::FieldString(map, "shape", "box")).UnwrapOr(ShapeKind::BOX);
-			object.dimensions = sd::FieldVec3(map, "size", math::FVector3{1.f, 1.f, 1.f});
-			object.segments = int(sd::FieldFloat(map, "segments", 24.f));
-			object.visible = sd::FieldBool(map, "visible", true);
-			object.transform.position = sd::FieldVec3(map, "pos", math::FVector3{});
-			object.transform.SetEulerDegrees(sd::FieldVec3(map, "rot", math::FVector3{}));
-			object.transform.scale = sd::FieldVec3(map, "scale", math::FVector3{1.f, 1.f, 1.f});
-
-			object.material.kind =
-				MaterialKindFromName(sd::FieldString(map, "material", "plastic")).UnwrapOr(MaterialKind::PLASTIC);
-			if (auto color = sd::FieldColor(map, "color"); color.IsSome())
-				object.material.baseColor = color.Unwrap();
-			object.material.metallic = sd::FieldFloat(map, "metallic", 0.f);
-			object.material.roughness = sd::FieldFloat(map, "roughness", 0.5f);
-			object.material.doubleSided = sd::FieldBool(map, "double_sided", false);
-			object.material.wireframe = sd::FieldBool(map, "wireframe", false);
-
-			object.physics.body = BodyKindFromName(sd::FieldString(map, "body", "none")).UnwrapOr(BodyKind::NONE);
-			object.physics.collider =
-				ColliderKindFromName(sd::FieldString(map, "collider", "box")).UnwrapOr(ColliderKind::BOX);
-			// Par défaut, le volume de collision épouse la forme affichée :
-			// un script n'a à préciser `half_extents` que s'il veut l'en
-			// détacher (une piste plate qui collisionne plus épais, etc.).
-			object.physics.halfExtents =
-				sd::FieldVec3(map, "half_extents", object.dimensions * 0.5f * object.transform.scale);
-			object.physics.mass = sd::FieldFloat(map, "mass", 1.f);
-			object.physics.restitution = sd::FieldFloat(map, "restitution", 0.3f);
-			object.physics.friction = sd::FieldFloat(map, "friction", 0.5f);
+			ObjectDesc object = sd::ObjectFromTable(*table.Value());
+			if (object.shape == ShapeKind::MODEL)
+				object.source = self->ResolveProjectPath(object.source);
 
 			Option<String> assigned = self->SpawnObject(std::move(object));
 			if (assigned.IsNone())
@@ -3714,12 +4356,8 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   auto rgb = sd::ArgVec3(args, 1, "object.set_color");
 								   if (rgb.IsError())
 									   return Err(rgb.Error());
-								   auto channel = [](float v) -> uint8_t {
-									   return uint8_t(v < 0.f ? 0 : (v > 255.f ? 255 : v));
-								   };
-								   sdl3::Color color{channel(rgb.Value().x), channel(rgb.Value().y),
-													 channel(rgb.Value().z), 255};
-								   return Ok(Value::Boolean(self->SetMaterialColor(name.Value(), color)));
+								   return Ok(Value::Boolean(
+									   self->SetMaterialColor(name.Value(), sd::ColorFromVec3(rgb.Value()))));
 							   });
 
 	vm.RegisterNamespacedNative(
@@ -3740,15 +4378,7 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 			// Partir de l'état COURANT : une table partielle ne modifie que
 			// ce qu'elle mentionne (`{roughness: 0.1}` garde la couleur).
 			MaterialDesc material = VisualDesc::Read(*object).material;
-			const data::script::MapObject &map = *table.Value();
-			material.kind = MaterialKindFromName(sd::FieldString(map, "kind", MaterialKindName(material.kind)))
-								.UnwrapOr(material.kind);
-			if (auto color = sd::FieldColor(map, "color"); color.IsSome())
-				material.baseColor = color.Unwrap();
-			material.metallic = sd::FieldFloat(map, "metallic", material.metallic);
-			material.roughness = sd::FieldFloat(map, "roughness", material.roughness);
-			material.doubleSided = sd::FieldBool(map, "double_sided", material.doubleSided);
-			material.wireframe = sd::FieldBool(map, "wireframe", material.wireframe);
+			sd::ReadMaterialTable(*table.Value(), material);
 			return Ok(Value::Boolean(self->SetMaterial(name.Value(), material)));
 		});
 
@@ -3768,16 +4398,7 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 				return Ok(Value::Boolean(false));
 
 			PhysicsDesc physics = PhysicsDesc::Read(*object);
-			const data::script::MapObject &map = *table.Value();
-			physics.body = BodyKindFromName(sd::FieldString(map, "body", BodyKindName(physics.body)))
-							   .UnwrapOr(physics.body);
-			physics.collider =
-				ColliderKindFromName(sd::FieldString(map, "collider", ColliderKindName(physics.collider)))
-					.UnwrapOr(physics.collider);
-			physics.halfExtents = sd::FieldVec3(map, "half_extents", physics.halfExtents);
-			physics.mass = sd::FieldFloat(map, "mass", physics.mass);
-			physics.restitution = sd::FieldFloat(map, "restitution", physics.restitution);
-			physics.friction = sd::FieldFloat(map, "friction", physics.friction);
+			sd::ReadPhysicsTable(*table.Value(), physics);
 			return Ok(Value::Boolean(self->SetPhysics(name.Value(), physics)));
 		});
 
@@ -4140,31 +4761,9 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   scene::Node *node = self->FindObject(self->ResolveId(name.Value()));
 								   if (!node)
 									   return Ok(Value::Nil());
-								   if (args.size() == 2) {
-									   const scene::PropertyValue *value = node->Get(key.Value());
-									   if (!value)
-										   return Ok(Value::Nil());
-									   switch (value->Type()) {
-										   case scene::PropertyType::BOOL:
-											   return Ok(Value::Boolean(value->AsBool()));
-										   case scene::PropertyType::INT:
-										   case scene::PropertyType::FLOAT:
-											   return Ok(Value::Number(double(value->AsFloat())));
-										   case scene::PropertyType::VEC3:
-											   return Ok(sd::Vec3ToValue(value->AsVec3()));
-										   default:
-											   return Ok(Value::Str(value->ToDisplayString()));
-									   }
-								   }
-								   // Écriture : le TYPE vient de la valeur du
-								   // script, pas d'un argument supplémentaire.
-								   const Value &value = args[2];
-								   if (value.IsBoolean())
-									   node->Set(key.Value(), scene::PropertyValue::Bool(value.IsTruthy()));
-								   else if (value.IsNumber())
-									   node->Set(key.Value(), scene::PropertyValue::Float(value.AsFloat()));
-								   else
-									   node->Set(key.Value(), scene::PropertyValue::Str(value.ToDisplayString()));
+								   if (args.size() == 2)
+									   return Ok(sd::PropertyToValue(node->Get(key.Value())));
+								   sd::WriteProperty(*node, key.Value(), args[2]);
 								   return Ok(Value::Boolean(true));
 							   });
 
@@ -4190,19 +4789,8 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   Option<scene::Transform> placement = NONE;
 								   if (args.size() > 1 && args[1].IsString())
 									   parent = self->ResolveId(args[1].AsString());
-								   if (args.size() > 1 && args[1].IsMap() && args[1].AsMap()) {
-									   const data::script::MapObject &opts = *args[1].AsMap();
-									   const String parentName = sd::FieldString(opts, "parent", "");
-									   if (!parentName.IsEmpty())
-										   parent = self->ResolveId(parentName);
-									   if (opts.Find(String("pos")) || opts.Find(String("rot")) || opts.Find(String("scale"))) {
-										   scene::Transform t;
-										   t.position = sd::FieldVec3(opts, "pos", math::FVector3{});
-										   t.SetEulerDegrees(sd::FieldVec3(opts, "rot", math::FVector3{}));
-										   t.scale = sd::FieldVec3(opts, "scale", math::FVector3{1.f, 1.f, 1.f});
-										   placement = Some(t);
-									   }
-								   }
+								   if (args.size() > 1 && args[1].IsMap() && args[1].AsMap())
+									   placement = sd::PlacementFromTable(*self, *args[1].AsMap(), parent);
 								   auto created = self->InstantiateSceneFile(path.Value(), parent, placement);
 								   if (created.IsError())
 									   return Ok(Value::Nil());
@@ -4354,10 +4942,8 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 									   return Err(color.Error());
 								   if (!node.Value())
 									   return Ok(Value::Boolean(false));
-								   auto channel = [](float v) { return uint8_t(sdl3::Clamp(v, 0.f, 255.f)); };
 								   LightDesc light = LightDesc::Read(*node.Value());
-								   light.color = sdl3::Color{channel(color.Value().x), channel(color.Value().y),
-															 channel(color.Value().z), 255};
+								   light.color = sd::ColorFromVec3(color.Value());
 								   light.Write(*node.Value());
 								   return Ok(Value::Boolean(true));
 							   });

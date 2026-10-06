@@ -32,7 +32,7 @@ struct Harness {
 		Project project = files::MakeBlankProject(String("Pièces"));
 		ScriptAsset torch;
 		torch.name = String("torche");
-		torch.source = String("var vus = []\nfn on_start(self) { vus.append(self) }\n");
+		torch.source = String("var vus = []\nclass Torche extends Behaviour { fn on_start() { vus.append(this.node()) } }\n");
 		project.scripts.push_back(torch);
 		(void)files::SaveProject(project, String((dir / "pieces.json").string().c_str()));
 		(void)runtime.LoadProjectFile(String((dir / "pieces.json").string().c_str()));

@@ -136,6 +136,15 @@ struct UiDragPayload {
 	String kind;      ///< genre de charge ("node", "asset"…)
 	int64_t id = 0;   ///< identifiant applicatif transporté
 	bool dragging = false; ///< vrai pendant le glissé (permet un rendu estompé)
+	/// Fantôme : texte dessiné près du pointeur pendant le glissé par
+	/// RenderSystem (vide = aucun fantôme). Modifiable au début du geste
+	/// (cf. UiCallbacks::onDragStart) — « 3 éléments » pour une sélection.
+	String label;
+	/// > 1 : pastille « N » sur le fantôme (glissé d'une sélection multiple).
+	int count = 1;
+	/// Position du pointeur pendant le glissé (repère de l'interface), tenue à
+	/// jour par InputSystem : c'est là que le fantôme est dessiné.
+	sdl3::FPoint pointer{0.f, 0.f};
 };
 
 /// Cible de dépôt. `hovered` est vrai quand un glissé COMPATIBLE la survole —
@@ -143,6 +152,10 @@ struct UiDragPayload {
 struct UiDropTarget {
 	String accepts;        ///< genre accepté ; vide = tout accepter
 	bool hovered = false;
+	/// Surlignage dessiné par RenderSystem quand `hovered` (cadre d'accent).
+	/// Faux pour une cible qui dessine son propre indicateur (insertion
+	/// avant/après dans un arbre, par exemple).
+	bool highlight = true;
 };
 
 struct UiReorderable {

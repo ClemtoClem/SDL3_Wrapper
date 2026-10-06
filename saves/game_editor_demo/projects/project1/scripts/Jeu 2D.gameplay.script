@@ -2,7 +2,9 @@
 #
 # Une scène PUREMENT 2D (« Monde 3D » décoché dans les réglages de la scène) :
 #  - des nœuds 2D posés dans l'éditeur (ciel, collines, soleil, panier) ;
-#  - des nœuds créés par le script (les étoiles, node2d.spawn) ;
+#  - des objets 2D créés par le script : chaque étoile est une instance de
+#    `Etoile` (dérivée de Node2D), qui tombe d'elle-même (`on_update`) et
+#    retire son nœud quand on la détruit ;
 #  - un calque d'interface fixe à l'écran (score, consignes) ;
 #  - des dessins immédiats pour les effets (traînées, éclats : draw2d.*).
 #
@@ -12,134 +14,147 @@
 const LARGEUR = 1280
 const HAUTEUR = 720
 const Y_PANIER = 640
+const FORME_ETOILE = [[0, -18], [5, -6], [18, -6], [8, 2], [12, 16], [0, 8], [-12, 16], [-8, 2], [-18, -6], [-5, -6]]
 
 let rng = math.random_engine(2026)
-let score = 0
-let ratees = 0
-let etoiles = []      # {nom, vitesse, spin}
-let eclats = []       # {x, y, vx, vy, vie}
-let prochaine = 0.4
-let numero = 0
-let secousse = 0
-let souris_avant = nil
-let manuel = false
 
-fn on_start() {
-    # La souris pilote le panier et clique l'interface : libre. F7 la
-    # capture (le panier ne suit plus alors que le clavier) et la libère.
-    input.set_mouse_mode("free")
-    ui.button("Retour à l'accueil", fn(b) { game.load_scene("Accueil") },
-              {anchor: "top_right", offset: [-14, 14], w: 180})
-}
+class Etoile extends Node2D {
+    let vitesse = 0
+    let spin = 0
 
-# Appelé quand le mode de la souris change (script ou touche F7).
-fn on_mouse_mode(mode) {
-    let texte = "← → ou la souris : déplacer le panier · F7 : capturer la souris"
-    if (mode == "captured") { texte = "Souris capturée — ← → pour le panier · F7 : libérer la souris" }
-    node2d.set_text("Consignes", texte)
-}
-
-fn nouvelle_etoile() {
-    numero += 1
-    let nom = node2d.spawn({name: "Étoile " .. numero, kind: "polygon", pos: [rng.float(60, LARGEUR - 60), -30],
-        points: [[0, -18], [5, -6], [18, -6], [8, 2], [12, 16], [0, 8], [-12, 16], [-8, 2], [-18, -6], [-5, -6]],
-        color: "#ffd84a", outline: 2, outline_color: "#fff3b0", z: 1, tag: "etoile"})
-    etoiles.append({nom: nom, vitesse: rng.float(150, 290), spin: rng.float(-160, 160)})
-}
-
-fn eclater(x, y, couleur) {
-    for (i in range(14)) {
-        let angle = rng.float(0, 6.283)
-        let v = rng.float(80, 260)
-        eclats.append({x: x, y: y, vx: math.cos(angle) * v, vy: math.sin(angle) * v - 120, vie: 0.7,
-                       couleur: couleur})
-    }
-}
-
-# Le panier : clavier, souris, ou pilote automatique.
-fn deplacer_panier(dt) {
-    let p = node2d.position("Panier")
-    let axe = input.axis("left", "right") + input.axis("a", "d") + input.axis("q", "d")
-    let souris = canvas.mouse()
-    if (axe != 0) { manuel = true }
-    if (souris and souris_avant and (souris[0] != souris_avant[0])) { manuel = true }
-    souris_avant = souris
-    let x = p[0]
-    if (axe != 0) {
-        x += axe * 620 * dt
-    } else if (manuel and souris) {
-        x += math.clamp(souris[0] - x, -900 * dt, 900 * dt)
-    } else if (not manuel and len(etoiles) > 0) {
-        let cible = etoiles[0]
-        for (e in etoiles) {
-            if (node2d.position(e.nom)[1] > node2d.position(cible.nom)[1]) { cible = e }
-        }
-        x += math.clamp(node2d.position(cible.nom)[0] - x, -520 * dt, 520 * dt)
-    }
-    node2d.set_position("Panier", math.clamp(x, 80, LARGEUR - 80), Y_PANIER)
-}
-
-fn on_update(dt) {
-    deplacer_panier(dt)
-
-    # Le soleil tourne, la caméra tremble un instant après une prise.
-    node2d.set_rotation("Soleil", game.time() * 12)
-    secousse = math.max(0, secousse - dt)
-    let dx = 0
-    let dy = 0
-    if (secousse > 0) {
-        let d = secousse * 14
-        dx = rng.float(-d, d)
-        dy = rng.float(-d, d)
-    }
-    node2d.set_position("Caméra", LARGEUR / 2 + dx, HAUTEUR / 2 + dy)
-
-    prochaine -= dt
-    if (prochaine <= 0) {
-        nouvelle_etoile()
-        prochaine = rng.float(0.35, 0.8)
+    fn init(numero) {
+        super.init("Étoile " .. numero, {kind: "polygon", pos: [rng.float(60, LARGEUR - 60), -30],
+            points: FORME_ETOILE, color: "#ffd84a", outline: 2, outline_color: "#fff3b0", z: 1, tag: "etoile"})
+        this.vitesse = rng.float(150, 290)
+        this.spin = rng.float(-160, 160)
     }
 
-    let restantes = []
-    for (e in etoiles) {
-        let p = node2d.move(e.nom, 0, e.vitesse * dt)
-        node2d.set_rotation(e.nom, node2d.rotation(e.nom) + e.spin * dt)
+    # Appelé par le moteur à chaque image, comme pour tout objet vivant.
+    fn on_update(dt) {
+        let p = this.move(0, this.vitesse * dt)
+        this.set_rotation(this.rotation() + this.spin * dt)
         # Traînée : trois points de plus en plus pâles au-dessus de l'étoile.
         for (k in range(3)) {
-            draw2d.circle(p[0], p[1] - 14 - k * 12, 5 - k * 1.4, [255, 230, 120, 150 - k * 45],
-                          {space: "world", z: 0})
-        }
-        if (node2d.overlaps(e.nom, "Panier")) {
-            score += 1
-            secousse = 0.25
-            eclater(p[0], p[1], [255, 220, 90])
-            node2d.remove(e.nom)
-        } else if (p[1] > HAUTEUR + 30) {
-            ratees += 1
-            eclater(p[0], HAUTEUR - 10, [150, 170, 220])
-            node2d.remove(e.nom)
-        } else {
-            restantes.append(e)
+            draw2d.circle(p[0], p[1] - 14 - k * 12, 5 - k * 1.4, [255, 230, 120, 150 - k * 45], {space: "world", z: 0})
         }
     }
-    etoiles = restantes
+}
 
-    # Éclats : de simples cercles, redessinés à chaque image.
-    let vivants = []
-    for (c in eclats) {
-        c.vie -= dt
-        if (c.vie > 0) {
-            c.vy += 520 * dt
-            c.x += c.vx * dt
-            c.y += c.vy * dt
-            let a = math.clamp(c.vie / 0.7, 0, 1)
-            draw2d.circle(c.x, c.y, 2 + a * 3, [c.couleur[0], c.couleur[1], c.couleur[2], a * 255],
-                          {space: "world", z: 3})
-            vivants.append(c)
+class Jeu2D extends Scene {
+    let score = 0
+    let ratees = 0
+    let etoiles = []
+    let eclats = []       # {x, y, vx, vy, vie, couleur}
+    let prochaine = 0.4
+    let numero = 0
+    let secousse = 0
+    let souris_avant = nil
+    let manuel = false
+
+    fn on_start() {
+        # La souris pilote le panier et clique l'interface : libre. F7 la
+        # capture (le panier ne suit plus alors que le clavier) et la libère.
+        input.set_mouse_mode("free")
+        ui.button("Retour à l'accueil", fn(b) { this.load("Accueil") }, {anchor: "top_right", offset: [-14, 14], w: 180})
+    }
+
+    # Appelé quand le mode de la souris change (script ou touche F7).
+    fn on_mouse_mode(mode) {
+        let texte = "← → ou la souris : déplacer le panier · F7 : capturer la souris"
+        if (mode == "captured") { texte = "Souris capturée — ← → pour le panier · F7 : libérer la souris" }
+        node2d.set_text("Consignes", texte)
+    }
+
+    fn eclater(x, y, couleur) {
+        for (i in range(14)) {
+            let angle = rng.float(0, 6.283)
+            let v = rng.float(80, 260)
+            this.eclats.append({x: x, y: y, vx: math.cos(angle) * v, vy: math.sin(angle) * v - 120, vie: 0.7,
+                                couleur: couleur})
         }
     }
-    eclats = vivants
 
-    node2d.set_text("Score", format("Étoiles : {}", score))
-    node2d.set_text("Ratées", format("Ratées : {}", ratees))
+    # Le panier : clavier, souris, ou pilote automatique.
+    fn deplacer_panier(dt) {
+        let p = node2d.position("Panier")
+        let axe = input.axis("left", "right") + input.axis("a", "d") + input.axis("q", "d")
+        let souris = canvas.mouse()
+        if (axe != 0) { this.manuel = true }
+        if (souris and this.souris_avant and (souris[0] != this.souris_avant[0])) { this.manuel = true }
+        this.souris_avant = souris
+        let x = p[0]
+        if (axe != 0) {
+            x += axe * 620 * dt
+        } else if (this.manuel and souris) {
+            x += math.clamp(souris[0] - x, -900 * dt, 900 * dt)
+        } else if (not this.manuel and len(this.etoiles) > 0) {
+            let cible = this.etoiles[0]
+            for (e in this.etoiles) {
+                if (e.position()[1] > cible.position()[1]) { cible = e }
+            }
+            x += math.clamp(cible.position()[0] - x, -520 * dt, 520 * dt)
+        }
+        node2d.set_position("Panier", math.clamp(x, 80, LARGEUR - 80), Y_PANIER)
+    }
+
+    fn on_update(dt) {
+        this.deplacer_panier(dt)
+
+        # Le soleil tourne, la caméra tremble un instant après une prise.
+        node2d.set_rotation("Soleil", this.time() * 12)
+        this.secousse = math.max(0, this.secousse - dt)
+        let dx = 0
+        let dy = 0
+        if (this.secousse > 0) {
+            let d = this.secousse * 14
+            dx = rng.float(-d, d)
+            dy = rng.float(-d, d)
+        }
+        node2d.set_position("Caméra", LARGEUR / 2 + dx, HAUTEUR / 2 + dy)
+
+        this.prochaine -= dt
+        if (this.prochaine <= 0) {
+            this.numero += 1
+            this.etoiles.append(Etoile(this.numero))
+            this.prochaine = rng.float(0.35, 0.8)
+        }
+
+        # Prises et étoiles perdues : `destroy()` retire le nœud de la scène.
+        let restantes = []
+        for (e in this.etoiles) {
+            let p = e.position()
+            if (e.overlaps("Panier")) {
+                this.score += 1
+                this.secousse = 0.25
+                this.eclater(p[0], p[1], [255, 220, 90])
+                e.destroy()
+            } else if (p[1] > HAUTEUR + 30) {
+                this.ratees += 1
+                this.eclater(p[0], HAUTEUR - 10, [150, 170, 220])
+                e.destroy()
+            } else {
+                restantes.append(e)
+            }
+        }
+        this.etoiles = restantes
+
+        # Éclats : de simples cercles, redessinés à chaque image.
+        let vivants = []
+        for (c in this.eclats) {
+            c.vie -= dt
+            if (c.vie > 0) {
+                c.vy += 520 * dt
+                c.x += c.vx * dt
+                c.y += c.vy * dt
+                let a = math.clamp(c.vie / 0.7, 0, 1)
+                draw2d.circle(c.x, c.y, 2 + a * 3, [c.couleur[0], c.couleur[1], c.couleur[2], a * 255],
+                              {space: "world", z: 3})
+                vivants.append(c)
+            }
+        }
+        this.eclats = vivants
+
+        node2d.set_text("Score", format("Étoiles : {}", this.score))
+        node2d.set_text("Ratées", format("Ratées : {}", this.ratees))
+    }
 }

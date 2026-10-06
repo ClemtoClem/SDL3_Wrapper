@@ -1,6 +1,4 @@
-// Définitions de render3d/skinned_mesh.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de render3d/skinned_mesh.hpp
 #include "render3d/skinned_mesh.hpp"
 
 namespace render3d {

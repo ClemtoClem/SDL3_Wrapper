@@ -1,6 +1,4 @@
-// Définitions de render3d/camera.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de render3d/camera.hpp
 #include "render3d/camera.hpp"
 
 namespace render3d {

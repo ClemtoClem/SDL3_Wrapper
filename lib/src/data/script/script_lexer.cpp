@@ -1,6 +1,4 @@
-// Définitions de data/script/script_lexer.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/script/script_lexer.hpp
 #include "data/script/script_lexer.hpp"
 
 namespace data::script {
@@ -34,6 +32,8 @@ const char * TokenTypeName(TokenType t) noexcept {
 			return "static";
 		case TokenType::KW_NAMESPACE:
 			return "namespace";
+		case TokenType::KW_IMPORT:
+			return "import";
 		case TokenType::KW_LET:
 			return "let";
 		case TokenType::KW_FN:
@@ -422,6 +422,7 @@ TokenType Lexer::KeywordType(StringView word) noexcept {
 		{"is", TokenType::KW_IS},             {"as", TokenType::KW_AS},
 		{"async", TokenType::KW_ASYNC},       {"await", TokenType::KW_AWAIT},
 		{"enum", TokenType::KW_ENUM},         {"operator", TokenType::KW_OPERATOR},
+		{"import", TokenType::KW_IMPORT},
 	};
 
 	for (const Entry &e : KEYWORDS) {

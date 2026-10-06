@@ -1,6 +1,4 @@
-// Définitions de project_files.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de project_files.hpp
 #include "project_files.hpp"
 
 namespace game_editor::files {

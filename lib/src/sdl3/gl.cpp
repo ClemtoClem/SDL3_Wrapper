@@ -1,6 +1,4 @@
-// Définitions de sdl3/gl.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de sdl3/gl.hpp
 // L'en-tête n'est pas autonome : il compte sur ce qu'inclut son module.
 #include "sdl3/sdl3.hpp"
 #include "sdl3/gl.hpp"

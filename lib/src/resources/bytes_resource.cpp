@@ -1,6 +1,4 @@
-// Définitions de resources/bytes_resource.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de resources/bytes_resource.hpp
 #include "resources/bytes_resource.hpp"
 
 namespace resources {

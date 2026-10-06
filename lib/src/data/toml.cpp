@@ -1,6 +1,4 @@
-// Définitions de data/toml.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/toml.hpp
 #include "data/toml.hpp"
 
 namespace data {

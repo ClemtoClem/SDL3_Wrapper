@@ -1,0 +1,309 @@
+{
+  "name": "Circuit 5 - Industrial Docks",
+  "description": "Zone portuaire avec voies tres larges, hangars industriels et portiques mobiles.",
+  "gameplay_script": "",
+  "environment": {
+    "sun_direction": [
+      0.5,
+      -0.6000000238418579,
+      -0.4000000059604645
+    ],
+    "sun_intensity": 1.0,
+    "sun_color": [
+      245,
+      240,
+      230
+    ],
+    "ambient_color": [
+      45,
+      50,
+      60
+    ],
+    "background_color": [
+      20,
+      25,
+      35
+    ],
+    "gravity": [
+      0.0,
+      -9.8100004196167,
+      0.0
+    ]
+  },
+  "camera": {
+    "edit_position": [
+      0.0,
+      50.0,
+      -90.0
+    ],
+    "edit_yaw": 1.5700000524520874,
+    "edit_pitch": -0.5,
+    "play_position": [
+      0.0,
+      3.200000047683716,
+      -11.0
+    ],
+    "play_yaw": 0.0,
+    "play_pitch": -0.18000000715255737
+  },
+  "canvas2d": {
+    "width": 1280,
+    "height": 720,
+    "render_3d": true,
+    "background": [
+      22,
+      24,
+      30
+    ]
+  },
+  "tree": {
+    "format": "scene.tree",
+    "version": 1,
+    "root": {
+      "id": "0:0",
+      "type": "Node",
+      "name": "Circuit 5 - Industrial Docks",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          -0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "children": [
+        {
+          "id": "1:0",
+          "type": "MeshInstance",
+          "name": "Voie Principale Docks (Asphalte)",
+          "transform": {
+            "position": [
+              0.0,
+              0.0,
+              120.0
+            ],
+            "rotation": [
+              -0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "components": [
+            {
+              "type": "MeshInstance",
+              "props": {
+                "shape": {
+                  "type": "string",
+                  "value": "box"
+                },
+                "dimensions": {
+                  "type": "vec3",
+                  "value": [
+                    22.0,
+                    0.4000000059604645,
+                    240.0
+                  ]
+                },
+                "material": {
+                  "type": "string",
+                  "value": "pbr"
+                },
+                "base_color": {
+                  "type": "color",
+                  "value": [
+                    50.0,
+                    52.0,
+                    58.0,
+                    255.0
+                  ]
+                },
+                "roughness": {
+                  "type": "float",
+                  "value": 0.8999999761581421
+                }
+              }
+            },
+            {
+              "type": "RigidBody",
+              "props": {
+                "body": {
+                  "type": "string",
+                  "value": "static"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "tag": {
+              "type": "string",
+              "value": "road_asphalt"
+            }
+          }
+        },
+        {
+          "id": "2:0",
+          "type": "MeshInstance",
+          "name": "Zone de Stockage (Pavee)",
+          "transform": {
+            "position": [
+              -30.0,
+              0.0,
+              120.0
+            ],
+            "rotation": [
+              -0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "components": [
+            {
+              "type": "MeshInstance",
+              "props": {
+                "shape": {
+                  "type": "string",
+                  "value": "box"
+                },
+                "dimensions": {
+                  "type": "vec3",
+                  "value": [
+                    30.0,
+                    0.4000000059604645,
+                    150.0
+                  ]
+                },
+                "material": {
+                  "type": "string",
+                  "value": "pbr"
+                },
+                "base_color": {
+                  "type": "color",
+                  "value": [
+                    95.0,
+                    90.0,
+                    85.0,
+                    255.0
+                  ]
+                }
+              }
+            },
+            {
+              "type": "RigidBody",
+              "props": {
+                "body": {
+                  "type": "string",
+                  "value": "static"
+                },
+                "friction": {
+                  "type": "float",
+                  "value": 0.699999988079071
+                }
+              }
+            }
+          ],
+          "properties": {
+            "tag": {
+              "type": "string",
+              "value": "road_cobblestone"
+            }
+          }
+        },
+        {
+          "id": "3:0",
+          "type": "MeshInstance",
+          "name": "Obstacle - Conteneur Suspendu",
+          "transform": {
+            "position": [
+              0.0,
+              3.0,
+              140.0
+            ],
+            "rotation": [
+              -0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "components": [
+            {
+              "type": "MeshInstance",
+              "props": {
+                "shape": {
+                  "type": "string",
+                  "value": "box"
+                },
+                "dimensions": {
+                  "type": "vec3",
+                  "value": [
+                    6.0,
+                    2.5999999046325684,
+                    2.5999999046325684
+                  ]
+                },
+                "material": {
+                  "type": "string",
+                  "value": "pbr"
+                },
+                "base_color": {
+                  "type": "color",
+                  "value": [
+                    210.0,
+                    80.0,
+                    40.0,
+                    255.0
+                  ]
+                }
+              }
+            },
+            {
+              "type": "RigidBody",
+              "props": {
+                "body": {
+                  "type": "string",
+                  "value": "kinematic"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "obstacle_mode": {
+              "type": "string",
+              "value": "pingpong"
+            },
+            "amplitude": {
+              "type": "float",
+              "value": 12.0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "format": "game_editor.scene",
+  "version": 1,
+  "gameplay_script_file": "../scripts/Circuit 5 - Industrial Docks.gameplay.script"
+}

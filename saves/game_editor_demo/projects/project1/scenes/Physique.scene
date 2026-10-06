@@ -1,7 +1,7 @@
 {
   "name": "Physique",
   "description": "Pyramide de caisses et sphères lâchées",
-  "gameplay_script": "",
+  "gameplay_script": "# ── Physique : une pyramide de caisses, des sphères qu'on lâche dessus ───────\nconst demo = import \"demo\"\n\n# Une sphère lâchée : objet visible (Mesh3D) doté d'un corps dynamique\n# (PhysicsBody). Elle disparaît avec la scène, sans rien à écrire pour cela.\nclass Sphere extends Mesh3D, PhysicsBody {\n    fn init(numero) {\n        let x = math.sin(numero * 1.7) * 1.2\n        super.init(\"Sphère \" .. numero, {\n            shape: \"sphere\", size: [0.9, 0.9, 0.9], pos: [x, 9, -0.4],\n            color: [240 - numero * 7 % 120, 90, 60 + numero * 13 % 160], material: \"pbr\", metallic: 0.3,\n            body: \"dynamic\", collider: \"sphere\", mass: 4, restitution: 0.55\n        })\n    }\n}\n\nclass Physique extends demo.SceneDemo {\n    let lachees = 0\n    let attente = 0\n    let compteur = nil\n    let espace_avant = false\n    let spheres = []\n\n    fn on_start() {\n        let bandeau = this.afficher_titre(\"Physique\",\n                                          \"Espace (ou le bouton) : lâcher une sphère. Une toutes les 2 s sinon.\", 380)\n        this.compteur = ui.label(\"Sphères lâchées : 0\", {parent: bandeau, font_size: 13})\n        let boutons = ui.row({parent: bandeau, gap: 8})\n        ui.button(\"Lâcher une sphère\", fn(b) { this.lacher() }, {parent: boutons, w: 170})\n        ui.button(\"Recommencer\", fn(b) { this.load(\"Physique\") }, {parent: boutons, w: 130})\n    }\n\n    fn lacher() {\n        this.lachees += 1\n        this.spheres.append(Sphere(this.lachees))\n        this.compteur.text = format(\"Sphères lâchées : {}\", this.lachees)\n    }\n\n    fn on_update(dt) {\n        super.on_update(dt)\n        this.attente += dt\n        let espace = input.key(\"space\")\n        if (espace and not this.espace_avant) { this.lacher() }\n        this.espace_avant = espace\n        if (this.attente > 2 and this.lachees < 12) {\n            this.attente = 0\n            this.lacher()\n        }\n    }\n}\n",
   "environment": {
     "sun_direction": [
       0.30000001192092896,
@@ -1298,7 +1298,7 @@
                 },
                 "intensity": {
                   "type": "float",
-                  "value": 3.0
+                  "value": 25.0
                 },
                 "range": {
                   "type": "float",
@@ -1324,6 +1324,5 @@
     }
   },
   "format": "game_editor.scene",
-  "version": 1,
-  "gameplay_script_file": "../scripts/Physique.gameplay.script"
+  "version": 1
 }

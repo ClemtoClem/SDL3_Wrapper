@@ -8,11 +8,16 @@
  * « TorchLight (Light) » dans les maquettes.
  *
  * Interactions :
+ *  - en tête, la liste des SCÈNES du projet (repliable) : un clic ouvre la
+ *    scène ;
  *  - clic : sélection ; clic sur la flèche : plier/déplier ;
  *  - clic DROIT : menu contextuel (créer un enfant ▸ 3D / Lumière / Logique /
  *    Nœud, dupliquer, supprimer, renommer, cadrer, copier le chemin) ;
- *  - glisser une ligne sur une autre : reparentage (le refus d'un cycle est
- *    l'affaire de scene::NodeTree::Reparent) ;
+ *  - glisser une ligne : un FANTÔME (icône, nom et action prévue) suit la
+ *    souris ; sur une ligne, le tiers haut insère AVANT elle, le tiers bas
+ *    APRÈS elle (trait d'insertion), le milieu en fait l'ENFANT (cadre) ; un
+ *    dépôt impossible (dans son propre sous-arbre) s'affiche en rouge ; près
+ *    des bords, la liste défile toute seule ;
  *  - champ de recherche : liste à plat des nœuds dont le nom correspond ;
  *  - F2 (cf. EditorUi) : renommer.
  *
@@ -92,6 +97,21 @@ public:
 	/// ouvert (pilotage par script : le geste de la souris qui le survole).
 	bool OpenCreateSubmenu();
 
+	/// Où un nœud glissé sera déposé par rapport à la ligne survolée.
+	enum class DropZone : uint8_t { NONE, BEFORE, AFTER, INSIDE, INVALID };
+
+	/// Zone de dépôt de `dragged` sur la ligne `target` quand le pointeur est
+	/// à l'ordonnée `pointerY` (repère de l'interface). Public : les tests.
+	[[nodiscard]] DropZone DropZoneAt(scene::NodeId dragged, scene::NodeId target, float pointerY) const;
+
+	/// Applique un dépôt (reparentage et/ou rang parmi les frères) ; rend
+	/// vrai si l'arbre a changé.
+	bool ApplyDrop(scene::NodeId dragged, scene::NodeId target, DropZone zone);
+
+	/// Glissé en cours : nœud déplacé, ligne survolée, zone (cf. le retour
+	/// visuel). NONE hors glissé.
+	[[nodiscard]] DropZone CurrentDropZone() const noexcept { return m_dropZone; }
+
 	/// Nombre de lignes affichées (tests, rapport).
 	[[nodiscard]] size_t VisibleRowCount() const noexcept { return m_rows.size(); }
 	[[nodiscard]] bool IsExpanded(scene::NodeId id) const;
@@ -100,6 +120,7 @@ private:
 	struct RowRef {
 		ecs::Entity entity;
 		scene::NodeId node;
+		int depth = 0;
 	};
 
 	void Status(const String &text);
@@ -114,6 +135,23 @@ private:
 	void AddRow(const SceneDesc &scene, scene::NodeId id, int depth, int index, bool flat);
 
 	void OnDrop(uint32_t draggedIndex, scene::NodeId target);
+
+	/// Liste des scènes du projet (en tête du panneau).
+	void RefreshSceneStrip();
+
+	/// Fantôme et indicateurs d'insertion (widgets `Fixed`, transparents au
+	/// pointeur, créés une fois).
+	void BuildDragFeedback();
+
+	/// Suit le glissé en cours : fantôme, trait/cadre, défilement près des bords.
+	void UpdateDragFeedback();
+
+	void HideDragFeedback();
+
+	[[nodiscard]] const RowRef *RowOf(scene::NodeId id) const;
+
+	/// Position du pointeur (repère de l'interface = celui de la fenêtre).
+	[[nodiscard]] static sdl3::FPoint Pointer();
 
 	/// Fait défiler la liste pour que la ligne sélectionnée soit visible —
 	/// une fois la mise en page faite (d'où l'appel depuis Tick).
@@ -143,7 +181,17 @@ private:
 	std::vector<ecs::Entity> m_popups;
 	std::vector<ecs::Entity> m_nodeOnlyItems;
 	std::vector<RowRef> m_rows;
+	ecs::Entity m_sceneStrip{}, m_sceneRows{};
+	bool m_scenesExpanded = true;
+	/// Retour visuel du glisser-déposer.
+	ecs::Entity m_ghost{}, m_ghostIcon{}, m_ghostLabel{}, m_ghostAction{};
+	ecs::Entity m_dropLine{}, m_dropBox{}, m_dropBoxInvalid{};
+	scene::NodeId m_dragSource, m_dropTarget;
+	DropZone m_dropZone = DropZone::NONE;
 	std::unordered_map<scene::NodeId, bool> m_expanded;
+	/// Classes des objets de script qui portent chaque nœud (relevées une
+	/// fois par rafraîchissement, cf. Runtime::LiveScriptObjects).
+	std::unordered_map<scene::NodeId, String> m_scriptClasses;
 	scene::NodeId m_contextTarget;
 	scene::NodeId m_renameTarget;
 	String m_filter;

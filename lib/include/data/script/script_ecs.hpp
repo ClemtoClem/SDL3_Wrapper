@@ -1,7 +1,7 @@
 #pragma once
 /**
  * data::script — l'ECS de la bibliothèque (ecs::ArchetypeRegistry) vu depuis
- * le langage (« Sled »), dans l'espace de noms `ecs`.
+ * le langage (« Script »), dans l'espace de noms `ecs`.
  *
  * Un composant C++ est un TYPE, qu'un script ne peut pas déclarer. Le script
  * manipule donc deux sortes de composants, sous des NOMS :

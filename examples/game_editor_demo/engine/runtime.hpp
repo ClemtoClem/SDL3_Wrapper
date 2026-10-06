@@ -59,6 +59,8 @@
 #include "sdl3/input.hpp"
 
 #include "canvas2d.hpp"
+#include "script_outline.hpp"
+#include "script_owners.hpp"
 #include "../document/project.hpp"
 #include "../document/project_files.hpp"
 
@@ -82,13 +84,45 @@ struct SceneObjectRef {
 struct Selected {};
 
 /// Un script de la bibliothèque chargé pour la partie en cours : UN
-/// interpréteur, partagé par tous les nœuds qui portent ce script.
+/// interpréteur, partagé par tous les nœuds qui portent ce script. Le script
+/// définit UNE classe dérivée de `Behaviour` ; chaque nœud en reçoit une
+/// instance (cf. script_owners.hpp).
 struct NodeScriptInstance {
+	/// Une instance de la classe, attachée à un nœud.
+	struct Attached {
+		scene::NodeId node;
+		data::script::Value object;
+		bool detached = false; ///< nœud retiré pendant la partie : instance détruite
+	};
+
 	String script;
 	std::unique_ptr<data::script::Interpreter> vm;
-	std::vector<scene::NodeId> nodes;
+	std::shared_ptr<data::script::ClassObject> behaviour;
+	std::vector<Attached> attached;
 	bool ready = false;
 	String error; ///< dernière erreur (chargement ou appel), vide si aucune
+
+	/// Nombre de nœuds animés (instances non détachées).
+	[[nodiscard]] size_t LiveCount() const noexcept;
+};
+
+/// Un objet de script vivant (instance d'une classe dérivée d'une base du
+/// moteur), vu par l'interface : lu dans les registres C++, sans exécuter de
+/// script.
+struct ScriptObjectInfo {
+	data::script::Interpreter *vm = nullptr; ///< interpréteur qui l'a créé
+	data::script::Value object;
+	String origin;	  ///< « scène » ou nom du script de la bibliothèque
+	String className; ///< `Torche`
+	std::vector<String> bases; ///< bases du moteur, ordre de construction (`Behaviour`, `Light3D`)
+	scene::NodeId node;		   ///< nœud porté (invalide : aucun)
+	bool attached = false;	   ///< Behaviour posée par l'éditeur (composant Script)
+	bool destroyed = false;
+
+	/// « Torche (Behaviour, Light3D) ».
+	[[nodiscard]] String Signature() const;
+	/// Champs de l'instance, valeurs affichables, dans l'ordre de déclaration.
+	[[nodiscard]] std::vector<std::pair<String, String>> Fields() const;
 };
 
 /// État d'un script pour l'affichage (superposition du mode Jeu, rapport).
@@ -126,6 +160,37 @@ public:
 
 	Runtime(const Runtime &) = delete;
 	Runtime &operator=(const Runtime &) = delete;
+
+	/// Détruit les objets des scripts (séquence RAII complète) pendant que le
+	/// runtime est encore entier : leurs bases retirent leurs nœuds.
+	~Runtime();
+
+	/// Objets des scripts dérivés d'une base du moteur, vivants dans TOUS les
+	/// interpréteurs du runtime (scène, nœuds, outil) — lus dans les
+	/// registres C++, sans exécuter de script (`editor.owners()`).
+	[[nodiscard]] std::vector<data::script::OwnerInfo> LiveOwners() const;
+
+	/// Détruit tous ces objets ; rend combien il y en avait.
+	size_t DestroyAllScriptObjects();
+
+	/// Les mêmes objets, un par instance (scène, Behaviour, Mesh3D…), dans
+	/// l'ordre : scène, scripts de nœud, outil.
+	[[nodiscard]] std::vector<ScriptObjectInfo> LiveScriptObjects();
+
+	/// Ceux qui portent le nœud `id` (Behaviour attachées, Mesh3D créé…).
+	[[nodiscard]] std::vector<ScriptObjectInfo> ScriptObjectsOf(scene::NodeId id);
+
+	/// Séquence RAII complète d'un de ces objets ; faux s'il était déjà détruit.
+	bool DestroyScriptObject(const ScriptObjectInfo &info);
+
+	/// Ce qu'un script DÉFINIT (classes, bases du moteur, rôle, refus que le
+	/// moteur opposerait au lancement) — analyse statique, sans exécution ;
+	/// ses `import` sont résolus dans la bibliothèque du projet.
+	[[nodiscard]] ScriptOutline OutlineScript(const String &source, ScriptUse use) const;
+
+	/// Source d'un module importable (`import "nom"`) : script de la
+	/// bibliothèque en mémoire, sinon `<projet>/scripts/nom.script`.
+	[[nodiscard]] Option<String> ModuleSource(const String &specifier) const;
 
 	// ── Branchements facultatifs ─────────────────────────────────────────────
 
@@ -281,6 +346,9 @@ public:
 	[[nodiscard]] bool HasProject() const noexcept { return m_hasProject; }
 	/// Manifeste `.json` du projet ouvert (vide : jamais enregistré).
 	[[nodiscard]] const String &ProjectPath() const noexcept { return m_projectPath; }
+	/// Fichiers que le projet a lus ou écrits : ceux qu'il réécrit ou efface
+	/// au prochain enregistrement (cf. files::SaveProject).
+	[[nodiscard]] const files::FileList &ProjectFiles() const noexcept { return m_projectFiles; }
 	/// Dossier du projet ouvert (vide : jamais enregistré).
 	[[nodiscard]] String ProjectDirectory() const;
 
@@ -623,6 +691,34 @@ public:
 	/// Ajoute un script (nom rendu unique) ; rend le nom retenu.
 	String AddScript(const String &baseName, const String &source, const String &description = String());
 
+	// ── Scènes et scripts du projet comme ÉLÉMENTS (navigateur de ressources) ─
+	//
+	// Le projet écrit lui-même leurs fichiers à l'enregistrement
+	// (`scenes/<nom>.scene`, `scripts/<nom>.script`, `<scène>.gameplay.script`)
+	// et supprime ceux qu'il ne possède plus : on agit donc sur le PROJET, pas
+	// sur le disque. Refusé pendant une partie.
+
+	/// Renomme une scène (nom rendu unique) ; rend le nom retenu.
+	[[nodiscard]] Result<String, String> RenameScene(const String &sceneName, const String &wanted);
+
+	/// Retire une scène du projet (pas la dernière ; la scène active cède la
+	/// place à une autre).
+	[[nodiscard]] Result<bool, String> RemoveScene(const String &sceneName);
+
+	/// Copie d'une scène (et de son script de jeu) ; rend le nom de la copie.
+	[[nodiscard]] Result<String, String> DuplicateScene(const String &sceneName);
+
+	/// Renomme un script de la bibliothèque ; les nœuds qui le portent, dans
+	/// TOUTES les scènes, suivent. Rend le nom retenu.
+	[[nodiscard]] Result<String, String> RenameScript(const String &scriptName, const String &wanted);
+
+	/// Retire un script de la bibliothèque ; rend le nombre de nœuds qui le
+	/// portaient (leur composant Script reste, « introuvable »).
+	[[nodiscard]] Result<size_t, String> RemoveScript(const String &scriptName);
+
+	/// Copie d'un script de la bibliothèque ; rend le nom de la copie.
+	[[nodiscard]] Result<String, String> DuplicateScript(const String &scriptName);
+
 	/// Remplace la source d'un script de la bibliothèque. La compilation est
 	/// vérifiée et l'erreur éventuelle RENDUE (le texte est enregistré quand
 	/// même : on ne perd pas un travail en cours pour une faute de frappe).
@@ -799,7 +895,11 @@ public:
 
 	bool SetVelocity(const String &objectName, const math::FVector3 &velocity);
 
+	bool SetVelocity(scene::NodeId id, const math::FVector3 &velocity);
+
 	bool ApplyImpulse(const String &objectName, const math::FVector3 &impulse);
+
+	bool ApplyImpulse(scene::NodeId id, const math::FVector3 &impulse);
 
 	// ── Caméra ───────────────────────────────────────────────────────────────
 
@@ -864,9 +964,26 @@ public:
 	[[nodiscard]] size_t ScriptErrorCount() const noexcept { return m_scriptErrorCount; }
 	[[nodiscard]] const std::vector<String> &LoadedScripts() const noexcept { return m_loadedScripts; }
 
-	/// Valeur d'une globale du script de jeu — le rapport y lit les
-	/// compteurs de la partie (tours bouclés, chronos…).
+	/// Valeur d'un champ de l'objet `Scene` de la partie (ou, à défaut, d'une
+	/// globale du script de scène) — le rapport y lit les compteurs de la
+	/// partie (tours bouclés, chronos…).
 	[[nodiscard]] Option<data::script::Value> GameplayGlobal(const String &name);
+
+	/// L'objet `Scene` de la partie en cours (nil hors partie, ou si le script
+	/// de scène n'en définit pas).
+	[[nodiscard]] const data::script::Value &SceneObject() const noexcept { return m_sceneObject; }
+
+	/// Changement de scène demandé par un script : appliqué au début de
+	/// l'image suivante en partie, tout de suite sinon. Faux si la scène
+	/// n'existe pas.
+	bool RequestScene(const String &sceneName);
+
+	/// Fin de partie demandée par un script (au début de l'image suivante).
+	void RequestQuit();
+
+	/// Nœud auquel s'attache la `Behaviour` en cours de construction par le
+	/// moteur (invalide hors de cette construction).
+	[[nodiscard]] scene::NodeId BehaviourBindingNode() const noexcept { return m_bindingNode; }
 
 	// ── Métriques ────────────────────────────────────────────────────────────
 
@@ -1095,40 +1212,56 @@ private:
 	[[nodiscard]] scene::NodeId FindCurrentCamera() const;
 
 	/// Objets susceptibles d'entrer dans une zone : ceux étiquetés `player`
-	/// et tous les corps dynamiques. Figé au lancement : c'est le décor de
-	/// la partie qui se joue.
-	void PrepareTriggers();
+	/// et tous les corps dynamiques. Recalculé quand la scène gagne des
+	/// nœuds en cours de partie ; `resetState` remet aussi à zéro les
+	/// présences et les zones `once` déjà déclenchées (début de scène
+	/// seulement : une pièce ajoutée ne doit pas réarmer les autres zones).
+	void PrepareTriggers(bool resetState);
 
 	/// Test d'appartenance de chaque candidat à chaque zone (boîte alignée
 	/// sur les axes, mise à l'échelle du nœud) ; seules les TRANSITIONS
 	/// sont notifiées — entrer, puis sortir — et non la présence.
 	void UpdateTriggers();
 
-	/// Notifie le script de la scène `hook(zone, objet, évènement)` et les
-	/// scripts attachés à la zone `hook(self, objet, évènement)`.
+	/// Notifie l'objet `Scene` `hook(zone, objet, évènement)` et les
+	/// Behaviour attachées à la zone `hook(objet, évènement)`.
 	void FireTrigger(const String &hook, scene::NodeId zone, const String &zoneName, const String &otherName,
 					 const String &event);
 
-	/// Charge chaque script de la bibliothèque utilisé dans la scène, UNE
-	/// fois (un interpréteur par script, partagé par tous les nœuds qui le
-	/// portent — chacun le reçoit en `self`), puis appelle `on_start(self)`.
+	/// Démarre les scripts de nœud de toute la scène (cf. StartNodeScriptsOf).
 	void StartNodeScripts();
 
-	/// Mode Jeu : démarre les scripts de nœud du sous-arbre `root` ajouté en
-	/// cours de partie (un interpréteur existant est réutilisé).
+	/// Mode Jeu : attache une instance de la Behaviour de son script à chaque
+	/// nœud du sous-arbre `root` qui en porte un, puis appelle leurs
+	/// `on_start` — APRÈS les avoir toutes construites, pour qu'un `on_start`
+	/// trouve les autres nœuds déjà équipés.
 	void StartNodeScriptsOf(scene::NodeId root);
 
 	/// Interpréteur partagé du script de bibliothèque `name` (chargé au
-	/// besoin) ; nullptr si le script manque ou ne se charge pas.
+	/// besoin, classe Behaviour trouvée) ; nullptr si le script manque, ne
+	/// se charge pas ou ne définit pas de Behaviour.
 	NodeScriptInstance *NodeScriptFor(const String &name);
 
+	/// `on_update(dt)` de chaque objet vivant des interpréteurs de nœud.
 	void UpdateNodeScripts(float dt);
 
-	/// Appelle `hook(self, args…)` pour un nœud. Une erreur DÉSACTIVE le
-	/// script pour la partie (même raison que pour le script de scène : ne
-	/// pas répéter la même erreur 60 fois par seconde).
-	void CallNodeHook(NodeScriptInstance &instance, scene::NodeId node, const String &hook,
+	/// Appelle la méthode `hook` d'une instance attachée. Une erreur
+	/// DÉSACTIVE le script pour la partie (même raison que pour le script de
+	/// scène : ne pas répéter la même erreur 60 fois par seconde).
+	void CallNodeHook(NodeScriptInstance &instance, size_t index, const String &hook,
 					  std::vector<data::script::Value> args);
+
+	/// Désactive un script de nœud après une erreur (journal + état).
+	void DisableNodeScript(NodeScriptInstance &instance, const String &where, const String &hook,
+						   const data::script::ScriptError &error);
+
+	/// Nœuds sur le point d'être retirés : les objets de script qui les
+	/// portent (Behaviour attachées, Mesh3D…, dans tous les interpréteurs)
+	/// sont détruits — séquence RAII — et les attachements marqués détachés.
+	void DestroyObjectsOfNodes(const std::vector<scene::NodeId> &doomed);
+
+	/// Retire les instances détachées des listes (hors de tout parcours).
+	void CompactNodeScripts();
 
 	[[nodiscard]] scene::NodeId FollowTarget() const;
 
@@ -1136,7 +1269,11 @@ private:
 
 	[[nodiscard]] Result<data::script::Value, data::script::ScriptError> RunGameplayScript(const String &source);
 
+	/// Appelle la méthode `hook` de l'objet `Scene` de la partie.
 	void CallGameplayHook(const String &hook, std::vector<data::script::Value> args);
+
+	/// Instancie la classe du script de scène dérivée de `Scene`.
+	bool CreateSceneObject();
 
 	void RunGameplayHook(float dt);
 
@@ -1267,8 +1404,18 @@ private:
 	Option<String> m_pendingScene = NONE;
 	bool m_pendingQuit = false;
 	uint64_t m_randomSeed = 0x2545F4914F6CDD1Dull;
+	/// Objet `Scene` de la partie (instance de la classe du script de scène).
+	data::script::Value m_sceneObject;
 	/// Scripts de nœud chargés pour la partie en cours (cf. StartNodeScripts).
-	std::vector<NodeScriptInstance> m_nodeScripts;
+	/// Des `unique_ptr` : un script chargé PENDANT un parcours (instanciation
+	/// d'une pièce) ne déplace pas ceux en cours d'appel.
+	std::vector<std::unique_ptr<NodeScriptInstance>> m_nodeScripts;
+	/// Profondeur des parcours de m_nodeScripts en cours (la compaction
+	/// attend qu'elle revienne à zéro).
+	int m_nodeScriptWalk = 0;
+	bool m_nodeScriptsDirty = false;
+	/// Cf. BehaviourBindingNode.
+	scene::NodeId m_bindingNode;
 	/// Zones : paires (zone, objet) actuellement « dedans », zones déjà
 	/// déclenchées (pour `once`), objets surveillés, déclenchements comptés.
 	std::unordered_set<uint64_t> m_triggerInside;
@@ -1337,6 +1484,38 @@ using data::script::Value;
 [[nodiscard]] String FieldString(const data::script::MapObject &map, const char *key, const char *fallback);
 
 [[nodiscard]] Option<sdl3::Color> FieldColor(const data::script::MapObject &map, const char *key);
+
+/// Composantes 0–255 (bornées) d'une couleur opaque.
+[[nodiscard]] sdl3::Color ColorFromVec3(const math::FVector3 &rgb);
+
+/// Propriété libre d'un nœud → valeur de script (nil si absente).
+[[nodiscard]] Value PropertyToValue(const scene::PropertyValue *value);
+
+/// Écrit une propriété libre ; son TYPE vient de la valeur du script.
+void WriteProperty(scene::Node &node, const String &key, const Value &value);
+
+/// Objet décrit par une table (`scene.spawn`, bases Node3D / Mesh3D) : name,
+/// parent, tag, shape, model, size, segments, visible, pos, rot, scale,
+/// material, color, metallic, roughness, double_sided, wireframe, body,
+/// collider, half_extents, mass, restitution, friction.
+[[nodiscard]] ObjectDesc ObjectFromTable(const data::script::MapObject &map);
+
+/// Modifie `material` selon les clés présentes (kind ou material, color,
+/// metallic, roughness, double_sided, wireframe) : une table partielle ne
+/// change que ce qu'elle mentionne.
+void ReadMaterialTable(const data::script::MapObject &map, MaterialDesc &material);
+
+/// Idem pour un corps : `body` (nom de type, ou table imbriquée lue de la
+/// même façon), `kind`, collider, half_extents, mass, restitution, friction.
+void ReadPhysicsTable(const data::script::MapObject &map, PhysicsDesc &physics);
+
+/// Lumière : kind, color, intensity, range, spot_angle, penumbra, shadow.
+[[nodiscard]] LightDesc LightFromTable(const data::script::MapObject &map, LightDesc base);
+
+/// Placement d'une instance (`{parent, pos, rot, scale}`) ; `parent` reçoit
+/// le nœud parent nommé, s'il y en a un. NONE si ni pos, ni rot, ni scale.
+[[nodiscard]] Option<scene::Transform> PlacementFromTable(const Runtime &runtime, const data::script::MapObject &map,
+														  scene::NodeId &parent);
 
 /// Nom de touche -> scancode SDL. Table volontairement courte et explicite :
 /// exposer `SDL_GetScancodeFromName` laisserait un script écrire n'importe

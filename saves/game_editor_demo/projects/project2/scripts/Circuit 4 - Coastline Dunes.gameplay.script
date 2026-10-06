@@ -1,0 +1,6 @@
+# ── Circuit 4 - Coastline Dunes : Sable littoral et booster de plage ──────────
+# Le sprint (voiture, adhérence des surfaces, boosters, obstacles animés,
+# chrono) vient du module partagé « sprint » : la scène n'apporte que son décor.
+const sprint = import "sprint"
+
+class CoastlineDunes extends sprint.Sprint {}

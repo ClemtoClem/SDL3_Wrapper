@@ -1,6 +1,4 @@
-// Définitions de sdl3/net.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de sdl3/net.hpp
 // L'en-tête n'est pas autonome : il compte sur ce qu'inclut son module.
 #include "sdl3/sdl3.hpp"
 #include "sdl3/net.hpp"
@@ -44,6 +42,30 @@ String IpAddress::ToString() const {
     return String(s ? s : "");
 }
 
+std::vector<uint8_t> IpAddress::Bytes() const {
+    std::vector<uint8_t> out;
+    if (!m_handle || NET_GetAddressStatus(m_handle) != NET_SUCCESS)
+        return out;
+    int n = 0;
+    const void *bytes = NET_GetAddressBytes(m_handle, &n);
+    if (bytes && n > 0)
+        out.assign(static_cast<const uint8_t *>(bytes), static_cast<const uint8_t *>(bytes) + n);
+    return out;
+}
+
+std::vector<IpAddress> IpAddress::LocalAddresses() {
+    std::vector<IpAddress> out;
+    int count = 0;
+    NET_Address **list = NET_GetLocalAddresses(&count);
+    if (!list)
+        return out;
+    out.reserve(size_t(count));
+    for (int i = 0; i < count; ++i)
+        out.push_back(Share(list[i]));
+    NET_FreeLocalAddresses(list); // libère la liste et ses références, pas les nôtres
+    return out;
+}
+
 // ── TcpSocket ────────────────────────────────────────────────────────────────
 
 Result<TcpSocket, StringView> TcpSocket::Connect(IpAddress &addr, uint16_t port) {
@@ -84,6 +106,19 @@ Result<UdpSocket, StringView> UdpSocket::Open(uint16_t localPort, IpAddress *add
     return Ok(UdpSocket(s));
 }
 
+Result<UdpSocket, StringView> UdpSocket::Open(uint16_t localPort, const UdpOptions &options, IpAddress *addr) {
+    SDL_PropertiesID props = SDL_CreateProperties();
+    if (!props)
+        return Err(GetError());
+    SDL_SetBooleanProperty(props, NET_PROP_DATAGRAM_SOCKET_ALLOW_BROADCAST_BOOLEAN, options.allowBroadcast);
+    SDL_SetBooleanProperty(props, NET_PROP_DATAGRAM_SOCKET_REUSEADDR_BOOLEAN, options.reuseAddress);
+    auto *s = NET_CreateDatagramSocket(addr ? addr->Get() : nullptr, localPort, props);
+    SDL_DestroyProperties(props);
+    if (!s)
+        return Err(GetError());
+    return Ok(UdpSocket(s));
+}
+
 bool UdpSocket::Send(IpAddress &dest, uint16_t port, const void *data, int len) {
     return m_handle && NET_SendDatagram(m_handle, dest.Get(), port, data, len);
 }
@@ -101,6 +136,7 @@ Option<ReceivedDatagram> UdpSocket::Receive() {
                        static_cast<const uint8_t *>(dgram->buf) + dgram->buflen);
     const char *addrStr = dgram->addr ? NET_GetAddressString(dgram->addr) : nullptr;
     result.senderAddr = String(addrStr ? addrStr : "");
+    result.sender = IpAddress::Share(dgram->addr);
     NET_DestroyDatagram(dgram);
     return Some(std::move(result));
 }

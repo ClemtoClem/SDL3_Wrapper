@@ -933,6 +933,9 @@ public:
 	/// la police doit vivre au moins aussi longtemps que le RenderSystem.
 	void RegisterFont(StringView family, sdl3::Font &font) { iconFonts.insert_or_assign(String(family), &font); }
 
+	/// Une police d'icônes est-elle enregistrée sous ce nom de famille ?
+	[[nodiscard]] bool HasFont(StringView family) const { return iconFonts.find(String(family)) != iconFonts.end(); }
+
 	/// Enregistre la police à utiliser pour le texte marqué `prop::Italic`
 	/// (cf. WidgetBuilder::italic()/styles.hpp) — un objet sdl3::Font DISTINCT
 	/// ouvert avec FontStyle::ITALIC, pas juste `.SetStyle()` sur la police
@@ -973,6 +976,8 @@ public:
 	sdl3::FColor tooltipBg{25 / 255.f, 27 / 255.f, 38 / 255.f, 245 / 255.f};
 	sdl3::FColor tooltipBorder{70 / 255.f, 76 / 255.f, 110 / 255.f, 1.f};
 	sdl3::FColor tooltipText = sdl3::FColor::UI_TEXT_PRIMARY();
+	/// Glisser-déposer : cadre des cibles survolées, bord et pastille du fantôme.
+	sdl3::FColor dragAccent = sdl3::FColor::UI_ACCENT_BLUE_BRIGHT();
 
 	// Couleurs de l'auto-scrollbar (conteneurs `.Scrollable()` en débordement).
 	sdl3::FColor scrollbarTrack{1.f, 1.f, 1.f, 18 / 255.f};
@@ -1056,6 +1061,10 @@ private:
 	static constexpr float TOOLTIP_FONT_SIZE = 13.f;
 
 	void DrawTooltip(IUiRenderBackend &ren, const InputSystem::Tooltip &tip);
+
+	/// Cadre des cibles de dépôt survolées et fantôme des sources glissées
+	/// (cf. UiDropTarget::highlight, UiDragPayload::label).
+	void DrawDragFeedback(ecs::ArchetypeRegistry &world, IUiRenderBackend &ren);
 
 	/// Rend la texture dans `dst` selon le mode d'ajustement demandé.
 	void DrawImageFit(IUiRenderBackend &ren, const sdl3::Texture &tex, const sdl3::FRect &dst, ImageFit fit);

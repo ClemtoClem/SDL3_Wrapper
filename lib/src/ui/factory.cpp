@@ -1,6 +1,4 @@
-// Définitions de ui/factory.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de ui/factory.hpp
 #include "ui/factory.hpp"
 
 namespace ui {
@@ -653,13 +651,30 @@ WidgetBuilder & WidgetBuilder::SelectionRoot(bool multiSelect) {
 	return *this;
 }
 
-WidgetBuilder & WidgetBuilder::DragPayload(String kind, int64_t id) {
-	dragPayload = Some(UiDragPayload{std::move(kind), id, false});
+WidgetBuilder & WidgetBuilder::DragPayload(String kind, int64_t id, String label) {
+	UiDragPayload payload;
+	payload.kind = std::move(kind);
+	payload.id = id;
+	payload.label = std::move(label);
+	dragPayload = Some(std::move(payload));
 	return *this;
 }
 
-WidgetBuilder & WidgetBuilder::DropTarget(String accepts) {
-	dropTarget = Some(UiDropTarget{std::move(accepts), false});
+WidgetBuilder & WidgetBuilder::DropTarget(String accepts, bool highlight) {
+	UiDropTarget target;
+	target.accepts = std::move(accepts);
+	target.highlight = highlight;
+	dropTarget = Some(std::move(target));
+	return *this;
+}
+
+WidgetBuilder & WidgetBuilder::OnDoubleClick(std::function<void()> fn) {
+	Callbacks().onDoubleClick = std::move(fn);
+	return *this;
+}
+
+WidgetBuilder & WidgetBuilder::OnDragStart(std::function<void()> fn) {
+	Callbacks().onDragStart = std::move(fn);
 	return *this;
 }
 

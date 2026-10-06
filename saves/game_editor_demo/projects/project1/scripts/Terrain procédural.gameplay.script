@@ -1,29 +1,17 @@
 # ── Terrain procédural : gen.terrain (bruits en couches, érosion, biomes) ────
 #
 # Le terrain est une carte de hauteur 25 × 25 ; chaque case devient une
-# colonne colorée selon son biome (hauteur × pente). « Nouvelle graine »
-# efface et régénère — sur un fil `async`, l'interface reste fluide.
+# colonne (un Mesh3D) colorée selon son biome (hauteur × pente). « Nouvelle
+# graine » détruit les colonnes et régénère — le calcul tourne sur un fil
+# `async`, l'interface reste fluide.
+const demo = import "demo"
 
 const TAILLE = 25
 const MER = 0.3
 
-let graine = 3
-let colonnes = []
-let tache = nil
-let etat_texte = nil
-let temps = 0
-
 const COULEURS = {
     "eau profonde": [28, 60, 120], "eau": [45, 95, 160], "plage": [214, 198, 140], "falaise": [110, 104, 98],
     "prairie": [92, 150, 62], "forêt": [48, 104, 50], "roche": [128, 120, 112], "neige": [240, 244, 248],
-}
-
-fn afficher_titre(titre, texte) {
-    let bandeau = ui.column({anchor: "top_left", offset: [16, 14], gap: 4, pad: 14, bg: "#10141cd0", radius: 8, w: 400})
-    ui.label(titre, {parent: bandeau, font_size: 20, bold: true, color: "#ffd873"})
-    ui.label(texte, {parent: bandeau, font_size: 13, color: "#c8d0dc"})
-    ui.button("Retour à l'accueil", fn(b) { game.load_scene("Accueil") }, {anchor: "top_right", offset: [-14, 14], w: 180})
-    return bandeau
 }
 
 async fn calculer(g) {
@@ -40,45 +28,59 @@ async fn calculer(g) {
     return cases
 }
 
-fn effacer() {
-    for (nom in colonnes) { scene.remove(nom) }
-    colonnes = []
-}
-
-fn batir(cases) {
-    for (c in cases) {
+# Une case du terrain : une colonne dont la hauteur et la couleur viennent
+# de la carte.
+class Colonne extends Mesh3D {
+    fn init(c) {
         let hauteur = 0.3 + c[2] * 9
-        let couleur = COULEURS[c[3]] or [128, 128, 128]
-        colonnes.append(scene.spawn({name: format("Colonne {}-{}", c[0], c[1]), size: [1, hauteur, 1],
-                                     pos: [c[0] - TAILLE / 2, hauteur / 2, c[1] - TAILLE / 2], color: couleur,
-                                     material: "pbr", roughness: 0.85}))
+        super.init(format("Colonne {}-{}", c[0], c[1]), {
+            size: [1, hauteur, 1], pos: [c[0] - TAILLE / 2, hauteur / 2, c[1] - TAILLE / 2],
+            color: COULEURS[c[3]] or [128, 128, 128], material: "pbr", roughness: 0.85
+        })
     }
-    etat_texte.text = format("Graine {} : {} colonnes", graine, len(colonnes))
 }
 
-fn regenerer() {
-    if (tache and not tache.done) { return nil }
-    graine += 1
-    etat_texte.text = format("Graine {} : calcul…", graine)
-    tache = calculer(graine)
-}
+class TerrainProcedural extends demo.SceneDemo {
+    let graine = 3
+    let colonnes = []
+    let tache = nil
+    let etat_texte = nil
 
-fn on_start() {
-    let bandeau = afficher_titre("Terrain procédural", "Bruits en couches, île, érosion, biomes.")
-    etat_texte = ui.label("Calcul…", {parent: bandeau, font_size: 13})
-    ui.button("Nouvelle graine", fn(b) { regenerer() }, {parent: bandeau, w: 180})
-    tache = calculer(graine)
-}
+    fn on_start() {
+        let bandeau = this.afficher_titre("Terrain procédural", "Bruits en couches, île, érosion, biomes.", 400)
+        this.etat_texte = ui.label("Calcul…", {parent: bandeau, font_size: 13})
+        ui.button("Nouvelle graine", fn(b) { this.regenerer() }, {parent: bandeau, w: 180})
+        this.tache = calculer(this.graine)
+    }
 
-fn on_update(dt) {
-    temps += dt
-    if (tache and tache.done and not tache.failed and tache.value) {
-        let cases = tache.value
-        tache = nil
-        effacer()
-        batir(cases)
-    } else if (tache and tache.failed) {
-        etat_texte.text = "Échec : " .. tache.error
-        tache = nil
+    fn regenerer() {
+        if (this.tache and not this.tache.done) { return nil }
+        this.graine += 1
+        this.etat_texte.text = format("Graine {} : calcul…", this.graine)
+        this.tache = calculer(this.graine)
+    }
+
+    # RAII : détruire une colonne retire son nœud de la scène.
+    fn effacer() {
+        for (colonne in this.colonnes) { colonne.destroy() }
+        this.colonnes = []
+    }
+
+    fn batir(cases) {
+        for (c in cases) { this.colonnes.append(Colonne(c)) }
+        this.etat_texte.text = format("Graine {} : {} colonnes", this.graine, len(this.colonnes))
+    }
+
+    fn on_update(dt) {
+        super.on_update(dt)
+        let tache = this.tache
+        if (tache and tache.done and not tache.failed and tache.value) {
+            this.tache = nil
+            this.effacer()
+            this.batir(tache.value)
+        } else if (tache and tache.failed) {
+            this.etat_texte.text = "Échec : " .. tache.error
+            this.tache = nil
+        }
     }
 }

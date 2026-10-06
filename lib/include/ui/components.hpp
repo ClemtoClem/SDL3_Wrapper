@@ -845,6 +845,10 @@ struct UiSelectable {
 	int index = 0; ///< position dans le UiSelection de l'ancêtre (assignée par l'appelant, doit être unique)
 	bool selected = false;
 	bool hovered = false;
+	/// Enfoncé sur la ligne : un relâchement dessus appelle `onClick` (comme
+	/// un bouton) — c'est le geste d'une ligne d'arbre, de liste de scènes ou
+	/// de dossiers, même hors de tout UiSelection.
+	bool pressed = false;
 };
 
 /// Nœud d'arbre repliable ET sélectionnable (fusion de UiExpander +
@@ -864,6 +868,7 @@ struct UiTreeNode {
 	bool hovered = false;      ///< survol de l'en-tête (hors flèche)
 	bool hoveredArrow = false; ///< survol de la flèche seule
 	float headerHeight = 26.f;
+	bool pressed = false; ///< enfoncé sur l'en-tête hors flèche (cf. UiSelectable::pressed)
 };
 
 // ============================================================================
@@ -1024,6 +1029,13 @@ struct UiCallbacks {
 	/// compatible, avec l'identifiant transporté par la source (cf.
 	/// UiDragPayload, interaction.hpp).
 	std::function<void(int64_t)> onDrop;
+	/// Bouton ou ligne sélectionnable : DOUBLE clic (second appui rapproché,
+	/// selon le système). Le premier appui a déjà donné son `onClick`.
+	std::function<void()> onDoubleClick;
+	/// UiDragPayload (posé sur la SOURCE) : le glissé vient de commencer (seuil
+	/// de déplacement franchi) — moment d'ajuster `label`/`count` du fantôme
+	/// selon ce qui part réellement (la sélection entière, par exemple).
+	std::function<void()> onDragStart;
 	/// Clic DROIT sur ce widget (ou sur un descendant qui n'a pas le sien) :
 	/// position écran du pointeur. C'est le point d'entrée d'un menu
 	/// contextuel (cf. UiFactory::ContextMenu / ui::OpenPopupAt) — seul le

@@ -1,6 +1,4 @@
-// Définitions de render3d/object3d.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de render3d/object3d.hpp
 #include "render3d/object3d.hpp"
 
 namespace render3d {

@@ -2,5 +2,6 @@ build/
 tmp/
 captures/
 .claude/
+.cache/
 .vscode/
 compile_commands.json

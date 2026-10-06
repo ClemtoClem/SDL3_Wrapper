@@ -1,6 +1,4 @@
-// Définitions de render3d/lod.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de render3d/lod.hpp
 #include "render3d/lod.hpp"
 
 namespace render3d {

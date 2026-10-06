@@ -1,6 +1,4 @@
-// Définitions de render3d/shadow.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de render3d/shadow.hpp
 #include "render3d/shadow.hpp"
 
 namespace render3d {

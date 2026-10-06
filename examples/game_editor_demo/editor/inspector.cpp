@@ -1,6 +1,4 @@
-// Définitions de inspector.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de inspector.hpp
 #include "inspector.hpp"
 
 namespace game_editor {
@@ -136,6 +134,7 @@ void InspectorPanel::Refresh() {
 		BuildCamera2DSection(rows, id, Camera2DDesc::Read(*node));
 	if (ScriptRef::Has(*node))
 		BuildScriptSection(rows, id, ScriptRef::Read(*node));
+	BuildScriptObjects(rows, id);
 	BuildCustomProperties(*node);
 	BuildAddComponent(*node);
 }
@@ -526,13 +525,39 @@ void InspectorPanel::BuildScriptSection(kit::PropertyRows &rows, scene::NodeId i
 	if (!asset) {
 		(void)rows.ReadOnly(s, "État", String::Format("« %s » introuvable", ref.script.CStr()));
 	} else {
-		Option<data::script::ScriptError> error = Runtime::CheckScript(asset->source);
+		// Ce que le moteur fera de ce script au lancement, lu sans l'exécuter :
+		// un module (aucune Behaviour) ne s'attache à rien.
+		const ScriptOutline outline = m_ctx.runtime.OutlineScript(asset->source, ScriptUse::LIBRARY);
+		kit::ScriptBadge badge = kit::BadgeOf(m_ctx, outline);
+		if (outline.error.IsNone() && outline.role != ScriptRole::BEHAVIOUR) {
+			badge.icon = ui::MaterialIcons::WARNING;
+			badge.color = kit::PaletteOf(m_ctx).warning;
+			badge.text = outline.attachProblem.IsEmpty()
+							 ? String("aucune classe dérivée de Behaviour : rien ne s'attachera au nœud")
+							 : outline.attachProblem;
+		}
 		ecs::Entity status = rows.Row(s, "État");
-		(void)kit::Glyph(m_ctx, status, error.IsSome() ? ui::MaterialIcons::ERROR : ui::MaterialIcons::CHECK_CIRCLE,
-						 error.IsSome() ? kit::PaletteOf(m_ctx).error : kit::PaletteOf(m_ctx).ok, 15.f);
-		ui::WidgetBuilder text = m_ctx.factory.Label(error.IsSome() ? error.Unwrap().Format() : String("compile"));
-		text.GrowW().HAuto().FontSize(12.f).TextEllipsis().Parent(status);
+		(void)kit::Glyph(m_ctx, status, badge.icon, badge.color, 15.f);
+		ui::WidgetBuilder text = m_ctx.factory.Label(badge.text);
+		text.GrowW().HAuto().FontSize(12.f).TextEllipsis().Tooltip(badge.text).Parent(status);
 		(void)text.Spawn();
+		if (const ScriptClassInfo *main = outline.Find(outline.mainClass)) {
+			(void)rows.ReadOnly(s, "Classe", main->Signature());
+			String hooks;
+			for (const String &hook : main->hooks) {
+				hooks.Concat(hooks.IsEmpty() ? "" : ", ");
+				hooks.Concat(hook);
+			}
+			(void)rows.ReadOnly(s, "Rappels", hooks.IsEmpty() ? String("(aucun)") : hooks);
+		}
+		if (!outline.imports.empty()) {
+			String imports;
+			for (const String &module : outline.imports) {
+				imports.Concat(imports.IsEmpty() ? "" : ", ");
+				imports.Concat(module);
+			}
+			(void)rows.ReadOnly(s, "Importe", imports);
+		}
 		if (!asset->description.IsEmpty())
 			(void)kit::Caption(m_ctx, s, asset->description, 11.f);
 	}
@@ -543,6 +568,45 @@ void InspectorPanel::BuildScriptSection(kit::PropertyRows &rows, scene::NodeId i
 			m_actions.openScript(name);
 	});
 	(void)open.Spawn();
+}
+
+void InspectorPanel::BuildScriptObjects(kit::PropertyRows &rows, scene::NodeId id) {
+	std::vector<ScriptObjectInfo> objects = m_ctx.runtime.ScriptObjectsOf(id);
+	if (objects.empty())
+		return;
+	// Les objets de script qui PORTENT ce nœud (Behaviour attachée, Mesh3D
+	// créé par un script…) : lus dans les registres C++, sans exécuter de
+	// script. Les champs sont un instantané : « Actualiser » le reprend.
+	ecs::Entity s = Section("Objets de script", String());
+	constexpr size_t MAX_FIELDS = 16;
+	for (const ScriptObjectInfo &info : objects) {
+		ecs::Entity head = rows.Row(s, info.attached ? "Behaviour" : "Objet");
+		(void)kit::Glyph(m_ctx, head, info.destroyed ? ui::MaterialIcons::ERROR : ui::MaterialIcons::CHECK_CIRCLE,
+						 info.destroyed ? kit::PaletteOf(m_ctx).error : kit::syntax::Colors().type, 15.f);
+		ui::WidgetBuilder title = m_ctx.factory.Label(info.Signature());
+		title.GrowW().HAuto().FontSize(12.f).TextEllipsis().Tooltip(String::Format("créé par : %s", info.origin.CStr()));
+		title.Parent(head);
+		(void)title.Spawn();
+		const std::vector<std::pair<String, String>> fields = info.Fields();
+		for (size_t i = 0; i < fields.size() && i < MAX_FIELDS; ++i)
+			(void)rows.ReadOnly(s, fields[i].first.CStr(), fields[i].second);
+		if (fields.size() > MAX_FIELDS)
+			(void)kit::Caption(m_ctx, s, String::Format("… %d autres champs", int(fields.size() - MAX_FIELDS)), 11.f);
+		if (info.destroyed)
+			continue;
+		ui::WidgetBuilder destroy = m_ctx.factory.Button(String("Détruire (on_destroy → deinit → bases)"));
+		destroy.GrowW().HAuto().FontSize(12.f).Parent(s);
+		destroy.OnClick([this, info] {
+			if (m_ctx.runtime.DestroyScriptObject(info))
+				Status(String::Format("%s détruit", info.className.CStr()));
+			Refresh();
+		});
+		(void)destroy.Spawn();
+	}
+	ui::WidgetBuilder refresh = m_ctx.factory.Button(String("Actualiser les champs"));
+	refresh.GrowW().HAuto().FontSize(12.f).Parent(s);
+	refresh.OnClick([this] { Refresh(); });
+	(void)refresh.Spawn();
 }
 
 void InspectorPanel::BuildCustomProperties(const scene::Node &node) {
@@ -757,17 +821,19 @@ void LibraryPanel::RefreshScripts() {
 	kit::ClearChildren(m_ctx, m_scriptsPage);
 	m_scriptRowIndex = 0;
 	for (const ScriptAsset &script : m_ctx.runtime.GetProject().scripts) {
-		const bool broken = Runtime::CheckScript(script.source).IsSome();
+		const kit::ScriptBadge badge =
+			kit::BadgeOf(m_ctx, m_ctx.runtime.OutlineScript(script.source, ScriptUse::LIBRARY));
 		ui::WidgetBuilder row = m_ctx.factory.Row();
 		row.Pad(0.f);
 		row.Gap(6.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(m_scriptsPage);
 		ecs::Entity rowEntity = row.Spawn();
-		(void)kit::Glyph(m_ctx, rowEntity, broken ? ui::MaterialIcons::ERROR : ui::MaterialIcons::CHECK_CIRCLE,
-						 broken ? kit::PaletteOf(m_ctx).error : kit::PaletteOf(m_ctx).ok, 16.f);
+		(void)kit::Glyph(m_ctx, rowEntity, badge.icon, badge.color, 16.f);
 		// Ligne sélectionnable (texte à gauche) : un UiButton centre
 		// toujours son texte.
 		ui::WidgetBuilder name = m_ctx.factory.Selectable(String(), m_scriptRowIndex++);
-		name.GrowW().HAuto().Pad(math::Sides{4.f, 3.f}).Tooltip(script.description).Parent(rowEntity);
+		name.GrowW().HAuto().Pad(math::Sides{4.f, 3.f}).Parent(rowEntity);
+		name.Tooltip(script.description.IsEmpty() ? badge.text
+												  : String::Format("%s\n%s", script.description.CStr(), badge.text.CStr()));
 		name.OnClick([this, scriptName = script.name] {
 			if (m_actions.openScript)
 				m_actions.openScript(scriptName);
@@ -779,8 +845,17 @@ void LibraryPanel::RefreshScripts() {
 		(void)kit::IconButton(m_ctx, rowEntity, ui::MaterialIcons::LINK, String("Attacher au nœud sélectionné"),
 							  [this, scriptName = script.name] {
 								  const scene::NodeId id = m_ctx.runtime.SelectedId();
-								  if (id.Valid() && m_ctx.runtime.SetScriptRef(id, scriptName) && m_actions.status)
-									  m_actions.status(String::Format("Script « %s » attaché", scriptName.CStr()));
+								  if (!id.Valid() || !m_ctx.runtime.SetScriptRef(id, scriptName) || !m_actions.status)
+									  return;
+								  // Attaché quand même (le script peut être en cours d'écriture),
+								  // mais on dit tout de suite ce que le moteur en fera.
+								  const ScriptAsset *asset = m_ctx.runtime.GetProject().FindScript(scriptName);
+								  const ScriptOutline outline =
+									  m_ctx.runtime.OutlineScript(asset ? asset->source : String(), ScriptUse::LIBRARY);
+								  m_actions.status(outline.attachProblem.IsEmpty()
+													   ? String::Format("Script « %s » attaché", scriptName.CStr())
+													   : String::Format("Script « %s » attaché, mais %s", scriptName.CStr(),
+																		outline.attachProblem.CStr()));
 							  }, 22.f);
 	}
 }

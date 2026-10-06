@@ -1,6 +1,4 @@
-// Définitions de sdl3/events.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de sdl3/events.hpp
 #include "sdl3/events.hpp"
 
 namespace sdl3 {

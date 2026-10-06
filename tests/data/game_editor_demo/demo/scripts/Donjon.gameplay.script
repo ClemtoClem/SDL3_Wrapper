@@ -1,34 +1,32 @@
-
 # ── Donjon : orchestration de la partie ─────────────────────────────────────
-# Les scripts de NŒUD (torches, joueur, coffre, porte, squelette) font vivre
-# la scène ; celui-ci réagit aux zones de déclenchement et pose des
-# propriétés (node.prop) que ces scripts lisent.
-let chest_open = false
-let door_open = false
-let escaped = false
-let escape_time = 0
+# Les Behaviour des NŒUDS (torches, joueur, coffre, porte, squelette) font
+# vivre la scène ; la scène réagit aux zones de déclenchement et pose des
+# propriétés (node.prop) que ces comportements lisent.
+class Donjon extends Scene {
+    let chest_open = false
+    let door_open = false
+    let escaped = false
+    let escape_time = 0
 
-fn on_start() {
-    chest_open = false
-    door_open = false
-    escaped = false
-    editor.log("Donjon : " .. len(light.list()) .. " torches allumées")
-    editor.status("Donjon — ZQSD/WASD + souris pour explorer, sinon visite guidée")
-}
+    fn on_start() {
+        editor.log("Donjon : " .. len(light.list()) .. " torches allumées")
+        editor.status("Donjon — ZQSD/WASD + souris pour explorer, sinon visite guidée")
+    }
 
-fn on_trigger(zone, other, event) {
-    if (event == "open_chest" and not chest_open) {
-        chest_open = true
-        node.prop("Coffre", "open", true)
-        editor.log("Le coffre s'ouvre : un trésor scintille")
-    } else if (event == "open_door" and not door_open) {
-        door_open = true
-        node.prop("Porte", "open", true)
-        editor.log("La herse se lève")
-    } else if (event == "exit" and not escaped) {
-        escaped = true
-        escape_time = editor.time()
-        editor.status("Sortie atteinte en " .. i64(escape_time) .. " s")
-        editor.log("Sortie du donjon atteinte")
+    fn on_trigger(zone, other, event) {
+        if (event == "open_chest" and not this.chest_open) {
+            this.chest_open = true
+            node.prop("Coffre", "open", true)
+            editor.log("Le coffre s'ouvre : un trésor scintille")
+        } else if (event == "open_door" and not this.door_open) {
+            this.door_open = true
+            node.prop("Porte", "open", true)
+            editor.log("La herse se lève")
+        } else if (event == "exit" and not this.escaped) {
+            this.escaped = true
+            this.escape_time = this.time()
+            editor.status("Sortie atteinte en " .. i64(this.escape_time) .. " s")
+            editor.log("Sortie du donjon atteinte")
+        }
     }
 }

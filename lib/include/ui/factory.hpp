@@ -363,11 +363,19 @@ public:
 	/// UiCallbacks — à poser sur le conteneur via `.onReorder()`, pas sur la
 	/// ligne elle-même).
 	/// Fait de ce widget une SOURCE de glisser-déposer transportant `id`
-	/// (cf. UiDragPayload, interaction.hpp).
-	WidgetBuilder &DragPayload(String kind, int64_t id);
+	/// (cf. UiDragPayload, interaction.hpp) ; `label` non vide : fantôme
+	/// dessiné près du pointeur pendant le geste.
+	WidgetBuilder &DragPayload(String kind, int64_t id, String label = String());
 
-	/// Fait de ce widget une CIBLE de dépôt. `accepts` vide = tout accepter.
-	WidgetBuilder &DropTarget(String accepts = String());
+	/// Fait de ce widget une CIBLE de dépôt. `accepts` vide = tout accepter ;
+	/// `highlight` : cadre d'accent dessiné quand un glissé compatible la survole.
+	WidgetBuilder &DropTarget(String accepts = String(), bool highlight = true);
+
+	/// Double clic sur un bouton ou une ligne sélectionnable.
+	WidgetBuilder &OnDoubleClick(std::function<void()> fn);
+
+	/// Début d'un glissé depuis cette source (cf. UiCallbacks::onDragStart).
+	WidgetBuilder &OnDragStart(std::function<void()> fn);
 
 	/// Notifié au dépôt sur CE widget, avec l'identifiant de la source.
 	WidgetBuilder &OnDrop(std::function<void(int64_t)> fn);

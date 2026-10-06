@@ -1,6 +1,4 @@
-// Définitions de kit.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de kit.hpp
 #include "kit.hpp"
 
 namespace game_editor {
@@ -99,6 +97,24 @@ NodeLook LookOf(const scene::Node &node) {
 	return {ui::MaterialIcons::ACCOUNT_TREE, Rgb(126, 172, 232), "Nœud"};
 }
 
+ScriptBadge BadgeOf(const UiContext &ctx, const ScriptOutline &outline) {
+	const Palette palette = PaletteOf(ctx);
+	ScriptBadge badge{ui::MaterialIcons::CHECK_CIRCLE, palette.ok, outline.Summary(), false};
+	if (outline.error.IsSome()) {
+		badge.icon = ui::MaterialIcons::ERROR;
+		badge.color = palette.error;
+		badge.broken = true;
+	} else if (outline.role == ScriptRole::INVALID) {
+		badge.icon = ui::MaterialIcons::WARNING;
+		badge.color = palette.warning;
+		badge.broken = true;
+	} else if (outline.role == ScriptRole::MODULE || outline.role == ScriptRole::EMPTY) {
+		badge.icon = ui::MaterialIcons::EXTENSION;
+		badge.color = ctx.Theme().muted;
+	}
+	return badge;
+}
+
 namespace syntax {
 
 // ── Scheme ───────────────────────────────────────────────────────────────────
@@ -108,13 +124,13 @@ Scheme Scheme::Dark() noexcept {
 			{0.46f, 0.54f, 0.46f, 1.f}, {0.86f, 0.84f, 0.56f, 1.f}, {0.34f, 0.76f, 0.76f, 1.f},
 			{0.61f, 0.80f, 0.98f, 1.f}, {0.98f, 0.82f, 0.18f, 1.f}, {0.34f, 0.61f, 0.84f, 1.f},
 			Rgb(240, 110, 100),		  Rgb(236, 176, 72),		   Rgb(120, 206, 128),
-			Rgb(140, 142, 148)};
+			Rgb(140, 142, 148), Rgb(96, 204, 150)};
 }
 
 Scheme Scheme::Light() noexcept {
 	return {Rgb(160, 40, 170), Rgb(163, 21, 21),  Rgb(9, 134, 88),	 Rgb(0, 128, 0),	 Rgb(121, 94, 38),
 			Rgb(38, 127, 153), Rgb(0, 81, 168),	  Rgb(175, 110, 0),	 Rgb(0, 0, 255),	 Rgb(200, 40, 30),
-			Rgb(176, 104, 0),  Rgb(20, 130, 40),  Rgb(110, 112, 118)};
+			Rgb(176, 104, 0),  Rgb(20, 130, 40),  Rgb(110, 112, 118), Rgb(30, 128, 88)};
 }
 
 Scheme & Colors() noexcept {
@@ -156,7 +172,9 @@ void HighlightSled(const String &line, std::vector<ui::UiTextSpan> &out) {
 											   // exécution asynchrone
 											   "async", "await",
 											   // énumérés, surcharge d'opérateurs
-											   "enum", "operator"};
+											   "enum", "operator",
+											   // modules
+											   "import"};
 	size_t i = 0;
 	while (i < line.size()) {
 		const char c = line[i];
@@ -185,8 +203,11 @@ void HighlightSled(const String &line, std::vector<ui::UiTextSpan> &out) {
 			for (const char *k : KEYWORDS)
 				if (word == k)
 					keyword = true;
+			const bool engineBase = !keyword && engine_base::ShortName(word).IsSome();
 			if (keyword)
 				out.push_back({i, end, Colors().keyword});
+			else if (engineBase)
+				out.push_back({i, end, Colors().type});
 			else if (end < line.size() && line[end] == '.')
 				out.push_back({i, end, Colors().nameSpace});
 			else if (end < line.size() && line[end] == '(')

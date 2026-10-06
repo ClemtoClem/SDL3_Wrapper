@@ -1,41 +1,44 @@
-
 # ── Scène « Laboratoire physique » : charge croissante du solveur ───────────
-let t = 0
-let dropped = 0
-let max_drops = 24
-let next_drop = 0.35
 
-fn on_start() {
-    t = 0
-    dropped = 0
-    next_drop = 0.35
-    editor.log("Laboratoire : largage de " .. max_drops .. " caisses")
+# Une caisse larguée : un objet visible (Mesh3D) avec un corps dynamique
+# (PhysicsBody). Elle disparaît avec la scène — ou plus tôt, par destroy().
+class Caisse extends Mesh3D, PhysicsBody {
+    fn init(numero) {
+        let angle = numero * 0.7
+        super.init("Caisse " .. numero, {
+            shape: "box",
+            size: [0.9, 0.9, 0.9],
+            pos: [math.cos(angle) * 2.5, 9 + numero * 0.4, math.sin(angle) * 2.5],
+            color: [80 + numero * 6, 200 - numero * 5, 120],
+            material: "plastic",
+            body: "dynamic",
+            mass: 1.5,
+            restitution: 0.25,
+            friction: 0.6,
+            tag: "debris"
+        })
+    }
 }
 
-fn on_update(dt) {
-    t += dt
-    if (dropped >= max_drops) { return nil }
-    if (t < next_drop) { return nil }
+class Laboratoire extends Scene {
+    let t = 0
+    let dropped = 0
+    let max_drops = 24
+    let next_drop = 0.35
+    let caisses = []
 
-    next_drop = t + 0.35
-    dropped += 1
+    fn on_start() {
+        editor.log("Laboratoire : largage de " .. this.max_drops .. " caisses")
+    }
 
-    let angle = dropped * 0.7
-    scene.spawn({
-        name: "Caisse " .. dropped,
-        shape: "box",
-        size: [0.9, 0.9, 0.9],
-        pos: [math.cos(angle) * 2.5, 9 + dropped * 0.4, math.sin(angle) * 2.5],
-        color: [80 + dropped * 6, 200 - dropped * 5, 120],
-        material: "plastic",
-        body: "dynamic",
-        mass: 1.5,
-        restitution: 0.25,
-        friction: 0.6,
-        tag: "debris"
-    })
-
-    if (dropped == max_drops) {
-        editor.log("Largage terminé : " .. scene.count() .. " objets dans la scène")
+    fn on_update(dt) {
+        this.t += dt
+        if (this.dropped >= this.max_drops or this.t < this.next_drop) { return nil }
+        this.next_drop = this.t + 0.35
+        this.dropped += 1
+        this.caisses.append(Caisse(this.dropped))
+        if (this.dropped == this.max_drops) {
+            editor.log("Largage terminé : " .. scene.count() .. " objets dans la scène")
+        }
     }
 }

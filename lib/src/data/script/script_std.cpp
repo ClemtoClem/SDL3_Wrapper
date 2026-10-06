@@ -1,6 +1,4 @@
-// Définitions de data/script/script_std.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/script/script_std.hpp
 // L'en-tête n'est pas autonome : il compte sur ce qu'inclut son module.
 #include "data/script.hpp"
 #include "data/script/script_std.hpp"
@@ -56,6 +54,14 @@ void InstallCoreGlobals(Interpreter& vm) {
 		}
 		return Err(Interpreter::MakeError(String::Format(
 			"`len` attend une liste, une table, une chaîne, un objet ou un conteneur, trouvé `%s`", v.TypeName())));
+	});
+
+	// Alias fonctionnel de `import` (forme Lua) : `require("chemin")`.
+	vm.RegisterNative("require", 1, 1, [](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
+		if (!args[0].IsString())
+			return Err(Interpreter::MakeError(
+				String::Format("`require` attend une chaîne, trouvé `%s`", args[0].TypeName())));
+		return vm.ImportModule(args[0].AsString(), 0, 0);
 	});
 
 	vm.RegisterNative("str", 1, 1, [](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
@@ -3723,8 +3729,7 @@ void InstallStdLibrary(Interpreter& vm) {
 	declare(date, "date");
 	declare(time, "time");
 
-	TypeBuilder option("std.option"), result("std.result"), future("std.future"), mutex("std.mutex"),
-		guard("std.lock_guard");
+	TypeBuilder option("std.option"), result("std.result"), future("std.future"), mutex("std.mutex"), guard("std.lock_guard");
 	DefineOption(option);
 	DefineResult(result, option.type);
 	DefineFuture(vm, future);

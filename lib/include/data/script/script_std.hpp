@@ -1,6 +1,6 @@
 #pragma once
 /**
- * data::script — bibliothèque standard du langage (« Sled ») : les
+ * data::script — bibliothèque standard du langage (« Script ») : les
  * fonctions globales historiques (`print`, `len`, `range`…) et l'espace de
  * noms `std`, qui enveloppe la bibliothèque standard C++ :
  *

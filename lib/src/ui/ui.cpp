@@ -1,6 +1,4 @@
-// Définitions de ui/ui.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de ui/ui.hpp
 #include "ui/ui.hpp"
 
 namespace ui {
@@ -31,6 +29,7 @@ void Ui::SetTheme(UiTheme theme) {
 	render.tooltipBg = sdl3::FColor{theme.fieldBg.r, theme.fieldBg.g, theme.fieldBg.b, 0.97f};
 	render.tooltipBorder = theme.border;
 	render.tooltipText = theme.text;
+	render.dragAccent = theme.accent;
 	factory.SetTheme(std::move(theme));
 }
 

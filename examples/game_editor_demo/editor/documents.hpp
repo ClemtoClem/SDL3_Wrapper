@@ -73,6 +73,20 @@ public:
 
 	void OpenSceneScript(const String &sceneName);
 
+	/// Point de départ proposé quand une scène n'a pas encore de script : la
+	/// classe dérivée de `Scene` que le moteur instancie au lancement.
+	static constexpr const char *NEW_SCENE_SCRIPT_TEMPLATE =
+		"# Script de scène : il DÉFINIT une classe dérivée de `Scene`, que le moteur\n"
+		"# instancie au lancement de la scène et dont il appelle les méthodes.\n"
+		"\n"
+		"class MaScene extends Scene {\n"
+		"    fn on_start() {\n"
+		"    }\n"
+		"\n"
+		"    fn on_update(dt) {\n"
+		"    }\n"
+		"}\n";
+
 	/// Un composant (ou, `type` vide, les propriétés libres) d'un nœud en JSON.
 	void OpenComponentJson(scene::NodeId id, const String &type);
 

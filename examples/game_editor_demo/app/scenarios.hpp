@@ -34,7 +34,7 @@ struct Scenario {
 // tour — la visite guidée complète
 // ============================================================================
 
-inline constexpr const char *SCENARIO_TOUR = R"SLED(
+inline constexpr const char *SCENARIO_TOUR = R"SCRIPT(
 # Visite guidée : ouvre les panneaux, change de thème, édite des propriétés,
 # lance le mode Jeu, passe d'une scène à l'autre — et capture chaque étape.
 let shots = 0
@@ -153,13 +153,13 @@ fn on_frame(f) {
         }
     }
 }
-)SLED";
+)SCRIPT";
 
 // ============================================================================
 // circuit — l'essai de jouabilité
 // ============================================================================
 
-inline constexpr const char *SCENARIO_CIRCUIT = R"SLED(
+inline constexpr const char *SCENARIO_CIRCUIT = R"SCRIPT(
 # Essai de jouabilité du circuit : bascule sur la scène, lance le mode Jeu,
 # laisse le pilote automatique boucler des tours, et capture la progression.
 let shots = 0
@@ -185,13 +185,13 @@ fn on_frame(f) {
         shot("tour-" .. i64(f / 200))
     }
 }
-)SLED";
+)SCRIPT";
 
 // ============================================================================
 // physics — la charge du solveur
 // ============================================================================
 
-inline constexpr const char *SCENARIO_PHYSICS = R"SLED(
+inline constexpr const char *SCENARIO_PHYSICS = R"SCRIPT(
 # Charge le banc de physique et le laisse se remplir, en capturant la montée
 # en charge (nombre d'objets simulés) à intervalles réguliers.
 fn on_frame(f) {
@@ -207,13 +207,13 @@ fn on_frame(f) {
         }
     }
 }
-)SLED";
+)SCRIPT";
 
 // ============================================================================
 // themes — la galerie de thèmes
 // ============================================================================
 
-inline constexpr const char *SCENARIO_THEMES = R"SLED(
+inline constexpr const char *SCENARIO_THEMES = R"SCRIPT(
 # Capture l'interface dans chacun des quatre thèmes.
 let themes = ["studio", "dark", "light", "aero"]
 let index = 0
@@ -229,13 +229,13 @@ fn on_frame(f) {
     editor.screenshot(shot_dir .. "/theme-" .. theme .. ".png")
     index += 1
 }
-)SLED";
+)SCRIPT";
 
 // ============================================================================
 // stress — la mesure de performance
 // ============================================================================
 
-inline constexpr const char *SCENARIO_STRESS = R"SLED(
+inline constexpr const char *SCENARIO_STRESS = R"SCRIPT(
 # Ajoute des objets par vagues et note les images par seconde à chaque palier :
 # de quoi lire dans le rapport à partir de quelle charge l'affichage décroche.
 let wave = 0
@@ -264,13 +264,13 @@ fn on_frame(f) {
     editor.log(format("vague {} — {} objets — {} img/s", wave, scene.count(), i64(editor.fps())))
     editor.screenshot(shot_dir .. "/charge-" .. wave .. ".png")
 }
-)SLED";
+)SCRIPT";
 
 // ============================================================================
 // smoke — la vérification minimale
 // ============================================================================
 
-inline constexpr const char *SCENARIO_SMOKE = R"SLED(
+inline constexpr const char *SCENARIO_SMOKE = R"SCRIPT(
 # Vérification rapide : chaque scène est chargée, jouée quelques images, puis
 # arrêtée. `assert` fait échouer l'exécution (donc le processus) si une scène
 # ne se charge pas — c'est le scénario à lancer en intégration continue.
@@ -292,13 +292,13 @@ fn on_frame(f) {
     editor.log(format("scène `{}` : {} objets — OK", name, scene.count()))
     index += 1
 }
-)SLED";
+)SCRIPT";
 
 // ============================================================================
 // edition — sélection au clic, manipulateur, magnétisme, annulation
 // ============================================================================
 
-inline constexpr const char *SCENARIO_EDITION = R"SLED(
+inline constexpr const char *SCENARIO_EDITION = R"SCRIPT(
 # Rejoue le travail d'édition qu'on fait à la souris : viser un objet dans le
 # viewport et cliquer, tirer les axes du manipulateur, activer le magnétisme,
 # puis tout annuler. Chaque étape est VÉRIFIÉE par `assert` : le scénario
@@ -405,13 +405,13 @@ fn on_frame(f) {
         next += 1
     }
 }
-)SLED";
+)SCRIPT";
 
 // ============================================================================
 // camera — navigation libre dans la vue
 // ============================================================================
 
-inline constexpr const char *SCENARIO_CAMERA = R"SLED(
+inline constexpr const char *SCENARIO_CAMERA = R"SCRIPT(
 # Fait le tour d'un objet, recule, panoramique, plonge : les gestes de
 # navigation de l'éditeur, joués un par un et VÉRIFIÉS (la caméra doit
 # vraiment avoir bougé, et l'orbite doit conserver la distance au pivot).
@@ -489,14 +489,14 @@ fn on_frame(f) {
         next += 1
     }
 }
-)SLED";
+)SCRIPT";
 
 /// Catalogue des scénarios intégrés (`--list-scenarios`).
 // ============================================================================
 // node_hierarchy — la hiérarchie de nœuds, de bout en bout
 // ============================================================================
 
-inline constexpr const char *SCENARIO_NODE_HIERARCHY = R"SLED(
+inline constexpr const char *SCENARIO_NODE_HIERARCHY = R"SCRIPT(
 # Construit une hiérarchie, la manipule comme on le ferait à la souris, et
 # VÉRIFIE chaque étape : les enfants suivent leur parent, un reparentage
 # conserve la position monde, la duplication emporte le sous-arbre, l'annulation
@@ -630,13 +630,13 @@ fn on_frame(frame) {
         if (entry[0] == frame) { entry[1]() }
     }
 }
-)SLED";
+)SCRIPT";
 
 // ============================================================================
 // interface — la visite de l'interface, écran par écran
 // ============================================================================
 
-inline constexpr const char *SCENARIO_INTERFACE = R"SLED(
+inline constexpr const char *SCENARIO_INTERFACE = R"SCRIPT(
 # Rejoue, dans le donjon, les écrans de référence de l'interface : arbre et
 # inspecteur, menu contextuel, lumière sélectionnée, navigateur de ressources,
 # propriétés en JSON, éditeur de script, bibliothèque de scripts, mode Jeu en
@@ -652,7 +652,7 @@ fn shot(name) {
 }
 
 # Une commande d'interface ; son échec n'est une faute qu'avec une fenêtre.
-fn ui(command, argument) {
+fn commande_ui(command, argument) {
     let done = editor.ui(command, argument)
     if (not done and ui_ok) {
         editor.warn("editor.ui(" .. command .. ", " .. str(argument) .. ") sans effet")
@@ -669,21 +669,21 @@ let timeline = [
     [16, fn() {
         # 1. Vue d'ensemble : un maillage sélectionné, ses composants à droite.
         assert(editor.select("Porte"), "la porte devrait être sélectionnable")
-        ui("library", 0)
+        commande_ui("library", 0)
     }],
     [26, fn() { shot("vue-ensemble") }],
     [30, fn() {
         # 2. Menu contextuel de l'arbre, sous-menu de création déployé.
-        ui("context_menu", "Pilier 3")
+        commande_ui("context_menu", "Pilier 3")
     }],
-    [34, fn() { ui("context_submenu", "") }],
+    [34, fn() { commande_ui("context_submenu", "") }],
     [38, fn() { shot("menu-contextuel") }],
     [40, fn() {
         # ... et il crée vraiment : une lumière enfant du pilier.
-        assert(editor.selected() == "Pilier 3", "le clic droit sélectionne la ligne")
-        ui("close_menus", "")
+        assert(not ui_ok or editor.selected() == "Pilier 3", "le clic droit sélectionne la ligne")
+        commande_ui("close_menus", "")
         let before = scene.count()
-        if (ui("create", "point_light")) {
+        if (commande_ui("create", "point_light")) {
             assert(scene.count() == before + 1, "la création n'a rien ajouté")
             assert(node.parent(editor.selected()) == "Pilier 3", "la lumière devrait être l'enfant du pilier")
             assert(editor.undo(), "l'ajout devrait s'annuler")
@@ -693,42 +693,42 @@ let timeline = [
         # 3. Une torche : sections Lumière et Ombres, gizmo sur la flamme.
         assert(editor.select("Torche 3"), "torche introuvable")
         editor.focus("Torche 3")
-        ui("section", "Lumière")
+        commande_ui("section", "Lumière")
     }],
     [60, fn() { shot("lumiere") }],
     [62, fn() {
         # 4. Navigateur de ressources : modèles glTF en vignettes 3D.
-        ui("browse", "models/animals")
-        ui("select_asset", "Horse.gltf")
+        commande_ui("browse", "models/animals")
+        commande_ui("select_asset", "Horse.gltf")
     }],
     [80, fn() { shot("ressources") }],
     [82, fn() {
         # 5. Les propriétés de la torche, éditées en JSON (réglages du vacillement).
-        let opened = ui("open_json", "Torche 3")
+        let opened = commande_ui("open_json", "Torche 3")
         assert(opened or not ui_ok, "document JSON non ouvert")
     }],
     [90, fn() { shot("proprietes-json") }],
     [92, fn() {
         # 6. Le script attaché, avec coloration et numéros de ligne.
-        ui("open_script", "torchlight")
+        commande_ui("open_script", "torchlight")
     }],
     [100, fn() { shot("script") }],
     [102, fn() {
         # 7. La bibliothèque de scripts : état de compilation de chacun.
-        ui("document", 0)
-        ui("browse", "projet:/scripts")
-        ui("library", 1)
+        commande_ui("document", 0)
+        commande_ui("browse", "projet:/scripts")
+        commande_ui("library", 1)
     }],
     [110, fn() { shot("scripts") }],
     [112, fn() {
         # 8. Mode Jeu plein écran : la visite guidée du joueur, torches animées.
         editor.select("Joueur")
-        if (not ui("run_mode", "on")) { editor.play() }
+        if (not commande_ui("run_mode", "on")) { editor.play() }
         assert(editor.is_playing(), "le mode Jeu devrait tourner")
     }],
     [200, fn() { shot("mode-jeu") }],
     [206, fn() {
-        ui("run_mode", "off")
+        commande_ui("run_mode", "off")
         editor.stop()
         assert(not editor.is_playing(), "Échap/arrêt devrait revenir à l'édition")
         editor.log("Visite de l'interface : " .. shots .. " captures")
@@ -740,7 +740,7 @@ fn on_frame(frame) {
         if (entry[0] == frame) { entry[1]() }
     }
 }
-)SLED";
+)SCRIPT";
 
 [[nodiscard]] std::vector<Scenario> BuiltinScenarios();
 

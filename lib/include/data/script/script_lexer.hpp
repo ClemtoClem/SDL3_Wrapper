@@ -1,6 +1,6 @@
 #pragma once
 /**
- * data::script — analyse lexicale du langage de script embarqué ("Sled").
+ * data::script — analyse lexicale du langage de script embarqué ("Script").
  *
  * Le module `data::` savait déjà transformer du TEXTE en arbre `data::Node`
  * pour sept formats de DONNÉES (JSON/XML/YAML/INI/TOML/CSV/CSS) ; ce
@@ -121,6 +121,9 @@ enum class TokenType : uint8_t {
 	// Types énumérés, surcharge d'opérateurs
 	KW_ENUM,
 	KW_OPERATOR,
+
+	// Modules : import de scripts / bibliothèques
+    KW_IMPORT,
 
 	// Ponctuation
 	LEFT_PAREN,

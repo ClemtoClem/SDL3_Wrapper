@@ -1,6 +1,4 @@
-// Définitions de data/script/script_ui.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/script/script_ui.hpp
 // L'en-tête n'est pas autonome : il compte sur ce qu'inclut son module.
 #include "data/script.hpp"
 #include "data/script/script_ui.hpp"

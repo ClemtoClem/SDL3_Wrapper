@@ -21,7 +21,9 @@ struct Harness {
 	Harness() {
 		runtime.OpenProject(files::MakeBlankProject(String("Souris")));
 		runtime.ActiveScene()->gameplayScript = String("var modes = []\n"
-													   "fn on_mouse_mode(mode) { modes.append(mode) }\n");
+													   "class Souris extends Scene {\n"
+													   "    fn on_mouse_mode(mode) { modes.append(mode) }\n"
+													   "}\n");
 	}
 
 	data::script::Value Run(const char *source) {

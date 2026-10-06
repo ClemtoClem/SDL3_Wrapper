@@ -1,6 +1,4 @@
-// Définitions de panels.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de panels.hpp
 #include "panels.hpp"
 
 namespace game_editor {
@@ -423,6 +421,10 @@ void EditorUi::HandleEvent(const sdl3::Event &event) {
 		HandleRunModeEvent(event);
 		return;
 	}
+	// Pointeur sur le navigateur de ressources : Suppr, F2, Ctrl+D… visent
+	// ses fichiers, pas le nœud sélectionné de la scène.
+	if (m_assets.HandleKey(event))
+		return;
 	if (HandleGameMouse(event))
 		return;
 	if (Is2DEditing())
@@ -994,6 +996,25 @@ bool EditorUi::UiCommand(const String &command, const String &argument) {
 	}
 	if (cmd == "select_asset")
 		return m_assets.SelectByName(argument);
+	// Opérations du navigateur, sans boîte de dialogue : `select_assets`
+	// prend des noms séparés par « | ».
+	if (cmd == "select_assets") {
+		std::vector<String> names;
+		for (const String &name : argument.Split(StringView("|")))
+			if (!name.Trim().IsEmpty())
+				names.push_back(name.Trim());
+		return m_assets.SelectNames(names) == names.size();
+	}
+	if (cmd == "asset_new_folder")
+		return m_assets.CreateFolder(argument);
+	if (cmd == "asset_rename")
+		return m_assets.RenameSelection(argument);
+	if (cmd == "asset_duplicate")
+		return m_assets.DuplicateSelection();
+	if (cmd == "asset_delete")
+		return m_assets.DeleteSelection();
+	if (cmd == "asset_move")
+		return m_assets.MoveEntries(m_assets.SelectedEntries(), argument);
 	if (cmd == "open_script") {
 		m_documents.OpenLibraryScript(argument);
 		return m_documents.Active() != nullptr;
@@ -1213,6 +1234,7 @@ void EditorUi::BuildMenuBar(ecs::Entity parent) {
 		MenuAction("Profileur", "", [this] { (void)FocusPanel("profiler", 0); }),
 		MenuAction("Vue 3D seule", "", [this] { ToggleMaximized(); }));
 	m_menuPopups.push_back(window);
+	
 	ecs::Entity themes = m_ctx.factory.SubMenu(window, String("Thème"));
 	m_menuPopups.push_back(themes);
 	AddItem(themes, "Atelier (par défaut)", "", [this] { (void)SetTheme("studio"); });
@@ -1608,6 +1630,45 @@ void EditorUi::RefreshRunPanel() {
 		label.FontSize(13.f).WAuto().HAuto().TextColor(sdl3::FColor{0.86f, 0.86f, 0.88f, 1.f}).PointerThrough();
 		label.Parent(rowEntity);
 		(void)label.Spawn();
+	}
+
+	// Objets de script vivants, regroupés par classe (registres C++ : aucune
+	// exécution de script, donc rien qu'un script bogué puisse figer).
+	struct Group {
+		String signature;
+		int count = 0;
+	};
+	std::vector<Group> groups;
+	for (const ScriptObjectInfo &info : Rt().LiveScriptObjects()) {
+		if (info.destroyed)
+			continue;
+		const String signature = info.Signature();
+		auto it = std::find_if(groups.begin(), groups.end(), [&](const Group &g) { return g.signature == signature; });
+		if (it == groups.end())
+			groups.push_back(Group{signature, 1});
+		else
+			++it->count;
+	}
+	if (groups.empty())
+		return;
+	ui::WidgetBuilder heading = m_ctx.factory.Label(String("Objets vivants"));
+	heading.FontSize(12.f).WAuto().HAuto().TextColor(sdl3::FColor{0.62f, 0.64f, 0.70f, 1.f}).PointerThrough();
+	heading.Parent(m_runPanelBody);
+	(void)heading.Spawn();
+	constexpr size_t MAX_GROUPS = 8;
+	for (size_t i = 0; i < groups.size() && i < MAX_GROUPS; ++i) {
+		const String text = groups[i].count > 1 ? String::Format("%s ×%d", groups[i].signature.CStr(), groups[i].count)
+												: groups[i].signature;
+		ui::WidgetBuilder label = m_ctx.factory.Label(text);
+		label.FontSize(12.f).WAuto().HAuto().TextColor(kit::syntax::Colors().type).PointerThrough();
+		label.Parent(m_runPanelBody);
+		(void)label.Spawn();
+	}
+	if (groups.size() > MAX_GROUPS) {
+		ui::WidgetBuilder more = m_ctx.factory.Label(String::Format("… %d autres classes", int(groups.size() - MAX_GROUPS)));
+		more.FontSize(12.f).WAuto().HAuto().TextColor(sdl3::FColor{0.62f, 0.64f, 0.70f, 1.f}).PointerThrough();
+		more.Parent(m_runPanelBody);
+		(void)more.Spawn();
 	}
 }
 
@@ -2187,10 +2248,10 @@ void EditorUi::BrowseForDialog() {
 			sdl3::dialog::ShowOpenFile(deliver, {sdl3::DialogFilter{"Scènes", "tscene"}}, start);
 			break;
 		case DialogKind::IMPORT_SCRIPT:
-			sdl3::dialog::ShowOpenFile(deliver, {sdl3::DialogFilter{"Scripts Sled", "sled"}}, start);
+			sdl3::dialog::ShowOpenFile(deliver, {sdl3::DialogFilter{"Scripts Script", "script"}}, start);
 			break;
 		case DialogKind::SAVE_SCRIPT_AS:
-			sdl3::dialog::ShowSaveFile(deliver, {sdl3::DialogFilter{"Scripts Sled", "sled"}}, current);
+			sdl3::dialog::ShowSaveFile(deliver, {sdl3::DialogFilter{"Scripts Script", "script"}}, current);
 			break;
 		case DialogKind::NEW_PROJECT:
 		case DialogKind::SAVE_PROJECT_AS:
@@ -2266,19 +2327,27 @@ void EditorUi::OnClearConsole() {
 void EditorUi::OnCheckAllScripts() {
 	int ok = 0, broken = 0;
 	const Project &project = Rt().GetProject();
-	auto check = [&](const String &label, const String &source) {
-		if (Option<data::script::ScriptError> error = Runtime::CheckScript(source); error.IsSome()) {
+	// Syntaxe ET règles du moteur (une classe Scene par script de scène, au
+	// plus une Behaviour par script de la bibliothèque) : tout ce qui
+	// échouerait au lancement du mode Jeu est signalé ici.
+	auto check = [&](const String &label, const String &source, ScriptUse use) {
+		const ScriptOutline outline = Rt().OutlineScript(source, use);
+		if (outline.error.IsSome()) {
 			++broken;
-			Rt().LogError(String::Format("%s : %s", label.CStr(), error.Unwrap().Format().CStr()));
+			Rt().LogError(String::Format("%s : %s", label.CStr(), outline.error.Value().Format().CStr()));
+		} else if (outline.role == ScriptRole::INVALID) {
+			++broken;
+			Rt().LogError(String::Format("%s : %s", label.CStr(), outline.problem.CStr()));
 		} else {
 			++ok;
+			Rt().LogInfo(String::Format("%s : %s", label.CStr(), outline.Summary().CStr()));
 		}
 	};
 	for (const ScriptAsset &script : project.scripts)
-		check(script.name + String(".script"), script.source);
+		check(script.name + String(".script"), script.source, ScriptUse::LIBRARY);
 	for (const SceneDesc &scene : project.scenes)
 		if (!scene.gameplayScript.IsEmpty())
-			check(scene.name + String(".main.script"), scene.gameplayScript);
+			check(scene.name + String(".main.script"), scene.gameplayScript, ScriptUse::SCENE);
 	if (broken == 0)
 		Rt().LogSuccess(String::Format("%d script(s) vérifié(s), aucune erreur", ok));
 	else

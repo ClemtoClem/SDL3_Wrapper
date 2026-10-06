@@ -1,9 +1,10 @@
 # ── Chargement : prépare le circuit choisi pendant qu'une barre progresse ────
 #
 # Le travail se fait dans une fonction `async` (son propre fil) : la scène
-# reste fluide et la barre avance. Le résultat (le décor, placé par
-# échantillonnage de Poisson HORS de la piste) passe au circuit par
-# game.state(), qui survit aux changements de scène.
+# reste fluide et la barre avance. Le résultat (le décor d'un circuit fermé,
+# placé par échantillonnage de Poisson HORS de la piste) passe au circuit par
+# game.state(), qui survit aux changements de scène. Un sprint n'a pas de
+# décor à préparer : la barre ne fait qu'inspecter le tracé.
 
 const CIRCUITS = {
     "Circuit Ovale": {forme: "anneau", rayon: 30, largeur: 9, graine: 11},
@@ -13,18 +14,12 @@ const CONSEILS = [
     "Freinez AVANT le virage, accélérez en sortie.",
     "Les rivaux visent l'intérieur : doublez par l'extérieur.",
     "Sans toucher au clavier, le pilote automatique conduit pour vous.",
-    "Le meilleur tour de la session est gardé jusqu'à l'arrêt du jeu.",
+    "Le meilleur temps de la session est gardé jusqu'à l'arrêt du jeu.",
+    "La terre et les pavés glissent : l'asphalte est plus rapide.",
 ]
 
-var progression = 0.0     # écrites par le fil de préparation, lues ici :
+var progression = 0.0     # écrites par le fil de préparation, lues par la scène :
 var etape = "Préparation"  # protégées automatiquement (verrou par variable)
-let tache = nil
-let circuit = "Circuit Ovale"
-let temps = 0
-let parti = false
-let barre = nil
-let texte = nil
-let conseil = nil
 
 # Distance d'un point (x, z) à l'axe de la piste.
 fn distance_piste(c, x, z) {
@@ -45,6 +40,16 @@ async fn preparer(nom) {
     etape = "Lecture du tracé"
     sleep(300)
     progression = 0.15
+    if (not c) {
+        etape = "Inspection des surfaces"
+        sleep(300)
+        progression = 0.6
+        etape = "Chauffe des pneus"
+        sleep(300)
+        progression = 1.0
+        etape = "Prêt : départ arrêté"
+        return []
+    }
 
     etape = "Plantation des arbres"
     let marge = c.largeur * 0.5 + 5
@@ -75,40 +80,69 @@ async fn preparer(nom) {
     return decor
 }
 
-fn on_start() {
-    # Menu : souris libre, même en plein écran, pour cliquer les boutons.
-    input.set_mouse_mode("free")
-    let etat = game.state()
-    circuit = etat.circuit or "Circuit Ovale"
-    if (not CIRCUITS[circuit]) { circuit = "Circuit Ovale" }
-    let panneau = ui.column({anchor: "center", gap: 12, pad: 28, bg: "#0c1016e0", radius: 12, w: 480, align: "center"})
-    ui.label("Chargement", {parent: panneau, font_size: 30, bold: true, color: "#ffd873"})
-    ui.label(circuit .. " — " .. (etat.tours or 3) .. " tours", {parent: panneau, font_size: 16, color: "#c8d6e6"})
-    barre = ui.progress(0, 1, {parent: panneau, w: 400})
-    texte = ui.label("Préparation", {parent: panneau, font_size: 14, color: "#9aa6b8"})
-    ui.spinner({parent: panneau})
-    conseil = ui.label(CONSEILS[0], {anchor: "bottom", offset: [0, -24], font_size: 14, color: "#c8d0dcc0"})
-    camera.follow(7, 2.5, 2)
-    tache = preparer(circuit)
+# La voiture exposée tourne pendant l'attente.
+class Vitrine extends Behaviour {
+    let angle = 0
+    fn on_update(dt) {
+        this.angle += dt * 40
+        this.set_rotation(0, this.angle, 0)
+    }
 }
 
-fn on_update(dt) {
-    temps += dt
-    object.set_rotation("Voiture exposée", 0, temps * 40, 0)
-    barre.value = progression
-    texte.text = etape
-    conseil.text = CONSEILS[i64(temps / 2.5) % len(CONSEILS)]
-    if (parti or not tache.done) { return nil }
-    if (tache.failed) {
-        texte.text = "Échec du chargement : " .. tache.error
-        return nil
+class Chargement extends Scene {
+    let tache = nil
+    let circuit = "Circuit Ovale"
+    let temps = 0
+    let parti = false
+    let barre = nil
+    let texte = nil
+    let conseil = nil
+
+    fn on_start() {
+        # Souris libre, même en plein écran, pour cliquer les boutons.
+        input.set_mouse_mode("free")
+        Vitrine("Voiture exposée")
+        let etat = this.state()
+        this.circuit = etat.circuit or "Circuit Ovale"
+        if (not scene_existe(this.circuit)) { this.circuit = "Circuit Ovale" }
+        let sous_titre = this.circuit .. " — " .. (etat.tours or 3) .. " tours"
+        if (not CIRCUITS[this.circuit]) { sous_titre = this.circuit .. " — sprint" }
+        let panneau = ui.column({anchor: "center", gap: 12, pad: 28, bg: "#0c1016e0", radius: 12, w: 480,
+                                 align: "center"})
+        ui.label("Chargement", {parent: panneau, font_size: 30, bold: true, color: "#ffd873"})
+        ui.label(sous_titre, {parent: panneau, font_size: 16, color: "#c8d6e6"})
+        this.barre = ui.progress(0, 1, {parent: panneau, w: 400})
+        this.texte = ui.label("Préparation", {parent: panneau, font_size: 14, color: "#9aa6b8"})
+        ui.spinner({parent: panneau})
+        this.conseil = ui.label(CONSEILS[0], {anchor: "bottom", offset: [0, -24], font_size: 14, color: "#c8d0dcc0"})
+        camera.follow(7, 2.5, 2)
+        this.tache = preparer(this.circuit)
     }
-    # Au moins 1,5 s d'écran : un chargement instantané se lit comme un bug.
-    if (temps >= 1.5) {
-        let etat = game.state()
-        etat.decor = tache.value
-        etat.decor_pour = circuit
-        parti = true
-        game.load_scene(circuit)
+
+    fn on_update(dt) {
+        this.temps += dt
+        this.barre.value = progression
+        this.texte.text = etape
+        this.conseil.text = CONSEILS[i64(this.temps / 2.5) % len(CONSEILS)]
+        if (this.parti or not this.tache.done) { return nil }
+        if (this.tache.failed) {
+            this.texte.text = "Échec du chargement : " .. this.tache.error
+            return nil
+        }
+        # Au moins 1,5 s d'écran : un chargement instantané se lit comme un bug.
+        if (this.temps >= 1.5) {
+            let etat = this.state()
+            etat.decor = this.tache.value
+            etat.decor_pour = this.circuit
+            this.parti = true
+            this.load(this.circuit)
+        }
     }
+}
+
+fn scene_existe(nom) {
+    for (s in game.scenes()) {
+        if (s == nom) { return true }
+    }
+    return false
 }

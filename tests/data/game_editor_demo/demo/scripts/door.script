@@ -1,16 +1,16 @@
 # door — la herse se lève quand la propriété `open` est vraie
-let base = map()
-let lift = map()
+class Herse extends Behaviour {
+    let base = nil
+    let lift = 0
 
-fn on_start(self) {
-    base[self] = object.position(self)
-    lift[self] = 0
-}
+    fn on_start() {
+        this.base = this.position()
+    }
 
-fn on_update(self, dt) {
-    if (node.prop(self, "open") == true and lift[self] < 1) {
-        lift[self] = math.min(1, lift[self] + dt * 0.7)
-        let p = base[self]
-        object.set_position(self, p[0], p[1] + lift[self] * 3.8, p[2])
+    fn on_update(dt) {
+        if (this.prop("open") == true and this.lift < 1) {
+            this.lift = math.min(1, this.lift + dt * 0.7)
+            this.set_position(this.base[0], this.base[1] + this.lift * 3.8, this.base[2])
+        }
     }
 }

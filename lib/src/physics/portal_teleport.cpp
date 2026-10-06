@@ -1,6 +1,4 @@
-// Définitions de physics/portal_teleport.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de physics/portal_teleport.hpp
 #include "physics/portal_teleport.hpp"
 
 namespace physics {

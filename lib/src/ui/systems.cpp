@@ -1,6 +1,4 @@
-// Définitions de ui/systems.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de ui/systems.hpp
 #include "ui/systems.hpp"
 
 namespace ui {
@@ -2021,10 +2019,17 @@ void InputSystem::Dispatch(ecs::ArchetypeRegistry &world, const Frame &in, Layou
 			}
 	}
 	if (dragPayloadSource.Valid() && in.down) {
+		const bool wasMoved = dragPayloadMoved;
 		if (sdl3::Abs(MX - dragPayloadStartX) > 4.f || sdl3::Abs(MY - dragPayloadStartY) > 4.f)
 			dragPayloadMoved = true;
-		if (auto payload = world.GetComponent<UiDragPayload>(dragPayloadSource); payload.IsSome())
+		if (auto payload = world.GetComponent<UiDragPayload>(dragPayloadSource); payload.IsSome()) {
 			payload.Unwrap()->dragging = dragPayloadMoved;
+			payload.Unwrap()->pointer = {MX, MY};
+		}
+		// Début réel du glissé : la source peut ajuster son fantôme.
+		if (dragPayloadMoved && !wasMoved)
+			if (auto cb = world.GetComponent<UiCallbacks>(dragPayloadSource); cb.IsSome() && cb.Unwrap()->onDragStart)
+				pending.push_back(cb.Unwrap()->onDragStart);
 
 		ecs::Entity target{};
 		if (dragPayloadMoved) {
@@ -2081,6 +2086,9 @@ void InputSystem::Dispatch(ecs::ArchetypeRegistry &world, const Frame &in, Layou
 		b.hovered = hover;
 		if (PRESSED && hover)
 			b.pressed = true;
+		if (PRESSED && hover && in.doubleClick)
+			if (auto cb = world.GetComponent<UiCallbacks>(e); cb.IsSome() && cb.Unwrap()->onDoubleClick)
+				pending.push_back(cb.Unwrap()->onDoubleClick);
 		if (in.released) {
 			if (b.pressed && hover) {
 				b.clicked = true;
@@ -2401,8 +2409,37 @@ void InputSystem::Dispatch(ecs::ArchetypeRegistry &world, const Frame &in, Layou
 	{
 		bool ctrlDown = (sdl3::keyboard::Mods() & SDL_KMOD_CTRL) != 0;
 		ecs::Entity clickedContainer{};
+		// Un clic qui vise un widget interactif PLACÉ DANS la ligne (flèche de
+		// dépliage, bouton d'action, champ) est le sien, pas celui de la ligne.
+		auto innerControlHit = [&](ecs::Entity row) {
+			for (ecs::Entity cur : frontMostChain) {
+				if (cur == row)
+					return false;
+				if (world.HasComponent<UiButton>(cur) || world.HasComponent<UiInput>(cur) ||
+					world.HasComponent<UiCheckbox>(cur) || world.HasComponent<UiSelectable>(cur))
+					return true;
+			}
+			return false;
+		};
+		// `onClick` d'une ligne : appui PUIS relâchement sur elle, sans dépôt
+		// entre les deux (un glisser-déposer marque clickConsumed).
+		auto clickRow = [&](ecs::Entity e, bool hovered, bool &pressed) {
+			if (PRESSED && hovered && !innerControlHit(e)) {
+				pressed = true;
+				if (in.doubleClick)
+					if (auto cb = world.GetComponent<UiCallbacks>(e); cb.IsSome() && cb.Unwrap()->onDoubleClick)
+						pending.push_back(cb.Unwrap()->onDoubleClick);
+			}
+			if (!in.released)
+				return;
+			if (pressed && hovered && !clickConsumed)
+				if (auto cb = world.GetComponent<UiCallbacks>(e); cb.IsSome() && cb.Unwrap()->onClick)
+					pending.push_back(cb.Unwrap()->onClick);
+			pressed = false;
+		};
 		world.Query<UiSelectable, UiComputed>([&](ecs::Entity e, UiSelectable &sel, UiComputed &c) {
 			sel.hovered = hitOk(e, c);
+			clickRow(e, sel.hovered, sel.pressed);
 			if (PRESSED && sel.hovered) {
 				ecs::Entity container = NearestSelectionAncestor(world, e);
 				if (container.Valid()) {
@@ -2423,6 +2460,7 @@ void InputSystem::Dispatch(ecs::ArchetypeRegistry &world, const Frame &in, Layou
 							  !IsDisabledRecursive(world, e);
 			tn.hovered = overHeader;
 			tn.hoveredArrow = overHeader && arrow.Contains(p);
+			clickRow(e, overHeader && !tn.hoveredArrow, tn.pressed);
 			if (PRESSED && overHeader && !tn.hoveredArrow) {
 				ecs::Entity container = NearestSelectionAncestor(world, e);
 				if (container.Valid()) {
@@ -3290,8 +3328,52 @@ void RenderSystem::Run(ecs::ArchetypeRegistry &world, IUiRenderBackend &ren, con
 		if (cb.open && !IsHiddenRecursive(world, e))
 			DrawDropdown(ren, cb, c.screen, GetResolved(world, e));
 	});
+	DrawDragFeedback(world, ren);
 	if (tip && tip->visible && !tip->text.IsEmpty())
 		DrawTooltip(ren, *tip);
+}
+
+void RenderSystem::DrawDragFeedback(ecs::ArchetypeRegistry &world, IUiRenderBackend &ren) {
+	// Cibles de dépôt survolées par un glissé compatible : cadre d'accent,
+	// découpé comme la cible (une ligne d'une liste qui défile ne déborde pas).
+	world.Query<UiDropTarget, UiComputed>([&](ecs::Entity e, UiDropTarget &drop, UiComputed &c) {
+		if (!drop.hovered || !drop.highlight || IsHiddenRecursive(world, e))
+			return;
+		ren.SetClipRect(ToClipRect(c.clip));
+		const sdl3::FRect r{c.screen.x + 1.f, c.screen.y + 1.f, c.screen.w - 2.f, c.screen.h - 2.f};
+		ren.SetDrawColor(sdl3::FColor{dragAccent.r, dragAccent.g, dragAccent.b, 0.16f});
+		ren.FillRoundedRect(r, math::Corners(4.f));
+		ren.SetDrawColor(dragAccent);
+		ren.DrawRoundedRect(r, math::Corners(4.f));
+		ren.DrawRoundedRect(sdl3::FRect{r.x + 1.f, r.y + 1.f, r.w - 2.f, r.h - 2.f}, math::Corners(3.f));
+	});
+	ren.ClearClipRect();
+	// Fantôme de la source glissée, près du pointeur.
+	world.Query<UiDragPayload>([&](ecs::Entity, UiDragPayload &payload) {
+		if (!payload.dragging || payload.label.IsEmpty())
+			return;
+		m_currentFontSize = TOOLTIP_FONT_SIZE;
+		const sdl3::FPoint sz = MeasureCached(payload.label, TOOLTIP_FONT_SIZE);
+		const bool many = payload.count > 1;
+		const float badge = many ? 20.f : 0.f;
+		sdl3::FRect box{payload.pointer.x + 16.f, payload.pointer.y + 10.f, sdl3::Ceil(sz.x) + 18.f + badge,
+						sdl3::Ceil(sz.y) + 10.f};
+		ren.SetDrawColor(sdl3::FColor{tooltipBg.r, tooltipBg.g, tooltipBg.b, 0.92f});
+		ren.FillRoundedRect(box, math::Corners(5.f));
+		ren.SetDrawColor(dragAccent);
+		ren.DrawRoundedRect(box, math::Corners(5.f));
+		DrawTextRaw(ren, payload.label, tooltipText, box.x + 9.f + badge, box.y, box.h);
+		if (many) {
+			const String count = payload.count > 99 ? String("99+") : String::Format("%d", payload.count);
+			const sdl3::FPoint csz = MeasureCached(count, TOOLTIP_FONT_SIZE);
+			const float w = sdl3::Max(18.f, sdl3::Ceil(csz.x) + 8.f);
+			const sdl3::FRect pill{box.x + 5.f, box.y + (box.h - 18.f) * 0.5f, w, 18.f};
+			ren.SetDrawColor(dragAccent);
+			ren.FillRoundedRect(pill, math::Corners(9.f));
+			DrawTextRaw(ren, count, sdl3::FColor{1.f, 1.f, 1.f, 1.f}, pill.x + (w - csz.x) * 0.5f, pill.y, pill.h);
+		}
+		m_currentFontSize = 0.f;
+	});
 }
 
 void RenderSystem::ClearTextCache() {

@@ -1,14 +1,17 @@
+# ── Scène « Assemblages » : une hiérarchie animée par son seul sommet ──────
+class Assemblages extends Scene {
+    let t = 0
 
-let t = 0
-
-fn on_update(dt) {
-    t += dt
-    # Le robot pivote : tête, bras, jambes et effets suivent, sans qu'aucun
-    # d'eux ne soit cité ici.
-    object.set_rotation("Robot", 0, math.sin(t * 0.4) * 35, 0)
-    # Un seul bras s'agite : son avant-bras et sa main suivent, le reste non.
-    object.set_rotation("BrasDroit", math.sin(t * 2.2) * 40, 0, 0)
-    # Les roues tournent, le véhicule avance : deux niveaux indépendants.
-    object.set_rotation("Roues", 0, 0, t * 120)
-    object.set_position("Véhicule", math.sin(t * 0.5) * 4, 0, 6)
+    fn on_update(dt) {
+        this.t += dt
+        let t = this.t
+        # Le robot pivote : tête, bras, jambes et effets suivent, sans qu'aucun
+        # d'eux ne soit cité ici.
+        object.set_rotation("Robot", 0, math.sin(t * 0.4) * 35, 0)
+        # Un seul bras s'agite : son avant-bras et sa main suivent, le reste non.
+        object.set_rotation("BrasDroit", math.sin(t * 2.2) * 40, 0, 0)
+        # Les roues tournent, le véhicule avance : deux niveaux indépendants.
+        object.set_rotation("Roues", 0, 0, t * 120)
+        object.set_position("Véhicule", math.sin(t * 0.5) * 4, 0, 6)
+    }
 }

@@ -1,6 +1,4 @@
-// Définitions de data/json.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/json.hpp
 #include "data/json.hpp"
 
 namespace data {

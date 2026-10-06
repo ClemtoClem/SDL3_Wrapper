@@ -573,3 +573,40 @@ et côté bibliothèque les suites listées dans project_ui_ecs_module.md.
   `PollCameraKeys`, qui lit l'état du clavier et non des évènements).
 - Vérif : scénario `themes` (bascule à chaud des 4 thèmes) + `interface` +
   `node_hierarchy`, rc=0, 0 erreur.
+
+## Navigateur de ressources : arborescence et opérations sur les fichiers (2026-10-05)
+
+- **Arborescence complète** : « Scènes » et « Scripts » montrent d'emblée tous
+  les sous-dossiers de `<projet>/scenes` et `<projet>/scripts` (pièces
+  `.scene`, modules…), à côté des éléments du projet. Les chemins disque de
+  ces deux dossiers SONT « Scènes » / « Scripts » (`AssetBrowserModel::
+  Canonical`) : un seul emplacement, un seul contenu, un seul fil d'Ariane
+  (« Projet › Scènes › pieces »). Flèche = déplier/replier, état retenu.
+- **Opérations** (`editor/asset_ops.hpp`, testées sans fenêtre) : nouveau
+  dossier, renommer, dupliquer, supprimer (avec confirmation), déplacer
+  (glisser sur un dossier de la grille ou de l'arbre, ou couper/coller).
+  Les ÉLÉMENTS DU PROJET (`AssetEntry::managed`) passent par le projet
+  (`Runtime::RenameScene/RemoveScene/DuplicateScene/RenameScript/
+  RemoveScript/DuplicateScript` ; renommer un script met à jour les nœuds qui
+  le portent dans toutes les scènes) — l'enregistrement écrit et efface leurs
+  fichiers ; ils ne se déplacent pas. Le reste agit sur le disque. Seul le
+  dossier du projet se modifie (ressources partagées en lecture seule ;
+  manifeste et dossiers `scenes/`, `scripts/`, `assets/` protégés). Les
+  fichiers que le projet possède encore (`Runtime::ProjectFiles`, ex. l'ancien
+  fichier d'une scène renommée avant enregistrement) ne sont jamais montrés
+  comme fichiers libres.
+- **Sélection multiple** : clic, Ctrl+clic, Maj+clic (plage depuis l'ancre),
+  Ctrl+A ; renommer plusieurs éléments les numérote (« mur », « mur 2 »…),
+  extension gardée. Clavier (pointeur sur le panneau, prioritaire sur les
+  raccourcis de la scène) : Suppr, F2, Ctrl+D, Ctrl+X, Ctrl+V, Ctrl+A,
+  Entrée, Retour arrière, Échap. Pilotage par script : `editor.ui(
+  "select_assets", "a|b")`, `asset_new_folder`, `asset_rename`,
+  `asset_duplicate`, `asset_delete`, `asset_move`.
+- **Bibliothèque `ui::`** : `UiSelectable`/`UiTreeNode` déclenchent enfin
+  `onClick` (appui puis relâchement sur la ligne, ni après un dépôt ni sur un
+  bouton intérieur) ; `onDoubleClick` (boutons et lignes) ; `onDragStart` ;
+  fantôme générique (`UiDragPayload::label`/`count`, dessiné près du
+  pointeur avec une pastille « N ») ; surlignage des cibles de dépôt
+  survolées (`UiDropTarget::highlight`, désactivable quand la cible dessine
+  son propre indicateur, comme l'arbre de scène). Tests :
+  `tests/ui_selectable_click_smoke_test.cpp`.

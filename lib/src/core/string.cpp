@@ -1,6 +1,4 @@
-// Définitions de core/string.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de core/string.hpp
 #include "core/string.hpp"
 
 namespace detail {

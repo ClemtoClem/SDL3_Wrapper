@@ -1,6 +1,4 @@
-// Définitions de data/yaml.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/yaml.hpp
 #include "data/yaml.hpp"
 
 namespace data {

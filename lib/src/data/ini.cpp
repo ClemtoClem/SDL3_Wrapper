@@ -1,6 +1,4 @@
-// Définitions de data/ini.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de data/ini.hpp
 #include "data/ini.hpp"
 
 namespace data {

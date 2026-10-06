@@ -1,7 +1,7 @@
 #pragma once
 /**
  * data::script — la génération procédurale (generators::) vue depuis le
- * langage (« Sled »), dans l'espace de noms `gen`.
+ * langage (« Script »), dans l'espace de noms `gen`.
  *
  *   let bruit = gen.noise({type: "simplex", fractal: "ridged", octaves: 6, frequency: 0.01, seed: 7})
  *   let carte = gen.heightmap(128, 128).fill(bruit).normalize().terrace(6, 0.5)

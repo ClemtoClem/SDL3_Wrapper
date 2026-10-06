@@ -1,6 +1,4 @@
-// Définitions de sdl3/misc.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de sdl3/misc.hpp
 #include "sdl3/misc.hpp"
 
 namespace sdl3 {

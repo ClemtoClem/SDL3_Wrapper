@@ -1,6 +1,4 @@
-// Définitions de jobs/job_system.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de jobs/job_system.hpp
 #include "jobs/job_system.hpp"
 
 namespace jobs {

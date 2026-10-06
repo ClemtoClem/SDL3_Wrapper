@@ -1,33 +1,41 @@
 # ── Lumières : quatre lumières colorées tournent autour des colonnes ─────────
+const demo = import "demo"
 
-let temps = 0
-let lumieres = []
+# Chaque lumière de la scène reçoit une Behaviour (posée par la scène) qui la
+# fait orbiter ; Light3D donne accès à son intensité.
+class Orbite extends Behaviour, Light3D {
+    let rang = 0
+    let temps = 0
 
-fn afficher_titre(titre, texte) {
-    let bandeau = ui.column({anchor: "top_left", offset: [16, 14], gap: 4, pad: 14, bg: "#10141cd0", radius: 8, w: 380})
-    ui.label(titre, {parent: bandeau, font_size: 20, bold: true, color: "#ffd873"})
-    ui.label(texte, {parent: bandeau, font_size: 13, color: "#c8d0dc"})
-    ui.button("Retour à l'accueil", fn(b) { game.load_scene("Accueil") }, {anchor: "top_right", offset: [-14, 14], w: 180})
-    return bandeau
+    fn init(nom, rang) {
+        super.init(nom)
+        this.rang = rang
+    }
+
+    fn on_update(dt) {
+        this.temps += dt
+        let a = this.temps * 0.7 + this.rang * math.pi / 2
+        this.set_position(math.cos(a) * 6, 2.2 + math.sin(this.temps * 2 + this.rang) * 0.8, math.sin(a) * 6)
+    }
 }
 
-fn on_start() {
-    let bandeau = afficher_titre("Lumières", "Lumières ponctuelles animées par script : position et intensité.")
-    lumieres = light.list()
-    ui.label(format("{} lumières dans la scène", len(lumieres)), {parent: bandeau, font_size: 12, color: "#9aa6b8"})
-    let ligne = ui.row({parent: bandeau, gap: 8, align: "center"})
-    ui.label("Intensité", {parent: ligne, font_size: 12})
-    ui.slider(0.2, 4, 2.2, fn(w, v) {
-        for (l in lumieres) { light.set_intensity(l, v) }
-    }, {parent: ligne, w: 200})
-}
+class Lumieres extends demo.SceneDemo {
+    let orbites = []
 
-fn on_update(dt) {
-    temps += dt
-    let i = 0
-    for (l in lumieres) {
-        let a = temps * 0.7 + i * math.pi / 2
-        object.set_position(l, math.cos(a) * 6, 2.2 + math.sin(temps * 2 + i) * 0.8, math.sin(a) * 6)
-        i += 1
+    fn on_start() {
+        let bandeau = this.afficher_titre("Lumières", "Lumières ponctuelles animées par script : position et intensité.",
+                                          380)
+        let rang = 0
+        for (nom in light.list()) {
+            this.orbites.append(Orbite(nom, rang))
+            rang += 1
+        }
+        ui.label(format("{} lumières dans la scène", len(this.orbites)), {parent: bandeau, font_size: 12,
+                                                                          color: "#9aa6b8"})
+        let ligne = ui.row({parent: bandeau, gap: 8, align: "center"})
+        ui.label("Intensité", {parent: ligne, font_size: 12})
+        ui.slider(0.2, 4, 2.2, fn(w, v) {
+            for (o in this.orbites) { o.set_intensity(v) }
+        }, {parent: ligne, w: 200})
     }
 }

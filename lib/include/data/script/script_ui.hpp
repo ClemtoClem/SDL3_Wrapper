@@ -1,7 +1,7 @@
 #pragma once
 /**
  * data::script — l'interface utilisateur de la bibliothèque (ui::) vue depuis
- * le langage (« Sled »), dans l'espace de noms `ui`.
+ * le langage (« Script »), dans l'espace de noms `ui`.
  *
  * L'HÔTE décide où va l'interface du script (UiBinding) : typiquement un
  * calque posé sur la vue du jeu. Le script y construit ses widgets :

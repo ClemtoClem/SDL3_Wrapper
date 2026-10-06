@@ -27,15 +27,9 @@ const SALLES_AU_BOUT = ["salle_tresor", "crypte", "salle_garde", "salle_tresor",
 const NOMS = ["valdrakar", "morthelion", "sombrevault", "karnethys", "ulmgard", "vorhaven", "nekrolis", "thalgrim",
               "ossuaria", "grimbaldor"]
 
-var progression = 0.0
-var etape = "Préparation"
+var progression = 0.0     # écrites par le fil de génération, lues par la scène :
+var etape = "Préparation"  # protégées automatiquement (verrou par variable)
 var journal = []
-let tache = nil
-let temps = 0
-let parti = false
-let barre = nil
-let texte = nil
-let lignes = nil
 
 fn noter(message) {
     etape = message
@@ -241,37 +235,54 @@ async fn generer(graine, difficulte) {
             monstres: monstres}
 }
 
-fn on_start() {
-    # Menu : souris libre, même en plein écran, pour cliquer les boutons.
-    input.set_mouse_mode("free")
-    let etat = game.state()
-    let graine = etat.graine or 1234
-    let difficulte = etat.difficulte or "Normal"
-    let panneau = ui.column({anchor: "center", gap: 12, pad: 28, bg: "#120e0ce8", radius: 10, w: 520, align: "center"})
-    ui.label("Génération du donjon", {parent: panneau, font_size: 30, bold: true, color: "#e8c27a"})
-    ui.label(format("Graine {} · {}", graine, difficulte), {parent: panneau, color: "#c9bfae"})
-    barre = ui.progress(0, 1, {parent: panneau, w: 440})
-    texte = ui.label("Préparation", {parent: panneau, font_size: 15})
-    lignes = ui.column({parent: panneau, gap: 2, align: "start", w: 440})
-    tache = generer(graine, difficulte)
+# La rune du décor tourne sur elle-même pendant l'attente.
+class Rune extends Behaviour {
+    let angle = 0
+    fn on_update(dt) {
+        this.angle += dt * 60
+        this.set_rotation(0, this.angle, 0)
+    }
 }
 
-fn on_update(dt) {
-    temps += dt
-    object.set_rotation("Rune", 0, temps * 60, 0)
-    barre.value = progression
-    texte.text = etape
-    if (len(lignes) < len(journal)) {
-        ui.label("· " .. journal[len(lignes)], {parent: lignes, font_size: 12, color: "#9a917f"})
+class Generation extends Scene {
+    let tache = nil
+    let temps = 0
+    let parti = false
+    let barre = nil
+    let texte = nil
+    let lignes = nil
+
+    fn on_start() {
+        Rune("Rune")
+        let etat = this.state()
+        let graine = etat.graine or 1234
+        let difficulte = etat.difficulte or "Normal"
+        let panneau = ui.column({anchor: "center", gap: 12, pad: 28, bg: "#120e0ce8", radius: 10, w: 520,
+                                 align: "center"})
+        ui.label("Génération du donjon", {parent: panneau, font_size: 30, bold: true, color: "#e8c27a"})
+        ui.label(format("Graine {} · {}", graine, difficulte), {parent: panneau, color: "#c9bfae"})
+        this.barre = ui.progress(0, 1, {parent: panneau, w: 440})
+        this.texte = ui.label("Préparation", {parent: panneau, font_size: 15})
+        this.lignes = ui.column({parent: panneau, gap: 2, align: "start", w: 440})
+        this.tache = generer(graine, difficulte)
     }
-    if (parti or not tache.done) { return nil }
-    if (tache.failed) {
-        texte.text = "La génération a échoué : " .. tache.error
-        return nil
-    }
-    if (temps >= 2) {
-        game.state().plan = tache.value
-        parti = true
-        game.load_scene("Donjon")
+
+    fn on_update(dt) {
+        this.temps += dt
+        this.barre.value = progression
+        this.texte.text = etape
+        if (len(this.lignes) < len(journal)) {
+            ui.label("· " .. journal[len(this.lignes)], {parent: this.lignes, font_size: 12, color: "#9a917f"})
+        }
+        if (this.parti or not this.tache.done) { return nil }
+        if (this.tache.failed) {
+            this.texte.text = "La génération a échoué : " .. this.tache.error
+            return nil
+        }
+        if (this.temps >= 2) {
+            this.state().plan = this.tache.value
+            this.parti = true
+            this.load("Donjon")
+        }
     }
 }

@@ -1,6 +1,4 @@
-// Définitions de generators/markov.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de generators/markov.hpp
 #include "generators/markov.hpp"
 
 namespace generators {

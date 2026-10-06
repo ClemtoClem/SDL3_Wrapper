@@ -36,6 +36,8 @@ class Value;
 class Interpreter;
 class Environment;
 
+struct OwnerObject; // data/script/script_owners.hpp
+
 // ── Données partagées entre fils d'exécution ────────────────────────────────
 //
 // Une fonction `async` s'exécute sur son propre fil (cf. Interpreter) : une
@@ -419,6 +421,10 @@ struct ClassObject {
 	bool hasDeinit = false;
 	const Interpreter *owner = nullptr;
 	std::shared_ptr<std::atomic<bool>> ownerAlive;
+	/// Bases fournies par l'hôte (owners) : celles des ancêtres d'abord, puis
+	/// celles que la classe déclare, dans l'ordre de `extends`. L'instance
+	/// reçoit un `OwnerObject` par entrée (cf. script_owners.hpp).
+	std::vector<std::shared_ptr<const HostType>> owners;
 
 	[[nodiscard]] const String &Name() const noexcept { return def->name; }
 	[[nodiscard]] bool IsInterface() const noexcept { return def->isInterface; }
@@ -438,6 +444,11 @@ struct InstanceObject {
 	std::vector<std::pair<const ClassObject *, std::vector<Value>>> typeArgs;
 	/// `deinit` déjà passé (ou en cours) : ne pas le rappeler.
 	bool finalized = false;
+	/// Un par entrée de `klass->owners` (créés par Instantiate).
+	std::vector<std::shared_ptr<OwnerObject>> owners;
+	/// `destroy()` a commencé : la seconde tentative (appel manuel, puis fin
+	/// de scène) ne fait rien.
+	bool destroyed = false;
 
 	InstanceObject() = default;
 	InstanceObject(const InstanceObject &) = delete;
@@ -513,6 +524,11 @@ struct HostType {
 	/// Membres de classe (`std.vector.from`, `math.vec3.zero`).
 	std::vector<std::pair<String, Value>> statics;
 	int minArity = 0, maxArity = -1; ///< du constructeur
+	/// Peut servir de BASE à une classe de script (`extends Mesh3D`) : un
+	/// owner ne s'instancie pas directement (pas de `construct`), il naît
+	/// avec l'instance qui en dérive (cf. script_owners.hpp).
+	bool isOwner = false;
+
 	/// Construction ; `typeArgs` : `std.vector<i32>()` (valeurs `type`).
 	std::function<Result<Value, ScriptError>(Interpreter &, std::vector<Value> &, const std::vector<Value> &typeArgs)>
 		construct;
@@ -537,6 +553,10 @@ struct HostType {
 	std::function<Result<Value, ScriptError>(Interpreter &, const HostRef &, const Value &)> link;
 	/// `objet(args)`.
 	std::function<Result<Value, ScriptError>(Interpreter &, const HostRef &, std::vector<Value> &)> call;
+	/// Owner (`isOwner`) : fabrique l'état C++ de la base pour une nouvelle
+	/// instance — un dérivé d'`OwnerObject` dont `OnInit`/`OnDeinit` sont le
+	/// constructeur et le destructeur (cf. OwnerTypeBuilder).
+	std::function<std::shared_ptr<OwnerObject>()> createOwner;
 
 	[[nodiscard]] const HostMethod *FindMethod(const String &methodName) const noexcept;
 	[[nodiscard]] const Value *FindStatic(const String &memberName) const noexcept;

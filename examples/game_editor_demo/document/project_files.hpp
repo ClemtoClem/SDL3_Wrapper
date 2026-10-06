@@ -13,7 +13,7 @@
  *                         `scripts/<Scène>.gameplay.script`
  *
  * Tout le contenu vit donc dans des fichiers de données lisibles (JSON,
- * Sled) : rien n'est plus construit en dur dans le code de l'éditeur.
+ * Script) : rien n'est plus construit en dur dans le code de l'éditeur.
  *
  * Un `.scene` peut aussi être écrit SEUL (« Enregistrer la scène sous… ») :
  * il porte alors son script de jeu en ligne (`gameplay_script`) au lieu d'une
@@ -74,6 +74,10 @@ inline constexpr const char *GAMEPLAY_SUFFIX = ".gameplay.script";
 /// Nom utilisable comme nom de fichier ou de dossier : les séparateurs et
 /// caractères réservés deviennent `_`, les accents sont gardés.
 [[nodiscard]] String SafeFileName(const String &name);
+
+/// Chemin sans `.` ni `..` ni séparateur doublé (`scenes/../scripts/x` →
+/// `scripts/x`) : la forme sous laquelle on compare deux chemins.
+[[nodiscard]] String NormalizePath(const String &path);
 
 /// Chemin relatif de `path` sous `directory` (tel quel s'il n'y est pas).
 [[nodiscard]] String RelativeTo(const String &directory, const String &path);

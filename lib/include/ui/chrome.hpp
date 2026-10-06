@@ -31,10 +31,14 @@ namespace ui {
 struct HitTestCache {
 	sdl3::FRect titleBar{};            ///< bande draggable (hors boutons)
 	std::vector<sdl3::FRect> excluded; ///< boutons de la barre de titre — NORMAL pour rester cliquables
+	std::vector<sdl3::FRect> grips;    ///< poignées de redimensionnement (coin bas-droit)
 	float resizeBorder = 6.f;    ///< épaisseur de la bande de redimensionnement sur les 4 bords
 	float w = 0.f, h = 0.f;      ///< taille de fenêtre courante (coins/bords)
 	bool resizable = true;
 };
+
+struct TitleBarWidgets;
+struct StatusBarWidgets;
 
 class WindowChrome {
 public:
@@ -46,6 +50,19 @@ public:
 	/// testés avant bords, bords avant bande draggable — cf. hitTest()).
 	void Attach(sdl3::Window &window, ecs::ArchetypeRegistry &world, LayoutSystem &layout, ecs::Entity titleBarEntity,
 				std::vector<ecs::Entity> buttonEntities = {}, bool resizable = true);
+
+	/// Poignée de redimensionnement visible (ex. une icône dans le coin
+	/// bas-droit) : la saisir redimensionne la fenêtre par le coin bas-droit,
+	/// au-delà de la fine bande `resizeBorder` des bords. Plusieurs appels
+	/// ajoutent plusieurs poignées. Sans effet si la fenêtre n'est pas
+	/// redimensionnable.
+	void AddResizeGrip(ecs::Entity grip);
+
+	/// Raccourci : barre de titre (bande draggable, boutons exclus) et, si
+	/// fournie, poignée de la barre d'état.
+	void Attach(sdl3::Window &window, ecs::ArchetypeRegistry &world, LayoutSystem &layout,
+				const TitleBarWidgets &titleBar, const StatusBarWidgets *statusBar = nullptr,
+				bool resizable = true);
 
 	/// Retire le hit-test (fenêtre redevient un widget normal côté OS —
 	/// utile pour repasser en fenêtré/plein écran décoré, si jamais).
@@ -62,6 +79,7 @@ private:
 	LayoutSystem *m_layout = nullptr;
 	ecs::Entity m_titleBarEntity{};
 	std::vector<ecs::Entity> m_buttonEntities;
+	std::vector<ecs::Entity> m_gripEntities;
 	HitTestCache cache;
 	uint64_t lastLayoutPass = 0;
 
@@ -71,31 +89,105 @@ private:
 };
 
 // ============================================================================
-// Barre de titre — icône + titre + réduire/agrandir/fermer
+// Barre de titre — icône + titre + poignée + réduire/agrandir/fermer
 // ============================================================================
 
-/// Entités d'une barre de titre construite par UiFactory::TitleBar() — à
-/// passer telles quelles à WindowChrome::Attach() (buttonEntities =
-/// {minimizeBtn, maximizeBtn, closeBtn}).
-struct TitleBarWidgets {
-	ecs::Entity root{};
-	ecs::Entity minimizeBtn{};
-	ecs::Entity maximizeBtn{};
-	ecs::Entity closeBtn{};
+/// Bouton dont le contenu est une icône MaterialIcons centrée, ou le texte
+/// `fallback` si la police d'icônes n'est pas disponible (`icons` faux). Le
+/// glyphe est un enfant TRANSPARENT AU POINTEUR (PointerThrough) : le clic,
+/// le survol et l'infobulle vont au bouton. `iconOut` reçoit l'entité du
+/// glyphe (vide sans icône) — pour en changer plus tard (cf.
+/// TitleBarWidgets::Update).
+ecs::Entity SpawnIconButton(UiFactory &f, ecs::Entity parent, MaterialIcons glyph, const String &fallback, bool icons,
+							std::function<void()> onClick, const String &tooltip = "", float width = 40.f,
+							float height = 28.f, ecs::Entity *iconOut = nullptr);
+
+/// Ouvre la police MaterialIcons (assets/fonts/ du répertoire courant, puis
+/// à côté de l'exécutable : `<base>/assets/fonts/` et `<base>/../../assets/
+/// fonts/`) ; NONE si introuvable. À enregistrer ensuite via
+/// `RenderSystem::RegisterFont(Glyphs::FontFamily<MaterialIcons>(), font)`
+/// — la police doit vivre aussi longtemps que l'interface.
+[[nodiscard]] Option<sdl3::Font> OpenMaterialIconFont(float size = 22.f);
+
+struct TitleBarOptions {
+	String title;
+	/// Icône d'application avant le titre (NONE : aucune).
+	Option<MaterialIcons> appIcon = NONE;
+	/// Poignée « déplacer » après le titre : purement indicative, elle fait
+	/// partie de la bande draggable comme tout point vide de la barre.
+	bool moveHandle = true;
+	bool minimizeButton = true;
+	bool maximizeButton = true;
+	/// Police MaterialIcons enregistrée (cf. RenderSystem::HasFont) ; sinon
+	/// les boutons retombent sur des glyphes texte (—, □, ×, ✥).
+	bool icons = true;
+	/// Fermer : `onClose` si fourni, sinon `window.Hide()`.
+	std::function<void()> onClose;
+	float height = 36.f;
+	float titleSize = 16.f;
+	bool boldTitle = true;
+	/// false : aucun fond (le verre d'une fenêtre Aero reste visible).
+	bool fillBackground = true;
+	/// Fond (alpha nul : celui du thème, `panelBg` opacifié).
+	sdl3::FColor background{};
 };
 
-/// Construit une barre de titre standard (titre + réduire/agrandir/fermer),
-/// prête pour WindowChrome::Attach(). Réduire/agrandir appellent directement
-/// `window.Minimize()`/`maximize()`/`restore()` (bascule agrandi/restauré
-/// suivie via un état local capturé par les callbacks) ; fermer appelle
-/// `onClose` si fourni, sinon `window.Hide()`. Glyphes texte simples (—/□/×)
-/// plutôt que MaterialIcons : rendus par la police déjà chargée pour tout le
-/// reste du texte, sans exiger que l'appelant ait enregistré une police
-/// d'icônes avant de construire la barre (cf. UiFactory::Icon<E>() si une
-/// vraie icône est préférée — remplacer le bouton après coup reste possible,
-/// ce sont des UiButton ordinaires).
+/// Entités d'une barre de titre construite par TitleBar() — à passer à
+/// WindowChrome::Attach() (`Buttons()` comme buttonEntities).
+struct TitleBarWidgets {
+	ecs::Entity root{};
+	ecs::Entity appIcon{};
+	ecs::Entity title{};
+	ecs::Entity moveHandle{};
+	ecs::Entity minimizeBtn{};
+	ecs::Entity maximizeBtn{};
+	ecs::Entity maximizeIcon{}; ///< glyphe du bouton agrandir (vide sans icônes)
+	ecs::Entity closeBtn{};
+
+	/// Boutons cliquables, à exclure de la bande draggable.
+	[[nodiscard]] std::vector<ecs::Entity> Buttons() const;
+
+	/// À appeler à chaque image : l'icône du bouton agrandir suit l'état RÉEL
+	/// de la fenêtre (agrandie → « restaurer »), qui peut aussi changer par
+	/// le gestionnaire de fenêtres (double-clic, raccourci, bord d'écran).
+	void Update(ecs::ArchetypeRegistry &world, const sdl3::Window &window) const;
+
+	/// Change le texte du titre.
+	void SetTitle(ecs::ArchetypeRegistry &world, const String &text) const;
+};
+
+/// Construit la barre de titre (pleine largeur, hauteur fixe) sous `parent`
+/// (vide : à la racine). Agrandir bascule selon `window.IsMaximized()` —
+/// l'état réel, pas un état local qui se désynchronise dès que le
+/// gestionnaire de fenêtres agrandit lui-même.
+[[nodiscard]] TitleBarWidgets TitleBar(UiFactory &f, sdl3::Window &window, TitleBarOptions options,
+									   ecs::Entity parent = ecs::Entity{});
+
+/// Forme historique : titre seul, glyphes texte (—/□/×), sans poignée.
 [[nodiscard]] TitleBarWidgets TitleBar(UiFactory &f, sdl3::Window &window, String title,
-											  std::function<void()> onClose = nullptr);
+									   std::function<void()> onClose = nullptr);
+
+// ============================================================================
+// Barre d'état — texte + poignée de redimensionnement
+// ============================================================================
+
+struct StatusBarOptions {
+	String text;
+	bool resizeGrip = true; ///< poignée ↘ dans le coin bas-droit
+	bool icons = true;		///< glyphe MaterialIcons SOUTH_EAST, sinon ⇲
+	float height = 24.f;
+};
+
+struct StatusBarWidgets {
+	ecs::Entity root{};
+	ecs::Entity label{};
+	ecs::Entity grip{}; ///< à passer à WindowChrome::AddResizeGrip()
+
+	/// Change le message (et sa couleur ; alpha nul : `muted` du thème).
+	void SetText(ecs::ArchetypeRegistry &world, const String &text, sdl3::FColor color = {}) const;
+};
+
+[[nodiscard]] StatusBarWidgets StatusBar(UiFactory &f, StatusBarOptions options, ecs::Entity parent = ecs::Entity{});
 
 // ============================================================================
 // PanelChrome — panneau flottant "bureau simulé" (Phase 9/10) : drag/resize

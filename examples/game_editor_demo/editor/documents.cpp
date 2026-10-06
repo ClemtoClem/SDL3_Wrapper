@@ -1,6 +1,4 @@
-// Définitions de documents.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de documents.hpp
 #include "documents.hpp"
 
 namespace game_editor {
@@ -36,7 +34,7 @@ void DocumentArea::OpenSceneScript(const String &sceneName) {
 	doc.kind = DocumentKind::SCENE_SCRIPT;
 	doc.target = sceneName;
 	doc.title = sceneName + String(".main.script");
-	Open(std::move(doc), scene->gameplayScript);
+	Open(std::move(doc), scene->gameplayScript.Trim().IsEmpty() ? String(NEW_SCENE_SCRIPT_TEMPLATE) : scene->gameplayScript);
 }
 
 void DocumentArea::OpenComponentJson(scene::NodeId id, const String &type) {
@@ -299,11 +297,18 @@ void DocumentArea::Check(CodeDocument &doc, const String &text) {
 		SetDocStatus(doc, String("JSON valide"), false);
 		return;
 	}
-	Option<data::script::ScriptError> error = Runtime::CheckScript(text);
-	if (error.IsSome())
-		SetDocStatus(doc, String::Format("Ligne %d : %s", error.Unwrap().line, error.Unwrap().message.CStr()), true);
-	else
-		SetDocStatus(doc, String("Compile ✓"), false);
+	// Au-delà de la syntaxe : ce que le moteur fera du script (sa classe
+	// Scene ou Behaviour, ou son refus au lancement), lu sans l'exécuter.
+	const ScriptOutline outline =
+		m_ctx.runtime.OutlineScript(text, doc.kind == DocumentKind::SCENE_SCRIPT ? ScriptUse::SCENE : ScriptUse::LIBRARY);
+	if (outline.error.IsSome()) {
+		const data::script::ScriptError &error = outline.error.Value();
+		SetDocStatus(doc, String::Format("Ligne %d : %s", error.line, error.message.CStr()), true);
+	} else if (outline.role == ScriptRole::INVALID) {
+		SetDocStatus(doc, String::Format("Compile, mais %s", outline.problem.CStr()), true);
+	} else {
+		SetDocStatus(doc, String::Format("Compile ✓ — %s", outline.Summary().CStr()), false);
+	}
 }
 
 void DocumentArea::Save(CodeDocument &doc) {

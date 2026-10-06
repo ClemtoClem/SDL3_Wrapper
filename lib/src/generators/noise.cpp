@@ -1,6 +1,4 @@
-// Définitions de generators/noise.hpp — fichier généré par splitter.py : le code
-// vient tel quel de l'en-tête (seules les signatures sont réécrites).
-
+// Définitions de generators/noise.hpp
 #include "generators/noise.hpp"
 
 namespace generators {

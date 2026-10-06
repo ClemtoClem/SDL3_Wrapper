@@ -1,7 +1,7 @@
 {
   "format": "game_editor.project",
   "version": 5,
-  "name": "Projet 3 — Les Cryptes de Sled",
+  "name": "Projet 3 — Les Cryptes de Script",
   "active_scene": "Menu principal",
   "scenes": [
     "scenes/Menu principal.scene",
