@@ -8,7 +8,7 @@
  *
  * ── Invariant central : le document est la source de vérité ──────────────
  * Toute mutation passe par une commande (`SetPosition`, `SetMaterialColor`,
- * `SpawnObject`…) qui écrit d'ABORD dans le `ObjectDesc` du document, PUIS
+ * `SpawnNamedNode`…) qui écrit d'ABORD dans le `NodeDesc` du document, PUIS
  * répercute sur le runtime. Rien ne modifie un `Object3D` ou un `RigidBody`
  * directement de l'extérieur. Conséquences : sauvegarder, c'est sérialiser le
  * document (rien à re-collecter depuis la 3D) ; et l'interface, les scripts
@@ -62,6 +62,7 @@
 #include "script_outline.hpp"
 #include "script_owners.hpp"
 #include "../document/project.hpp"
+#include "../document/project_fs.hpp"
 #include "../document/project_files.hpp"
 
 namespace game_editor {
@@ -76,7 +77,7 @@ namespace game_editor {
 /// (`scene::NodeTree`), un nœud peut être renommé ou déplacé sans cesser
 /// d'être le même — un `NodeId` traverse les deux, un nom non. Et il est
 /// stable à la suppression d'un voisin, contrairement à un index.
-struct SceneObjectRef {
+struct SceneNodeRef {
 	scene::NodeId node;
 };
 
@@ -250,7 +251,7 @@ public:
 	/// Appelé par l'interface pour afficher le nom de l'objet sélectionné.
 	[[nodiscard]] Option<String> SelectedName() const;
 
-	[[nodiscard]] scene::Node *SelectedObject() noexcept { return FindObject(m_selection); }
+	[[nodiscard]] scene::Node *SelectedNode() noexcept { return FindNode(m_selection); }
 
 	// ── Accès au document par identifiant ────────────────────────────────────
 	// Public : l'interface (outliner, inspecteur), les natives de script et
@@ -267,9 +268,9 @@ public:
 	/// plus une vérification du nom — aucune commande n'a à penser à le vider.
 	[[nodiscard]] scene::NodeId ResolveId(const String &objectName) const;
 
-	[[nodiscard]] scene::Node *FindObject(const String &objectName) noexcept;
+	[[nodiscard]] scene::Node *FindNode(const String &objectName) noexcept;
 
-	[[nodiscard]] scene::Node *FindObject(scene::NodeId id) noexcept;
+	[[nodiscard]] scene::Node *FindNode(scene::NodeId id) noexcept;
 
 	/// Entité ECS incarnant ce nœud. Table de correspondance plutôt que
 	/// balayage de toutes les entités : c'est l'opération la plus fréquente
@@ -279,9 +280,9 @@ public:
 
 	[[nodiscard]] Option<ecs::Entity> FindEntity(const String &objectName) const;
 
-	[[nodiscard]] render3d::Object3D *FindNode(scene::NodeId id);
+	[[nodiscard]] render3d::Object3D *FindObject3D(scene::NodeId id);
 
-	[[nodiscard]] render3d::Object3D *FindNode(const String &objectName) { return FindNode(ResolveId(objectName)); }
+	[[nodiscard]] render3d::Object3D *FindObject3D(const String &objectName) { return FindObject3D(ResolveId(objectName)); }
 
 	// ── Journal ──────────────────────────────────────────────────────────────
 
@@ -311,7 +312,7 @@ public:
 	/// Muet pendant le mode Jeu : la physique y écrit à chaque image, et
 	/// reconstruire l'inspecteur 60 fois par seconde coûterait plus cher que
 	/// tout le reste.
-	std::function<void()> onObjectChanged;
+	std::function<void()> onNodeChanged;
 
 	// ── Points d'accroche vers l'hôte graphique ─────────────────────────────
 	// Installés par App/EditorUi quand il y a une fenêtre. Non installés en
@@ -392,6 +393,11 @@ public:
 	/// Ajoute à la bibliothèque le script d'un fichier `.script` (son nom est
 	/// celui du fichier ; remplace un script du même nom). Rend ce nom.
 	[[nodiscard]] Result<String, String> ImportScriptFile(const String &path);
+	/// Écrit l'objet `object` dans un fichier .object autonome.
+	[[nodiscard]] Result<bool, String> SaveObjectAs(ObjectRef object, const String &path) const;
+	/// Ajoute au projet l'objet d'un fichier .object (nom rendu unique dans
+	/// /objects) et l'ouvre ; ses instances suivent dès lors ses modifications.
+	[[nodiscard]] Result<ObjectRef, String> ImportObjectFile(const String &path);
 
 	[[nodiscard]] String UniqueSceneName(const String &base) const;
 
@@ -821,11 +827,11 @@ public:
 
 	/// Ajoute un objet (nom rendu unique) et l'instancie. Rend le nom
 	/// effectivement attribué, ou NONE s'il n'y a pas de scène active.
-	[[nodiscard]] Option<String> SpawnObject(ObjectDesc object);
+	[[nodiscard]] Option<String> SpawnNamedNode(NodeDesc object);
 
 	/// Même chose, mais rend l'IDENTIFIANT — ce dont l'interface a besoin
 	/// pour enchaîner (sélectionner, reparenter, renommer).
-	[[nodiscard]] Option<scene::NodeId> SpawnNode(ObjectDesc object, scene::NodeId parent = scene::NodeId{});
+	[[nodiscard]] Option<scene::NodeId> SpawnNode(NodeDesc object, scene::NodeId parent = scene::NodeId{});
 
 	/// Crée un nœud VIDE (groupe) — la brique de la composition : on crée un
 	/// « Wheels », puis on y glisse les roues.
@@ -846,11 +852,53 @@ public:
 	/// Supprime un nœud ET son sous-arbre.
 	bool RemoveNode(scene::NodeId id);
 
-	bool RemoveObject(const String &objectName) { return RemoveNode(ResolveId(objectName)); }
+	bool RemoveNode(const String &objectName) { return RemoveNode(ResolveId(objectName)); }
 
-	bool RenameObject(scene::NodeId id, const String &newName);
+	bool RenameNode(scene::NodeId id, const String &newName);
 
-	bool RenameObject(const String &objectName, const String &newName);
+	bool RenameNode(const String &objectName, const String &newName);
+
+	// ── Objets réutilisables (.object, cf. document/objects.hpp) ─────────────
+	//
+	// Un objet est un document du projet (arbre de nœuds sans réglages du
+	// monde) ; ses INSTANCES, dans les scènes et les autres objets, ne
+	// retiennent que sa référence et leur transform. Leur contenu est
+	// régénéré à chaque changement de document actif : modifier un objet
+	// puis revenir à une scène montre la modification partout.
+
+	/// Le document actif est un objet (et non une scène).
+	[[nodiscard]] bool IsEditingObject() const;
+
+	/// Re-développe toutes les instances d'objets du projet (objets d'abord,
+	/// dans l'ordre des dépendances, puis scènes) ; journalise les erreurs
+	/// (objet introuvable, cycle). Sans effet pendant une partie.
+	void RefreshObjectInstances();
+
+	/// Ajoute un objet vide au projet et l'ouvre. Rend son nom.
+	String AddEmptyObject(const String &base = String("Nouvel objet"));
+
+	/// « Créer un objet à partir de la sélection » : le sous-arbre `id` de la
+	/// scène active devient le contenu d'un nouvel objet (`name`, nom du nœud
+	/// à défaut), et le nœud est remplacé par une INSTANCE de cet objet au
+	/// même endroit. Rend le nom de l'objet.
+	[[nodiscard]] Result<String, String> CreateObjectFromNode(scene::NodeId id, const String &name = String());
+
+	/// Pose une instance de l'objet `objectName` dans le document actif, sous
+	/// `parent` (la racine à défaut), au transform `placement` (identité à
+	/// défaut). En partie, seul le sous-arbre nouveau est construit et ses
+	/// scripts démarrent (comme InstantiateSceneFile).
+	[[nodiscard]] Result<scene::NodeId, String> InstantiateObject(const String &objectName,
+																  scene::NodeId parent = scene::NodeId{},
+																  Option<scene::Transform> placement = NONE);
+
+	/// « Rendre indépendant » : le contenu de l'instance `id` devient des
+	/// nœuds ordinaires de la scène, qui ne suivront plus l'objet.
+	[[nodiscard]] Result<bool, String> DetachInstance(scene::NodeId id);
+
+	/// Le contenu d'un objet devient celui du sous-arbre `id` du document
+	/// actif (copie ; l'objet est créé s'il n'existe pas). Pour les scripts :
+	/// définir un objet à partir de nœuds construits en jeu.
+	[[nodiscard]] Result<String, String> DefineObjectFromNode(const String &objectName, scene::NodeId id);
 
 	// ── Scènes réutilisables (PackedScene) ───────────────────────────────────
 	//
@@ -992,7 +1040,7 @@ public:
 	[[nodiscard]] jobs::JobSystem &Jobs() noexcept { return m_jobs; }
 	[[nodiscard]] const jobs::JobSystem &Jobs() const noexcept { return m_jobs; }
 
-	[[nodiscard]] size_t RuntimeObjectCount() const { return m_registry.EntitiesWith<SceneObjectRef>().size(); }
+	[[nodiscard]] size_t RuntimeNodeCount() const { return m_registry.EntitiesWith<SceneNodeRef>().size(); }
 	[[nodiscard]] size_t RigidBodyCount() const { return m_registry.EntitiesWith<physics::RigidBody>().size(); }
 
 private:
@@ -1012,7 +1060,7 @@ private:
 	/// Accès CONST au nœud sélectionné — par identifiant, directement (passer
 	/// par le nom ferait un aller-retour inutile… et une récursion infinie
 	/// avec SelectedName, qui s'appuie sur cette fonction).
-	[[nodiscard]] const scene::Node *SelectedConstObject() const;
+	[[nodiscard]] const scene::Node *SelectedConstNode() const;
 
 	[[nodiscard]] static math::FVector3 AxisVector(GizmoAxis axis) noexcept;
 
@@ -1039,8 +1087,8 @@ private:
 	// ── Historique ───────────────────────────────────────────────────────────
 
 	/// Prévient l'interface qu'une propriété vient de changer (cf.
-	/// `onObjectChanged`).
-	void NotifyObjectChanged();
+	/// `onNodeChanged`).
+	void NotifyNodeChanged();
 
 	[[nodiscard]] HistoryStep Snapshot(String label) const;
 
@@ -1380,7 +1428,7 @@ private:
 	bool m_dragging = false;
 	bool m_snapEnabled = false;
 	float m_translateSnap = 0.5f, m_rotateSnap = 15.f, m_scaleSnap = 0.1f;
-	scene::NodeId m_dragObject;
+	scene::NodeId m_dragNode;
 	math::FVector3 m_dragStartPosition, m_dragStartEuler, m_dragStartScale{1.f, 1.f, 1.f};
 	math::FVector3 m_dragStartVector;
 	float m_dragStartParam = 0.f;
@@ -1498,7 +1546,7 @@ void WriteProperty(scene::Node &node, const String &key, const Value &value);
 /// parent, tag, shape, model, size, segments, visible, pos, rot, scale,
 /// material, color, metallic, roughness, double_sided, wireframe, body,
 /// collider, half_extents, mass, restitution, friction.
-[[nodiscard]] ObjectDesc ObjectFromTable(const data::script::MapObject &map);
+[[nodiscard]] NodeDesc NodeFromTable(const data::script::MapObject &map);
 
 /// Modifie `material` selon les clés présentes (kind ou material, color,
 /// metallic, roughness, double_sided, wireframe) : une table partielle ne

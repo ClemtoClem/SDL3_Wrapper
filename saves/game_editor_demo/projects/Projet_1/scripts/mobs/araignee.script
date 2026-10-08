@@ -1,0 +1,71 @@
+# ── Araignée géante : rapide, elle bondit sur sa proie ───────────────────────
+#
+# Court sur huit pattes animées ; à quelques mètres du joueur, elle BONDIT
+# (arc de cercle) puis mord à l'atterrissage. Deux points de vie.
+
+const m = import "monstres"
+
+class Araignee extends m.Monstre {
+    let bond = 0
+    let depart = nil
+    let arrivee = nil
+    let recharge_bond = 1.5
+
+    fn preparer() {
+        this.portee = 1.3
+        this.delai = 0.8
+        this.detection = 13.0
+        this.teinte("Thorax", 36, 30, 28)
+        this.teinte("Abdomen", 48, 36, 30)
+    }
+
+    fn special(e, joueur, d, dt) {
+        this.recharge_bond -= dt
+        if (this.bond > 0) {
+            this.bond += dt
+            let t = math.min(1, this.bond / 0.55)
+            let x = math.lerp(this.depart[0], this.arrivee[0], t)
+            let z = math.lerp(this.depart[2], this.arrivee[2], t)
+            this.placer(x, this.origine[1] + math.sin(t * math.pi) * 0.9, z)
+            if (t >= 1) {
+                this.bond = 0
+                this.placer(x, this.origine[1], z)
+                if (m.distance_plane(this.ici, joueur) < 1.6) { this.frapper_joueur() }
+            }
+            return true
+        }
+        if (d > 2.4 and d < 5 and this.recharge_bond <= 0) {
+            # Atterrir à 1,2 m du joueur, sur un sol praticable.
+            let k = (d - 1.2) / d
+            let fx = this.ici[0] + (joueur[0] - this.ici[0]) * k
+            let fz = this.ici[2] + (joueur[2] - this.ici[2]) * k
+            if (m.praticable(e, fx, fz)) {
+                this.depart = this.ici
+                this.arrivee = [fx, this.origine[1], fz]
+                this.bond = 0.001
+                this.recharge_bond = 3
+                this.orienter(joueur[0] - this.ici[0], joueur[2] - this.ici[2], 1, 100)
+                return true
+            }
+        }
+        return false
+    }
+
+    fn animer(dt, allure) {
+        # Démarche en trépied alterné : pattes 1, 3, 6, 8 contre 2, 4, 5, 7.
+        let vite = math.min(1.5, 0.3 + allure / 2)
+        for (i in range(8)) {
+            let cote = 1
+            if (i < 4) { cote = -1 }
+            let rang = i % 4
+            let phase = 0
+            if ((rang + i32(i / 4)) % 2 == 1) { phase = math.pi }
+            let balancement = math.sin(this.marche * 9 + phase) * 16 * vite
+            let repos = 90 * cote + (rang - 1.5) * -28 * cote
+            object.set_rotation(this.enfant("Patte " .. (i + 1)), 0, repos + balancement, math.max(0, math.cos(this.marche * 9 + phase)) * 12 * vite * cote)
+        }
+        if (this.bond == 0) {
+            this.placer(this.ici[0], this.origine[1] + math.abs(math.sin(this.marche * 9)) * 0.03, this.ici[2])
+        }
+    }
+}

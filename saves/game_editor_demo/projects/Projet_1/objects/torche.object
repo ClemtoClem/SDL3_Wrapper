@@ -1,0 +1,337 @@
+{
+ "format": "game_editor.object",
+ "version": 1,
+ "name": "torche",
+ "description": "Torche murale : support, flamme et lumière vacillante (script torchlight)",
+ "tree": {
+  "root": {
+   "id": "0:0",
+   "type": "Node",
+   "name": "torche",
+   "transform": {
+    "position": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rotation": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "children": [
+    {
+     "id": "1:0",
+     "type": "Light",
+     "name": "Torche",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       -0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "Light",
+       "props": {
+        "kind": {
+         "type": "string",
+         "value": "point"
+        },
+        "color": {
+         "type": "color",
+         "value": [
+          255.0,
+          146.0,
+          58.0,
+          255.0
+         ]
+        },
+        "intensity": {
+         "type": "float",
+         "value": 3.200000047683716
+        },
+        "range": {
+         "type": "float",
+         "value": 11.0
+        },
+        "spot_angle": {
+         "type": "float",
+         "value": 35.0
+        },
+        "penumbra": {
+         "type": "float",
+         "value": 0.30000001192092896
+        },
+        "cast_shadow": {
+         "type": "bool",
+         "value": false
+        }
+       }
+      },
+      {
+       "type": "Script",
+       "props": {
+        "script": {
+         "type": "string",
+         "value": "torchlight"
+        }
+       }
+      }
+     ],
+     "properties": {
+      "flicker_speed": {
+       "type": "float",
+       "value": 1.7699999928474426
+      },
+      "flicker_min": {
+       "type": "float",
+       "value": 0.72
+      },
+      "flicker_max": {
+       "type": "float",
+       "value": 1.18
+      },
+      "flame": {
+       "type": "string",
+       "value": "Flamme"
+      }
+     },
+     "children": [
+      {
+       "id": "2:0",
+       "type": "MeshInstance",
+       "name": "Support",
+       "transform": {
+        "position": [
+         0.0,
+         -0.550000011920929,
+         0.0
+        ],
+        "rotation": [
+         -0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.11999999731779099,
+            0.699999988079071,
+            0.11999999731779099
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            84.0,
+            53.0,
+            30.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.8500000238418579
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        },
+        {
+         "type": "RigidBody",
+         "props": {
+          "body": {
+           "type": "string",
+           "value": "none"
+          },
+          "collider": {
+           "type": "string",
+           "value": "box"
+          },
+          "half_extents": {
+           "type": "vec3",
+           "value": [
+            0.05999999865889549,
+            0.3499999940395355,
+            0.05999999865889549
+           ]
+          },
+          "mass": {
+           "type": "float",
+           "value": 1.0
+          },
+          "restitution": {
+           "type": "float",
+           "value": 0.30000001192092896
+          },
+          "friction": {
+           "type": "float",
+           "value": 0.6000000238418579
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "3:0",
+       "type": "MeshInstance",
+       "name": "Flamme",
+       "transform": {
+        "position": [
+         0.0,
+         -0.05000000074505806,
+         0.0
+        ],
+        "rotation": [
+         -0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cone"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.2199999988079071,
+            0.4000000059604645,
+            0.2199999988079071
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "unlit"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            255.0,
+            170.0,
+            60.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.8500000238418579
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        },
+        {
+         "type": "RigidBody",
+         "props": {
+          "body": {
+           "type": "string",
+           "value": "none"
+          },
+          "collider": {
+           "type": "string",
+           "value": "box"
+          },
+          "half_extents": {
+           "type": "vec3",
+           "value": [
+            0.10999999940395355,
+            0.20000000298023224,
+            0.10999999940395355
+           ]
+          },
+          "mass": {
+           "type": "float",
+           "value": 1.0
+          },
+          "restitution": {
+           "type": "float",
+           "value": 0.30000001192092896
+          },
+          "friction": {
+           "type": "float",
+           "value": 0.6000000238418579
+          }
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,730 @@
+{
+ "format": "game_editor.object",
+ "version": 1,
+ "name": "salle_piliers",
+ "description": "Quatre piliers et des poutres",
+ "tree": {
+  "root": {
+   "id": "1:0",
+   "type": "Node",
+   "name": "salle_piliers",
+   "transform": {
+    "position": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rotation": [
+     -0.0,
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "properties": {
+    "description": {
+     "type": "string",
+     "value": "Quatre piliers et des poutres"
+    }
+   },
+   "children": [
+    {
+     "id": "77:0",
+     "type": "Node3D",
+     "name": "Sol",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "dallage"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "78:0",
+     "type": "Node3D",
+     "name": "Mur nord",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "mur_porte"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "79:0",
+     "type": "Node3D",
+     "name": "Mur est",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       90.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "mur_porte"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "80:0",
+     "type": "Node3D",
+     "name": "Mur sud",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       180.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "mur_porte"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "81:0",
+     "type": "Node3D",
+     "name": "Mur ouest",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       270.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "mur_porte"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "82:0",
+     "type": "Node3D",
+     "name": "Plafond",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "plafond"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "67:0",
+     "type": "MeshInstance",
+     "name": "Pilier 1",
+     "transform": {
+      "position": [
+       -1.899999976158142,
+       2.200000047683716,
+       1.899999976158142
+      ],
+      "rotation": [
+       -0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "MeshInstance",
+       "props": {
+        "shape": {
+         "type": "string",
+         "value": "box"
+        },
+        "dimensions": {
+         "type": "vec3",
+         "value": [
+          0.550000011920929,
+          4.400000095367432,
+          0.550000011920929
+         ]
+        },
+        "segments": {
+         "type": "int",
+         "value": 24
+        },
+        "material": {
+         "type": "string",
+         "value": "plastic"
+        },
+        "base_color": {
+         "type": "color",
+         "value": [
+          112.0,
+          98.0,
+          87.0,
+          255.0
+         ]
+        },
+        "metallic": {
+         "type": "float",
+         "value": 0.0
+        },
+        "roughness": {
+         "type": "float",
+         "value": 0.8500000238418579
+        },
+        "double_sided": {
+         "type": "bool",
+         "value": false
+        },
+        "wireframe": {
+         "type": "bool",
+         "value": false
+        }
+       }
+      },
+      {
+       "type": "RigidBody",
+       "props": {
+        "body": {
+         "type": "string",
+         "value": "static"
+        },
+        "collider": {
+         "type": "string",
+         "value": "box"
+        },
+        "half_extents": {
+         "type": "vec3",
+         "value": [
+          0.2750000059604645,
+          2.200000047683716,
+          0.2750000059604645
+         ]
+        },
+        "mass": {
+         "type": "float",
+         "value": 1.0
+        },
+        "restitution": {
+         "type": "float",
+         "value": 0.30000001192092896
+        },
+        "friction": {
+         "type": "float",
+         "value": 0.6000000238418579
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "68:0",
+     "type": "MeshInstance",
+     "name": "Pilier 2",
+     "transform": {
+      "position": [
+       1.899999976158142,
+       2.200000047683716,
+       1.899999976158142
+      ],
+      "rotation": [
+       -0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "MeshInstance",
+       "props": {
+        "shape": {
+         "type": "string",
+         "value": "box"
+        },
+        "dimensions": {
+         "type": "vec3",
+         "value": [
+          0.550000011920929,
+          4.400000095367432,
+          0.550000011920929
+         ]
+        },
+        "segments": {
+         "type": "int",
+         "value": 24
+        },
+        "material": {
+         "type": "string",
+         "value": "plastic"
+        },
+        "base_color": {
+         "type": "color",
+         "value": [
+          112.0,
+          98.0,
+          87.0,
+          255.0
+         ]
+        },
+        "metallic": {
+         "type": "float",
+         "value": 0.0
+        },
+        "roughness": {
+         "type": "float",
+         "value": 0.8500000238418579
+        },
+        "double_sided": {
+         "type": "bool",
+         "value": false
+        },
+        "wireframe": {
+         "type": "bool",
+         "value": false
+        }
+       }
+      },
+      {
+       "type": "RigidBody",
+       "props": {
+        "body": {
+         "type": "string",
+         "value": "static"
+        },
+        "collider": {
+         "type": "string",
+         "value": "box"
+        },
+        "half_extents": {
+         "type": "vec3",
+         "value": [
+          0.2750000059604645,
+          2.200000047683716,
+          0.2750000059604645
+         ]
+        },
+        "mass": {
+         "type": "float",
+         "value": 1.0
+        },
+        "restitution": {
+         "type": "float",
+         "value": 0.30000001192092896
+        },
+        "friction": {
+         "type": "float",
+         "value": 0.6000000238418579
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "69:0",
+     "type": "MeshInstance",
+     "name": "Pilier 3",
+     "transform": {
+      "position": [
+       -1.899999976158142,
+       2.200000047683716,
+       -1.899999976158142
+      ],
+      "rotation": [
+       -0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "MeshInstance",
+       "props": {
+        "shape": {
+         "type": "string",
+         "value": "box"
+        },
+        "dimensions": {
+         "type": "vec3",
+         "value": [
+          0.550000011920929,
+          4.400000095367432,
+          0.550000011920929
+         ]
+        },
+        "segments": {
+         "type": "int",
+         "value": 24
+        },
+        "material": {
+         "type": "string",
+         "value": "plastic"
+        },
+        "base_color": {
+         "type": "color",
+         "value": [
+          112.0,
+          98.0,
+          87.0,
+          255.0
+         ]
+        },
+        "metallic": {
+         "type": "float",
+         "value": 0.0
+        },
+        "roughness": {
+         "type": "float",
+         "value": 0.8500000238418579
+        },
+        "double_sided": {
+         "type": "bool",
+         "value": false
+        },
+        "wireframe": {
+         "type": "bool",
+         "value": false
+        }
+       }
+      },
+      {
+       "type": "RigidBody",
+       "props": {
+        "body": {
+         "type": "string",
+         "value": "static"
+        },
+        "collider": {
+         "type": "string",
+         "value": "box"
+        },
+        "half_extents": {
+         "type": "vec3",
+         "value": [
+          0.2750000059604645,
+          2.200000047683716,
+          0.2750000059604645
+         ]
+        },
+        "mass": {
+         "type": "float",
+         "value": 1.0
+        },
+        "restitution": {
+         "type": "float",
+         "value": 0.30000001192092896
+        },
+        "friction": {
+         "type": "float",
+         "value": 0.6000000238418579
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "70:0",
+     "type": "MeshInstance",
+     "name": "Pilier 4",
+     "transform": {
+      "position": [
+       1.899999976158142,
+       2.200000047683716,
+       -1.899999976158142
+      ],
+      "rotation": [
+       -0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "MeshInstance",
+       "props": {
+        "shape": {
+         "type": "string",
+         "value": "box"
+        },
+        "dimensions": {
+         "type": "vec3",
+         "value": [
+          0.550000011920929,
+          4.400000095367432,
+          0.550000011920929
+         ]
+        },
+        "segments": {
+         "type": "int",
+         "value": 24
+        },
+        "material": {
+         "type": "string",
+         "value": "plastic"
+        },
+        "base_color": {
+         "type": "color",
+         "value": [
+          112.0,
+          98.0,
+          87.0,
+          255.0
+         ]
+        },
+        "metallic": {
+         "type": "float",
+         "value": 0.0
+        },
+        "roughness": {
+         "type": "float",
+         "value": 0.8500000238418579
+        },
+        "double_sided": {
+         "type": "bool",
+         "value": false
+        },
+        "wireframe": {
+         "type": "bool",
+         "value": false
+        }
+       }
+      },
+      {
+       "type": "RigidBody",
+       "props": {
+        "body": {
+         "type": "string",
+         "value": "static"
+        },
+        "collider": {
+         "type": "string",
+         "value": "box"
+        },
+        "half_extents": {
+         "type": "vec3",
+         "value": [
+          0.2750000059604645,
+          2.200000047683716,
+          0.2750000059604645
+         ]
+        },
+        "mass": {
+         "type": "float",
+         "value": 1.0
+        },
+        "restitution": {
+         "type": "float",
+         "value": 0.30000001192092896
+        },
+        "friction": {
+         "type": "float",
+         "value": 0.6000000238418579
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "83:0",
+     "type": "Node3D",
+     "name": "Torche",
+     "transform": {
+      "position": [
+       2.9000000953674316,
+       2.299999952316284,
+       2.9000000953674316
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "torche"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "84:0",
+     "type": "Node3D",
+     "name": "Torche 2",
+     "transform": {
+      "position": [
+       -2.9000000953674316,
+       2.299999952316284,
+       -2.9000000953674316
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "torche"
+        }
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

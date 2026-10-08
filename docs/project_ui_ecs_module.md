@@ -135,6 +135,17 @@ auto-scrollbars rendering on containers (wheel scroll works, bars not drawn;
 ListBox draws its own), Input widget has end-cursor editing only (no
 mid-string cursor/selection), callbacks must not mutate ECS structurally
 (use CommandBuffer). Combo dropdown always opens downward (no flip-up).
+
+**Combo par catégories (2026-10-07) :** `UiFactory::Combo(std::vector<ComboCategory>, selected)`
+— chaque `ComboCategory{title, items}` titrée devient une ligne « Titre ▸ » de la liste ; la
+survoler ouvre ses éléments à DROITE (sous-menu, comme `Menu`/`SubMenu`), cliquer la catégorie
+ne referme pas la liste ; une catégorie sans titre met ses éléments au premier niveau. Les index
+(`selected`, onChange) comptent les éléments de toutes les catégories bout à bout.
+`UiComboBox::groups` (`UiComboGroup{title, first, count}`), `openGroup`/`hoveredGroup`,
+`SubmenuRect`, `OverlayContains` (hit-test : liste + sous-menu ouvert), `SetCategories`
+(remplacer les choix en place). À l'ouverture, la catégorie de l'élément choisi est déjà
+dépliée ; un sous-menu trop haut remonte pour rester dans la fenêtre (`screenBottom`, posé au
+rendu). Test : `UiZOrder.CategorizedComboOpensItsSubmenuOnHover`.
 Splitter/Tree/ColorPicker/Popup/Graph/TextArea from 13_ui_v1.cpp unported.
 
 **Test-writing gotcha (hit twice):** widgets positioned outside the

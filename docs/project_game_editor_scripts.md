@@ -16,8 +16,7 @@ moteur qui les instancie et appelle leurs méthodes. Le mécanisme générique
 bibliothèque : `lib/include/data/script/script_owners.hpp`, cf.
 [le guide du langage](project_script.md#bases-fournies-par-lhôte-owners).
 
-Un script à l'ancienne est signalé explicitement (« aucune classe dérivée de
-`Scene` » / « de `Behaviour` ») au lancement du mode Jeu.
+Un script à l'ancienne est signalé explicitement (« aucune classe dérivée de `Scene` » / « de `Behaviour` ») au lancement du mode Jeu.
 
 ## Les bases
 
@@ -34,6 +33,7 @@ Toutes sont dans l'espace de noms `game` et aussi globales.
 | `Light3D` | Lumière de ce même nœud (créée si absente, options `light: {…}`) | `intensity()`, `set_intensity(v)`, `set_color(r, g, b)`, `set_light({…})` |
 | `Gameplay` | Abonnements à des évènements | `on(évènement, fn)`, `emit(évènement, …)`, `off(évènement)`, `forget_listeners()`, `listeners([évènement])` |
 | `SceneAsset` | Fichier `.scene` réutilisable (`super.init("scenes/x.scene")`) ; ses instances sont retirées à la destruction | `instantiate({parent, pos, rot, scale})`, `instances()`, `clear()`, propriété `path` |
+| `ObjectAsset` | Objet réutilisable du projet (`super.init("Nom")`, cf. [objets](project_game_editor_objects.md)) : ses instances suivent l'objet | `instantiate({…})`, `instances()`, `clear()`, `exists()`, `define(nœud)`, propriété `name` |
 
 Méthodes de nœud communes (Behaviour, Node3D, Mesh3D ; les trois premières et
 `prop`/`tag` aussi pour Node2D) : `node()` (nom ou chemin, la forme de l'API

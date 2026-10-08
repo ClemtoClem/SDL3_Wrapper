@@ -1,6 +1,0 @@
-# ── Circuit 2 - Sylvan Trail : Piste forestière étroite en terre battue, tronc suspendu ───
-# Le sprint (voiture, adhérence des surfaces, boosters, obstacles animés,
-# chrono) vient du module partagé « sprint » : la scène n'apporte que son décor.
-const sprint = import "sprint"
-
-class SylvanTrail extends sprint.Sprint {}

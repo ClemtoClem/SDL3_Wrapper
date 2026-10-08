@@ -1,0 +1,97 @@
+# ── Joueur : contrôleur à la première personne ───────────────────────────────
+#
+# Souris (capturée) : regarder ; ZQSD / WASD ou flèches : marcher ; Maj :
+# courir. Le corps est une capsule physique (PhysicsBody) : on lui donne une
+# vitesse, la physique gère murs et sol. Sans joueur, visite guidée : le
+# chevalier suit les étapes (nœuds étiquetés « etape », posés par le script
+# du donjon) et se tourne vers la cible que ce script lui désigne
+# (propriété `cible`). Il publie `manuel` pour que le donjon sache qui joue.
+# Pendant une traversée d'étage (propriété `transit`, posée par le donjon),
+# le corps ne bouge plus de lui-même : le donjon le déplace.
+fn replier(a) {
+    while (a > math.pi) { a -= 2 * math.pi }
+    while (a < -math.pi) { a += 2 * math.pi }
+    return a
+}
+
+class Joueur extends Behaviour, PhysicsBody {
+    let lacet = 0
+    let tangage = 0
+    let manuel = false
+    let etapes = []
+    let prochaine = 0
+    let vitesse = 4
+    let oeil = nil           # la caméra enfant (propriété `eye`), qui porte le tangage
+
+    fn on_start() {
+        this.etapes = scene.find_tag("etape")
+        let nom = this.prop("eye")
+        if (nom != nil) { this.oeil = this.child(nom) }
+        let r = this.rotation()
+        if (r) { this.lacet = r[1] * math.pi / 180 }
+        this.prop("manuel", false)
+    }
+
+    fn viser(cible, dt) {
+        let ici = this.position()
+        let la = node.world_position(cible)   # le « Corps » d'un monstre (chemin)
+        if (not ici or not la) { return nil }
+        this.lacet += math.clamp(replier(math.atan2(la[0] - ici[0], la[2] - ici[2]) - this.lacet), -4 * dt, 4 * dt)
+    }
+
+    fn on_update(dt) {
+        let souris = input.mouse_delta()
+        if (souris[0] != 0 or souris[1] != 0) { this.manuel = true }
+        # Repère direct : la droite de l'écran est −x quand on regarde +z, donc
+        # tourner à droite fait DÉCROÎTRE le lacet.
+        this.lacet -= souris[0] * 0.0025
+        this.tangage = math.clamp(this.tangage - souris[1] * 0.0025, -1.2, 1.2)
+
+        let avant = math.clamp(input.axis("s", "w") + input.axis("s", "z") + input.axis("down", "up"), -1, 1)
+        let cote = math.clamp(input.axis("a", "d") + input.axis("q", "d") + input.axis("left", "right"), -1, 1)
+        if (avant != 0 or cote != 0) { this.manuel = true }
+        this.prop("manuel", this.manuel)
+
+        # Visite guidée : cap vers la prochaine étape ; halte pour combattre.
+        if (not this.manuel) {
+            let cible = this.prop("cible")
+            if (cible != nil and cible != "") {
+                this.viser(cible, dt)
+            } else if (this.prochaine < len(this.etapes) and not scene.exists(this.etapes[this.prochaine])) {
+                this.prochaine += 1   # étape retirée par le donjon (passage d'étage franchi)
+            } else if (this.prochaine < len(this.etapes)) {
+                let ici = this.position()
+                let la = object.position(this.etapes[this.prochaine])
+                let dx = la[0] - ici[0]
+                let dz = la[2] - ici[2]
+                if (dx * dx + dz * dz < 0.6) {
+                    this.prochaine += 1
+                } else {
+                    this.lacet += math.clamp(replier(math.atan2(dx, dz) - this.lacet), -3 * dt, 3 * dt)
+                    avant = 1
+                }
+            }
+            this.tangage = math.lerp(this.tangage, -0.05, math.min(1, dt * 2))
+        }
+
+        # Traversée d'étage : le donjon déplace le corps ; on garde le regard.
+        if (this.prop("transit") == true) {
+            this.set_velocity(0, 0, 0)
+            this.set_rotation(0, this.lacet * 180 / math.pi, 0)
+            if (this.oeil != nil) { object.set_rotation(this.oeil, -this.tangage * 180 / math.pi, 0, 0) }
+            return nil
+        }
+
+        let v = this.vitesse
+        if (input.key("shift")) { v = this.vitesse * 1.8 }
+        let actuelle = this.velocity()
+        let vy = 0
+        if (actuelle) { vy = actuelle[1] }
+        # Droite = (−cos, 0, sin) quand l'avant est (sin, 0, cos).
+        let vx = (math.sin(this.lacet) * avant - math.cos(this.lacet) * cote) * v
+        let vz = (math.cos(this.lacet) * avant + math.sin(this.lacet) * cote) * v
+        this.set_velocity(vx, vy, vz)
+        this.set_rotation(0, this.lacet * 180 / math.pi, 0)
+        if (this.oeil != nil) { object.set_rotation(this.oeil, -this.tangage * 180 / math.pi, 0, 0) }
+    }
+}

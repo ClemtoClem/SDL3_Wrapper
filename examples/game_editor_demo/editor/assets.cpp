@@ -12,6 +12,8 @@ const char * AssetKindLabel(AssetKind kind) noexcept {
 			return "Dossier";
 		case AssetKind::SCENE:
 			return "Scène";
+		case AssetKind::OBJECT:
+			return "Objet";
 		case AssetKind::SCRIPT:
 			return "Script";
 		case AssetKind::MODEL:
@@ -55,6 +57,10 @@ String AssetBrowserModel::ScriptFolder() const {
 	return m_projectDir.IsEmpty() ? String() : m_projectDir + String("/") + files::SCRIPTS_DIR;
 }
 
+String AssetBrowserModel::ObjectFolder() const {
+	return m_projectDir.IsEmpty() ? String() : m_projectDir + String("/") + files::OBJECTS_DIR;
+}
+
 String AssetBrowserModel::Canonical(const String &location) const {
 	if (m_projectDir.IsEmpty())
 		return location;
@@ -62,6 +68,8 @@ String AssetBrowserModel::Canonical(const String &location) const {
 		return String(SCENES);
 	if (location == ScriptFolder())
 		return String(SCRIPTS);
+	if (location == ObjectFolder())
+		return String(OBJECTS);
 	return location;
 }
 
@@ -70,6 +78,8 @@ String AssetBrowserModel::DiskFolderOf(const String &location) const {
 		return SceneFolder();
 	if (location == SCRIPTS)
 		return ScriptFolder();
+	if (location == OBJECTS)
+		return ObjectFolder();
 	if (location.StartsWith(ROOT))
 		return String();
 	return location;
@@ -110,7 +120,7 @@ bool AssetBrowserModel::Up() {
 }
 
 String AssetBrowserModel::Parent(const String &location) const {
-	if (location == ROOT || location == SCENES || location == SCRIPTS)
+	if (location == ROOT || location == SCENES || location == SCRIPTS || location == OBJECTS)
 		return String(ROOT);
 	// Sous-dossier de `scenes/` ou `scripts/` : son parent, canonique (le
 	// dossier lui-même remonte à « Scènes » / « Scripts »).
@@ -139,6 +149,10 @@ std::vector<std::pair<String, String>> AssetBrowserModel::Breadcrumb() const {
 	}
 	if (m_location == SCRIPTS) {
 		crumbs.emplace_back(String("Scripts"), String(SCRIPTS));
+		return crumbs;
+	}
+	if (m_location == OBJECTS) {
+		crumbs.emplace_back(String("Objets"), String(OBJECTS));
 		return crumbs;
 	}
 	// Sous-dossiers de « Scènes » / « Scripts » : sous leur libellé, pas sous
@@ -200,7 +214,10 @@ std::vector<AssetEntry> AssetBrowserModel::List(const String &location, const St
 	std::vector<AssetEntry> entries;
 	if (location == ROOT) {
 		entries.push_back(AssetEntry{String("Scènes"), String(SCENES), AssetKind::FOLDER,
-									 String::Format("%d scène(s) du projet", m_project ? int(m_project->scenes.size()) : 0)});
+									 String::Format("%d scène(s) du projet", m_project ? int(m_project->SceneCount()) : 0)});
+		entries.push_back(AssetEntry{String("Objets"), String(OBJECTS), AssetKind::FOLDER,
+									 String::Format("%d objet(s) réutilisable(s)",
+													m_project ? int(m_project->ObjectNames().size()) : 0)});
 		entries.push_back(AssetEntry{String("Scripts"), String(SCRIPTS), AssetKind::FOLDER,
 									 String("Bibliothèque de scripts du projet")});
 		if (!m_savesRoot.IsEmpty() && IsFolder(m_savesRoot))
@@ -212,12 +229,34 @@ std::vector<AssetEntry> AssetBrowserModel::List(const String &location, const St
 	} else if (location == SCENES) {
 		if (m_project)
 			for (const SceneDesc &scene : m_project->scenes) {
+				if (scene.IsObject())
+					continue;
 				AssetEntry entry{scene.name, String(SCENES) + String("/") + scene.name, AssetKind::SCENE,
-								 String::Format("%d objets", int(scene.ObjectCount()))};
+								 String::Format("%d objets", int(scene.NodeCount()))};
 				entry.managed = true;
 				entries.push_back(std::move(entry));
 			}
 		AppendDiskExtras(entries, SceneFolder(), true);
+	} else if (location == OBJECTS) {
+		if (m_project)
+			for (const SceneDesc &object : m_project->scenes) {
+				if (!object.IsObject())
+					continue;
+				AssetEntry entry{object.name, String(OBJECTS) + String("/") + object.name, AssetKind::OBJECT,
+								 String::Format("%d nœud(s)%s%s", int(object.NodeCount()),
+												object.description.IsEmpty() ? "" : " — ",
+												object.description.CStr())};
+				entry.managed = true;
+				entries.push_back(std::move(entry));
+			}
+		if (const String folder = ObjectFolder(); !folder.IsEmpty())
+			for (AssetEntry &entry : ListDisk(folder))
+				if (entry.kind == AssetKind::FOLDER ||
+					std::find(m_ownedFiles.begin(), m_ownedFiles.end(), files::NormalizePath(entry.location)) ==
+						m_ownedFiles.end())
+					if (!(m_project && entry.kind == AssetKind::OBJECT &&
+						  m_project->Fs().FindObject(ObjectRef{files::Stem(entry.name)})))
+						entries.push_back(std::move(entry));
 	} else if (location == SCRIPTS) {
 		if (m_project) {
 			// Analyse statique (cf. ScriptOutline) : rôle et refus du moteur
@@ -300,7 +339,7 @@ void AssetBrowserModel::AppendDiskExtras(std::vector<AssetEntry> &entries, const
 }
 
 bool AssetBrowserModel::IsFolder(const String &location) const {
-	if (location == ROOT || location == SCENES || location == SCRIPTS)
+	if (location == ROOT || location == SCENES || location == SCRIPTS || location == OBJECTS)
 		return true;
 	if (location.StartsWith(ROOT))
 		return false;
@@ -330,6 +369,8 @@ AssetKind AssetBrowserModel::KindOf(const String &fileName) {
 		return AssetKind::SCRIPT;
 	if (any({".scene"}))
 		return AssetKind::SCENE;
+	if (any({".object"}))
+		return AssetKind::OBJECT;
 	if (any({".json", ".yaml", ".yml", ".xml", ".csv", ".txt", ".md", ".ini"}))
 		return AssetKind::DATA;
 	return AssetKind::OTHER;
@@ -886,6 +927,12 @@ void AssetBrowserPanel::BuildMenus() {
 		}
 		m_menuFolder = NONE;
 	});
+	m_menuInstance = MenuItem("Poser une instance", "", [this] {
+		const std::vector<AssetEntry> selected = SelectedEntries();
+		for (const AssetEntry &entry : selected)
+			if (entry.kind == AssetKind::OBJECT && entry.managed && m_actions.instantiateObject)
+				m_actions.instantiateObject(entry.name);
+	});
 	m_menuNewFolder = MenuItem("Nouveau dossier…", "", [this] { BeginNewFolder(); });
 	m_menuRename = MenuItem("Renommer…", "F2", [this] { BeginRename(); });
 	m_menuDuplicate = MenuItem("Dupliquer", "Ctrl+D", [this] { (void)DuplicateSelection(); });
@@ -915,6 +962,10 @@ void AssetBrowserPanel::OpenMenu(float x, float y, bool onFolderRow) {
 	};
 	const String folder = m_menuFolder.IsSome() ? m_menuFolder.Value().location : m_model.Location();
 	SetEnabled(m_menuOpen, m_menuFolder.IsSome() || targets.size() == 1);
+	bool objectsOnly = m_menuFolder.IsNone() && !targets.empty();
+	for (const AssetEntry &entry : targets)
+		objectsOnly = objectsOnly && entry.kind == AssetKind::OBJECT && entry.managed;
+	SetEnabled(m_menuInstance, objectsOnly);
 	SetEnabled(m_menuNewFolder, m_ops->IsWritableFolder(folder));
 	SetEnabled(m_menuRename, allowed("rename"));
 	SetEnabled(m_menuDuplicate, m_menuFolder.IsNone() && allowed("duplicate"));
@@ -1011,6 +1062,12 @@ void AssetBrowserPanel::Activate(size_t index) {
 			} else if (m_actions.instantiateScene) {
 				m_actions.instantiateScene(entry.location); // scène emballée (.scene)
 			}
+			return;
+		case AssetKind::OBJECT:
+			if (entry.managed && m_actions.openScene)
+				m_actions.openScene(entry.name); // un objet s'ouvre et s'édite comme une scène
+			else if (m_actions.status)
+				m_actions.status(String("Fichier d'objet hors du projet : ajoutez-le au manifeste pour l'utiliser"));
 			return;
 		case AssetKind::SCRIPT:
 			if (entry.location.StartsWith(String(AssetBrowserModel::SCRIPTS) + String("/@"))) {
@@ -1110,7 +1167,8 @@ void AssetBrowserPanel::RefreshTree() {
 			   true);
 	for (const AssetEntry &entry : m_model.List(String(AssetBrowserModel::ROOT))) {
 		// « Scènes » et « Scripts » : tous leurs sous-dossiers, d'emblée.
-		const bool project = entry.location == AssetBrowserModel::SCENES || entry.location == AssetBrowserModel::SCRIPTS;
+		const bool project = entry.location == AssetBrowserModel::SCENES || entry.location == AssetBrowserModel::SCRIPTS ||
+							 entry.location == AssetBrowserModel::OBJECTS;
 		AddTreeBranch(entry, 1, project);
 	}
 }
@@ -1425,6 +1483,8 @@ ui::MaterialIcons AssetBrowserPanel::IconOf(AssetKind kind) noexcept {
 			return ui::MaterialIcons::FOLDER;
 		case AssetKind::SCENE:
 			return ui::MaterialIcons::LAYERS;
+		case AssetKind::OBJECT:
+			return ui::MaterialIcons::CATEGORY;
 		case AssetKind::SCRIPT:
 			return ui::MaterialIcons::DESCRIPTION;
 		case AssetKind::MODEL:
@@ -1451,6 +1511,8 @@ sdl3::FColor AssetBrowserPanel::ColorOf(AssetKind kind) noexcept {
 			return kit::Rgb(198, 198, 202);
 		case AssetKind::SCENE:
 			return kit::Rgb(126, 172, 232);
+		case AssetKind::OBJECT:
+			return kit::Rgb(232, 176, 92);
 		case AssetKind::SCRIPT:
 			return kit::Rgb(210, 210, 214);
 		case AssetKind::SOUND:

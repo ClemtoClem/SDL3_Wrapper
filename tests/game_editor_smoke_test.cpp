@@ -146,16 +146,16 @@ TEST(Project, JsonRoundTripPreservesEverything) {
 	EXPECT_EQ(reloaded.name, original.name);
 	EXPECT_EQ(reloaded.activeScene, "Circuit");
 	ASSERT_TRUE(reloaded.scenes.size() == original.scenes.size());
-	EXPECT_TRUE(reloaded.TotalObjectCount() == original.TotalObjectCount());
+	EXPECT_TRUE(reloaded.TotalNodeCount() == original.TotalNodeCount());
 
 	for (size_t i = 0; i < original.scenes.size(); ++i) {
 		const SceneDesc &before = original.scenes[i];
 		const SceneDesc &after = reloaded.scenes[i];
 		EXPECT_EQ(after.name, before.name);
 		EXPECT_EQ(after.gameplayScript, before.gameplayScript);
-		ASSERT_TRUE(after.ObjectCount() == before.ObjectCount());
-		std::vector<scene::NodeId> beforeIds = before.Objects();
-		std::vector<scene::NodeId> afterIds = after.Objects();
+		ASSERT_TRUE(after.NodeCount() == before.NodeCount());
+		std::vector<scene::NodeId> beforeIds = before.Nodes();
+		std::vector<scene::NodeId> afterIds = after.Nodes();
 		for (size_t j = 0; j < beforeIds.size(); ++j) {
 			const scene::Node &a = *before.tree.Get(beforeIds[j]);
 			const scene::Node &b = *after.tree.Get(afterIds[j]);
@@ -180,7 +180,7 @@ TEST(Project, WholeNumberCoordinatesSurviveTheRoundTrip) {
 	Project project;
 	SceneDesc scene;
 	scene.name = "Test";
-	ObjectDesc object;
+	NodeDesc object;
 	object.name = "Bloc";
 	object.transform.position = {5.f, 0.f, -12.f};
 	object.transform.scale = {2.f, 1.f, 3.f};
@@ -245,13 +245,13 @@ TEST(SceneDesc, UniqueNamesAndChildDetachOnRemove) {
 	SceneDesc scene;
 	scene.name = "S";
 
-	ObjectDesc parent;
+	NodeDesc parent;
 	parent.name = "Boîte";
 	EXPECT_EQ(scene.Add(parent), "Boîte");
 	EXPECT_EQ(scene.Add(parent), "Boîte 2"); // même nom demandé -> suffixé
 	EXPECT_EQ(scene.Add(parent), "Boîte 3");
 
-	ObjectDesc child;
+	NodeDesc child;
 	child.name = "Enfant";
 	child.parent = "Boîte";
 	scene.Add(child);
@@ -289,7 +289,7 @@ TEST(TransformDesc, EulerAndQuaternionRoundTrip) {
 /// d'une liste plate. L'ordre est stable, donc les tests qui visaient
 /// « le 2e objet de la vitrine » visent toujours le même.
 [[nodiscard]] static String ObjectNameAt(const SceneDesc &scene, size_t index) {
-	std::vector<scene::NodeId> objects = scene.Objects();
+	std::vector<scene::NodeId> objects = scene.Nodes();
 	return index < objects.size() ? scene.tree.Get(objects[index])->name : String();
 }
 
@@ -305,9 +305,9 @@ TEST(Content, DemoProjectIsWellFormed) {
 		EXPECT_FALSE(scene.name.IsEmpty());
 		EXPECT_FALSE(scene.description.IsEmpty());
 		EXPECT_FALSE(scene.gameplayScript.IsEmpty());
-		EXPECT_TRUE(scene.ObjectCount() > 0);
+		EXPECT_TRUE(scene.NodeCount() > 0);
 
-		for (scene::NodeId id : scene.Objects()) {
+		for (scene::NodeId id : scene.Nodes()) {
 			const scene::Node &object = *scene.tree.Get(id);
 			EXPECT_FALSE(object.name.IsEmpty());
 			// Unicité entre FRÈRES — la règle d'un arbre, et tout ce dont un
@@ -389,9 +389,9 @@ TEST(Runtime, InstantiatesTheActiveSceneOnly) {
 	EXPECT_EQ(scene->name, "Vitrine");
 	// Une entité de runtime par objet du document, et pas une de plus (les
 	// autres scènes du projet ne sont PAS instanciées).
-	EXPECT_TRUE(harness.runtime.RuntimeObjectCount() == scene->ObjectCount());
+	EXPECT_TRUE(harness.runtime.RuntimeNodeCount() == scene->NodeCount());
 	EXPECT_TRUE(harness.runtime.RigidBodyCount() > 0);
-	EXPECT_TRUE(harness.runtime.RigidBodyCount() < scene->ObjectCount());
+	EXPECT_TRUE(harness.runtime.RigidBodyCount() < scene->NodeCount());
 }
 
 TEST(Runtime, SwitchingSceneRebuildsEverything) {
@@ -401,9 +401,9 @@ TEST(Runtime, SwitchingSceneRebuildsEverything) {
 
 	const SceneDesc *scene = harness.runtime.ActiveScene();
 	ASSERT_TRUE(scene != nullptr);
-	EXPECT_TRUE(harness.runtime.RuntimeObjectCount() == scene->ObjectCount());
+	EXPECT_TRUE(harness.runtime.RuntimeNodeCount() == scene->NodeCount());
 	// Aucun reliquat de la scène précédente.
-	EXPECT_TRUE(harness.runtime.Registry().EntitiesWith<SceneObjectRef>().size() == scene->ObjectCount());
+	EXPECT_TRUE(harness.runtime.Registry().EntitiesWith<SceneNodeRef>().size() == scene->NodeCount());
 }
 
 TEST(Runtime, EditCommandsWriteToDocumentAndRuntimeTogether) {
@@ -454,26 +454,26 @@ TEST(Runtime, PhysicsComponentFollowsTheDocument) {
 
 TEST(Runtime, SpawnRemoveAndRename) {
 	Harness harness;
-	size_t before = harness.runtime.ActiveScene()->ObjectCount();
+	size_t before = harness.runtime.ActiveScene()->NodeCount();
 
-	ObjectDesc object;
+	NodeDesc object;
 	object.name = "Cube plastique"; // nom déjà pris -> doit être suffixé
 	object.shape = ShapeKind::SPHERE;
-	Option<String> assigned = harness.runtime.SpawnObject(object);
+	Option<String> assigned = harness.runtime.SpawnNamedNode(object);
 	ASSERT_TRUE(assigned.IsSome());
 	EXPECT_TRUE(assigned.Unwrap() != "Cube plastique");
-	EXPECT_TRUE(harness.runtime.ActiveScene()->ObjectCount() == before + 1);
-	EXPECT_TRUE(harness.runtime.RuntimeObjectCount() == before + 1);
+	EXPECT_TRUE(harness.runtime.ActiveScene()->NodeCount() == before + 1);
+	EXPECT_TRUE(harness.runtime.RuntimeNodeCount() == before + 1);
 
 	// Renommage : refusé vers un nom déjà pris, accepté sinon.
-	EXPECT_FALSE(harness.runtime.RenameObject(assigned.Unwrap(), String("Cube plastique")));
-	ASSERT_TRUE(harness.runtime.RenameObject(assigned.Unwrap(), String("Nouvelle sphère")));
+	EXPECT_FALSE(harness.runtime.RenameNode(assigned.Unwrap(), String("Cube plastique")));
+	ASSERT_TRUE(harness.runtime.RenameNode(assigned.Unwrap(), String("Nouvelle sphère")));
 	EXPECT_TRUE(harness.runtime.ActiveScene()->Find("Nouvelle sphère") != nullptr);
 
-	ASSERT_TRUE(harness.runtime.RemoveObject(String("Nouvelle sphère")));
-	EXPECT_TRUE(harness.runtime.ActiveScene()->ObjectCount() == before);
-	EXPECT_TRUE(harness.runtime.RuntimeObjectCount() == before);
-	EXPECT_FALSE(harness.runtime.RemoveObject(String("Nouvelle sphère")));
+	ASSERT_TRUE(harness.runtime.RemoveNode(String("Nouvelle sphère")));
+	EXPECT_TRUE(harness.runtime.ActiveScene()->NodeCount() == before);
+	EXPECT_TRUE(harness.runtime.RuntimeNodeCount() == before);
+	EXPECT_FALSE(harness.runtime.RemoveNode(String("Nouvelle sphère")));
 }
 
 TEST(Runtime, SelectionIsSingleAndSurvivesNothingElse) {
@@ -482,7 +482,7 @@ TEST(Runtime, SelectionIsSingleAndSurvivesNothingElse) {
 
 	ASSERT_TRUE(harness.runtime.Select(String("Tore")));
 	EXPECT_EQ(harness.runtime.SelectedName().Unwrap(), "Tore");
-	ASSERT_TRUE(harness.runtime.SelectedObject() != nullptr);
+	ASSERT_TRUE(harness.runtime.SelectedNode() != nullptr);
 
 	// Sélectionner ailleurs REMPLACE la sélection (une seule à la fois).
 	ASSERT_TRUE(harness.runtime.Select(String("Balise")));
@@ -494,7 +494,7 @@ TEST(Runtime, SelectionIsSingleAndSurvivesNothingElse) {
 
 	// Supprimer l'objet sélectionné vide la sélection.
 	ASSERT_TRUE(harness.runtime.Select(String("Tore")));
-	ASSERT_TRUE(harness.runtime.RemoveObject(String("Tore")));
+	ASSERT_TRUE(harness.runtime.RemoveNode(String("Tore")));
 	EXPECT_TRUE(harness.runtime.SelectedName().IsNone());
 }
 
@@ -519,7 +519,7 @@ TEST(Runtime, PlayThenStopRestoresTheSceneExactly) {
 	// caisses : la scène compte donc plus d'objets qu'au départ, et au moins
 	// une caisse est déjà descendue sous son altitude d'apparition.
 	const SceneDesc *playing = harness.runtime.ActiveScene();
-	EXPECT_TRUE(playing->ObjectCount() > before.Size() - 1);
+	EXPECT_TRUE(playing->NodeCount() > before.Size() - 1);
 	bool fell = false;
 	for (scene::NodeId crate : playing->WithTag(String("debris")))
 		if (playing->tree.GlobalPosition(crate).y < 9.f)
@@ -534,7 +534,7 @@ TEST(Runtime, PlayThenStopRestoresTheSceneExactly) {
 	const scene::NodeTree &after = harness.runtime.ActiveScene()->tree;
 	ASSERT_TRUE(after.Size() == before.Size());
 	EXPECT_TRUE(harness.runtime.ActiveScene()->WithTag(String("debris")).empty());
-	EXPECT_TRUE(harness.runtime.RuntimeObjectCount() == before.Size() - 1);
+	EXPECT_TRUE(harness.runtime.RuntimeNodeCount() == before.Size() - 1);
 	// Égalité STRUCTURELLE de l'arbre : mêmes nœuds, mêmes liens, mêmes
 	// transforms — une comparaison champ à champ ne dirait rien de la
 	// hiérarchie, qui est justement ce que le mode Jeu pourrait abîmer.
@@ -626,7 +626,7 @@ TEST(Runtime, ABrokenGameplayScriptIsDisabledInsteadOfSpamming) {
 
 TEST(ScriptApi, SpawnsAndEditsObjects) {
 	Harness harness;
-	size_t before = harness.runtime.ActiveScene()->ObjectCount();
+	size_t before = harness.runtime.ActiveScene()->NodeCount();
 
 	ASSERT_TRUE(harness.Run("for (i in range(0, 5)) {\n"
 							"    scene.spawn({\n"
@@ -642,7 +642,7 @@ TEST(ScriptApi, SpawnsAndEditsObjects) {
 							"}"));
 
 	const SceneDesc *scene = harness.runtime.ActiveScene();
-	EXPECT_TRUE(scene->ObjectCount() == before + 5);
+	EXPECT_TRUE(scene->NodeCount() == before + 5);
 	EXPECT_TRUE(scene->WithTag(String("genere")).size() == 5);
 
 	const scene::Node *third = scene->Find("Généré 2");
@@ -652,7 +652,7 @@ TEST(ScriptApi, SpawnsAndEditsObjects) {
 	EXPECT_EQ(third->transform.position.x, 4.f);
 	EXPECT_TRUE(VisualDesc::Read(*third).material.baseColor.r == 200);
 	// Chaque objet créé par script existe AUSSI dans le runtime.
-	EXPECT_TRUE(harness.runtime.RuntimeObjectCount() == before + 5);
+	EXPECT_TRUE(harness.runtime.RuntimeNodeCount() == before + 5);
 }
 
 TEST(ScriptApi, QueriesReturnNilForMissingObjects) {
@@ -740,7 +740,7 @@ TEST(ScriptApi, DataCodecsAreAvailableToScripts) {
 
 TEST(GltfImport, ImportsARealModelAsASceneObject) {
 	Harness harness;
-	size_t before = harness.runtime.ActiveScene()->ObjectCount();
+	size_t before = harness.runtime.ActiveScene()->NodeCount();
 
 	auto imported = harness.runtime.ImportGltf(String("assets/models/animals/Cow.gltf"));
 	if (imported.IsError())
@@ -759,8 +759,8 @@ TEST(GltfImport, ImportsARealModelAsASceneObject) {
 	float largest = sdl3::Max(sdl3::Max(fitted.x, fitted.y), fitted.z);
 	EXPECT_TRUE(sdl3::Abs(largest - 3.f) < 0.1f);
 
-	EXPECT_TRUE(harness.runtime.ActiveScene()->ObjectCount() == before + 1);
-	EXPECT_TRUE(harness.runtime.RuntimeObjectCount() == before + 1);
+	EXPECT_TRUE(harness.runtime.ActiveScene()->NodeCount() == before + 1);
+	EXPECT_TRUE(harness.runtime.RuntimeNodeCount() == before + 1);
 }
 
 TEST(GltfImport, SurvivesASaveLoadRoundTrip) {
@@ -874,16 +874,16 @@ TEST(History, UndoAndRedoRestoreTheDocumentExactly) {
 TEST(History, UndoBringsBackADeletedObjectWithItsChildren) {
 	Harness h;
 	h.runtime.ClearHistory();
-	const size_t before = h.runtime.ActiveScene()->ObjectCount();
+	const size_t before = h.runtime.ActiveScene()->NodeCount();
 	const String name = ObjectNameAt(*h.runtime.ActiveScene(), 2);
 
-	ASSERT_TRUE(h.runtime.RemoveObject(name));
-	EXPECT_EQ(h.runtime.ActiveScene()->ObjectCount(), before - 1);
+	ASSERT_TRUE(h.runtime.RemoveNode(name));
+	EXPECT_EQ(h.runtime.ActiveScene()->NodeCount(), before - 1);
 	ASSERT_TRUE(h.runtime.Undo());
-	EXPECT_EQ(h.runtime.ActiveScene()->ObjectCount(), before);
+	EXPECT_EQ(h.runtime.ActiveScene()->NodeCount(), before);
 	ASSERT_TRUE(h.runtime.ActiveScene()->Find(name) != nullptr);
 	// L'objet est de nouveau instancié, pas seulement présent dans le document.
-	EXPECT_EQ(h.runtime.RuntimeObjectCount(), before);
+	EXPECT_EQ(h.runtime.RuntimeNodeCount(), before);
 }
 
 TEST(History, PlayModeDoesNotPolluteTheHistory) {
@@ -1306,7 +1306,7 @@ TEST(Hierarchy, GroupsCanBeBuiltAndChildrenFollowTheirParent) {
 	Option<scene::NodeId> group = h.runtime.CreateGroup(String("Voiture"));
 	ASSERT_TRUE(group.IsSome());
 
-	ObjectDesc wheel;
+	NodeDesc wheel;
 	wheel.name = "Roue";
 	wheel.shape = ShapeKind::CYLINDER;
 	wheel.transform.position = {1.f, 0.f, 0.f};
@@ -1327,7 +1327,7 @@ TEST(Hierarchy, GroupsCanBeBuiltAndChildrenFollowTheirParent) {
 	// une fois par image (cf. Runtime::Update) et non à chaque commande : on
 	// avance donc d'une image avant de lire la matrice monde du nœud 3D.
 	h.runtime.Update(1.f / 60.f);
-	render3d::Object3D *object3d = h.runtime.FindNode(child.Unwrap());
+	render3d::Object3D *object3d = h.runtime.FindObject3D(child.Unwrap());
 	ASSERT_TRUE(object3d != nullptr);
 	math::FMatrix4 world = object3d->WorldMatrix();
 	EXPECT_TRUE(sdl3::Abs(world.m[12] - 11.f) < 1e-3f);
@@ -1376,7 +1376,7 @@ TEST(Hierarchy, DeletingAParentDeletesItsWholeSubtree) {
 	Harness h;
 	Option<scene::NodeId> group = h.runtime.CreateGroup(String("Véhicule"));
 	ASSERT_TRUE(group.IsSome());
-	ObjectDesc part;
+	NodeDesc part;
 	part.name = "Carrosserie";
 	Option<scene::NodeId> body = h.runtime.SpawnNode(part, group.Unwrap());
 	ASSERT_TRUE(body.IsSome());
@@ -1384,16 +1384,16 @@ TEST(Hierarchy, DeletingAParentDeletesItsWholeSubtree) {
 	Option<scene::NodeId> light = h.runtime.SpawnNode(part, body.Unwrap());
 	ASSERT_TRUE(light.IsSome());
 
-	const size_t before = h.runtime.ActiveScene()->ObjectCount();
+	const size_t before = h.runtime.ActiveScene()->NodeCount();
 	ASSERT_TRUE(h.runtime.RemoveNode(group.Unwrap()));
-	EXPECT_EQ(h.runtime.ActiveScene()->ObjectCount(), before - 3);
+	EXPECT_EQ(h.runtime.ActiveScene()->NodeCount(), before - 3);
 	EXPECT_TRUE(h.runtime.ActiveScene()->Find("Phare") == nullptr);
 	// Le runtime aussi : pas d'entité ni de nœud 3D orphelin.
-	EXPECT_EQ(h.runtime.RuntimeObjectCount(), h.runtime.ActiveScene()->ObjectCount());
+	EXPECT_EQ(h.runtime.RuntimeNodeCount(), h.runtime.ActiveScene()->NodeCount());
 
 	// …et l'annulation restitue l'arbre ENTIER, petits-enfants compris.
 	ASSERT_TRUE(h.runtime.Undo());
-	EXPECT_EQ(h.runtime.ActiveScene()->ObjectCount(), before);
+	EXPECT_EQ(h.runtime.ActiveScene()->NodeCount(), before);
 	EXPECT_TRUE(h.runtime.ActiveScene()->Find("Phare") != nullptr);
 	EXPECT_TRUE(h.runtime.ActiveScene()->tree.Validate().Ok());
 }
@@ -1402,22 +1402,22 @@ TEST(Hierarchy, DuplicateCopiesTheWholeSubtreeWithUniqueNames) {
 	Harness h;
 	Option<scene::NodeId> group = h.runtime.CreateGroup(String("Voiture"));
 	ASSERT_TRUE(group.IsSome());
-	ObjectDesc wheel;
+	NodeDesc wheel;
 	wheel.name = "Roue";
 	ASSERT_TRUE(h.runtime.SpawnNode(wheel, group.Unwrap()).IsSome());
 
-	const size_t before = h.runtime.ActiveScene()->ObjectCount();
+	const size_t before = h.runtime.ActiveScene()->NodeCount();
 	Option<scene::NodeId> copy = h.runtime.DuplicateNode(group.Unwrap());
 	ASSERT_TRUE(copy.IsSome());
 	const SceneDesc *scene = h.runtime.ActiveScene();
-	EXPECT_EQ(scene->ObjectCount(), before + 2); // le groupe ET sa roue
+	EXPECT_EQ(scene->NodeCount(), before + 2); // le groupe ET sa roue
 	EXPECT_TRUE(scene->tree.ChildrenOf(copy.Unwrap()).size() == 1);
 	// Les noms restent uniques dans la scène (les scripts désignent par nom).
 	EXPECT_TRUE(scene->tree.Get(copy.Unwrap())->name != String("Voiture"));
 	EXPECT_TRUE(scene->tree.Validate().Ok());
 
 	ASSERT_TRUE(h.runtime.Undo());
-	EXPECT_EQ(h.runtime.ActiveScene()->ObjectCount(), before);
+	EXPECT_EQ(h.runtime.ActiveScene()->NodeCount(), before);
 }
 
 TEST(Hierarchy, AParentedBodyIsSimulatedAtItsWorldPosition) {
@@ -1430,7 +1430,7 @@ TEST(Hierarchy, AParentedBodyIsSimulatedAtItsWorldPosition) {
 	ASSERT_TRUE(group.IsSome());
 	ASSERT_TRUE(h.runtime.SetPosition(group.Unwrap(), {0.f, 12.f, 0.f}));
 
-	ObjectDesc crate;
+	NodeDesc crate;
 	crate.name = "Caisse suspendue";
 	crate.physics.body = BodyKind::DYNAMIC;
 	crate.physics.mass = 2.f;
@@ -1468,7 +1468,7 @@ TEST(Hierarchy, LegacyFlatProjectsAreConvertedIntoATree) {
 	auto project = Project::DecodeJson(legacy);
 	ASSERT_TRUE(project.IsOk());
 	const SceneDesc &scene = project.Value().scenes[0];
-	EXPECT_EQ(scene.ObjectCount(), size_t(2));
+	EXPECT_EQ(scene.NodeCount(), size_t(2));
 
 	scene::NodeId car = scene.FindId(String("Voiture"));
 	scene::NodeId wheel = scene.FindId(String("Roue"));
@@ -1485,7 +1485,7 @@ TEST(Hierarchy, SavingAndReloadingKeepsTheTreeAndTheComponents) {
 	Harness h;
 	Option<scene::NodeId> group = h.runtime.CreateGroup(String("Ensemble"));
 	ASSERT_TRUE(group.IsSome());
-	ObjectDesc part;
+	NodeDesc part;
 	part.name = "Pièce";
 	part.shape = ShapeKind::TORUS;
 	part.material.kind = MaterialKind::METAL;
@@ -1542,7 +1542,7 @@ TEST(Hierarchy, ASubtreeCanBeSavedAsASceneAndInstantiatedSeveralTimes) {
 	Harness h;
 	Option<scene::NodeId> car = h.runtime.CreateGroup(String("Modèle"));
 	ASSERT_TRUE(car.IsSome());
-	ObjectDesc part;
+	NodeDesc part;
 	part.name = "Roue";
 	part.transform.position = {1.f, 0.f, 0.f};
 	ASSERT_TRUE(h.runtime.SpawnNode(part, car.Unwrap()).IsSome());
@@ -1552,13 +1552,13 @@ TEST(Hierarchy, ASubtreeCanBeSavedAsASceneAndInstantiatedSeveralTimes) {
 	auto saved = h.runtime.SavePackedScene(car.Unwrap(), path);
 	ASSERT_TRUE(saved.IsOk());
 
-	const size_t before = h.runtime.ActiveScene()->ObjectCount();
+	const size_t before = h.runtime.ActiveScene()->NodeCount();
 	auto first = h.runtime.InstantiateSceneFile(path);
 	auto second = h.runtime.InstantiateSceneFile(path);
 	ASSERT_TRUE(first.IsOk() && second.IsOk());
 
 	const SceneDesc *scene = h.runtime.ActiveScene();
-	EXPECT_EQ(scene->ObjectCount(), before + 4); // deux instances de 2 nœuds
+	EXPECT_EQ(scene->NodeCount(), before + 4); // deux instances de 2 nœuds
 	EXPECT_TRUE(scene->tree.Get(first.Value())->name != scene->tree.Get(second.Value())->name);
 	// Chaque instance sait d'où elle vient…
 	EXPECT_TRUE(scene::PackedScene::InstanceSource(*scene->tree.Get(first.Value())) == path);
@@ -1577,7 +1577,7 @@ TEST(Hierarchy, ASubtreeCanBeSavedAsASceneAndInstantiatedSeveralTimes) {
 	ASSERT_TRUE(h.runtime.Undo());
 	EXPECT_TRUE(sdl3::Abs(scene->tree.GlobalPosition(wheelA).x - 6.f) < 1e-3f);
 	ASSERT_TRUE(h.runtime.Undo());
-	EXPECT_EQ(h.runtime.ActiveScene()->ObjectCount(), before + 2);
+	EXPECT_EQ(h.runtime.ActiveScene()->NodeCount(), before + 2);
 }
 
 TEST(Content, TheAssemblySceneShowsRealHierarchies) {
@@ -1639,7 +1639,7 @@ namespace {
 /// Nombre de nœuds de la scène active portant ce type.
 int CountType(const SceneDesc &scene, const char *type) {
 	int count = 0;
-	for (scene::NodeId id : scene.Objects())
+	for (scene::NodeId id : scene.Nodes())
 		if (scene.tree.Get(id)->type == type)
 			++count;
 	return count;
@@ -1670,7 +1670,7 @@ TEST(Dungeon, IsOrganisedInFoldersWithLightsCameraAndTriggers) {
 	// Tous les scripts attachés existent dans la bibliothèque et compilent.
 	for (const ScriptAsset &script : h.runtime.GetProject().scripts)
 		EXPECT_TRUE(Runtime::CheckScript(script.source).IsNone());
-	for (scene::NodeId id : scene.Objects())
+	for (scene::NodeId id : scene.Nodes())
 		if (ScriptRef::Has(*scene.tree.Get(id)))
 			EXPECT_TRUE(h.runtime.GetProject().FindScript(ScriptRef::Read(*scene.tree.Get(id)).script) != nullptr);
 }
@@ -2033,7 +2033,7 @@ TEST(Triggers, OnlyTransitionsAreNotifiedAndOnceMeansOnce) {
 												   "}"))
 					.IsNone());
 	// Une zone RÉPÉTABLE, loin du chemin du joueur.
-	ObjectDesc zone = ObjectDesc::Group(String("Zone test"));
+	NodeDesc zone = NodeDesc::Group(String("Zone test"));
 	zone.type = String();
 	zone.trigger = Some(TriggerDesc{{1.f, 2.f, 1.f}, String("test"), false});
 	zone.transform.position = {0.f, 1.f, -30.f};
@@ -2094,7 +2094,7 @@ TEST(Components, ASpotLightPointsAlongTheNodesLocalDown) {
 	Harness h;
 	LightDesc spot;
 	spot.kind = LightKind::SPOT;
-	ObjectDesc lamp = ObjectDesc::Light(String("Lampe"), spot);
+	NodeDesc lamp = NodeDesc::Light(String("Lampe"), spot);
 	lamp.transform.SetEulerDegrees({90.f, 0.f, 0.f}); // -Y local tourné de 90° autour de X
 	ASSERT_TRUE(h.runtime.SpawnNode(lamp).IsSome());
 	Simulate(h, 1);
@@ -2183,7 +2183,7 @@ TEST(ScriptApi, LightsAreDrivenByName) {
 
 TEST(Templates, EveryMenuEntryBuildsTheRightKindOfNode) {
 	for (const NodeTemplate &entry : NODE_TEMPLATES) {
-		Option<ObjectDesc> desc = MakeNodeFromTemplate(String(entry.key));
+		Option<NodeDesc> desc = MakeNodeFromTemplate(String(entry.key));
 		ASSERT_TRUE(desc.IsSome());
 		const scene::Node node = desc.Value().ToNode();
 		EXPECT_EQ(node.name, String(entry.label));

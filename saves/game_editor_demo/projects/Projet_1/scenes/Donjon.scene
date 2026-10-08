@@ -1,0 +1,227 @@
+{
+  "name": "Donjon",
+  "description": "Pièces interconnectables assemblées d'après le plan, vue à la première personne",
+  "gameplay_script": "",
+  "environment": {
+    "sun_direction": [
+      0.30000001192092896,
+      -0.699999988079071,
+      0.44999998807907104
+    ],
+    "sun_intensity": 0.07999999821186066,
+    "sun_color": [
+      120,
+      130,
+      170
+    ],
+    "ambient_color": [
+      52,
+      40,
+      32
+    ],
+    "background_color": [
+      8,
+      6,
+      6
+    ],
+    "gravity": [
+      0.0,
+      -9.8100004196167,
+      0.0
+    ]
+  },
+  "camera": {
+    "edit_position": [
+      0.0,
+      40.0,
+      -30.0
+    ],
+    "edit_yaw": 0.0,
+    "edit_pitch": -1.0,
+    "play_position": [
+      0.0,
+      1.7000000476837158,
+      0.0
+    ],
+    "play_yaw": 0.0,
+    "play_pitch": -0.10000000149011612
+  },
+  "canvas2d": {
+    "width": 1280,
+    "height": 720,
+    "render_3d": true,
+    "background": [
+      24,
+      26,
+      34
+    ]
+  },
+  "tree": {
+    "format": "scene.tree",
+    "version": 1,
+    "root": {
+      "id": "0:0",
+      "type": "Node",
+      "name": "Donjon",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          -0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "children": [
+        {
+          "id": "1:0",
+          "type": "Node",
+          "name": "Niveau",
+          "transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "id": "2:0",
+          "type": "RigidBody",
+          "name": "Joueur",
+          "transform": {
+            "position": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "rotation": [
+              -0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "components": [
+            {
+              "type": "Script",
+              "props": {
+                "script": {
+                  "type": "string",
+                  "value": "player"
+                }
+              }
+            },
+            {
+              "type": "RigidBody",
+              "props": {
+                "body": {
+                  "type": "string",
+                  "value": "dynamic"
+                },
+                "collider": {
+                  "type": "string",
+                  "value": "capsule"
+                },
+                "half_extents": {
+                  "type": "vec3",
+                  "value": [
+                    0.3499999940395355,
+                    0.5,
+                    0.3499999940395355
+                  ]
+                },
+                "mass": {
+                  "type": "float",
+                  "value": 70.0
+                },
+                "restitution": {
+                  "type": "float",
+                  "value": 0.0
+                },
+                "friction": {
+                  "type": "float",
+                  "value": 0.0
+                }
+              }
+            }
+          ],
+          "properties": {
+            "tag": {
+              "type": "string",
+              "value": "player"
+            },
+            "eye": {
+              "type": "string",
+              "value": "Vue"
+            }
+          },
+          "children": [
+            {
+              "id": "3:0",
+              "type": "Camera",
+              "name": "Vue",
+              "transform": {
+                "position": [
+                  0.0,
+                  0.6499999761581421,
+                  0.0
+                ],
+                "rotation": [
+                  -0.0,
+                  0.0,
+                  0.0
+                ],
+                "scale": [
+                  1.0,
+                  1.0,
+                  1.0
+                ]
+              },
+              "components": [
+                {
+                  "type": "Camera",
+                  "props": {
+                    "fov": {
+                      "type": "float",
+                      "value": 75.0
+                    },
+                    "current": {
+                      "type": "bool",
+                      "value": true
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "format": "game_editor.scene",
+  "version": 1,
+  "gameplay_script_file": "../scripts/donjon.gameplay.script"
+}

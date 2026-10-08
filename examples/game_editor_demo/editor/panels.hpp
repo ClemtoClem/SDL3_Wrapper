@@ -298,6 +298,8 @@ private:
 	[[nodiscard]] ui::WidgetBuilder MenuAction(const char *text, const char *shortcut, std::function<void()> action);
 
 	void AddItem(ecs::Entity menu, const char *text, const char *shortcut, std::function<void()> action);
+	/// Pose une instance d'objet sous la sélection du document ouvert.
+	void PlaceObject(const String &objectName);
 
 	void BuildMenuBar(ecs::Entity parent);
 
@@ -364,7 +366,12 @@ private:
 
 	void RefreshProfiler();
 
+	/// Onglet « Scènes » : les scènes du projet (pas les objets).
 	void RefreshSceneList();
+	/// Onglet « Objets » : les objets réutilisables (ouvrir, poser une instance).
+	void RefreshObjectList();
+	/// Choix du sélecteur de document de la vue : sous-menus Scènes et Objets.
+	[[nodiscard]] std::vector<ui::ComboCategory> DocumentChoices() const;
 
 	// ── Barre d'état ─────────────────────────────────────────────────────────
 
@@ -406,6 +413,10 @@ private:
 	/// projet, à défaut les sauvegardes.
 	[[nodiscard]] String SuggestedPath(const char *sub, const String &fileName) const;
 
+	void OnSaveObjectAs();
+
+	void OnImportObject();
+
 	void OnSaveSceneAs();
 
 	void OnImportScene();
@@ -415,6 +426,9 @@ private:
 	/// « Enregistrer sous… » d'un document de script (`key` : nom du script
 	/// de bibliothèque, ou `@Scène` pour un script de jeu).
 	void OnSaveScriptAs(const String &key);
+	/// Clé du script visé par « Enregistrer le script sous » : le script au
+	/// premier plan (`nom`, ou `@Scène` pour un script de jeu).
+	[[nodiscard]] String ActiveScriptKey();
 
 	/// Crée le dossier qui contiendra `path` (les sous-dossiers de
 	/// sauvegarde n'existent pas forcément encore).
@@ -443,6 +457,8 @@ private:
 		NEW_PROJECT,
 		OPEN_PROJECT,
 		SAVE_PROJECT_AS,
+		SAVE_OBJECT_AS,
+		IMPORT_OBJECT,
 		SAVE_SCENE_AS,
 		IMPORT_SCENE,
 		IMPORT_SCRIPT,
@@ -537,6 +553,7 @@ private:
 	math::FVector3 m_orbitPivot{};
 	bool m_consoleDirty = true;
 	bool m_scenesDirty = true;
+	bool m_documentChoicesDirty = true; ///< recharger les choix du sélecteur de document
 	bool m_maximized = false;
 	bool m_runMode = false;
 	int m_shownGizmoMode = -1;
@@ -566,7 +583,7 @@ private:
 		Transform2D parentToPixels;
 	};
 	Option<Drag2D> m_drag2d;
-	ecs::Entity m_sceneListPage{}, m_profilerPage{}, m_console{};
+	ecs::Entity m_sceneListPage{}, m_objectListPage{}, m_profilerPage{}, m_console{};
 	ecs::Entity m_treeMenu{}, m_documentsMenu{}, m_inspectorMenu{}, m_assetsMenu{};
 	ecs::Entity m_runRoot{}, m_runViewport{}, m_runPanel{};
 	/// Encart « MODE TEST » : en-tête (poignée de déplacement, ✕) construit
@@ -577,7 +594,7 @@ private:
 	/// l'autre (l'utilisateur l'a posé là où il ne gêne pas son jeu).
 	sdl3::FPoint m_runPanelOffset{-16.f, -16.f};
 	bool m_draggingRunPanel = false;
-	ecs::Entity m_statusFps{}, m_statusObjects{}, m_statusBodies{}, m_statusScene{}, m_statusMode{}, m_statusGizmo{};
+	ecs::Entity m_statusFps{}, m_statusNodes{}, m_statusBodies{}, m_statusScene{}, m_statusMode{}, m_statusGizmo{};
 	ecs::Entity m_statusMessageLabel{};
 	sdl3::Window *m_window = nullptr;
 	void BuildWindowTitleBar();

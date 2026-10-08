@@ -1,0 +1,363 @@
+# ── Génération : le plan du donjon, étage par étage ──────────────────────────
+#
+# Le donjon compte plusieurs ÉTAGES superposés ; chacun est une grille de
+# CASES, et chaque case recevra une pièce (un objet du projet,
+# objects/<pièce>.object) dont les ouvertures sont centrées sur ses côtés.
+# Pour chaque étage :
+#  1. un labyrinthe parfait (parcours en profondeur au hasard) relie toutes
+#     les cases, depuis la case d'ARRIVÉE (l'entrée au premier étage, le pied
+#     de l'escalier ou de l'échelle venus d'en haut aux suivants), puis
+#     quelques passages en plus créent des boucles ;
+#  2. la case la plus éloignée à pied devient la DESCENTE vers l'étage
+#     suivant (un escalier ou une échelle, posé à la même case et avec la même
+#     rotation à l'étage du dessous) — ou la SORTIE au dernier étage ;
+#  3. chaque case reçoit sa pièce : salles aux culs-de-sac et çà et là,
+#     couloirs ailleurs ; l'étage des ÉGOUTS reçoit ses couloirs à canaux et
+#     ses citernes ;
+#  4. les monstres sont répartis : squelettes partout, araignées et zombies
+#     plus bas, piranhas dans les canaux.
+# Le plan passe à la scène « Donjon » par game.state().plan.
+
+const DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]]        # nord (+z), est, sud, ouest
+# Étages et taille de chaque étage selon la difficulté.
+const ETAGES = {"Facile": 2, "Normal": 3, "Difficile": 3}
+const TAILLES = {"Facile": [3, 3], "Normal": [4, 3], "Difficile": [4, 4]}
+const MONSTRES_PAR_ETAGE = {"Facile": 3, "Normal": 5, "Difficile": 7}
+# Couloirs : ouvertures du modèle (nord, est, sud, ouest).
+const COULOIRS = [
+    {piece: "carrefour", ouvert: [true, true, true, true]},
+    {piece: "couloir_t", ouvert: [true, true, false, true]},
+    {piece: "couloir_droit", ouvert: [true, false, true, false]},
+    {piece: "couloir_angle", ouvert: [true, true, false, false]},
+    {piece: "cul_de_sac", ouvert: [true, false, false, false]},
+]
+const EGOUTS = [
+    {piece: "egout_carrefour", ouvert: [true, true, true, true]},
+    {piece: "egout_t", ouvert: [true, true, false, true]},
+    {piece: "egout_droit", ouvert: [true, false, true, false]},
+    {piece: "egout_angle", ouvert: [true, true, false, false]},
+    {piece: "egout_cul_de_sac", ouvert: [true, false, false, false]},
+]
+const SALLES_AU_BOUT = ["salle_tresor", "crypte", "salle_garde", "salle_tresor", "crypte"]
+const NOMS = ["valdrakar", "morthelion", "sombrevault", "karnethys", "ulmgard", "vorhaven", "nekrolis", "thalgrim",
+              "ossuaria", "grimbaldor"]
+const NOMS_ETAGES = ["Les salles hautes", "Les égouts", "Les cryptes profondes", "L'abîme"]
+
+var progression = 0.0     # écrites par le fil de génération, lues par la scène :
+var etape = "Préparation"  # protégées automatiquement (verrou par variable)
+var journal = []
+
+fn noter(message) {
+    etape = message
+    journal.append(message)
+}
+
+# Ouvertures `ouvert` tournées de k quarts de tour : le côté s devient s + k.
+fn tourner(ouvert, k) {
+    let r = [false, false, false, false]
+    for (s in range(4)) { r[(s + k) % 4] = ouvert[s] }
+    return r
+}
+
+fn memes(a, b) {
+    for (s in range(4)) { if (a[s] != b[s]) { return false } }
+    return true
+}
+
+fn degre(ouvert) {
+    let n = 0
+    for (o in ouvert) { if (o) { n += 1 } }
+    return n
+}
+
+# Couloir (ou égout) et rotation pour des ouvertures données.
+fn couloir_pour(table, ouvert) {
+    for (c in table) {
+        for (k in range(4)) {
+            if (memes(tourner(c.ouvert, k), ouvert)) { return [c.piece, k] }
+        }
+    }
+    return [table[0].piece, 0]
+}
+
+# Un étage : `arrivee` = [x, y] de la case d'arrivée ; `venue` = pièce et
+# rotation imposées à cette case (nil au premier étage) ; `dernier` : pose la
+# sortie ; `egout` : étage des égouts.
+fn generer_etage(rng, numero, w, h, arrivee, venue, dernier, egout, difficulte) {
+    let ouvert = []
+    for (i in range(w * h)) { ouvert.append([false, false, false, false]) }
+    fn relier(x, y, d) {
+        ouvert[y * w + x][d] = true
+        ouvert[(y + DIRS[d][1]) * w + x + DIRS[d][0]][(d + 2) % 4] = true
+    }
+    fn dedans(x, y) { return x >= 0 and y >= 0 and x < w and y < h }
+
+    let vu = []
+    for (i in range(w * h)) { vu.append(false) }
+    let pile = [arrivee]
+    vu[arrivee[1] * w + arrivee[0]] = true
+    while (len(pile) > 0) {
+        let c = pile[len(pile) - 1]
+        let choix = []
+        for (d in range(4)) {
+            let nx = c[0] + DIRS[d][0]
+            let ny = c[1] + DIRS[d][1]
+            if (dedans(nx, ny) and not vu[ny * w + nx]) { choix.append(d) }
+        }
+        if (len(choix) == 0) {
+            pile.pop()
+        } else {
+            let d = choix[rng.int(0, len(choix) - 1)]
+            relier(c[0], c[1], d)
+            let n = [c[0] + DIRS[d][0], c[1] + DIRS[d][1]]
+            vu[n[1] * w + n[0]] = true
+            pile.append(n)
+        }
+    }
+    let boucles = 0
+    for (y in range(h)) {
+        for (x in range(w)) {
+            for (d in [0, 1]) {
+                let nx = x + DIRS[d][0]
+                let ny = y + DIRS[d][1]
+                if (dedans(nx, ny) and not ouvert[y * w + x][d] and rng.bool(0.12)) {
+                    relier(x, y, d)
+                    boucles += 1
+                }
+            }
+        }
+    }
+
+    # Distances depuis l'arrivée : la case la plus lointaine mène plus loin.
+    let distance = []
+    let precedent = []
+    for (i in range(w * h)) {
+        distance.append(-1)
+        precedent.append(-1)
+    }
+    let debut = arrivee[1] * w + arrivee[0]
+    let file = [debut]
+    distance[debut] = 0
+    let tete = 0
+    while (tete < len(file)) {
+        let i = file[tete]
+        tete += 1
+        let x = i % w
+        let y = i32(i / w)
+        for (d in range(4)) {
+            if (ouvert[i][d]) {
+                let j = (y + DIRS[d][1]) * w + x + DIRS[d][0]
+                if (distance[j] < 0) {
+                    distance[j] = distance[i] + 1
+                    precedent[j] = i
+                    file.append(j)
+                }
+            }
+        }
+    }
+    let loin = debut
+    for (i in range(w * h)) { if (distance[i] > distance[loin]) { loin = i } }
+    let chemin = [loin]
+    while (precedent[chemin[0]] >= 0) { chemin.insert(0, precedent[chemin[0]]) }
+
+    # La descente : escalier aux étages pairs, échelle aux impairs.
+    let lien = nil
+    if (not dernier) {
+        let genre = "escalier"
+        if (numero % 2 == 1) { genre = "echelle" }
+        lien = {x: loin % w, y: i32(loin / w), genre: genre, rotation: rng.int(0, 3)}
+    }
+
+    let cases = []
+    let salles = 0
+    for (i in range(w * h)) {
+        let piece = ""
+        let k = 0
+        let salle = false
+        let n = degre(ouvert[i])
+        if (i == debut) {
+            salle = true
+            if (venue == nil) {
+                piece = "entree"
+                k = rng.int(0, 3)
+            } else {
+                piece = venue.piece
+                k = venue.rotation
+            }
+        } else if (i == loin and dernier) {
+            piece = "sortie"
+            salle = true
+            k = rng.int(0, 3)
+        } else if (i == loin) {
+            salle = true
+            k = lien.rotation
+            piece = "escalier_descente"
+            if (lien.genre == "echelle") { piece = "puits_echelle" }
+        } else if (egout and n >= 2 and rng.bool(0.22)) {
+            piece = "egout_salle"
+            salle = true
+            k = rng.int(0, 3)
+        } else if (not egout and n == 1 and rng.bool(0.8)) {
+            piece = SALLES_AU_BOUT[rng.int(0, len(SALLES_AU_BOUT) - 1)]
+            salle = true
+            k = rng.int(0, 3)
+        } else if (not egout and n >= 2 and rng.bool(0.18)) {
+            piece = "salle_piliers"
+            if (rng.bool(0.4)) { piece = "salle_garde" }
+            salle = true
+            k = rng.int(0, 3)
+        } else {
+            let table = COULOIRS
+            if (egout) { table = EGOUTS }
+            let c = couloir_pour(table, ouvert[i])
+            piece = c[0]
+            k = c[1]
+        }
+        if (salle) { salles += 1 }
+        let est_egout = egout and not salle
+        cases.append({x: i % w, y: i32(i / w), ouvert: ouvert[i], piece: piece, rotation: k, salle: salle,
+                      egout: est_egout, distance: distance[i]})
+    }
+    # Au moins une salle du trésor hors des égouts.
+    if (not egout) {
+        let tresor = false
+        for (c in cases) { if (c.piece == "salle_tresor") { tresor = true } }
+        if (not tresor) {
+            for (i in range(w * h)) {
+                if (not tresor and i != debut and i != loin and degre(ouvert[i]) == 1) {
+                    cases[i].piece = "salle_tresor"
+                    cases[i].salle = true
+                    cases[i].egout = false
+                    tresor = true
+                }
+            }
+        }
+    }
+
+    # Monstres : [x, y, dx, dz, espèce], jamais au pied de l'arrivée.
+    let monstres = []
+    let voulu = (MONSTRES_PAR_ETAGE[difficulte] or 5) + numero
+    let especes = ["squelette", "squelette", "araignee"]
+    if (numero >= 1) { especes = ["squelette", "zombie", "araignee", "zombie"] }
+    let essais = 0
+    while (len(monstres) < voulu and essais < 400) {
+        essais += 1
+        let i = rng.int(0, w * h - 1)
+        if (distance[i] < 1) { continue }
+        let c = cases[i]
+        if (c.egout) {
+            # Un banc de piranhas dans le canal, un zombie sur le trottoir.
+            # (le long d'un bras ouvert : l'axe du canal, ou le trottoir à 1,15 m)
+            let bras = []
+            for (s in range(4)) { if (c.ouvert[s]) { bras.append(s) } }
+            for (n in range(2)) {
+                let s = bras[rng.int(0, len(bras) - 1)]
+                let t = rng.float(0.8, 3.0)
+                monstres.append([c.x, c.y, DIRS[s][0] * t, DIRS[s][1] * t, "pirana"])
+            }
+            if (rng.bool(0.4)) {
+                let s = bras[rng.int(0, len(bras) - 1)]
+                let t = rng.float(1.6, 3.0)
+                monstres.append([c.x, c.y, DIRS[s][0] * t + DIRS[s][1] * 1.15, DIRS[s][1] * t + DIRS[s][0] * 1.15,
+                                 "zombie"])
+            }
+        } else if (c.salle or rng.bool(0.4)) {
+            monstres.append([c.x, c.y, rng.float(-1.0, 1.0), rng.float(-1.0, 1.0),
+                             especes[rng.int(0, len(especes) - 1)]])
+        }
+    }
+    let nom = NOMS_ETAGES[numero % len(NOMS_ETAGES)]
+    if (egout) { nom = "Les égouts" }
+    return {numero: numero, nom: nom, largeur: w, hauteur: h, cases: cases, depart: arrivee, chemin: chemin,
+            lien: lien, sortie: [loin % w, i32(loin / w)], dernier: dernier, egout: egout, monstres: monstres,
+            boucles: boucles, salles: salles}
+}
+
+async fn generer(graine, difficulte) {
+    let rng = math.random_engine(graine)
+    let taille = TAILLES[difficulte] or [4, 3]
+    let w = taille[0]
+    let h = taille[1]
+    let nombre = ETAGES[difficulte] or 3
+    # L'étage des égouts : le deuxième (le dernier s'il n'y en a que deux).
+    let egouts = 1
+    let etages = []
+    let arrivee = [rng.int(0, w - 1), 0]
+    let venue = nil
+    for (n in range(nombre)) {
+        let dernier = n == nombre - 1
+        noter(format("Étage {} : labyrinthe de {} × {} cases…", n + 1, w, h))
+        let e = generer_etage(rng, n, w, h, arrivee, venue, dernier, n == egouts, difficulte)
+        noter(format("Étage {} : {} salles, {} boucles, {} monstres{}", n + 1, e.salles, e.boucles,
+                     len(e.monstres), (n == egouts and " — égouts") or ""))
+        etages.append(e)
+        if (e.lien != nil) {
+            arrivee = [e.lien.x, e.lien.y]
+            venue = {piece: "escalier_arrivee", rotation: e.lien.rotation}
+            if (e.lien.genre == "echelle") { venue.piece = "echelle_arrivee" }
+            noter(format("  {} vers l'étage {} en ({}, {})", (e.lien.genre == "echelle" and "Échelle") or "Escalier",
+                         n + 2, e.lien.x, e.lien.y))
+        }
+        progression = (n + 1) / (nombre + 1)
+        sleep(220)
+    }
+
+    noter("Baptême du donjon…")
+    let nom = gen.names(NOMS, 2, graine).generate(6, 10) or "Sans-Nom"
+    progression = 1.0
+    sleep(200)
+    return {nom: "Crypte de " .. nom, graine: graine, difficulte: difficulte, etages: etages}
+}
+
+# La rune du décor tourne sur elle-même pendant l'attente.
+class Rune extends Behaviour {
+    let angle = 0
+    fn on_update(dt) {
+        this.angle += dt * 60
+        this.set_rotation(0, this.angle, 0)
+    }
+}
+
+class Generation extends Scene {
+    let tache = nil
+    let temps = 0
+    let parti = false
+    let barre = nil
+    let texte = nil
+    let lignes = nil
+
+    fn on_start() {
+        Rune("Rune")
+        let etat = this.state()
+        let graine = etat.graine or 1234
+        let difficulte = etat.difficulte or "Normal"
+        let panneau = ui.column({anchor: "center", gap: 12, pad: 28, bg: "#120e0ce8", radius: 10, w: 560,
+                                 align: "center"})
+        ui.label("Génération du donjon", {parent: panneau, font_size: 30, bold: true, color: "#e8c27a"})
+        ui.label(format("Graine {} · {} · {} étages", graine, difficulte, ETAGES[difficulte] or 3),
+                 {parent: panneau, color: "#c9bfae"})
+        this.barre = ui.progress(0, 1, {parent: panneau, w: 480})
+        this.texte = ui.label("Préparation", {parent: panneau, font_size: 15})
+        this.lignes = ui.column({parent: panneau, gap: 2, align: "start", w: 480})
+        this.tache = generer(graine, difficulte)
+    }
+
+    fn on_update(dt) {
+        this.temps += dt
+        this.barre.value = progression
+        this.texte.text = etape
+        if (len(this.lignes) < len(journal)) {
+            ui.label("· " .. journal[len(this.lignes)], {parent: this.lignes, font_size: 12, color: "#9a917f"})
+        }
+        if (this.parti or not this.tache.done) { return nil }
+        if (this.tache.failed) {
+            this.texte.text = "La génération a échoué : " .. this.tache.error
+            return nil
+        }
+        if (this.temps >= 2) {
+            this.state().plan = this.tache.value
+            this.parti = true
+            this.load("Donjon")
+        }
+    }
+}

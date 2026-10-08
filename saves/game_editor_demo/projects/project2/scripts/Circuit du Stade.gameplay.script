@@ -1,6 +1,0 @@
-# ── Circuit du Stade : deux longues lignes droites, deux épingles ────────────
-# Toute la course (départ, rivaux, tours, classement) vient du module partagé
-# « course » ; la scène n'apporte que son tracé et ses voitures.
-const course = import "course"
-
-class CircuitDuStade extends course.Course {}

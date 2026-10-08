@@ -24,6 +24,9 @@
  *   │ Gameplay     │ abonnements à des évènements (`on`, `emit`).         │
  *   │ SceneAsset   │ un fichier `.scene` réutilisable ; ses instances     │
  *   │              │ sont retirées à la destruction.                      │
+ *   │ ObjectAsset  │ un OBJET du projet (`.object`) : ses instances ne    │
+ *   │              │ sont que des références qui suivent l'objet ;        │
+ *   │              │ `define(nœud)` en fait le contenu de l'objet.        │
  *   └──────────────┴──────────────────────────────────────────────────────┘
  *
  * Rappels appelés par le moteur pendant une partie (méthodes facultatives) :
@@ -63,7 +66,7 @@ inline constexpr const char* BEHAVIOUR = "game.Behaviour";
 
 /// Toutes les bases, par leur nom court (aussi global dans les scripts).
 inline constexpr const char* ALL[] = {"Scene",	 "Behaviour",	"Node3D",	"Mesh3D",	 "Node2D",
-									  "PhysicsBody", "Light3D", "Gameplay", "SceneAsset"};
+									  "PhysicsBody", "Light3D", "Gameplay", "SceneAsset", "ObjectAsset"};
 
 /// Le nom court d'une base du moteur (`Mesh3D` ou `game.Mesh3D`), ou NONE.
 [[nodiscard]] Option<String> ShortName(const String& name);

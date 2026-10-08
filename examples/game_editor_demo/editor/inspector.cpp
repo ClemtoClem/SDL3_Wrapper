@@ -1,6 +1,8 @@
 // Définitions de inspector.hpp
 #include "inspector.hpp"
 
+#include "../document/objects.hpp"
+
 namespace game_editor {
 
 // ── InspectorPanel ───────────────────────────────────────────────────────────
@@ -15,7 +17,7 @@ void InspectorPanel::Teardown() {
 	m_page = ecs::Entity{};
 }
 
-void InspectorPanel::OnObjectChanged() {
+void InspectorPanel::OnNodeChanged() {
 	if (!m_localEdit)
 		MarkDirty();
 }
@@ -66,7 +68,7 @@ void InspectorPanel::Refresh() {
 	ClearPopups();
 	m_sections.clear();
 	const SceneDesc *scene = m_ctx.runtime.ActiveScene();
-	scene::Node *node = m_ctx.runtime.SelectedObject();
+	scene::Node *node = m_ctx.runtime.SelectedNode();
 	if (!scene || !node) {
 		(void)kit::Caption(m_ctx, m_page, String("Aucun nœud sélectionné"), 13.f);
 		(void)kit::Caption(m_ctx, m_page,
@@ -118,6 +120,8 @@ void InspectorPanel::Refresh() {
 		}
 	}
 
+	if (game_editor::objects::IsInstance(*node))
+		BuildInstanceSection(rows, *scene, id);
 	if (VisualDesc::Has(*node))
 		BuildVisualSections(rows, id, VisualDesc::Read(*node));
 	if (LightDesc::Has(*node))
@@ -150,7 +154,7 @@ void InspectorPanel::BuildHeader(const SceneDesc &scene, const scene::Node &node
 	ui::WidgetBuilder name = m_ctx.factory.Input();
 	name.GrowW().H(ui::Dimension::Px(26.f)).FontSize(14.f).Tooltip(String("Entrée pour renommer")).Parent(headEntity);
 	name.OnSubmit([this, id](const String &text) {
-		if (!text.Trim().IsEmpty() && m_ctx.runtime.RenameObject(id, text.Trim()))
+		if (!text.Trim().IsEmpty() && m_ctx.runtime.RenameNode(id, text.Trim()))
 			Status(String::Format("Renommé : %s", text.Trim().CStr()));
 	});
 	ecs::Entity nameEntity = name.Spawn();
@@ -384,7 +388,7 @@ void InspectorPanel::BuildPhysicsSection(kit::PropertyRows &rows, scene::NodeId 
 	ui::WidgetBuilder impulse = m_ctx.factory.Button(String("Impulsion vers le haut (mode Jeu)"));
 	impulse.GrowW().HAuto().FontSize(12.f).Parent(s);
 	impulse.OnClick([this, id] {
-		if (const scene::Node *node = m_ctx.runtime.FindObject(id))
+		if (const scene::Node *node = m_ctx.runtime.FindNode(id))
 			(void)m_ctx.runtime.ApplyImpulse(node->name, math::FVector3{0.f, 240.f, 0.f});
 	});
 	(void)impulse.Spawn();
@@ -474,7 +478,7 @@ void InspectorPanel::BuildCanvasItemSection(kit::PropertyRows &rows, scene::Node
 void InspectorPanel::BuildCamera2DSection(kit::PropertyRows &rows, scene::NodeId id, const Camera2DDesc &camera) {
 	ecs::Entity s = Section("Caméra 2D", String(component::CAMERA_2D));
 	(void)rows.Number(s, "Zoom", camera.zoom, 0.05f, 20.f, 0.01f, Live([this, id](float v) {
-		if (const scene::Node *node = m_ctx.runtime.FindObject(id)) {
+		if (const scene::Node *node = m_ctx.runtime.FindNode(id)) {
 			Camera2DDesc updated = Camera2DDesc::Read(*node);
 			updated.zoom = v;
 			(void)m_ctx.runtime.SetCamera2D(id, updated);
@@ -485,7 +489,7 @@ void InspectorPanel::BuildCamera2DSection(kit::PropertyRows &rows, scene::NodeId
 		if (!scene)
 			return;
 		// Une seule caméra 2D du jeu : cocher celle-ci décoche les autres.
-		for (scene::NodeId other : scene->Objects())
+		for (scene::NodeId other : scene->Nodes())
 			if (const scene::Node *node = scene->tree.Get(other); node && Camera2DDesc::Has(*node)) {
 				Camera2DDesc updated = Camera2DDesc::Read(*node);
 				const bool wanted = other == id ? v : (v ? false : updated.current);
@@ -500,7 +504,7 @@ void InspectorPanel::BuildCamera2DSection(kit::PropertyRows &rows, scene::NodeId
 }
 
 void InspectorPanel::MutateCanvasItem(scene::NodeId id, const std::function<void(CanvasItemDesc &)> &change) {
-	const scene::Node *node = m_ctx.runtime.FindObject(id);
+	const scene::Node *node = m_ctx.runtime.FindNode(id);
 	if (!node)
 		return;
 	CanvasItemDesc item = CanvasItemDesc::Read(*node);
@@ -568,6 +572,43 @@ void InspectorPanel::BuildScriptSection(kit::PropertyRows &rows, scene::NodeId i
 			m_actions.openScript(name);
 	});
 	(void)open.Spawn();
+}
+
+void InspectorPanel::BuildInstanceSection(kit::PropertyRows &rows, const SceneDesc &scene, scene::NodeId id) {
+	namespace obj = game_editor::objects;
+	const scene::Node *node = scene.tree.Get(id);
+	const String source = obj::SourceOf(*node);
+	const bool exists = m_ctx.runtime.GetProject().Fs().FindObject(ObjectRef{source}) != nullptr;
+	int generated = 0;
+	scene.tree.Traverse(id, [&](scene::NodeId, const scene::Node &child) { generated += obj::IsGenerated(child) ? 1 : 0; });
+
+	ecs::Entity s = Section("Instance d'objet", String());
+	(void)rows.ReadOnly(s, "Objet", exists ? source : source + String(" (introuvable)"));
+	(void)rows.ReadOnly(s, "Contenu", String::Format("%d nœud(s) générés depuis l'objet", generated));
+	(void)kit::Caption(m_ctx, s,
+					   String("Position, rotation et taille appartiennent à l'instance ; le contenu suit l'objet. "
+							  "Ouvrez l'objet pour le modifier dans toutes les scènes."),
+					   11.f);
+	ui::WidgetBuilder buttons = m_ctx.factory.Row();
+	buttons.Gap(6.f).GrowW().HAuto().Parent(s);
+	ecs::Entity row = buttons.Spawn();
+	ui::WidgetBuilder open = m_ctx.factory.Button(String("Ouvrir l'objet"));
+	open.GrowW().HAuto().FontSize(12.f).Parent(row);
+	if (!exists)
+		open.Disabled();
+	open.OnClick([this, source] {
+		if (m_ctx.runtime.SwitchScene(source))
+			Status(String::Format("Objet ouvert : %s", source.CStr()));
+	});
+	(void)open.Spawn();
+	ui::WidgetBuilder detach = m_ctx.factory.Button(String("Rendre indépendant"));
+	detach.GrowW().HAuto().FontSize(12.f).Tooltip(String("Le contenu devient des nœuds propres à ce document")).Parent(row);
+	detach.OnClick([this, id] {
+		auto done = m_ctx.runtime.DetachInstance(id);
+		Status(done.IsOk() ? String("Instance rendue indépendante")
+						   : String::Format("Impossible : %s", done.Error().CStr()));
+	});
+	(void)detach.Spawn();
 }
 
 void InspectorPanel::BuildScriptObjects(kit::PropertyRows &rows, scene::NodeId id) {
@@ -666,7 +707,7 @@ void InspectorPanel::ScrollToPendingSection() {
 }
 
 void InspectorPanel::MutateVisual(scene::NodeId id, const std::function<void(VisualDesc &)> &change) {
-	const scene::Node *node = m_ctx.runtime.FindObject(id);
+	const scene::Node *node = m_ctx.runtime.FindNode(id);
 	if (!node)
 		return;
 	VisualDesc visual = VisualDesc::Read(*node);
@@ -675,7 +716,7 @@ void InspectorPanel::MutateVisual(scene::NodeId id, const std::function<void(Vis
 }
 
 void InspectorPanel::MutateMaterial(scene::NodeId id, const std::function<void(MaterialDesc &)> &change) {
-	const scene::Node *node = m_ctx.runtime.FindObject(id);
+	const scene::Node *node = m_ctx.runtime.FindNode(id);
 	if (!node)
 		return;
 	MaterialDesc material = VisualDesc::Read(*node).material;
@@ -684,7 +725,7 @@ void InspectorPanel::MutateMaterial(scene::NodeId id, const std::function<void(M
 }
 
 void InspectorPanel::MutateLight(scene::NodeId id, const std::function<void(LightDesc &)> &change) {
-	const scene::Node *node = m_ctx.runtime.FindObject(id);
+	const scene::Node *node = m_ctx.runtime.FindNode(id);
 	if (!node)
 		return;
 	LightDesc light = LightDesc::Read(*node);
@@ -693,7 +734,7 @@ void InspectorPanel::MutateLight(scene::NodeId id, const std::function<void(Ligh
 }
 
 void InspectorPanel::MutatePhysics(scene::NodeId id, const std::function<void(PhysicsDesc &)> &change) {
-	const scene::Node *node = m_ctx.runtime.FindObject(id);
+	const scene::Node *node = m_ctx.runtime.FindNode(id);
 	if (!node)
 		return;
 	PhysicsDesc physics = PhysicsDesc::Read(*node);
@@ -702,12 +743,12 @@ void InspectorPanel::MutatePhysics(scene::NodeId id, const std::function<void(Ph
 }
 
 CameraNodeDesc InspectorPanel::CurrentCamera(scene::NodeId id) {
-	const scene::Node *node = m_ctx.runtime.FindObject(id);
+	const scene::Node *node = m_ctx.runtime.FindNode(id);
 	return node ? CameraNodeDesc::Read(*node) : CameraNodeDesc{};
 }
 
 TriggerDesc InspectorPanel::CurrentTrigger(scene::NodeId id) {
-	const scene::Node *node = m_ctx.runtime.FindObject(id);
+	const scene::Node *node = m_ctx.runtime.FindNode(id);
 	return node ? TriggerDesc::Read(*node) : TriggerDesc{};
 }
 
@@ -880,6 +921,21 @@ void LibraryPanel::RefreshWorld() {
 	title.FontSize(14.f).Bold().WAuto().HAuto().Parent(m_worldPage);
 	(void)title.Spawn();
 	(void)kit::Caption(m_ctx, m_worldPage, scene->description, 11.f);
+	if (scene->IsObject()) {
+		// Un objet n'est qu'une arborescence de nœuds : le monde (gravité,
+		// soleil, ciel, caméra, calque 2D) appartient aux SCÈNES qui
+		// l'instancient.
+		(void)kit::Caption(m_ctx, m_worldPage,
+						   String("Objet réutilisable : pas de réglages du monde. Ils appartiennent aux scènes qui "
+								  "l'instancient (la vue d'édition garde un éclairage neutre)."),
+						   12.f);
+		(void)rows.Text(m_worldPage, "Description", scene->description, [this](const String &text) {
+			if (SceneDesc *target = m_ctx.runtime.ActiveScene())
+				target->description = text.Trim();
+			RefreshWorld();
+		});
+		return;
+	}
 	(void)rows.Vector3(m_worldPage, "Gravité", scene->environment.gravity, 0.05f, [this](math::FVector3 v) {
 		if (SceneDesc *target = m_ctx.runtime.ActiveScene())
 			target->environment.gravity = v;
@@ -934,7 +990,7 @@ void LibraryPanel::Teardown() {
 
 void LibraryPanel::Apply(const MaterialPreset &preset) {
 	const scene::NodeId id = m_ctx.runtime.SelectedId();
-	const scene::Node *node = m_ctx.runtime.FindObject(id);
+	const scene::Node *node = m_ctx.runtime.FindNode(id);
 	if (!node || !VisualDesc::Has(*node)) {
 		if (m_actions.status)
 			m_actions.status(String("Sélectionnez un maillage pour lui appliquer un matériau"));

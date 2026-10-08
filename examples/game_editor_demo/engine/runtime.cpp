@@ -2,6 +2,8 @@
 
 #include "runtime.hpp"
 
+#include "../document/objects.hpp"
+
 namespace game_editor {
 
 // ── LogEntry ─────────────────────────────────────────────────────────────────
@@ -49,7 +51,7 @@ Runtime::~Runtime() {
 	onSceneStructureChanged = nullptr;
 	onProjectChanged = nullptr;
 	onSelectionChanged = nullptr;
-	onObjectChanged = nullptr;
+	onNodeChanged = nullptr;
 	onScreenshot = nullptr;
 	onThemeChange = nullptr;
 	onPanelFocus = nullptr;
@@ -229,7 +231,7 @@ const render3d::Camera & Runtime::ActiveCamera() const noexcept {
 }
 
 Option<String> Runtime::SelectedName() const {
-	const scene::Node *node = SelectedConstObject();
+	const scene::Node *node = SelectedConstNode();
 	if (!node)
 		return NONE;
 	return Some(node->name);
@@ -267,13 +269,13 @@ scene::NodeId Runtime::ResolveId(const String &objectName) const {
 	return id;
 }
 
-scene::Node * Runtime::FindObject(const String &objectName) noexcept {
+scene::Node * Runtime::FindNode(const String &objectName) noexcept {
 	scene::NodeTree *tree = Tree();
 	scene::NodeId id = ResolveId(objectName);
 	return tree && id.Valid() ? tree->Get(id) : nullptr;
 }
 
-scene::Node * Runtime::FindObject(scene::NodeId id) noexcept {
+scene::Node * Runtime::FindNode(scene::NodeId id) noexcept {
 	scene::NodeTree *tree = Tree();
 	return tree ? tree->Get(id) : nullptr;
 }
@@ -289,7 +291,7 @@ Option<ecs::Entity> Runtime::FindEntity(const String &objectName) const {
 	return FindEntity(ResolveId(objectName));
 }
 
-render3d::Object3D * Runtime::FindNode(scene::NodeId id) {
+render3d::Object3D * Runtime::FindObject3D(scene::NodeId id) {
 	Option<ecs::Entity> entity = FindEntity(id);
 	if (entity.IsNone())
 		return nullptr;
@@ -312,9 +314,10 @@ void Runtime::OpenProject(Project project) {
 	m_hasProject = true;
 	m_projectPath = String();
 	m_projectFiles.clear();
+	RefreshObjectInstances();
 	RebuildRuntime();
 	LogSuccess(String::Format("Projet « %s » chargé (%d scènes, %d objets)", m_project.name.CStr(),
-							  int(m_project.scenes.size()), int(m_project.TotalObjectCount())));
+							  int(m_project.scenes.size()), int(m_project.TotalNodeCount())));
 }
 
 String Runtime::ProjectDirectory() const {
@@ -398,6 +401,29 @@ Result<String, String> Runtime::ImportSceneFile(const String &path) {
 	return Ok(name);
 }
 
+Result<bool, String> Runtime::SaveObjectAs(ObjectRef object, const String &path) const {
+	const SceneDesc *found = m_project.Fs().FindObject(object);
+	if (!found)
+		return Err(String::Format("objet introuvable : %s", object.name.CStr()));
+	return files::SaveObjectFile(*found, path);
+}
+
+Result<ObjectRef, String> Runtime::ImportObjectFile(const String &path) {
+	if (!m_hasProject)
+		return Err(String("aucun projet ouvert"));
+	auto loaded = files::LoadObjectFile(path);
+	if (loaded.IsError())
+		return Err(loaded.Error());
+	SceneDesc object = std::move(loaded).Unwrap();
+	object.kind = SceneKind::OBJECT;
+	object.SetName(m_project.Fs().UniqueObjectName(object.name));
+	const ObjectRef ref{object.name};
+	m_project.scenes.push_back(std::move(object));
+	RefreshObjectInstances();
+	(void)SwitchScene(ref.name);
+	return Ok(ref);
+}
+
 String Runtime::AddEmptyScene(const String &base) {
 	SceneDesc scene;
 	scene.SetName(UniqueSceneName(base));
@@ -456,10 +482,13 @@ bool Runtime::SwitchScene(const String &sceneName) {
 	if (changed)
 		m_selection = scene::NodeId{};
 	m_project.SetActiveScene(sceneName);
+	// Les objets ont pu changer depuis le dernier passage : leurs instances
+	// sont régénérées avant de construire le document qu'on ouvre.
+	RefreshObjectInstances();
 	RebuildRuntime();
 	if (changed)
 		ClearSelection(); // marqueur ECS et notification à l'interface
-	LogInfo(String::Format("Scène active : %s", sceneName.CStr()));
+	LogInfo(String::Format("%s : %s", IsEditingObject() ? "Objet ouvert" : "Scène active", sceneName.CStr()));
 	return true;
 }
 
@@ -625,6 +654,11 @@ bool Runtime::LoadSceneInPlay(const String &sceneName) {
 		LogError(String::Format("Scène « %s » introuvable dans le projet", sceneName.CStr()));
 		return false;
 	}
+	if (m_playing && m_project.Fs().FindObject(ObjectRef{sceneName})) {
+		LogError(String::Format("« %s » est un objet, pas une scène : instanciez-le (ObjectAsset)",
+								sceneName.CStr()));
+		return false;
+	}
 	if (!m_playing)
 		return SwitchScene(sceneName);
 	EndScenePlay();
@@ -651,13 +685,20 @@ void Runtime::TogglePlay() {
 }
 
 bool Runtime::Select(scene::NodeId id) {
+	// En édition, un nœud GÉNÉRÉ (contenu d'une instance d'objet) ne se
+	// modifie pas sur place : on sélectionne l'instance qui le porte — c'est
+	// elle qu'on déplace, tourne, redimensionne. On modifie l'objet lui-même
+	// pour changer son contenu.
+	if (!m_playing && id.Valid())
+		if (const SceneDesc *scene = ActiveScene(); scene && scene->tree.Contains(id))
+			id = objects::EditableAncestor(scene->tree, id);
 	std::vector<ecs::Entity> previous = m_registry.EntitiesWith<Selected>();
 	for (ecs::Entity entity : previous)
 		m_registry.RemoveComponent<Selected>(entity);
 
 	m_selection = scene::NodeId{};
 	bool found = false;
-	if (id.Valid() && FindObject(id)) {
+	if (id.Valid() && FindNode(id)) {
 		m_selection = id;
 		if (Option<ecs::Entity> entity = FindEntity(id); entity.IsSome())
 			m_registry.AddComponent(entity.Unwrap(), Selected{});
@@ -682,7 +723,7 @@ Option<Runtime::PickHit> Runtime::PickAt(const math::FRay &ray) {
 	if (!scene)
 		return NONE;
 	Option<PickHit> best = NONE;
-	for (scene::NodeId id : scene->Objects()) {
+	for (scene::NodeId id : scene->Nodes()) {
 		// Visibilité HÉRITÉE : un enfant visible sous un parent caché
 		// n'est pas à l'écran, donc pas sélectionnable au clic.
 		if (!scene->tree.IsVisibleInTree(id))
@@ -690,7 +731,7 @@ Option<Runtime::PickHit> Runtime::PickAt(const math::FRay &ray) {
 		const scene::Node *node = scene->tree.Get(id);
 		if (!node || node->locked)
 			continue; // nœud verrouillé : ignoré par le clic, comme dans tout éditeur
-		auto *shape = dynamic_cast<render3d::Shape *>(FindNode(id));
+		auto *shape = dynamic_cast<render3d::Shape *>(FindObject3D(id));
 		// Nœud sans forme (lumière, caméra) : on clique son REPÈRE
 		// d'édition. Les zones de déclenchement sont traitées à part,
 		// ci-dessous : une grande boîte invisible en jeu ne doit pas
@@ -796,12 +837,12 @@ Runtime::GizmoAxis Runtime::PickGizmoAxis(const math::FRay &ray) const {
 }
 
 bool Runtime::BeginGizmoDrag(GizmoAxis axis, const math::FRay &ray) {
-	const scene::Node *node = SelectedConstObject();
+	const scene::Node *node = SelectedConstNode();
 	const scene::NodeTree *tree = Tree();
 	if (axis == GizmoAxis::NONE || !node || !tree || node->locked)
 		return false;
 	const math::FVector3 direction = AxisVector(axis);
-	m_dragObject = m_selection;
+	m_dragNode = m_selection;
 	m_dragAxis = axis;
 	// Le manipulateur est dessiné, et donc tiré, en coordonnées MONDE :
 	// c'est la position monde qui sert de référence au geste. Le
@@ -853,7 +894,7 @@ bool Runtime::UpdateGizmoDrag(const math::FRay &ray) {
 				else
 					position.z = SnapTo(position.z, m_translateSnap);
 			}
-			return SetGlobalPosition(m_dragObject, position);
+			return SetGlobalPosition(m_dragNode, position);
 		}
 		case GizmoMode::ROTATE: {
 			Option<math::FVector3> point = IntersectPlane(ray, m_dragStartPosition, direction);
@@ -875,7 +916,7 @@ bool Runtime::UpdateGizmoDrag(const math::FRay &ray) {
 				euler.y += snapped;
 			else
 				euler.z += snapped;
-			return SetEulerDegrees(m_dragObject, euler);
+			return SetEulerDegrees(m_dragNode, euler);
 		}
 		case GizmoMode::SCALE: {
 			Option<float> parameter = ClosestParamOnAxis(ray, m_dragStartPosition, direction);
@@ -894,7 +935,7 @@ bool Runtime::UpdateGizmoDrag(const math::FRay &ray) {
 				scale.y = m_dragStartScale.y * factor;
 			else
 				scale.z = m_dragStartScale.z * factor;
-			return SetScale(m_dragObject, scale);
+			return SetScale(m_dragNode, scale);
 		}
 	}
 	return false;
@@ -1026,7 +1067,7 @@ void Runtime::ClearHistory() {
 
 bool Runtime::SetPosition(scene::NodeId id, const math::FVector3 &position) {
 	scene::NodeTree *tree = Tree();
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!tree || !node)
 		return false;
 	RecordHistory(String::Format("Déplacer %s", node->name.CStr()));
@@ -1040,7 +1081,7 @@ bool Runtime::SetPosition(const String &objectName, const math::FVector3 &positi
 
 bool Runtime::SetGlobalPosition(scene::NodeId id, const math::FVector3 &position) {
 	scene::NodeTree *tree = Tree();
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!tree || !node)
 		return false;
 	RecordHistory(String::Format("Déplacer %s", node->name.CStr()));
@@ -1050,7 +1091,7 @@ bool Runtime::SetGlobalPosition(scene::NodeId id, const math::FVector3 &position
 
 bool Runtime::SetEulerDegrees(scene::NodeId id, const math::FVector3 &eulerDeg) {
 	scene::NodeTree *tree = Tree();
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!tree || !node)
 		return false;
 	RecordHistory(String::Format("Tourner %s", node->name.CStr()));
@@ -1066,7 +1107,7 @@ bool Runtime::SetEulerDegrees(const String &objectName, const math::FVector3 &eu
 
 bool Runtime::SetScale(scene::NodeId id, const math::FVector3 &scale) {
 	scene::NodeTree *tree = Tree();
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!tree || !node)
 		return false;
 	RecordHistory(String::Format("Redimensionner %s", node->name.CStr()));
@@ -1083,21 +1124,21 @@ bool Runtime::SetScale(const String &objectName, const math::FVector3 &scale) {
 
 bool Runtime::SetVisible(scene::NodeId id, bool visible) {
 	scene::NodeTree *tree = Tree();
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!tree || !node)
 		return false;
 	RecordHistory(String::Format(visible ? "Afficher %s" : "Masquer %s", node->name.CStr()));
 	(void)tree->SetVisible(id, visible);
 	// Le sous-arbre suit : render3d::Object3D::Traverse saute déjà les
 	// sous-arbres invisibles, il suffit donc de poser le nœud lui-même.
-	if (render3d::Object3D *object3d = FindNode(id))
+	if (render3d::Object3D *object3d = FindObject3D(id))
 		object3d->SetVisible(visible);
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
 bool Runtime::SetMaterial(scene::NodeId id, const MaterialDesc &material) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Matériau de %s", node->name.CStr()));
@@ -1112,7 +1153,7 @@ bool Runtime::SetMaterial(const String &objectName, const MaterialDesc &material
 }
 
 bool Runtime::SetMaterialColor(scene::NodeId id, const sdl3::Color &color) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	MaterialDesc material = VisualDesc::Read(*node).material;
@@ -1125,21 +1166,21 @@ bool Runtime::SetMaterialColor(const String &objectName, const sdl3::Color &colo
 }
 
 bool Runtime::SetVisual(scene::NodeId id, const VisualDesc &visual) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Forme de %s", node->name.CStr()));
 	const bool had = VisualDesc::Has(*node);
 	const VisualDesc before = VisualDesc::Read(*node);
 	visual.Write(*node);
-	auto *shape = dynamic_cast<render3d::Shape *>(FindNode(id));
+	auto *shape = dynamic_cast<render3d::Shape *>(FindObject3D(id));
 	const bool sameModel = visual.shape != ShapeKind::MODEL ||
 						   (before.shape == ShapeKind::MODEL && before.source == visual.source);
 	if (had && shape && sameModel) {
 		if (visual.shape != ShapeKind::MODEL)
 			shape->Geometry() = BuildMesh(visual);
 		shape->Materials() = {BuildMaterial(visual.material)};
-		NotifyObjectChanged();
+		NotifyNodeChanged();
 		return true;
 	}
 	RebuildRuntime();
@@ -1147,7 +1188,7 @@ bool Runtime::SetVisual(scene::NodeId id, const VisualDesc &visual) {
 }
 
 bool Runtime::SetPhysics(scene::NodeId id, const PhysicsDesc &physics) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Physique de %s", node->name.CStr()));
@@ -1160,17 +1201,17 @@ bool Runtime::SetPhysics(const String &objectName, const PhysicsDesc &physics) {
 }
 
 bool Runtime::SetTagOf(scene::NodeId id, const String &tag) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Étiquette de %s", node->name.CStr()));
 	SetTag(*node, tag);
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
 bool Runtime::SetLocked(scene::NodeId id, bool locked) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format(locked ? "Verrouiller %s" : "Déverrouiller %s", node->name.CStr()));
@@ -1183,40 +1224,40 @@ bool Runtime::SetLocked(scene::NodeId id, bool locked) {
 }
 
 bool Runtime::SetLight(scene::NodeId id, const LightDesc &light) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Lumière de %s", node->name.CStr()));
 	light.Write(*node);
 	RefreshHelper(id);
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
 bool Runtime::SetCameraNode(scene::NodeId id, const CameraNodeDesc &camera) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Caméra de %s", node->name.CStr()));
 	camera.Write(*node);
 	RefreshHelper(id);
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
 bool Runtime::SetTrigger(scene::NodeId id, const TriggerDesc &trigger) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Déclencheur de %s", node->name.CStr()));
 	trigger.Write(*node);
 	RefreshHelper(id);
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
 bool Runtime::SetScriptRef(scene::NodeId id, const String &scriptName) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Script de %s", node->name.CStr()));
@@ -1224,7 +1265,7 @@ bool Runtime::SetScriptRef(scene::NodeId id, const String &scriptName) {
 		ScriptRef::Clear(*node);
 	else
 		ScriptRef{scriptName}.Write(*node);
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
@@ -1235,7 +1276,7 @@ std::vector<String> Runtime::AddableComponents() {
 }
 
 bool Runtime::AddComponentOfType(scene::NodeId id, const String &type) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	if (node->HasComponent(type))
@@ -1268,12 +1309,12 @@ bool Runtime::AddComponentOfType(scene::NodeId id, const String &type) {
 		DropLastHistory();
 		return false;
 	}
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
 bool Runtime::RemoveComponentOfType(scene::NodeId id, const String &type) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node || !node->HasComponent(type))
 		return false;
 	RecordHistory(String::Format("Retirer %s de %s", type.CStr(), node->name.CStr()));
@@ -1284,12 +1325,12 @@ bool Runtime::RemoveComponentOfType(scene::NodeId id, const String &type) {
 		(void)PushPhysics(id);
 	else
 		RefreshHelper(id);
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
 bool Runtime::SetComponentProps(scene::NodeId id, const String &type, scene::PropertyMap props) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Modifier %s de %s", type.IsEmpty() ? "les propriétés" : type.CStr(),
@@ -1308,7 +1349,7 @@ bool Runtime::SetComponentProps(scene::NodeId id, const String &type, scene::Pro
 		(void)PushPhysics(id);
 	else
 		RefreshHelper(id);
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
@@ -1341,9 +1382,16 @@ Result<String, String> Runtime::RenameScene(const String &sceneName, const Strin
 		return Ok(clean);
 	const String name = UniqueSceneName(clean);
 	const bool active = m_project.activeScene == sceneName;
+	const bool isObject = scene->IsObject();
 	scene->SetName(name);
 	if (active)
 		m_project.activeScene = name;
+	if (isObject) {
+		// Les instances suivent le nouveau nom, dans tous les documents.
+		const int moved = objects::RenameReferences(m_project, sceneName, name);
+		if (moved > 0)
+			LogInfo(String::Format("%d instance(s) de l'objet suivent son nouveau nom", moved));
+	}
 	if (onProjectChanged)
 		onProjectChanged();
 	if (onSceneStructureChanged)
@@ -1359,16 +1407,28 @@ Result<bool, String> Runtime::RemoveScene(const String &sceneName) {
 						   [&](const SceneDesc &scene) { return scene.name == sceneName; });
 	if (it == m_project.scenes.end())
 		return Err(String::Format("scène « %s » introuvable", sceneName.CStr()));
-	if (m_project.scenes.size() == 1)
+	const bool isObject = it->IsObject();
+	if (!isObject && m_project.SceneCount() == 1)
 		return Err(String("un projet garde au moins une scène"));
 	if (m_project.activeScene == sceneName) {
-		const String other = (it == m_project.scenes.begin() ? it + 1 : m_project.scenes.begin())->name;
+		String other;
+		for (const SceneDesc &candidate : m_project.scenes)
+			if (!candidate.IsObject() && candidate.name != sceneName) {
+				other = candidate.name;
+				break;
+			}
 		(void)SwitchScene(other);
 		it = std::find_if(m_project.scenes.begin(), m_project.scenes.end(),
 						  [&](const SceneDesc &scene) { return scene.name == sceneName; });
 	}
 	m_project.scenes.erase(it);
 	ClearHistory(); // l'historique pouvait viser la scène retirée
+	if (isObject) {
+		// Ses instances restent (référence et transform), vides : recréer un
+		// objet du même nom les remplira de nouveau.
+		RefreshObjectInstances();
+		RebuildRuntime();
+	}
 	if (onProjectChanged)
 		onProjectChanged();
 	LogInfo(String::Format("Scène retirée du projet : %s", sceneName.CStr()));
@@ -1420,8 +1480,8 @@ Result<String, String> Runtime::RenameScript(const String &scriptName, const Str
 		});
 	if (onProjectChanged)
 		onProjectChanged();
-	if (onObjectChanged)
-		onObjectChanged();
+	if (onNodeChanged)
+		onNodeChanged();
 	LogInfo(String::Format("Script renommé : %s → %s (%d nœud%s mis à jour)", scriptName.CStr(), name.CStr(),
 						   int(nodes), nodes > 1 ? "s" : ""));
 	return Ok(name);
@@ -1555,22 +1615,22 @@ Option<math::FVector2> Runtime::PointerTo2D(float x, float y, Space2D space) con
 }
 
 bool Runtime::SetCanvasItem(scene::NodeId id, const CanvasItemDesc &item) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Apparence 2D de %s", node->name.CStr()));
 	item.Write(*node);
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
 bool Runtime::SetCamera2D(scene::NodeId id, const Camera2DDesc &camera) {
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!node)
 		return false;
 	RecordHistory(String::Format("Caméra 2D de %s", node->name.CStr()));
 	camera.Write(*node);
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
@@ -1579,7 +1639,7 @@ bool Runtime::SetCanvas2D(const Canvas2DDesc &canvas) {
 	if (!scene)
 		return false;
 	scene->canvas = canvas;
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	return true;
 }
 
@@ -1636,17 +1696,17 @@ void Runtime::AddMouseDelta(float dx, float dy) noexcept {
 	m_mouseDelta.y += dy;
 }
 
-Option<String> Runtime::SpawnObject(ObjectDesc object) {
+Option<String> Runtime::SpawnNamedNode(NodeDesc object) {
 	Option<scene::NodeId> id = SpawnNode(std::move(object));
 	if (id.IsNone())
 		return NONE;
-	const scene::Node *node = FindObject(id.Unwrap());
+	const scene::Node *node = FindNode(id.Unwrap());
 	if (!node)
 		return NONE;
 	return Some(node->name);
 }
 
-Option<scene::NodeId> Runtime::SpawnNode(ObjectDesc object, scene::NodeId parent) {
+Option<scene::NodeId> Runtime::SpawnNode(NodeDesc object, scene::NodeId parent) {
 	SceneDesc *sceneDesc = ActiveScene();
 	if (!sceneDesc)
 		return NONE;
@@ -1667,14 +1727,20 @@ Option<scene::NodeId> Runtime::SpawnNode(ObjectDesc object, scene::NodeId parent
 }
 
 Option<scene::NodeId> Runtime::CreateGroup(const String &name, scene::NodeId parent) {
-	ObjectDesc group = ObjectDesc::Group(name);
+	NodeDesc group = NodeDesc::Group(name);
 	return SpawnNode(std::move(group), parent);
 }
 
 bool Runtime::ReparentNode(scene::NodeId child, scene::NodeId newParent, scene::ReparentMode mode, size_t index) {
 	SceneDesc *sceneDesc = ActiveScene();
-	scene::Node *node = FindObject(child);
+	scene::Node *node = FindNode(child);
 	if (!sceneDesc || !node)
+		return false;
+	if (!m_playing && objects::IsGenerated(*node)) {
+		LogWarning(String::Format("« %s » fait partie d'une instance d'objet : modifiez l'objet lui-même", node->name.CStr()));
+		return false;
+	}
+	if (!m_playing && sceneDesc->tree.Get(newParent) && objects::IsGenerated(*sceneDesc->tree.Get(newParent)))
 		return false;
 	const scene::Node *parentNode = sceneDesc->tree.Get(newParent);
 	RecordHistory(String::Format("Reparenter %s", node->name.CStr()));
@@ -1695,9 +1761,13 @@ bool Runtime::ReparentNode(scene::NodeId child, scene::NodeId newParent, scene::
 
 bool Runtime::MoveNodeInParent(scene::NodeId child, size_t index) {
 	SceneDesc *sceneDesc = ActiveScene();
-	scene::Node *node = FindObject(child);
+	scene::Node *node = FindNode(child);
 	if (!sceneDesc || !node)
 		return false;
+	if (!m_playing && objects::IsGenerated(*node)) {
+		LogWarning(String::Format("« %s » fait partie d'une instance d'objet : modifiez l'objet lui-même", node->name.CStr()));
+		return false;
+	}
 	RecordHistory(String::Format("Réordonner %s", node->name.CStr()));
 	if (!sceneDesc->tree.MoveChild(child, index)) {
 		DropLastHistory();
@@ -1710,9 +1780,13 @@ bool Runtime::MoveNodeInParent(scene::NodeId child, size_t index) {
 
 Option<scene::NodeId> Runtime::DuplicateNode(scene::NodeId id) {
 	SceneDesc *sceneDesc = ActiveScene();
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!sceneDesc || !node)
 		return NONE;
+	if (!m_playing && objects::IsGenerated(*node)) {
+		LogWarning(String::Format("« %s » fait partie d'une instance d'objet : modifiez l'objet lui-même", node->name.CStr()));
+		return NONE;
+	}
 	RecordHistory(String::Format("Dupliquer %s", node->name.CStr()));
 	scene::NodeId copy = sceneDesc->tree.Duplicate(id);
 	if (!copy.Valid()) {
@@ -1738,9 +1812,13 @@ Option<scene::NodeId> Runtime::DuplicateNode(scene::NodeId id) {
 
 bool Runtime::RemoveNode(scene::NodeId id) {
 	SceneDesc *sceneDesc = ActiveScene();
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!sceneDesc || !node || id == sceneDesc->tree.Root())
 		return false;
+	if (!m_playing && objects::IsGenerated(*node)) {
+		LogWarning(String::Format("« %s » fait partie d'une instance d'objet : modifiez l'objet lui-même", node->name.CStr()));
+		return false;
+	}
 	RecordHistory(String::Format("Supprimer %s", node->name.CStr()));
 	const bool wasSelected = m_selection.Valid() && sceneDesc->tree.IsAncestorOf(id, m_selection);
 	if (m_playing) {
@@ -1779,24 +1857,28 @@ bool Runtime::RemoveNode(scene::NodeId id) {
 	return true;
 }
 
-bool Runtime::RenameObject(scene::NodeId id, const String &newName) {
+bool Runtime::RenameNode(scene::NodeId id, const String &newName) {
 	SceneDesc *sceneDesc = ActiveScene();
-	scene::Node *node = FindObject(id);
+	scene::Node *node = FindNode(id);
 	if (!sceneDesc || !node || newName.IsEmpty())
 		return false;
+	if (!m_playing && objects::IsGenerated(*node)) {
+		LogWarning(String::Format("« %s » fait partie d'une instance d'objet : modifiez l'objet lui-même", node->name.CStr()));
+		return false;
+	}
 	if (scene::NodeId existing = sceneDesc->FindId(newName); existing.Valid() && existing != id)
 		return false; // nom déjà pris : refus explicite plutôt que renommage surprise
 	RecordHistory(String::Format("Renommer %s", node->name.CStr()));
 	node->name = newName;
-	if (render3d::Object3D *object3d = FindNode(id))
+	if (render3d::Object3D *object3d = FindObject3D(id))
 		object3d->SetName(newName);
 	if (onSceneStructureChanged)
 		onSceneStructureChanged();
 	return true;
 }
 
-bool Runtime::RenameObject(const String &objectName, const String &newName) {
-	return RenameObject(ResolveId(objectName), newName);
+bool Runtime::RenameNode(const String &objectName, const String &newName) {
+	return RenameNode(ResolveId(objectName), newName);
 }
 
 Result<bool, String> Runtime::SavePackedScene(scene::NodeId id, const String &path) const {
@@ -1866,6 +1948,206 @@ Result<scene::NodeId, String> Runtime::InstantiateSceneFile(const String &path, 
 	if (onSceneStructureChanged)
 		onSceneStructureChanged();
 	return Ok(created);
+}
+
+// ── Objets réutilisables ─────────────────────────────────────────────────────
+
+bool Runtime::IsEditingObject() const {
+	const SceneDesc *scene = ActiveScene();
+	return scene && scene->IsObject();
+}
+
+void Runtime::RefreshObjectInstances() {
+	if (m_playing)
+		return;
+	objects::ExpandReport report = objects::ExpandProject(m_project);
+	for (const String &error : report.errors)
+		LogWarning(error);
+}
+
+String Runtime::AddEmptyObject(const String &base) {
+	SceneDesc object;
+	object.kind = SceneKind::OBJECT;
+	object.SetName(UniqueSceneName(base));
+	const String name = object.name;
+	m_project.scenes.push_back(std::move(object));
+	if (onProjectChanged)
+		onProjectChanged();
+	(void)SwitchScene(name);
+	return name;
+}
+
+namespace {
+
+/// Le nœud `id` et son sous-arbre, copiés comme UNIQUE enfant de la racine
+/// de `object` (transform remis à l'identité : c'est l'instance qui place).
+void CopyAsObjectContent(const scene::NodeTree &tree, scene::NodeId id, SceneDesc &object) {
+	scene::PackedScene packed = scene::PackedScene::FromSubtree(tree, id);
+	scene::NodeId copy = packed.InstantiateInto(object.tree, object.tree.Root());
+	if (scene::Node *node = object.tree.Get(copy)) {
+		(void)node->RemoveComponent(String(scene::component_type::SCENE_INSTANCE));
+		node->transform = scene::Transform{};
+	}
+	// Une copie de nœuds générés devient du contenu propre de l'objet.
+	object.tree.Traverse(object.tree.Root(), [&](scene::NodeId nodeId, const scene::Node &) {
+		if (scene::Node *node = object.tree.Get(nodeId))
+			(void)node->properties.Remove(String(objects::GENERATED_PROPERTY));
+	});
+}
+
+} // namespace
+
+Result<String, String> Runtime::CreateObjectFromNode(scene::NodeId id, const String &name) {
+	if (m_playing)
+		return Err(String("impossible pendant une partie"));
+	SceneDesc *scene = ActiveScene();
+	if (!scene || id == scene->tree.Root() || !scene->tree.Contains(id))
+		return Err(String("sélectionnez le nœud à transformer en objet"));
+	const scene::Node *node = scene->tree.Get(id);
+	if (objects::IsGenerated(*node))
+		return Err(String("ce nœud fait partie d'une instance d'objet : ouvrez l'objet pour le modifier"));
+	const String wanted = name.Trim().IsEmpty() ? node->name : name.Trim();
+
+	RecordHistory(String::Format("Créer l'objet %s", wanted.CStr()));
+	SceneDesc object;
+	object.kind = SceneKind::OBJECT;
+	object.SetName(UniqueSceneName(wanted));
+	object.description = String::Format("Créé à partir de « %s » (%s)", node->name.CStr(), scene->name.CStr());
+	CopyAsObjectContent(scene->tree, id, object);
+	const String objectName = object.name;
+
+	// Le nœud cède la place à une instance, au même rang, même transform.
+	const scene::NodeId parent = node->parent;
+	const auto &siblings = scene->tree.ChildrenOf(parent);
+	const size_t index = size_t(std::find(siblings.begin(), siblings.end(), id) - siblings.begin());
+	const String nodeName = node->name;
+	const scene::Transform transform = node->transform;
+	(void)scene->tree.Remove(id);
+	scene::NodeId instance = scene->tree.Create(parent, nodeName, String(scene::node_type::NODE3D), index);
+	scene::Node *instanceNode = scene->tree.Get(instance);
+	instanceNode->transform = transform;
+	objects::MakeInstance(*instanceNode, objectName);
+
+	const String sceneName = scene->name;
+	m_project.scenes.push_back(std::move(object)); // `scene` n'est plus valide
+	scene = m_project.FindScene(sceneName);
+	objects::ExpandReport report = objects::ExpandInstance(scene->tree, instance, m_project, sceneName);
+	for (const String &error : report.errors)
+		LogWarning(error);
+	RebuildRuntime();
+	(void)Select(instance);
+	if (onProjectChanged)
+		onProjectChanged();
+	if (onSceneStructureChanged)
+		onSceneStructureChanged();
+	LogSuccess(String::Format("Objet « %s » créé ; « %s » en est maintenant une instance", objectName.CStr(),
+							  nodeName.CStr()));
+	return Ok(objectName);
+}
+
+Result<scene::NodeId, String> Runtime::InstantiateObject(const String &objectName, scene::NodeId parent,
+														 Option<scene::Transform> placement) {
+	SceneDesc *scene = ActiveScene();
+	if (!scene)
+		return Err(String("aucun document actif"));
+	const SceneDesc *object = m_project.Fs().FindObject(ObjectRef{objectName});
+	if (!object)
+		return Err(String::Format("objet « %s » introuvable", objectName.CStr()));
+	if (scene->IsObject() &&
+		(scene->name == objectName || objects::DependsOn(m_project, object->tree, scene->name)))
+		return Err(String::Format("« %s » ne peut pas contenir « %s » : il en fait lui-même partie",
+								  scene->name.CStr(), objectName.CStr()));
+
+	RecordHistory(String::Format("Instancier %s", objectName.CStr()));
+	scene::NodeId parentId = parent.Valid() && scene->tree.Contains(parent) ? parent : scene->tree.Root();
+	parentId = objects::EditableAncestor(scene->tree, parentId);
+	scene::NodeId created = scene->tree.Create(parentId, scene->UniqueName(objectName));
+	if (!created.Valid()) {
+		DropLastHistory();
+		return Err(String("instanciation impossible"));
+	}
+	scene::Node *root = scene->tree.Get(created);
+	if (placement.IsSome())
+		root->transform = placement.Unwrap();
+	objects::MakeInstance(*root, objectName);
+	objects::ExpandReport report = objects::ExpandInstance(scene->tree, created, m_project, scene->name);
+	for (const String &error : report.errors)
+		LogWarning(error);
+
+	// Seul le sous-arbre nouveau est construit (cf. InstantiateSceneFile).
+	scene->tree.Traverse(created, [&](scene::NodeId id, const scene::Node &node) { InstantiateNode(id, node); });
+	ApplyParentLinks(*scene);
+	render3d::SceneSyncSystem::Sync(m_registry, m_sceneRoot);
+	if (m_playing) {
+		SetHelpersVisible(false);
+		StartNodeScriptsOf(created);
+		PrepareTriggers(false);
+	}
+	if (onSceneStructureChanged)
+		onSceneStructureChanged();
+	return Ok(created);
+}
+
+Result<bool, String> Runtime::DetachInstance(scene::NodeId id) {
+	if (m_playing)
+		return Err(String("impossible pendant une partie"));
+	SceneDesc *scene = ActiveScene();
+	if (!scene || !scene->tree.Contains(id))
+		return Err(String("nœud introuvable"));
+	scene::Node *node = scene->tree.Get(id);
+	if (!objects::IsInstance(*node) || objects::IsGenerated(*node))
+		return Err(String("ce nœud n'est pas une instance d'objet"));
+	RecordHistory(String::Format("Rendre indépendant %s", node->name.CStr()));
+	const String source = objects::SourceOf(*node);
+	(void)node->RemoveComponent(String(objects::INSTANCE_COMPONENT));
+	// Seul le contenu généré de CE niveau devient propre : celui d'une
+	// instance imbriquée (dont l'instance la plus proche n'est pas `id`)
+	// reste généré et continue de suivre son objet.
+	std::vector<scene::NodeId> owned;
+	scene->tree.Traverse(id, [&](scene::NodeId nodeId, const scene::Node &child) {
+		if (nodeId == id)
+			return;
+		scene::NodeId ancestor = child.parent;
+		while (ancestor.Valid() && ancestor != id) {
+			const scene::Node *up = scene->tree.Get(ancestor);
+			if (!up || objects::IsInstance(*up))
+				break;
+			ancestor = up->parent;
+		}
+		if (ancestor == id)
+			owned.push_back(nodeId);
+	});
+	for (scene::NodeId nodeId : owned)
+		(void)scene->tree.Get(nodeId)->properties.Remove(String(objects::GENERATED_PROPERTY));
+	if (onSceneStructureChanged)
+		onSceneStructureChanged();
+	LogInfo(String::Format("« %s » ne suit plus l'objet « %s »", node->name.CStr(), source.CStr()));
+	return Ok(true);
+}
+
+Result<String, String> Runtime::DefineObjectFromNode(const String &objectName, scene::NodeId id) {
+	SceneDesc *scene = ActiveScene();
+	if (!scene || !scene->tree.Contains(id) || id == scene->tree.Root())
+		return Err(String("nœud introuvable"));
+	const String clean = objectName.Trim();
+	if (clean.IsEmpty())
+		return Err(String("nom d'objet vide"));
+	SceneDesc *object = m_project.Fs().FindObject(ObjectRef{clean});
+	if (!object && m_project.FindScene(clean))
+		return Err(String::Format("« %s » est une scène, pas un objet", clean.CStr()));
+	SceneDesc fresh;
+	fresh.kind = SceneKind::OBJECT;
+	fresh.SetName(clean);
+	CopyAsObjectContent(scene->tree, id, fresh);
+	if (object) {
+		fresh.description = object->description;
+		*object = std::move(fresh);
+	} else {
+		m_project.scenes.push_back(std::move(fresh));
+	}
+	if (onProjectChanged)
+		onProjectChanged();
+	return Ok(clean);
 }
 
 Option<math::FVector3> Runtime::GetVelocity(const String &objectName) {
@@ -2026,7 +2308,7 @@ Option<data::script::Value> Runtime::GameplayGlobal(const String &name) {
 }
 
 bool Runtime::RequestScene(const String &sceneName) {
-	if (!m_project.FindScene(sceneName))
+	if (!m_project.FindScene(sceneName) || (m_playing && m_project.Fs().FindObject(ObjectRef{sceneName})))
 		return false;
 	if (m_playing)
 		m_pendingScene = Some(sceneName);
@@ -2122,7 +2404,7 @@ scene::NodeTypeRegistry Runtime::MakeTypeRegistry() {
 	return registry;
 }
 
-const scene::Node * Runtime::SelectedConstObject() const {
+const scene::Node * Runtime::SelectedConstNode() const {
 	const scene::NodeTree *tree = Tree();
 	return tree ? tree->Get(m_selection) : nullptr;
 }
@@ -2147,7 +2429,7 @@ String Runtime::GizmoLabel(GizmoAxis axis) const {
 															: "Redimensionner";
 	const char *letter = axis == GizmoAxis::X ? "X" : (axis == GizmoAxis::Y ? "Y" : "Z");
 	const scene::NodeTree *tree = Tree();
-	const scene::Node *node = tree ? tree->Get(m_dragObject) : nullptr;
+	const scene::Node *node = tree ? tree->Get(m_dragNode) : nullptr;
 	return String::Format("%s %s (%s)", action, node ? node->name.CStr() : "?", letter);
 }
 
@@ -2250,9 +2532,9 @@ void Runtime::EnsureGizmoNodes() {
 	}
 }
 
-void Runtime::NotifyObjectChanged() {
-	if (!m_playing && onObjectChanged)
-		onObjectChanged();
+void Runtime::NotifyNodeChanged() {
+	if (!m_playing && onNodeChanged)
+		onNodeChanged();
 }
 
 Runtime::HistoryStep Runtime::Snapshot(String label) const {
@@ -2421,7 +2703,7 @@ Result<String, String> Runtime::ImportGltf(const String &path, float targetSize)
 	float largest = sdl3::Max(sdl3::Max(extent.x, extent.y), extent.z);
 	float scale = largest > 1e-5f ? targetSize / largest : 1.f;
 
-	ObjectDesc object;
+	NodeDesc object;
 	object.name = FileStem(path);
 	object.shape = ShapeKind::MODEL;
 	object.source = path;
@@ -2435,7 +2717,7 @@ Result<String, String> Runtime::ImportGltf(const String &path, float targetSize)
 	object.physics.halfExtents = extent * (0.5f * scale);
 	object.tag = "imported";
 
-	Option<String> assigned = SpawnObject(std::move(object));
+	Option<String> assigned = SpawnNamedNode(std::move(object));
 	if (assigned.IsNone())
 		return Err(String("aucune scène active"));
 	LogSuccess(String::Format("Modèle importé : %s (%d sommets, échelle %.3f)", assigned.Unwrap().CStr(),
@@ -2536,7 +2818,7 @@ ecs::Entity Runtime::InstantiateNode(scene::NodeId id, const scene::Node &node) 
 		m_triggerIds.push_back(id);
 
 	ecs::Entity entity = m_registry.Spawn();
-	m_registry.AddComponent(entity, SceneObjectRef{id});
+	m_registry.AddComponent(entity, SceneNodeRef{id});
 	m_registry.AddComponent(entity, render3d::SceneNode{object3d});
 	m_registry.AddComponent(
 		entity, render3d::SceneTransform{node.transform.position, node.transform.rotation, node.transform.scale});
@@ -2571,8 +2853,8 @@ void Runtime::AttachHelper(scene::NodeId id, const scene::Node &node, render3d::
 }
 
 void Runtime::RefreshHelper(scene::NodeId id) {
-	const scene::Node *node = FindObject(id);
-	render3d::Object3D *owner = FindNode(id);
+	const scene::Node *node = FindNode(id);
+	render3d::Object3D *owner = FindObject3D(id);
 	if (auto it = m_helperOf.find(id); it != m_helperOf.end()) {
 		if (owner)
 			(void)owner->RemoveChild(it->second);
@@ -2676,8 +2958,8 @@ void Runtime::LinkPortals(const SceneDesc &sceneDesc) {
 	if (first.empty() || second.empty())
 		return;
 
-	m_portalA.node = FindNode(first.front());
-	m_portalB.node = FindNode(second.front());
+	m_portalA.node = FindObject3D(first.front());
+	m_portalB.node = FindObject3D(second.front());
 	if (!m_portalA.node || !m_portalB.node)
 		return;
 	m_portalA.linkedPortal = &m_portalB;
@@ -2699,7 +2981,7 @@ void Runtime::LinkPortals(const SceneDesc &sceneDesc) {
 void Runtime::ClearRuntime() {
 	// Collecte AVANT toute mutation (invalidation d'itérateur, cf.
 	// ecs.hpp) : entités d'abord, nœuds ensuite, destruction en dernier.
-	std::vector<ecs::Entity> entities = m_registry.EntitiesWith<SceneObjectRef>();
+	std::vector<ecs::Entity> entities = m_registry.EntitiesWith<SceneNodeRef>();
 	std::vector<render3d::Object3D *> nodes;
 	nodes.reserve(entities.size());
 	for (ecs::Entity entity : entities) {
@@ -2741,7 +3023,7 @@ void Runtime::DestroyEntity(scene::NodeId id) {
 }
 
 bool Runtime::PushTransform(scene::NodeId id) {
-	NotifyObjectChanged();
+	NotifyNodeChanged();
 	const scene::NodeTree *tree = Tree();
 	const scene::Node *node = tree ? tree->Get(id) : nullptr;
 	Option<ecs::Entity> entity = FindEntity(id);
@@ -2775,9 +3057,9 @@ bool Runtime::PushTransform(scene::NodeId id) {
 }
 
 bool Runtime::PushMaterial(scene::NodeId id) {
-	NotifyObjectChanged();
-	const scene::Node *node = FindObject(id);
-	render3d::Object3D *object3d = FindNode(id);
+	NotifyNodeChanged();
+	const scene::Node *node = FindNode(id);
+	render3d::Object3D *object3d = FindObject3D(id);
 	if (!node || !object3d)
 		return false;
 	auto *shape = dynamic_cast<render3d::Shape *>(object3d);
@@ -2790,8 +3072,8 @@ bool Runtime::PushMaterial(scene::NodeId id) {
 }
 
 bool Runtime::PushPhysics(scene::NodeId id) {
-	NotifyObjectChanged();
-	const scene::Node *node = FindObject(id);
+	NotifyNodeChanged();
+	const scene::Node *node = FindNode(id);
 	Option<ecs::Entity> entity = FindEntity(id);
 	if (!node || entity.IsNone())
 		return false;
@@ -2814,7 +3096,7 @@ void Runtime::MirrorSimulationToDocument() {
 	if (!scene)
 		return;
 	for (ecs::Entity entity : m_registry.EntitiesWith<physics::RigidBody>()) {
-		auto ref = m_registry.GetComponent<SceneObjectRef>(entity);
+		auto ref = m_registry.GetComponent<SceneNodeRef>(entity);
 		auto body = m_registry.GetComponent<physics::RigidBody>(entity);
 		auto transform = m_registry.GetComponent<render3d::SceneTransform>(entity);
 		if (ref.IsNone() || body.IsNone() || transform.IsNone())
@@ -2884,7 +3166,7 @@ void Runtime::UpdateCamera(float dt) {
 	(void)dt;
 	if (m_playing) {
 		const scene::NodeId targetId = FollowTarget();
-		const scene::Node *target = FindObject(targetId);
+		const scene::Node *target = FindNode(targetId);
 		if (target) {
 			// La caméra se place derrière l'objet SELON SON PROPRE CAP
 			// (son lacet), pas selon l'orientation libre de la caméra :
@@ -2922,7 +3204,7 @@ void Runtime::UpdateCamera(float dt) {
 		}
 		// Sans objet poursuivi : la caméra COURANTE de la scène, si elle
 		// en a une (vue à la première personne, caméra fixe de salle).
-		if (const scene::Node *cameraNode = FindObject(m_currentCamera)) {
+		if (const scene::Node *cameraNode = FindNode(m_currentCamera)) {
 			constexpr float DEG2RAD = 3.14159265358979323846f / 180.f;
 			const scene::Transform world = Tree()->GlobalTransform(m_currentCamera);
 			const math::FVector3 forward = world.rotation.Rotate(math::FVector3{0.f, 0.f, 1.f}).Normalize();
@@ -3109,7 +3391,7 @@ void Runtime::StartNodeScriptsOf(scene::NodeId root) {
 	std::vector<std::pair<NodeScriptInstance *, size_t>> created;
 	for (const auto &[name, id] : carriers) {
 		NodeScriptInstance *instance = NodeScriptFor(name);
-		if (!instance || !FindObject(id))
+		if (!instance || !FindNode(id))
 			continue;
 		m_bindingNode = id;
 		++m_scriptCallCount;
@@ -3119,7 +3401,7 @@ void Runtime::StartNodeScriptsOf(scene::NodeId root) {
 			++m_scriptErrorCount;
 			instance->error = made.Error().Format();
 			LogError(String::Format("Script « %s » (%s) : construction : %s", name.CStr(),
-									FindObject(id) ? FindObject(id)->name.CStr() : "?", instance->error.CStr()));
+									FindNode(id) ? FindNode(id)->name.CStr() : "?", instance->error.CStr()));
 			continue;
 		}
 		instance->attached.push_back(NodeScriptInstance::Attached{id, made.Unwrap(), false});
@@ -3180,7 +3462,7 @@ void Runtime::CallNodeHook(NodeScriptInstance &instance, size_t index, const Str
 	if (!instance.vm || index >= instance.attached.size())
 		return;
 	const NodeScriptInstance::Attached entry = instance.attached[index]; // copie : la liste peut grandir
-	const scene::Node *target = FindObject(entry.node);
+	const scene::Node *target = FindNode(entry.node);
 	if (!target || entry.detached)
 		return;
 	const String targetName = target->name;
@@ -3395,8 +3677,8 @@ void Runtime::ResetGameplayVm() {
 void Runtime::BindEcsWorld() {
 	using data::script::Value;
 	m_ecsWorld = std::make_shared<data::script::EcsWorld>(m_registry);
-	m_ecsWorld->BindComponent<SceneObjectRef>(String("node"), [this](const SceneObjectRef &ref) -> Value {
-		const scene::Node *node = FindObject(ref.node);
+	m_ecsWorld->BindComponent<SceneNodeRef>(String("node"), [this](const SceneNodeRef &ref) -> Value {
+		const scene::Node *node = FindNode(ref.node);
 		return node ? Value::Str(node->name) : Value::Nil();
 	});
 	auto list = [](std::initializer_list<float> values) {
@@ -3558,8 +3840,8 @@ void ReadPhysicsTable(const data::script::MapObject &map, PhysicsDesc &physics) 
 	physics.friction = FieldFloat(map, "friction", physics.friction);
 }
 
-ObjectDesc ObjectFromTable(const data::script::MapObject &map) {
-	ObjectDesc object;
+NodeDesc NodeFromTable(const data::script::MapObject &map) {
+	NodeDesc object;
 	object.name = FieldString(map, "name", "Objet");
 	object.parent = FieldString(map, "parent", "");
 	object.tag = FieldString(map, "tag", "");
@@ -4212,11 +4494,11 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 			auto table = data::script::detail::ArgMap(args, 0, "scene.spawn");
 			if (table.IsError())
 				return Err(table.Error());
-			ObjectDesc object = sd::ObjectFromTable(*table.Value());
+			NodeDesc object = sd::NodeFromTable(*table.Value());
 			if (object.shape == ShapeKind::MODEL)
 				object.source = self->ResolveProjectPath(object.source);
 
-			Option<String> assigned = self->SpawnObject(std::move(object));
+			Option<String> assigned = self->SpawnNamedNode(std::move(object));
 			if (assigned.IsNone())
 				return Ok(Value::Nil());
 			return Ok(Value::Str(assigned.Unwrap()));
@@ -4227,7 +4509,7 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   auto name = data::script::detail::ArgString(args, 0, "scene.remove");
 								   if (name.IsError())
 									   return Err(name.Error());
-								   return Ok(Value::Boolean(self->RemoveObject(name.Value())));
+								   return Ok(Value::Boolean(self->RemoveNode(name.Value())));
 							   });
 
 	vm.RegisterNamespacedNative(String("scene"), String("rename"), 2, 2,
@@ -4238,14 +4520,14 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   auto to = data::script::detail::ArgString(args, 1, "scene.rename");
 								   if (to.IsError())
 									   return Err(to.Error());
-								   return Ok(Value::Boolean(self->RenameObject(from.Value(), to.Value())));
+								   return Ok(Value::Boolean(self->RenameNode(from.Value(), to.Value())));
 							   });
 
 	vm.RegisterNamespacedNative(String("scene"), String("names"), 0, 0,
 							   [self](Interpreter &, std::vector<Value> &) -> Result<Value, ScriptError> {
 								   auto list = std::make_shared<data::script::ListObject>();
 								   if (const SceneDesc *scene = self->ActiveScene())
-									   for (scene::NodeId id : scene->Objects())
+									   for (scene::NodeId id : scene->Nodes())
 										   list->items.push_back(Value::Str(scene->tree.Get(id)->name));
 								   return Ok(Value::List(std::move(list)));
 							   });
@@ -4253,7 +4535,7 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 	vm.RegisterNamespacedNative(String("scene"), String("count"), 0, 0,
 							   [self](Interpreter &, std::vector<Value> &) -> Result<Value, ScriptError> {
 								   const SceneDesc *scene = self->ActiveScene();
-								   return Ok(Value::Number(scene ? double(scene->ObjectCount()) : 0.0));
+								   return Ok(Value::Number(scene ? double(scene->NodeCount()) : 0.0));
 							   });
 
 	vm.RegisterNamespacedNative(String("scene"), String("exists"), 1, 1,
@@ -4261,8 +4543,8 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   auto name = data::script::detail::ArgString(args, 0, "scene.exists");
 								   if (name.IsError())
 									   return Err(name.Error());
-								   const SceneDesc *scene = self->ActiveScene();
-								   return Ok(Value::Boolean(scene && scene->Find(name.Value()) != nullptr));
+								   // Nom ou chemin (« Niveau/Salle/Coffre »), comme scene.remove.
+								   return Ok(Value::Boolean(self->ResolveId(name.Value()).Valid()));
 							   });
 
 	vm.RegisterNamespacedNative(String("scene"), String("find_tag"), 1, 1,
@@ -4700,7 +4982,7 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   Option<scene::NodeId> created = self->CreateGroup(name.Value(), parent);
 								   if (created.IsNone())
 									   return Ok(Value::Nil());
-								   return Ok(Value::Str(self->FindObject(created.Unwrap())->name));
+								   return Ok(Value::Str(self->FindNode(created.Unwrap())->name));
 							   });
 
 	vm.RegisterNamespacedNative(String("node"), String("reparent"), 2, 3,
@@ -4731,7 +5013,7 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   Option<scene::NodeId> copy = self->DuplicateNode(self->ResolveId(name.Value()));
 								   if (copy.IsNone())
 									   return Ok(Value::Nil());
-								   return Ok(Value::Str(self->FindObject(copy.Unwrap())->name));
+								   return Ok(Value::Str(self->FindNode(copy.Unwrap())->name));
 							   });
 
 	vm.RegisterNamespacedNative(String("node"), String("set_tag"), 2, 2,
@@ -4758,7 +5040,7 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   auto key = data::script::detail::ArgString(args, 1, "node.prop");
 								   if (key.IsError())
 									   return Err(key.Error());
-								   scene::Node *node = self->FindObject(self->ResolveId(name.Value()));
+								   scene::Node *node = self->FindNode(self->ResolveId(name.Value()));
 								   if (!node)
 									   return Ok(Value::Nil());
 								   if (args.size() == 2)
@@ -4794,7 +5076,7 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 								   auto created = self->InstantiateSceneFile(path.Value(), parent, placement);
 								   if (created.IsError())
 									   return Ok(Value::Nil());
-								   return Ok(Value::Str(self->FindObject(created.Value())->name));
+								   return Ok(Value::Str(self->FindNode(created.Value())->name));
 							   });
 
 	// ── input.* ──────────────────────────────────────────────────────────────
@@ -4898,7 +5180,7 @@ void Runtime::InstallHostApi(data::script::Interpreter &vm) {
 		auto name = data::script::detail::ArgString(args, 0, fnName);
 		if (name.IsError())
 			return Err(name.Error());
-		scene::Node *node = self->FindObject(self->ResolveId(name.Value()));
+		scene::Node *node = self->FindNode(self->ResolveId(name.Value()));
 		return Ok(node && LightDesc::Has(*node) ? node : nullptr);
 	};
 

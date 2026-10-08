@@ -1,6 +1,0 @@
-# ── Circuit Ovale : un anneau rapide, idéal pour débuter ────────────────────
-# Toute la course (départ, rivaux, tours, classement) vient du module partagé
-# « course » ; la scène n'apporte que son tracé et ses voitures.
-const course = import "course"
-
-class CircuitOvale extends course.Course {}

@@ -1,6 +1,0 @@
-# ── Circuit 3 - Alpine Pass : Montée du col : forte pente, barrière rotative au sommet ───
-# Le sprint (voiture, adhérence des surfaces, boosters, obstacles animés,
-# chrono) vient du module partagé « sprint » : la scène n'apporte que son décor.
-const sprint = import "sprint"
-
-class AlpinePass extends sprint.Sprint {}

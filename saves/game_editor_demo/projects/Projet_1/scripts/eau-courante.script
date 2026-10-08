@@ -1,0 +1,63 @@
+# ── Eau courante : l'écume dérive dans le sens du courant ────────────────────
+#
+# Attaché aux nœuds d'eau des pièces d'égout. Ses enfants « Écume 1… »
+# glissent le long de l'axe local z (et reviennent à l'autre bout), avec un
+# léger roulis ; pour une cascade (`chute`), les « Filet 1… » tombent ; pour
+# un bassin (`tourbillon`), l'écume tourne autour du centre.
+# Propriétés : longueur (m), vitesse (m/s, négative : vers -z), largeur,
+# chute, tourbillon.
+
+class EauCourante extends Behaviour {
+    let longueur = 3.0
+    let vitesse = 0.9
+    let chute = false
+    let tourbillon = false
+    let morceaux = []    # [chemin, position de départ]
+    let temps = 0
+
+    fn on_start() {
+        this.longueur = this.prop("longueur") or 3.0
+        this.vitesse = this.prop("vitesse") or 0.9
+        this.chute = this.prop("chute") == true
+        this.tourbillon = this.prop("tourbillon") == true
+        let prefixe = "Écume "
+        if (this.chute) { prefixe = "Filet " }
+        for (i in range(1, 13)) {
+            let nom = this.child(prefixe .. i)
+            if (nom == nil) { break }
+            let p = object.position(nom)
+            if (p == nil) { break }
+            this.morceaux.append([nom, p])
+        }
+    }
+
+    fn boucler(v, bas, haut) {
+        let etendue = haut - bas
+        while (v > haut) { v -= etendue }
+        while (v < bas) { v += etendue }
+        return v
+    }
+
+    fn on_update(dt) {
+        this.temps += dt
+        let t = this.temps
+        let demi = this.longueur / 2
+        for (i in range(len(this.morceaux))) {
+            let nom = this.morceaux[i][0]
+            let p = this.morceaux[i][1]
+            if (this.chute) {
+                # Les filets tombent de la bouche jusqu'au bassin, en boucle.
+                let y = this.boucler(p[1] - t * this.vitesse, -this.longueur, 0)
+                object.set_position(nom, p[0] + math.sin(t * 9 + i) * 0.02, y, p[2])
+            } else if (this.tourbillon) {
+                let a = math.atan2(p[2], p[0]) + t * this.vitesse
+                let r = math.sqrt(p[0] * p[0] + p[2] * p[2])
+                object.set_position(nom, math.cos(a) * r, p[1] + math.sin(t * 2 + i) * 0.01, math.sin(a) * r)
+                object.set_rotation(nom, 0, -a * 180 / math.pi, 0)
+            } else {
+                let z = this.boucler(p[2] + t * this.vitesse, -demi, demi)
+                object.set_position(nom, p[0] + math.sin(t * 1.3 + i * 1.7) * 0.07, p[1] + math.sin(t * 3 + i) * 0.012, z)
+            }
+        }
+    }
+}

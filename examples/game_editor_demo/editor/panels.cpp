@@ -14,14 +14,15 @@ EditorUi::EditorUi(Runtime &runtime, ui::Ui &gui)
 		m_tree.MarkDirty();
 		m_inspector.MarkDirty();
 		m_scenesDirty = true;
+		m_documentChoicesDirty = true;
 	};
 	Rt().onSelectionChanged = [this] {
 		m_inspector.MarkDirty();
 		m_tree.RevealSelection();
 		FollowSelectionWorkspace();
 	};
-	Rt().onObjectChanged = [this] {
-		m_inspector.OnObjectChanged();
+	Rt().onNodeChanged = [this] {
+		m_inspector.OnNodeChanged();
 		m_tree.MarkDirty(); // nom, visibilité, verrou : l'arbre les montre
 	};
 	Rt().onLog = [this](const LogEntry &) { m_consoleDirty = true; };
@@ -140,9 +141,10 @@ void EditorUi::Build() {
 	// ── Contenu des panneaux ─────────────────────────────────────────
 	m_tree.Build(m_treeDock.AddPage(String("Arbre de scène"), false, false, 4.f));
 	m_sceneListPage = m_treeDock.AddPage(String("Scènes"), true);
+	m_objectListPage = m_treeDock.AddPage(String("Objets"), true);
 	m_treeDock.SetActive(0);
 	m_treeDock.onActivate = [this](int page) {
-		if (page == 1)
+		if (page == 1 || page == 2)
 			m_scenesDirty = true;
 	};
 	m_treeDock.onMenu = [this](float x, float y) { OpenMenu(m_treeMenu, x, y); };
@@ -183,6 +185,7 @@ void EditorUi::Build() {
 	m_sceneName = ActiveSceneName();
 	RefreshConsole();
 	RefreshSceneList();
+	RefreshObjectList();
 	m_editorBuilt = true;
 }
 
@@ -511,6 +514,7 @@ void EditorUi::Tick(float dt, double fps) {
 		m_documents.Dock().SetTitle(0, ViewportTitle());
 		m_library.RefreshWorld();
 		m_scenesDirty = true;
+		m_documentChoicesDirty = true;
 	}
 
 	if (m_runMode) {
@@ -523,9 +527,10 @@ void EditorUi::Tick(float dt, double fps) {
 
 	if (m_treeDock.Active() == 0)
 		m_tree.Tick();
-	if (m_scenesDirty && m_treeDock.Active() == 1) {
+	if (m_scenesDirty && (m_treeDock.Active() == 1 || m_treeDock.Active() == 2)) {
 		m_scenesDirty = false;
 		RefreshSceneList();
+		RefreshObjectList();
 	}
 	m_inspector.Tick();
 	m_assets.Tick(dt);
@@ -612,7 +617,7 @@ void EditorUi::Show2DWorkspace() {
 }
 
 void EditorUi::FollowSelectionWorkspace() {
-	const scene::Node *node = Rt().SelectedObject();
+	const scene::Node *node = Rt().SelectedNode();
 	if (!node || !m_editorBuilt || Rt().IsPlaying())
 		return;
 	if (Is2DNode(*node))
@@ -798,7 +803,7 @@ void EditorUi::Handle2DEvent(const sdl3::Event &event) {
 		}
 		const scene::NodeId id = frame.items[hit.Unwrap()].id;
 		(void)Rt().Select(id);
-		const scene::Node *node = Rt().FindObject(id);
+		const scene::Node *node = Rt().FindNode(id);
 		const SceneDesc *scene = Rt().ActiveScene();
 		if (!node || node->locked || !scene)
 			return;
@@ -833,7 +838,7 @@ void EditorUi::Handle2DEvent(const sdl3::Event &event) {
 		return;
 	}
 	// Flèches : décale la sélection d'un pixel (dix avec Maj).
-	const scene::Node *selected = Rt().SelectedObject();
+	const scene::Node *selected = Rt().SelectedNode();
 	if (event.Type() == SDL_EVENT_KEY_DOWN && selected && Is2DNode(*selected) && !TextFieldHasFocus()) {
 		const float step = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0 ? 10.f : 1.f;
 		math::FVector3 position = selected->transform.position;
@@ -862,6 +867,10 @@ bool EditorUi::FocusPanel(const String &panel, int tab) {
 	}
 	if (key == "scenes") {
 		m_treeDock.SetActive(1);
+		return true;
+	}
+	if (key == "objects") {
+		m_treeDock.SetActive(2);
 		return true;
 	}
 	if (key == "assets") {
@@ -925,10 +934,18 @@ bool EditorUi::UiCommand(const String &command, const String &argument) {
 			OnNewProject();
 		else if (argument == "open_project")
 			OnOpenProject();
+		else if (argument == "save_object_as" && m_editorBuilt)
+			OnSaveObjectAs();
+		else if (argument == "import_object" && m_editorBuilt)
+			OnImportObject();
 		else if (argument == "save_scene_as" && m_editorBuilt)
 			OnSaveSceneAs();
 		else if (argument == "import_scene" && m_editorBuilt)
 			OnImportScene();
+		else if (argument == "save_script_as" && m_editorBuilt)
+			OnSaveScriptAs(ActiveScriptKey());
+		else if (argument == "import_script" && m_editorBuilt)
+			OnImportScript();
 		else if (argument == "close")
 			CloseDialog();
 		else
@@ -1090,6 +1107,7 @@ AssetActions EditorUi::MakeAssetActions() {
 		(void)Rt().Select(instance.Value());
 		SetStatus(String::Format("Scène instanciée : %s", path.CStr()));
 	};
+	actions.instantiateObject = [this](const String &object) { PlaceObject(object); };
 	actions.status = [this](const String &text) { SetStatus(text); };
 	return actions;
 }
@@ -1161,6 +1179,18 @@ void EditorUi::MoveBefore(ecs::Entity parent, ecs::Entity anchor) {
 	m_ctx.gui.Layout().MarkDirty();
 }
 
+void EditorUi::PlaceObject(const String &objectName) {
+	// Sous la sélection (l'instance qui porte un nœud généré), à défaut à la
+	// racine du document ouvert.
+	auto placed = Rt().InstantiateObject(objectName, Rt().SelectedId());
+	if (placed.IsError()) {
+		SetStatus(String::Format("Instance impossible : %s", placed.Error().CStr()));
+		return;
+	}
+	(void)Rt().Select(placed.Value());
+	SetStatus(String::Format("Instance de « %s » posée", objectName.CStr()));
+}
+
 ui::WidgetBuilder EditorUi::MenuAction(const char *text, const char *shortcut, std::function<void()> action) {
 	ui::WidgetBuilder item = m_ctx.factory.MenuItem(String(text), String(shortcut));
 	item.OnClick(std::move(action));
@@ -1211,6 +1241,39 @@ void EditorUi::BuildMenuBar(ecs::Entity parent) {
 		MenuAction("Tourner", "E", [this] { SetGizmoMode(Runtime::GizmoMode::ROTATE); }),
 		MenuAction("Redimensionner", "R", [this] { SetGizmoMode(Runtime::GizmoMode::SCALE); }),
 		MenuAction("Magnétisme", "X", [this] { ToggleSnap(); })));
+
+	// ── Objets réutilisables : une arborescence éditée une fois, posée
+	// partout ; ses instances suivent ses modifications.
+	ecs::Entity objectsMenu = m_ctx.factory.Menu(
+		barEntity, String("Objets"), MenuAction("Nouvel objet", "", [this] {
+			const String name = Rt().AddEmptyObject();
+			SetStatus(String::Format("Objet « %s » ouvert : ajoutez-y des nœuds", name.CStr()));
+		}),
+		MenuAction("Créer un objet à partir de la sélection", "", [this] {
+			auto object = Rt().CreateObjectFromNode(Rt().SelectedId());
+			SetStatus(object.IsOk() ? String::Format("Objet « %s » créé ; la sélection en est une instance",
+													  object.Value().CStr())
+									: String::Format("Objet impossible : %s", object.Error().CStr()));
+		}),
+		MenuAction("Rendre l'instance indépendante", "", [this] {
+			auto done = Rt().DetachInstance(Rt().SelectedId());
+			SetStatus(done.IsOk() ? String("Instance rendue indépendante")
+								  : String::Format("Impossible : %s", done.Error().CStr()));
+		}),
+		MenuAction("Actualiser les instances", "", [this] {
+			Rt().RefreshObjectInstances();
+			Rt().RebuildRuntime();
+			SetStatus(String("Instances régénérées à partir des objets"));
+		}));
+	m_menuPopups.push_back(objectsMenu);
+	ecs::Entity place = m_ctx.factory.SubMenu(objectsMenu, String("Poser une instance"));
+	m_menuPopups.push_back(place);
+	ecs::Entity openObject = m_ctx.factory.SubMenu(objectsMenu, String("Ouvrir un objet"));
+	m_menuPopups.push_back(openObject);
+	for (const String &name : Rt().GetProject().ObjectNames()) {
+		AddItem(place, name.CStr(), "", [this, name] { PlaceObject(name); });
+		AddItem(openObject, name.CStr(), "", [this, name] { (void)Rt().SwitchScene(name); });
+	}
 
 	ecs::Entity tools = m_ctx.factory.Menu(
 		barEntity, String("Outils"), MenuAction("Console de script", "", [this] { m_documents.OpenToolConsole(); }),
@@ -1338,19 +1401,18 @@ void EditorUi::BuildViewportPage(ecs::Entity page) {
 						  [this] { OnFocusSelection(); }, 26.f);
 	(void)kit::Spacer(m_ctx, barEntity);
 
-	std::vector<String> sceneNames = Rt().GetProject().SceneNames();
-	int active = 0;
-	for (size_t i = 0; i < sceneNames.size(); ++i)
-		if (sceneNames[i] == ActiveSceneName())
-			active = int(i);
-	ui::WidgetBuilder combo = m_ctx.factory.Combo(sceneNames, active);
-	combo.Size(170.f, 24.f).FontSize(13.f).Tooltip(String("Scène active")).Parent(barEntity);
-	combo.OnChange([this, sceneNames](float index) {
+	// Sélecteur de document : deux sous-menus, les scènes puis les objets
+	// (un objet s'édite comme une scène) — tenu à jour par RefreshStatusBar.
+	ui::WidgetBuilder combo = m_ctx.factory.Combo(DocumentChoices(), 0);
+	combo.Size(170.f, 24.f).FontSize(13.f).Tooltip(String("Document ouvert : scène ou objet")).Parent(barEntity);
+	combo.OnChange([this](float index) {
+		auto box = m_ctx.registry.GetComponent<ui::UiComboBox>(m_sceneCombo);
 		const size_t i = size_t(index < 0.f ? 0.f : index);
-		if (i < sceneNames.size())
-			(void)Rt().SwitchScene(sceneNames[i]);
+		if (box.IsSome() && i < box.Unwrap()->items.size())
+			(void)Rt().SwitchScene(box.Unwrap()->items[i]);
 	});
 	m_sceneCombo = combo.Spawn();
+	m_documentChoicesDirty = true;
 
 	ui::WidgetBuilder searchRow = m_ctx.factory.Row();
 	searchRow.Pad(0.f);
@@ -1369,7 +1431,16 @@ void EditorUi::BuildViewportPage(ecs::Entity page) {
 	viewport.GrowW().GrowH().Parent(page);
 	// Glisser une vignette de modèle du navigateur dans la vue : import.
 	viewport.DropTarget(String("asset"));
-	viewport.OnDrop([this](int64_t index) { m_assets.Activate(size_t(index)); });
+	viewport.OnDrop([this](int64_t index) {
+		// Un OBJET déposé dans la vue y pose une instance ; le reste
+		// (modèle glTF, scène emballée…) suit l'ouverture habituelle.
+		const std::vector<AssetEntry> &entries = m_assets.Entries();
+		const size_t i = size_t(index);
+		if (i < entries.size() && entries[i].kind == AssetKind::OBJECT && entries[i].managed)
+			PlaceObject(entries[i].name);
+		else
+			m_assets.Activate(i);
+	});
 	m_viewport = viewport.Spawn();
 	// Le calque 2D d'abord : tout le reste (repères, badge, interface du
 	// jeu) se dessine par-dessus.
@@ -1714,8 +1785,8 @@ void EditorUi::RefreshProfiler() {
 	const SceneDesc *scene = Rt().ActiveScene();
 	AddProfilerRow("Cadence", String::Format("%.1f img/s", m_fps));
 	AddProfilerRow("Simulation", String::Format("%.2f ms", Rt().SimulationMs()));
-	AddProfilerRow("Objets (scène)", String::From(int(scene ? scene->ObjectCount() : 0)));
-	AddProfilerRow("Nœuds 3D", String::From(int(Rt().RuntimeObjectCount())));
+	AddProfilerRow("Objets (scène)", String::From(int(scene ? scene->NodeCount() : 0)));
+	AddProfilerRow("Nœuds 3D", String::From(int(Rt().RuntimeNodeCount())));
 	AddProfilerRow("Lumières actives", String::Format("%d ponctuelles, %d projecteurs", int(Rt().PointLights().size()),
 													  int(Rt().SpotLights().size())));
 	AddProfilerRow("Corps physiques", String::From(int(Rt().RigidBodyCount())));
@@ -1740,6 +1811,8 @@ void EditorUi::RefreshSceneList() {
 	const Project &project = Rt().GetProject();
 	int index = 0;
 	for (const SceneDesc &scene : project.scenes) {
+		if (scene.IsObject())
+			continue; // onglet « Objets »
 		const bool active = scene.name == ActiveSceneName();
 		ui::WidgetBuilder row = m_ctx.factory.Selectable(String(), index++);
 		row.GrowW().HAuto().Gap(6.f).Pad(math::Sides{6.f, 3.f}).Tooltip(scene.description).Parent(m_sceneListPage);
@@ -1752,9 +1825,80 @@ void EditorUi::RefreshSceneList() {
 		ui::WidgetBuilder label = m_ctx.factory.Label(scene.name);
 		label.WAuto().HAuto().FontSize(13.f).PointerThrough().Parent(rowEntity);
 		(void)label.Spawn();
-		ui::WidgetBuilder detail = m_ctx.factory.Label(String::Format("(%d objets)", int(scene.ObjectCount())));
+		ui::WidgetBuilder detail = m_ctx.factory.Label(String::Format("(%d objets)", int(scene.NodeCount())));
 		detail.GrowW().HAuto().TextEllipsis().FontSize(12.f).TextColor(m_ctx.Theme().muted).PointerThrough().Parent(rowEntity);
 		(void)detail.Spawn();
+	}
+}
+
+std::vector<ui::ComboCategory> EditorUi::DocumentChoices() const {
+	const std::vector<String> scenes = Rt().GetProject().SceneNames();
+	const std::vector<String> objects = Rt().GetProject().ObjectNames();
+	std::vector<ui::ComboCategory> categories;
+	categories.push_back({String::Format("Scènes (%d)", int(scenes.size())), scenes});
+	if (!objects.empty())
+		categories.push_back({String::Format("Objets (%d)", int(objects.size())), objects});
+	return categories;
+}
+
+void EditorUi::RefreshObjectList() {
+	if (!m_objectListPage.Valid())
+		return;
+	kit::ClearChildren(m_ctx, m_objectListPage);
+	const Project &project = Rt().GetProject();
+	const ui::UiTheme &theme = m_ctx.Theme();
+
+	// En-tête : créer un objet, vide ou à partir de la sélection.
+	ui::WidgetBuilder head = m_ctx.factory.Row();
+	head.Pad(math::Sides{4.f, 2.f}).Gap(4.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(m_objectListPage);
+	ecs::Entity headEntity = head.Spawn();
+	ui::WidgetBuilder title =
+		m_ctx.factory.Label(String::Format("Objets réutilisables (%d)", int(project.ObjectNames().size())));
+	title.GrowW().HAuto().FontSize(12.f).TextColor(theme.muted).TextEllipsis().PointerThrough().Parent(headEntity);
+	(void)title.Spawn();
+	(void)kit::IconButton(m_ctx, headEntity, ui::MaterialIcons::ADD_BOX, String("Nouvel objet"),
+						  [this] {
+							  const String name = Rt().AddEmptyObject();
+							  SetStatus(String::Format("Objet « %s » ouvert : ajoutez-y des nœuds", name.CStr()));
+						  },
+						  18.f, nullptr, theme.muted);
+	(void)kit::IconButton(m_ctx, headEntity, ui::MaterialIcons::CATEGORY,
+						  String("Créer un objet à partir de la sélection (elle en devient une instance)"),
+						  [this] {
+							  auto object = Rt().CreateObjectFromNode(Rt().SelectedId());
+							  SetStatus(object.IsOk() ? String::Format("Objet « %s » créé ; la sélection en est une instance",
+																	   object.Value().CStr())
+													  : String::Format("Objet impossible : %s", object.Error().CStr()));
+						  },
+						  18.f, nullptr, theme.muted);
+
+	// Une ligne par objet : clic = l'ouvrir ; bouton = en poser une instance
+	// dans le document ouvert (sous la sélection).
+	int index = 0;
+	for (const SceneDesc &scene : project.scenes) {
+		if (!scene.IsObject())
+			continue;
+		const bool active = scene.name == ActiveSceneName();
+		ui::WidgetBuilder row = m_ctx.factory.Selectable(String(), index++);
+		row.GrowW().HAuto().Gap(6.f).Pad(math::Sides{6.f, 3.f}).Parent(m_objectListPage);
+		row.Tooltip((scene.description.IsEmpty() ? scene.name : scene.description) +
+					String("\nObjet réutilisable : ses instances suivent ses modifications"));
+		const String name = scene.name;
+		row.OnClick([this, name] { (void)Rt().SwitchScene(name); });
+		ecs::Entity rowEntity = row.Spawn();
+		if (auto selectable = m_ctx.registry.GetComponent<ui::UiSelectable>(rowEntity); selectable.IsSome())
+			selectable.Unwrap()->selected = active;
+		(void)kit::Glyph(m_ctx, rowEntity, ui::MaterialIcons::CATEGORY, kit::Rgb(232, 176, 92), 16.f);
+		ui::WidgetBuilder label = m_ctx.factory.Label(scene.name);
+		label.WAuto().HAuto().FontSize(13.f).PointerThrough().Parent(rowEntity);
+		(void)label.Spawn();
+		ui::WidgetBuilder detail = m_ctx.factory.Label(String::Format("(%d nœuds)", int(scene.NodeCount())));
+		detail.GrowW().HAuto().TextEllipsis().FontSize(12.f).TextColor(theme.muted).PointerThrough().Parent(rowEntity);
+		(void)detail.Spawn();
+		if (!active)
+			(void)kit::IconButton(m_ctx, rowEntity, ui::MaterialIcons::ADD_LOCATION_ALT,
+								  String("Poser une instance dans le document ouvert (sous la sélection)"),
+								  [this, name] { PlaceObject(name); }, 16.f, nullptr, theme.muted);
 	}
 }
 
@@ -1765,7 +1909,7 @@ void EditorUi::BuildStatusBar(ecs::Entity parent) {
 	ecs::Entity barEntity = bar.Spawn();
 	m_statusBar = barEntity;
 	m_statusFps = StatusLabel(barEntity, "— img/s", 70.f);
-	m_statusObjects = StatusLabel(barEntity, "— objets", 90.f);
+	m_statusNodes = StatusLabel(barEntity, "— objets", 90.f);
 	m_statusBodies = StatusLabel(barEntity, "— corps", 80.f);
 	m_statusScene = StatusLabel(barEntity, "—", 140.f);
 	m_statusMode = StatusLabel(barEntity, "■ Édition", 80.f);
@@ -1795,7 +1939,7 @@ ecs::Entity EditorUi::StatusLabel(ecs::Entity parent, const char *text, float wi
 void EditorUi::RefreshStatusBar() {
 	const SceneDesc *scene = Rt().ActiveScene();
 	kit::SetLabelText(m_ctx, m_statusFps, String::Format("%.0f img/s", m_fps));
-	kit::SetLabelText(m_ctx, m_statusObjects, String::Format("%d objets", int(scene ? scene->ObjectCount() : 0)));
+	kit::SetLabelText(m_ctx, m_statusNodes, String::Format("%d objets", int(scene ? scene->NodeCount() : 0)));
 	kit::SetLabelText(m_ctx, m_statusBodies, String::Format("%d corps", int(Rt().RigidBodyCount())));
 	kit::SetLabelText(m_ctx, m_statusScene,
 					  scene ? String::Format("%s › %s", Rt().GetProject().name.CStr(), scene->name.CStr())
@@ -1828,8 +1972,13 @@ void EditorUi::RefreshStatusBar() {
 		if (auto glyph = m_ctx.registry.GetComponent<ui::UiIcon>(m_playIcon); glyph.IsSome())
 			glyph.Unwrap()->glyph = ui::Glyphs::ToUtf8(m_shownPlaying ? ui::MaterialIcons::STOP : ui::MaterialIcons::PLAY_ARROW);
 	}
-	// Le sélecteur de scène suit les changements venus d'ailleurs.
+	// Le sélecteur de document suit les changements venus d'ailleurs :
+	// scènes ou objets ajoutés, renommés, supprimés, document ouvert.
 	if (auto combo = m_ctx.registry.GetComponent<ui::UiComboBox>(m_sceneCombo); combo.IsSome() && scene) {
+		if (m_documentChoicesDirty && !combo.Unwrap()->open) {
+			m_documentChoicesDirty = false;
+			combo.Unwrap()->SetCategories(DocumentChoices());
+		}
 		const std::vector<String> &items = combo.Unwrap()->items;
 		for (size_t i = 0; i < items.size(); ++i)
 			if (items[i] == scene->name)
@@ -1931,6 +2080,38 @@ String EditorUi::SuggestedPath(const char *sub, const String &fileName) const {
 	return files::Join(files::Join(directory.IsEmpty() ? m_savesDir : directory, String(sub)), fileName);
 }
 
+void EditorUi::OnSaveObjectAs() {
+	const SceneDesc *object = Rt().ActiveScene();
+	if (!object || !object->IsObject()) {
+		SetStatus(String("Ouvrez d'abord l'objet à enregistrer (onglet Objets)"));
+		return;
+	}
+	m_dialogKey = object->name;
+	OpenDialog(DialogKind::SAVE_OBJECT_AS, String("Enregistrer l'objet sous"),
+			   String("L'objet ouvert, dans un seul fichier .object."),
+			   SuggestedPath(files::OBJECTS_DIR, files::SafeFileName(object->name) + String(".object")),
+			   String("Chemin du fichier .object"), String("Enregistrer"));
+}
+
+String EditorUi::ActiveScriptKey() {
+	// Le script au premier plan dans la zone de documents, sinon le script
+	// de jeu de la scène ouverte.
+	if (const CodeDocument *doc = m_documents.Active()) {
+		if (doc->kind == DocumentKind::LIBRARY_SCRIPT)
+			return doc->target;
+		if (doc->kind == DocumentKind::SCENE_SCRIPT)
+			return String("@") + doc->target;
+	}
+	return String("@") + ActiveSceneName();
+}
+
+void EditorUi::OnImportObject() {
+	OpenDialog(DialogKind::IMPORT_OBJECT, String("Importer un objet"),
+			   String("Ajoute au projet l'objet d'un fichier .object."),
+			   SuggestedPath(files::OBJECTS_DIR, String()), String("Chemin du fichier .object"),
+			   String("Importer"));
+}
+
 void EditorUi::OnSaveSceneAs() {
 	const SceneDesc *scene = Rt().ActiveScene();
 	if (!scene)
@@ -1971,7 +2152,7 @@ void EditorUi::EnsureParentDirectory(const String &path) {
 }
 
 void EditorUi::OnSaveSelectionAsScene() {
-	const scene::Node *node = Rt().SelectedObject();
+	const scene::Node *node = Rt().SelectedNode();
 	if (!node) {
 		SetStatus(String("Sélectionnez le nœud à enregistrer comme scène"));
 		return;
@@ -2275,6 +2456,28 @@ void EditorUi::ConfirmDialog() {
 			CloseDialog();
 			return;
 		}
+		case DialogKind::SAVE_OBJECT_AS: {
+			const String path = WithExtension(text, ".object");
+			auto saved = Rt().SaveObjectAs(ObjectRef{m_dialogKey}, path);
+			if (saved.IsError()) {
+				ShowDialogError(saved.Error());
+				return;
+			}
+			Rt().LogSuccess(String::Format("Objet enregistré : %s", path.CStr()));
+			CloseDialog();
+			return;
+		}
+		case DialogKind::IMPORT_OBJECT: {
+			auto imported = Rt().ImportObjectFile(text);
+			if (imported.IsError()) {
+				ShowDialogError(imported.Error());
+				return;
+			}
+			Rt().LogSuccess(String::Format("Objet « %s » importé", imported.Value().name.CStr()));
+			CloseDialog();
+			RequestRebuild();
+			return;
+		}
 		case DialogKind::SAVE_SCRIPT_AS: {
 			const String path = WithExtension(text, ".script");
 			auto saved = Rt().SaveScriptAs(m_dialogKey, path);
@@ -2302,11 +2505,17 @@ void EditorUi::BrowseForDialog() {
 		case DialogKind::OPEN_PROJECT:
 			sdl3::dialog::ShowOpenFolder(deliver, Rt().projectsRoot);
 			break;
+		case DialogKind::SAVE_OBJECT_AS:
+			sdl3::dialog::ShowSaveFile(deliver, {sdl3::DialogFilter{"Objets", "object"}}, current);
+			break;
+		case DialogKind::IMPORT_OBJECT:
+			sdl3::dialog::ShowOpenFile(deliver, {sdl3::DialogFilter{"Objets", "object"}}, start);
+			break;
 		case DialogKind::SAVE_SCENE_AS:
-			sdl3::dialog::ShowSaveFile(deliver, {sdl3::DialogFilter{"Scènes", "tscene"}}, current);
+			sdl3::dialog::ShowSaveFile(deliver, {sdl3::DialogFilter{"Scènes", "scene"}}, current);
 			break;
 		case DialogKind::IMPORT_SCENE:
-			sdl3::dialog::ShowOpenFile(deliver, {sdl3::DialogFilter{"Scènes", "tscene"}}, start);
+			sdl3::dialog::ShowOpenFile(deliver, {sdl3::DialogFilter{"Scènes", "scene"}}, start);
 			break;
 		case DialogKind::IMPORT_SCRIPT:
 			sdl3::dialog::ShowOpenFile(deliver, {sdl3::DialogFilter{"Scripts Script", "script"}}, start);
@@ -2349,7 +2558,7 @@ void EditorUi::OnRedo() {
 
 void EditorUi::OnDuplicate() {
 	SceneDesc *scene = Rt().ActiveScene();
-	scene::Node *object = Rt().SelectedObject();
+	scene::Node *object = Rt().SelectedNode();
 	if (!scene || !object)
 		return;
 	const float offset = VisualDesc::Has(*object) ? VisualDesc::Read(*object).dimensions.x + 0.5f : 1.f;
@@ -2363,7 +2572,7 @@ void EditorUi::OnDuplicate() {
 
 void EditorUi::OnDeleteSelection() {
 	const scene::NodeId id = Rt().SelectedId();
-	const scene::Node *node = Rt().FindObject(id);
+	const scene::Node *node = Rt().FindNode(id);
 	if (!node)
 		return;
 	const String name = node->name;

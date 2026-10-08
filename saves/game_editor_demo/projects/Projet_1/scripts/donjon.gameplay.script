@@ -1,0 +1,763 @@
+# ── Donjon : assemble les étages d'après le plan, puis la partie ─────────────
+#
+# Le plan (game.state().plan, cf. scène « Génération ») compte plusieurs
+# ÉTAGES ; chacun est une grille de cases, chaque case nomme une pièce — un
+# OBJET du projet (objects/<pièce>.object) — et une rotation en quarts de
+# tour. Toutes les pièces partagent la même convention (case de 8 m, portes
+# centrées sur les côtés) : posées côte à côte, leurs portes se raccordent.
+# Les salles ont quatre portes : celles qui ne mènent nulle part reçoivent
+# une « porte murée ». L'étage k est posé à y = −7 k.
+#
+# Les étages se rejoignent par un escalier ou une échelle : la pièce du haut
+# (escalier_descente, puits_echelle) et celle du bas (escalier_arrivee,
+# echelle_arrivee) occupent la même case avec la même rotation ; leurs nœuds
+# « Passage » (comportements escalier / echelle) sont reliés par la
+# propriété `vers`. Un passage DEMANDE la traversée
+# (game.state().demande_transit) ; le Donjon la joue : fondu au noir, le
+# joueur réapparaît au repère « Arrivée » de l'autre passage.
+#
+# Les monstres (squelettes, zombies, araignées, piranhas) sont aussi des
+# objets ; leur comportement (scripts/mobs) lit la carte publiée dans
+# game.state().donjon. Un coup d'épée incrémente la propriété `coups` de leur
+# nœud « Corps » ; leurs coups et leurs morts reviennent par
+# game.state().degats_joueur et game.state().morts.
+#
+# Vue à la première personne (Behaviour « Joueur », script de nœud
+# « player ») ; la souris est capturée — F7 la libère pour cliquer
+# l'interface. Sans joueur, le chevalier suit seul le chemin, d'étage en
+# étage, jusqu'au portail et combat en route.
+
+const CASE = 8.0
+const ETAGE = 7.0
+const PV_MAX = 100
+const DEGATS = {"Facile": 6, "Normal": 10, "Difficile": 14}
+const PRIMES = {"squelette": 5, "zombie": 8, "araignee": 6, "pirana": 4}
+const NOMS = {"squelette": "Squelette", "zombie": "Zombie", "araignee": "Araignée", "pirana": "Piranha"}
+const PX = 16   # taille d'une case sur la mini-carte
+const FONDU = 0.45
+const TROTTOIR = 1.15   # distance du trottoir à l'axe d'un canal
+
+fn distance_plane(a, b) {
+    let dx = a[0] - b[0]
+    let dz = a[2] - b[2]
+    return math.sqrt(dx * dx + dz * dz)
+}
+
+fn plan_par_defaut() {
+    # Scène lancée seule depuis l'éditeur : deux étages de 2 × 2 reliés par
+    # une échelle, le second dans les égouts.
+    let haut = [
+        {x: 0, y: 0, ouvert: [true, true, false, false], piece: "entree", rotation: 0, salle: true, egout: false},
+        {x: 1, y: 0, ouvert: [true, false, false, true], piece: "couloir_angle", rotation: 3, salle: false,
+         egout: false},
+        {x: 0, y: 1, ouvert: [false, false, true, false], piece: "salle_tresor", rotation: 0, salle: true,
+         egout: false},
+        {x: 1, y: 1, ouvert: [false, false, true, false], piece: "puits_echelle", rotation: 0, salle: true,
+         egout: false},
+    ]
+    let bas = [
+        {x: 0, y: 0, ouvert: [true, true, false, false], piece: "egout_angle", rotation: 0, salle: false, egout: true},
+        {x: 1, y: 0, ouvert: [true, false, false, true], piece: "egout_angle", rotation: 3, salle: false, egout: true},
+        {x: 0, y: 1, ouvert: [false, false, true, false], piece: "sortie", rotation: 0, salle: true, egout: false},
+        {x: 1, y: 1, ouvert: [false, false, true, false], piece: "echelle_arrivee", rotation: 0, salle: true,
+         egout: false},
+    ]
+    return {nom: "Crypte d'essai", graine: 0, difficulte: "Normal", etages: [
+        {numero: 0, nom: "Les salles hautes", largeur: 2, hauteur: 2, cases: haut, depart: [0, 0],
+         chemin: [0, 1, 3], lien: {x: 1, y: 1, genre: "echelle", rotation: 0}, sortie: [1, 1], dernier: false,
+         egout: false, monstres: [[1, 0, 0.5, 0.5, "squelette"], [0, 1, 1.0, 0.0, "araignee"]]},
+        {numero: 1, nom: "Les égouts", largeur: 2, hauteur: 2, cases: bas, depart: [1, 1], chemin: [3, 1, 0, 2],
+         lien: nil, sortie: [0, 1], dernier: true, egout: true,
+         monstres: [[1, 0, 0.0, 2.0, "pirana"], [0, 0, 2.0, 0.0, "pirana"], [0, 0, 1.15, 2.5, "zombie"]]},
+    ]}
+}
+
+# Côté (0 nord, 1 est, 2 sud, 3 ouest) de la case `a` qui mène à sa voisine `b`.
+fn cote_vers(a, b) {
+    if (b[1] > a[1]) { return 0 }
+    if (b[0] > a[0]) { return 1 }
+    if (b[1] < a[1]) { return 2 }
+    return 3
+}
+
+# Seuil de la porte du côté `s` d'une case de centre `c` ; dans les égouts,
+# sur le trottoir plutôt que dans le canal.
+fn seuil(c, s, egout) {
+    let d = [[0, 1], [1, 0], [0, -1], [-1, 0]][s]
+    let x = c[0] + d[0] * CASE / 2
+    let z = c[1] + d[1] * CASE / 2
+    if (egout) {
+        if (d[0] == 0) { x += TROTTOIR } else { z += TROTTOIR }
+    }
+    return [x, z]
+}
+
+# Coin du trottoir d'un égout, du côté du bras `s`.
+fn coin(c, s) {
+    let d = [[TROTTOIR, TROTTOIR], [TROTTOIR, TROTTOIR], [TROTTOIR, -TROTTOIR], [-TROTTOIR, TROTTOIR]][s]
+    return [c[0] + d[0], c[1] + d[1]]
+}
+
+# ── Un étage du plan (objet de script ordinaire : aucune ressource) ──────────
+
+class Grille {
+    let numero = 0
+    let w = 0
+    let h = 0
+    let y = 0
+    let cases = []
+
+    fn init(etage, numero) {
+        this.numero = numero
+        this.w = etage.largeur
+        this.h = etage.hauteur
+        this.y = -numero * ETAGE
+        this.cases = etage.cases
+    }
+
+    fn centre(x, y) {
+        return [(x - (this.w - 1) / 2) * CASE, (y - (this.h - 1) / 2) * CASE]
+    }
+
+    fn centre_indice(i) { return this.centre(i % this.w, i32(i / this.w)) }
+
+    fn case_de(px, pz) {
+        return [i64(math.round(px / CASE + (this.w - 1) / 2)), i64(math.round(pz / CASE + (this.h - 1) / 2))]
+    }
+
+    fn dedans(c) { return c[0] >= 0 and c[1] >= 0 and c[0] < this.w and c[1] < this.h }
+}
+
+# ── Les ressources : pièces et monstres ──────────────────────────────────────
+
+# Un modèle de pièce : chaque `poser` en crée une instance sous « Niveau ».
+# (Les instances disparaissent avec l'objet de script : on les garde.)
+class Piece extends ObjectAsset {
+    fn poser(x, y, z, quarts) {
+        return this.instantiate({parent: "Niveau", pos: [x, y, z], rot: [0, quarts * 90, 0]})
+    }
+}
+
+# Une espèce de monstre : le comportement du nœud « Corps » fait le reste
+# (c'est lui qui s'oriente : la racine de l'instance reste sans rotation).
+class Espece extends ObjectAsset {
+    fn poser(x, y, z) {
+        return this.instantiate({parent: "Monstres", pos: [x, y, z]})
+    }
+}
+
+# ── La partie ────────────────────────────────────────────────────────────────
+
+class Donjon extends Scene {
+    let plan = nil
+    let etages = []       # Grille par étage
+    let etage = 0         # étage du joueur
+    let pieces = {}       # nom de pièce → Piece
+    let especes = {}      # espèce → Espece
+    let monstres = []     # {corps, espece} : chemin du nœud « Corps »
+    let pv = PV_MAX
+    let or_ = 0
+    let tues = {}
+    let total_tues = 0
+    let temps = 0
+    let fini = false
+    let degats = 10
+    let recharge_coup = 0
+    let frappe_avant = false
+    let coffres = []      # {chemin, pos, ouvert}
+    let portail = nil     # {chemin, pos} du portail
+    let arrivees = []     # par étage : position où (re)poser le joueur
+    let etapes = []       # par étage : chemins des étapes de la visite guidée
+    let visite = []       # par étage : cases découvertes (brouillard de la carte)
+    let transit = nil     # traversée en cours {de, vers, genre, role, t, fait}
+    let hud = {}
+    let message_temps = 0
+    let immobile = 0      # visite guidée : temps passé sans avancer
+    let repere_pos = nil
+    let noye = 0          # temps passé dans un canal
+    let cible_avant = ""
+    let duree_cible = 0
+    let ignores = {}      # corps → instant jusqu'auquel la visite l'ignore
+
+    fn on_start() {
+        this.plan = this.state().plan or plan_par_defaut()
+        if (this.plan.etages == nil) { this.plan = plan_par_defaut() } # ancien plan à un seul étage
+        this.degats = DEGATS[this.plan.difficulte] or 10
+        let etat = game.state()
+        etat.degats_joueur = 0
+        etat.morts = []
+        etat.transit = nil
+        etat.transit_fin = 0
+        etat.demande_transit = nil
+        etat.indice = nil
+        let carte = []
+        for (n in range(len(this.plan.etages))) {
+            let e = this.plan.etages[n]
+            let g = Grille(e, n)
+            this.etages.append(g)
+            let vu = []
+            for (i in range(g.w * g.h)) { vu.append(false) }
+            this.visite.append(vu)
+            carte.append({largeur: g.w, hauteur: g.h, cases: e.cases})
+        }
+        etat.donjon = {etages: carte}
+        this.construire()
+        this.commencer_a(etat.etage_depart or 0)
+        etat.etage_depart = 0   # « Rejouer » repart d'en haut
+        this.creer_interface()
+        input.set_mouse_mode("captured")
+        this.annoncer(this.plan.nom .. " — " .. this.plan.etages[this.etage].nom)
+        editor.log(format("{} : {} étages, {} monstres, {} coffres", this.plan.nom, len(this.etages),
+                          len(this.monstres), len(this.coffres)))
+    }
+
+    # ── Construction ─────────────────────────────────────────────────────────
+
+    fn piece(nom) {
+        if (not this.pieces[nom]) { this.pieces[nom] = Piece(nom) }
+        return this.pieces[nom]
+    }
+
+    fn espece(nom) {
+        if (not this.especes[nom]) { this.especes[nom] = Espece(nom) }
+        return this.especes[nom]
+    }
+
+    # Premier enfant de `racine` portant l'un des `noms` (les objets peuvent
+    # être modifiés dans l'éditeur) : {chemin, pos}, ou nil s'il n'y en a pas.
+    fn repere(racine, noms) {
+        for (n in noms) {
+            let chemin = racine .. "/" .. n
+            let pos = node.world_position(chemin)
+            if (pos != nil) { return {chemin: chemin, pos: pos} }
+        }
+        editor.warn(format("{} : aucun nœud parmi {}", racine, noms))
+        return nil
+    }
+
+    fn construire() {
+        node.create_group("Monstres")
+        node.create_group("Chemin")
+        let haut = nil   # passage du haut de l'étage précédent
+        for (n in range(len(this.etages))) {
+            let g = this.etages[n]
+            let e = this.plan.etages[n]
+            let bas = nil
+            let suivant = nil
+            for (k in g.cases) {
+                let c = g.centre(k.x, k.y)
+                let racine = node.path(this.piece(k.piece).poser(c[0], g.y, c[1], k.rotation))
+                if (k.salle) {
+                    for (s in range(4)) {
+                        if (not k.ouvert[s]) { this.piece("porte_muree").poser(c[0], g.y, c[1], s) }
+                    }
+                }
+                if (k.piece == "salle_tresor") {
+                    let r = this.repere(racine, ["Coffre", "chest", "Chest"])
+                    if (r != nil) { this.coffres.append({chemin: r.chemin, pos: r.pos, ouvert: false}) }
+                }
+                if (k.piece == "sortie") { this.portail = this.repere(racine, ["Portail", "portal", "Portal"]) }
+                if (k.piece == "escalier_descente" or k.piece == "puits_echelle") {
+                    suivant = this.repere(racine, ["Passage"])
+                }
+                if (n > 0 and k.x == e.depart[0] and k.y == e.depart[1] and
+                    (k.piece == "escalier_arrivee" or k.piece == "echelle_arrivee")) {
+                    bas = this.repere(racine, ["Passage"])
+                }
+            }
+            # Le passage du dessus et celui-ci se désignent l'un l'autre.
+            if (haut != nil and bas != nil) {
+                node.prop(haut.chemin, "vers", bas.chemin)
+                node.prop(bas.chemin, "vers", haut.chemin)
+                node.prop(haut.chemin, "etage", n)
+                node.prop(bas.chemin, "etage", n - 1)
+            } else if (n > 0) {
+                editor.warn(format("Étage {} : passage introuvable", n + 1))
+            }
+            # Point d'arrivée de l'étage : l'entrée, ou le pied du passage.
+            let d = g.centre(e.depart[0], e.depart[1])
+            let arrivee = [d[0], g.y + 1, d[1]]
+            if (bas != nil) {
+                let a = node.world_position(bas.chemin .. "/Arrivée")
+                if (a != nil) { arrivee = a }
+            }
+            this.arrivees.append(arrivee)
+            this.poser_monstres(g, e)
+            this.poser_etapes(g, e, n, suivant)
+            haut = suivant
+        }
+        # Le joueur à l'entrée, tourné vers la première étape.
+        let d = this.arrivees[0]
+        let cap = 0
+        let chemin = this.plan.etages[0].chemin
+        if (len(chemin) > 1) {
+            let v = this.etages[0].centre_indice(chemin[1])
+            cap = math.atan2(v[0] - d[0], v[1] - d[2]) * 180 / math.pi
+        }
+        object.set_position("Joueur", d[0], d[1], d[2])
+        object.set_rotation("Joueur", 0, cap, 0)
+    }
+
+    # Scénario qui commence plus bas : le joueur au pied du passage de
+    # l'étage `n` ; la visite guidée oublie les étages du dessus.
+    fn commencer_a(n) {
+        if (n <= 0 or n >= len(this.etages)) { return nil }
+        this.etage = n
+        let a = this.arrivees[n]
+        object.set_position("Joueur", a[0], a[1], a[2])
+        for (k in range(n)) {
+            for (q in this.etapes[k]) { scene.remove(q.nom) }
+        }
+    }
+
+    fn poser_monstres(g, e) {
+        for (m in e.monstres) {
+            let c = g.centre(m[0], m[1])
+            let espece = m[4] or "squelette"
+            let nom = this.espece(espece).poser(c[0] + m[2], g.y, c[1] + m[3])
+            this.monstres.append({corps: node.path(nom) .. "/Corps", espece: espece})
+        }
+    }
+
+    # Étapes de la visite guidée, dans l'ordre : pour chaque case du chemin,
+    # le seuil de la porte puis l'intérieur de la case ; enfin le passage vers
+    # l'étage suivant. Dans les égouts, on longe le trottoir (à TROTTOIR de
+    # l'axe du canal), on tourne aux coins et on traverse par le pont central.
+    fn poser_etapes(g, e, n, passage) {
+        let points = []
+        let avant = nil
+        for (i in e.chemin) {
+            let ici = [i % g.w, i32(i / g.w)]
+            let k = g.cases[i]
+            let c = g.centre(ici[0], ici[1])
+            if (avant == nil) {
+                points.append(c)
+            } else {
+                let s = cote_vers(avant, ici)
+                let entree = (s + 2) % 4
+                let egout = k.egout or g.cases[avant[1] * g.w + avant[0]].egout
+                points.append(seuil(c, entree, egout))
+                if (k.egout) {
+                    let suivant = nil
+                    let rang = this.rang_dans(e.chemin, i)
+                    if (rang + 1 < len(e.chemin)) {
+                        let j = e.chemin[rang + 1]
+                        suivant = cote_vers(ici, [j % g.w, i32(j / g.w)])
+                    }
+                    let a = coin(c, entree)
+                    points.append(a)
+                    if (suivant != nil) {
+                        let b = coin(c, suivant)
+                        if (a[0] != b[0] or a[1] != b[1]) {
+                            points.append(c)   # le pont central
+                            points.append(b)
+                        }
+                    }
+                } else {
+                    points.append(c)
+                }
+            }
+            avant = ici
+        }
+        if (passage != nil) { points.append([passage.pos[0], passage.pos[2]]) }
+        let liste = []
+        let rang = 0
+        for (q in points) {
+            rang += 1
+            if (rang == 1) { continue }   # la case d'arrivée : on y est déjà
+            let nom = format("Étape {}.{}", n + 1, rang)
+            scene.spawn({name: nom, parent: "Chemin", shape: "box", size: [0.2, 0.2, 0.2], pos: [q[0], g.y + 1, q[1]],
+                         visible: false, tag: "etape"})
+            liste.append({nom: nom, pos: [q[0], g.y + 1, q[1]]})
+        }
+        this.etapes.append(liste)
+    }
+
+    fn rang_dans(liste, valeur) {
+        for (r in range(len(liste))) { if (liste[r] == valeur) { return r } }
+        return -1
+    }
+
+    # ── Interface ────────────────────────────────────────────────────────────
+
+    fn creer_interface() {
+        let bloc = ui.column({anchor: "top_left", offset: [16, 14], gap: 6, pad: 12, bg: "#120e0cc8", radius: 8, w: 250})
+        this.hud.pv = ui.progress(PV_MAX, PV_MAX, {parent: bloc, w: 210})
+        this.hud.pv_texte = ui.label("PV", {parent: bloc, font_size: 13})
+        this.hud.or_ = ui.label("Or : 0", {parent: bloc, font_size: 16, color: "#ffd060"})
+        this.hud.etage = ui.label("", {parent: bloc, font_size: 14, color: "#e8c27a"})
+        this.hud.tues = ui.label("Monstres vaincus : 0", {parent: bloc, font_size: 13})
+        ui.label(this.plan.nom, {anchor: "top", offset: [0, 14], font_size: 26, bold: true, color: "#e8c27a"})
+        this.hud.message = ui.label("", {anchor: "center", offset: [0, -120], font_size: 22, bold: true,
+                                         color: "#ffe9b0"})
+        this.hud.indice = ui.label("", {anchor: "center", offset: [0, 90], font_size: 17, color: "#f0e6d0"})
+        ui.button("Menu", fn(b) { this.load("Menu-principal") }, {anchor: "top_right", offset: [-14, 14], w: 80})
+        ui.label("ZQSD / WASD : marcher · souris : regarder · Espace ou clic : frapper · E : échelle · F7 : souris",
+                 {anchor: "bottom", offset: [0, -14], font_size: 13, color: "#c9bfaea0"})
+    }
+
+    fn annoncer(texte) {
+        this.hud.message.text = texte
+        this.message_temps = 2.5
+    }
+
+    fn rafraichir_interface(dt) {
+        this.hud.pv.value = this.pv
+        this.hud.pv_texte.text = format("PV {} / {}", this.pv, PV_MAX)
+        this.hud.or_.text = format("Or : {}", this.or_)
+        this.hud.etage.text = format("Étage {} / {} — {}", this.etage + 1, len(this.etages),
+                                     this.plan.etages[this.etage].nom)
+        let detail = ""
+        for (nom in ["squelette", "zombie", "araignee", "pirana"]) {
+            if ((this.tues[nom] or 0) > 0) { detail = detail .. format(" · {} {}", NOMS[nom], this.tues[nom]) }
+        }
+        this.hud.tues.text = format("Monstres vaincus : {}{}", this.total_tues, detail)
+        this.message_temps -= dt
+        if (this.message_temps <= 0) { this.hud.message.text = "" }
+        let etat = game.state()
+        this.hud.indice.text = etat.indice or ""
+        etat.indice = nil   # les passages le reposent à chaque image
+    }
+
+    # Mini-carte de l'étage courant (2D, coin bas-droit) : seules les cases
+    # découvertes et leurs voisines ouvertes apparaissent.
+    fn dessiner_carte() {
+        let g = this.etages[this.etage]
+        let visite = this.visite[this.etage]
+        let e = this.plan.etages[this.etage]
+        let taille = canvas.size()
+        let ox = taille[0] - 24 - g.w * PX
+        let oy = taille[1] - 60 - g.h * PX
+        draw2d.rect(ox - 6, oy - 6, g.w * PX + 12, g.h * PX + 12, "#0c0a09c0",
+                    {z: 40, outline: 1, outline_color: "#8a7f7480"})
+        draw2d.text(format("Étage {}", this.etage + 1), ox - 4, oy - 24, {z: 41, size: 12, color: "#c9bfae"})
+        for (i in range(g.w * g.h)) {
+            let k = g.cases[i]
+            let connu = visite[i]
+            if (not connu) {
+                for (s in range(4)) {
+                    let nx = k.x + [0, 1, 0, -1][s]
+                    let ny = k.y + [1, 0, -1, 0][s]
+                    if (k.ouvert[s] and g.dedans([nx, ny]) and visite[ny * g.w + nx]) { connu = true }
+                }
+            }
+            if (not connu) { continue }
+            # Case (y vers le haut à l'écran = nord).
+            let cx = ox + (k.x + 0.5) * PX
+            let cy = oy + (g.h - k.y - 0.5) * PX
+            let teinte = "#9c8f80"
+            if (k.egout) { teinte = "#6f9a8c" }
+            if (not visite[i]) { teinte = "#5a5048" }
+            if (k.salle) {
+                draw2d.rect(cx - 6, cy - 6, 12, 12, teinte, {z: 41})
+            } else {
+                draw2d.rect(cx - 2, cy - 2, 4, 4, teinte, {z: 41})
+            }
+            let bras = [[0, -1], [1, 0], [0, 1], [-1, 0]] # nord = haut de l'écran
+            for (s in range(4)) {
+                if (k.ouvert[s]) {
+                    draw2d.line(cx, cy, cx + bras[s][0] * PX / 2, cy + bras[s][1] * PX / 2, teinte, {z: 41, width: 3})
+                }
+            }
+            if (k.piece == "sortie") { draw2d.circle(cx, cy, 3.5, "#78dcff", {z: 43}) }
+            if (k.piece == "escalier_descente" or k.piece == "puits_echelle") {
+                draw2d.circle(cx, cy, 3.5, "#ffb050", {z: 43})   # vers le bas
+            }
+            if (k.piece == "escalier_arrivee" or k.piece == "echelle_arrivee") {
+                draw2d.circle(cx, cy, 3.5, "#a0d070", {z: 43})   # vers le haut
+            }
+        }
+        let p = object.position("Joueur")
+        let px = ox + (p[0] / CASE + (g.w - 1) / 2 + 0.5) * PX
+        let py = oy + (g.h - (p[2] / CASE + (g.h - 1) / 2) - 0.5) * PX
+        let a = object.rotation("Joueur")[1] * math.pi / 180
+        draw2d.line(px, py, px + math.sin(a) * 8, py - math.cos(a) * 8, "#ffd873", {z: 46, width: 2})
+        draw2d.circle(px, py, 3.5, "#ffd873", {z: 46, outline: 1, outline_color: "#000000"})
+    }
+
+    fn dessiner_viseur() {
+        if (input.mouse_mode() != "captured") { return nil }
+        let t = canvas.size()
+        let cx = t[0] / 2
+        let cy = t[1] / 2
+        draw2d.line(cx - 9, cy, cx - 3, cy, "#ffffffc0", {z: 50, width: 2})
+        draw2d.line(cx + 3, cy, cx + 9, cy, "#ffffffc0", {z: 50, width: 2})
+        draw2d.line(cx, cy - 9, cx, cy - 3, "#ffffffc0", {z: 50, width: 2})
+        draw2d.line(cx, cy + 3, cx, cy + 9, "#ffffffc0", {z: 50, width: 2})
+    }
+
+    # ── Traversée d'un étage à l'autre ───────────────────────────────────────
+
+    fn commencer_transit(demande) {
+        let etage = node.prop(demande.de, "etage")
+        if (etage == nil) { return nil }
+        this.transit = {de: demande.de, vers: demande.vers, genre: demande.genre, role: demande.role, t: 0,
+                        fait: false, etage: etage}
+        game.state().transit = this.transit
+        node.prop("Joueur", "transit", true)
+        node.prop("Joueur", "cible", "")
+    }
+
+    fn jouer_transit(dt) {
+        let tr = this.transit
+        tr.t += dt
+        let alpha = 0
+        if (tr.t < FONDU) {
+            alpha = tr.t / FONDU
+            # Le chevalier s'enfonce (descente) ou s'élève (montée) dans le noir.
+            let p = object.position("Joueur")
+            let sens = -1
+            if (tr.role == "montee") { sens = 1 }
+            object.set_position("Joueur", p[0], p[1] + sens * dt * 2.2, p[2])
+        } else if (not tr.fait) {
+            tr.fait = true
+            alpha = 1
+            let a = node.world_position(tr.vers .. "/Arrivée") or node.world_position(tr.vers)
+            object.set_position("Joueur", a[0], a[1], a[2])
+            let quitte = this.etage
+            this.etage = tr.etage
+            # La visite guidée a franchi cet étage : ses étapes restantes partent.
+            for (q in this.etapes[quitte]) {
+                if (scene.exists(q.nom)) { scene.remove(q.nom) }
+            }
+            let verbe = "descendez"
+            if (tr.role == "montee") { verbe = "montez" }
+            let moyen = "l'escalier"
+            if (tr.genre == "echelle") { moyen = "l'échelle" }
+            this.annoncer(format("Vous {} par {} — étage {} : {}", verbe, moyen, this.etage + 1,
+                                 this.plan.etages[this.etage].nom))
+        } else {
+            alpha = math.max(0, 1 - (tr.t - FONDU) / FONDU)
+        }
+        let t = canvas.size()
+        draw2d.rect(0, 0, t[0], t[1], format("#000000{}", ["00", "40", "80", "c0", "ff"][i64(math.round(alpha * 4))]),
+                    {z: 60})
+        if (tr.t >= 2 * FONDU) {
+            this.transit = nil
+            let etat = game.state()
+            etat.transit = nil
+            etat.transit_fin = game.time() + 1.2
+            node.prop("Joueur", "transit", false)
+        }
+    }
+
+    # ── Combat ───────────────────────────────────────────────────────────────
+
+    fn vivants() {
+        let restants = []
+        for (m in this.monstres) {
+            if (scene.exists(m.corps)) { restants.append(m) }
+        }
+        this.monstres = restants
+        return restants
+    }
+
+    # Coup d'épée : les monstres à portée, devant le joueur, à son étage. Un
+    # piranha ne se touche que hors de l'eau.
+    fn frapper() {
+        let p = object.position("Joueur")
+        let sol = p[1] - 1
+        let cap = object.rotation("Joueur")[1] * math.pi / 180
+        for (m in this.vivants()) {
+            let q = node.world_position(m.corps)
+            if (q == nil or math.abs(q[1] - sol) > 1.8) { continue }
+            if (m.espece == "pirana" and q[1] < sol - 0.15) { continue }
+            let dx = q[0] - p[0]
+            let dz = q[2] - p[2]
+            let d = math.sqrt(dx * dx + dz * dz)
+            if (d < 2.4 and (dx * math.sin(cap) + dz * math.cos(cap)) > d * 0.3) {
+                node.prop(m.corps, "coups", (node.prop(m.corps, "coups") or 0) + 1)
+            }
+        }
+        this.recharge_coup = 0.5
+    }
+
+    # Ce que les monstres ont fait depuis l'image précédente.
+    fn bilan() {
+        let etat = game.state()
+        if ((etat.degats_joueur or 0) > 0) {
+            this.pv = math.max(0, this.pv - i64(math.round(etat.degats_joueur * this.degats)))
+            this.annoncer(format("{} vous frappe !", NOMS[etat.dernier_coup] or "Un monstre"))
+            etat.degats_joueur = 0
+        }
+        if (etat.morts != nil and len(etat.morts) > 0) {
+            for (m in etat.morts) {
+                this.tues[m.espece] = (this.tues[m.espece] or 0) + 1
+                this.total_tues += 1
+                this.or_ += PRIMES[m.espece] or 5
+                let nom = NOMS[m.espece] or "Monstre"
+                let accord = ""
+                if (m.espece == "araignee") { accord = "e" }
+                this.annoncer(format("{} vaincu{} ! +{} or", nom, accord, PRIMES[m.espece] or 5))
+            }
+            etat.morts = []
+        }
+    }
+
+    # Visite guidée : le chevalier fait face au monstre le plus proche qu'il
+    # peut toucher (pas un piranha sous l'eau) et frappe ; une cible qui lui
+    # résiste plus de 5 s est laissée de côté un moment.
+    fn guider(dt) {
+        let p = object.position("Joueur")
+        let sol = p[1] - 1
+        let cible = ""
+        let plus_proche = 1e9
+        for (m in this.monstres) {
+            if ((this.ignores[m.corps] or 0) > this.temps) { continue }
+            let q = node.world_position(m.corps)
+            if (q == nil or math.abs(q[1] - sol) > 1.8) { continue }
+            if (m.espece == "pirana" and q[1] < sol - 0.15) { continue }
+            let d = distance_plane(p, q)
+            if (d < 4 and d < plus_proche) {
+                plus_proche = d
+                cible = m.corps
+            }
+        }
+        let manuel = node.prop("Joueur", "manuel") == true
+        if (manuel) { cible = "" }
+        if (cible != "" and cible == this.cible_avant) {
+            this.duree_cible += dt
+            if (this.duree_cible > 5) {
+                this.ignores[cible] = this.temps + 8
+                cible = ""
+            }
+        } else {
+            this.duree_cible = 0
+        }
+        this.cible_avant = cible
+        node.prop("Joueur", "cible", cible)
+        if (not manuel and cible != "" and plus_proche < 2.3 and this.recharge_coup <= 0) { this.frapper() }
+    }
+
+    # La prochaine étape de la visite (la première encore posée à cet étage) ;
+    # une étape atteinte est retirée.
+    fn prochaine_etape(p) {
+        for (q in this.etapes[this.etage]) {
+            if (scene.exists(q.nom)) {
+                if (distance_plane(p, q.pos) < 0.9) {
+                    scene.remove(q.nom)
+                } else {
+                    return q
+                }
+            }
+        }
+        return nil
+    }
+
+    # Secours : hors d'un canal où l'on est tombé (le pont de la case), et,
+    # en visite guidée, un chevalier coincé 3 s saute à sa prochaine étape.
+    fn secourir(p, g, dt) {
+        let q = this.prochaine_etape(p)
+        if (p[1] < g.y + 0.4) {
+            this.noye += dt
+            if (this.noye > 1.5) {
+                let c = g.case_de(p[0], p[2])
+                let o = g.centre(c[0], c[1])
+                object.set_position("Joueur", o[0], g.y + 1.2, o[1])
+                this.annoncer("Vous vous hissez hors du canal")
+                this.noye = 0
+            }
+        } else {
+            this.noye = 0
+        }
+        if (node.prop("Joueur", "manuel") == true or node.prop("Joueur", "cible") != "") {
+            this.immobile = 0
+            return nil
+        }
+        if (this.repere_pos == nil or distance_plane(p, this.repere_pos) > 0.3) {
+            this.repere_pos = p
+            this.immobile = 0
+        } else {
+            this.immobile += dt
+        }
+        if (this.immobile > 3 and q != nil) {
+            object.set_position("Joueur", q.pos[0], q.pos[1], q.pos[2])
+            this.immobile = 0
+            this.repere_pos = nil
+        }
+    }
+
+    # ── Partie ───────────────────────────────────────────────────────────────
+
+    fn terminer(victoire) {
+        this.fini = true
+        input.set_mouse_mode("free") # boutons de fin de partie
+        node.prop("Joueur", "cible", "")
+        let titre = "Vous êtes tombé…"
+        if (victoire) { titre = "Vous avez trouvé la sortie !" }
+        let panneau = ui.column({anchor: "center", gap: 10, pad: 26, bg: "#120e0ce8", radius: 10, align: "center"})
+        ui.label(titre, {parent: panneau, font_size: 26, bold: true, color: "#e8c27a"})
+        ui.label(format("{} — étage {} / {}, {} s, {} pièces d'or, {} monstres vaincus", this.plan.nom,
+                        this.etage + 1, len(this.etages), math.round(this.temps), this.or_, this.total_tues),
+                 {parent: panneau, color: "#c9bfae"})
+        ui.button("Rejouer ce donjon", fn(b) { this.load("Donjon") }, {parent: panneau, w: 300})
+        ui.button("Nouveau donjon", fn(b) {
+            let etat = this.state()
+            etat.graine = (etat.graine or 1234) + 1
+            this.load("Génération")
+        }, {parent: panneau, w: 300})
+        ui.button("Menu-principal", fn(b) { this.load("Menu-principal") }, {parent: panneau, w: 300})
+        editor.log(format("{} : {} en {} s (étage {}, PV {}, or {}, tués {})", this.plan.nom, titre,
+                          math.round(this.temps * 10) / 10, this.etage + 1, this.pv, this.or_, this.total_tues))
+    }
+
+    fn on_mouse_mode(mode) {
+        if (mode == "captured") {
+            this.annoncer("Souris capturée · F7 pour la libérer")
+        } else {
+            this.annoncer("Souris libre · F7 pour la capturer")
+        }
+    }
+
+    fn on_update(dt) {
+        this.dessiner_carte()
+        this.dessiner_viseur()
+        this.rafraichir_interface(dt)
+        if (this.fini) { return nil }
+        this.temps += dt
+        this.bilan()
+
+        let etat = game.state()
+        if (this.transit != nil) {
+            this.jouer_transit(dt)
+            return nil
+        }
+        if (etat.demande_transit != nil) {
+            let demande = etat.demande_transit
+            etat.demande_transit = nil
+            this.commencer_transit(demande)
+            return nil
+        }
+
+        let p = object.position("Joueur")
+        let g = this.etages[this.etage]
+        let c = g.case_de(p[0], p[2])
+        if (g.dedans(c)) { this.visite[this.etage][c[1] * g.w + c[0]] = true }
+
+        this.recharge_coup -= dt
+        let frappe = input.key("space") or (input.mouse_mode() == "captured" and canvas.mouse_pressed(1))
+        if (frappe and not this.frappe_avant and this.recharge_coup <= 0) { this.frapper() }
+        this.frappe_avant = frappe
+        this.guider(dt)
+        this.secourir(p, g, dt)
+
+        for (k in this.coffres) {
+            if (not k.ouvert and math.abs(k.pos[1] - (p[1] - 1)) < 2 and distance_plane(p, k.pos) < 2.2) {
+                k.ouvert = true
+                node.prop(k.chemin, "open", true)
+                this.or_ += 25
+                this.annoncer("Un coffre plein d'or : +25")
+            }
+        }
+        if (this.portail != nil and math.abs(this.portail.pos[1] - (p[1] - 1)) < 2 and
+            distance_plane(p, this.portail.pos) < 2.4) {
+            this.terminer(true)
+        } else if (this.pv <= 0) {
+            this.terminer(false)
+        } else if (p[1] < g.y - 4) {
+            # Filet de sécurité : tombé sous le sol, retour à l'arrivée de l'étage.
+            let a = this.arrivees[this.etage]
+            object.set_position("Joueur", a[0], a[1], a[2])
+        }
+    }
+}

@@ -314,6 +314,74 @@ TEST(UiZOrder, OpenComboDropdownBlocksTheWidgetsUnderIt) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// 6 bis. Combo par catégories : la liste montre les éléments hors catégorie
+//    puis une ligne par catégorie ; survoler une catégorie ouvre ses éléments
+//    à droite (sous-menu), qui bloque lui aussi les widgets dessous ; les
+//    index comptent les catégories bout à bout.
+// ─────────────────────────────────────────────────────────────────────────
+TEST(UiZOrder, CategorizedComboOpensItsSubmenuOnHover) {
+	Harness h;
+	auto comboB = h.f.Combo(std::vector<ui::ComboCategory>{{String(), {String("Accueil")}},
+														   {String("Scènes"), {String("A"), String("B")}},
+														   {String("Objets"), {String("C"), String("D"), String("E")}}},
+							0);
+	comboB.Anchor(ui::Anchor::TopLeft).Offset(40.f, 40.f).Size(200.f, 30.f);
+	float changed = -1.f;
+	comboB.OnChange([&changed](float v) { changed = v; });
+	ecs::Entity combo = comboB.Spawn();
+	// Un bouton à droite de la liste, là où s'ouvre le sous-menu.
+	auto btnB = h.f.Button("Dessous");
+	btnB.Anchor(ui::Anchor::TopLeft).Offset(250.f, 40.f).Size(200.f, 300.f);
+	ecs::Entity btn = btnB.Spawn();
+	h.Layout();
+	auto box = [&] { return h.ar.GetComponent<ui::UiComboBox>(combo).Unwrap(); };
+	const sdl3::FRect screen = h.ar.GetComponent<ui::UiComputed>(combo).Unwrap()->screen;
+
+	EXPECT_EQ(box()->items.size(), size_t(6));
+	ASSERT_EQ(box()->groups.size(), size_t(2));
+	EXPECT_EQ(box()->TopRows(), 3); // « Accueil », « Scènes ▸ », « Objets ▸ »
+	EXPECT_EQ(box()->GroupOf(4), 1);
+
+	h.Click(60.f, 50.f); // ouvre la liste
+	ASSERT_TRUE(box()->open);
+	EXPECT_EQ(box()->openGroup, -1); // « Accueil » choisi : aucun sous-menu déplié
+
+	// Survol de la 3e ligne : la catégorie « Objets » ouvre son sous-menu.
+	const sdl3::FRect dd = box()->DropdownRect(screen);
+	const float h3 = dd.y + box()->itemHeight * 2.5f;
+	h.Move(60.f, h3);
+	EXPECT_EQ(box()->hoveredGroup, 1);
+	EXPECT_EQ(box()->openGroup, 1);
+	h.Click(60.f, h3); // cliquer une catégorie ne referme pas la liste
+	EXPECT_TRUE(box()->open);
+	EXPECT_TRUE(changed < 0.f);
+
+	// Le sous-menu est à droite de la liste, par-dessus le bouton.
+	const sdl3::FRect sub = box()->SubmenuRect(screen, 1);
+	EXPECT_TRUE(sub.x >= dd.x + dd.w);
+	const float row2 = sub.y + box()->itemHeight * 1.5f; // « D »
+	h.Move(sub.x + 20.f, row2);
+	EXPECT_TRUE(h.input.FrontMostWidget() == combo);
+	EXPECT_TRUE(!h.ButtonHovered(btn));
+	EXPECT_EQ(box()->hoveredItem, 4);
+
+	h.Click(sub.x + 20.f, row2);
+	EXPECT_TRUE(!box()->open);
+	EXPECT_EQ(box()->selected, 4);
+	EXPECT_EQ(int(changed), 4);
+
+	// Rouvrir : la catégorie de l'élément choisi est déjà dépliée.
+	h.Click(60.f, 50.f);
+	EXPECT_EQ(box()->openGroup, 1);
+
+	// SetCategories remplace les choix et referme la liste.
+	box()->SetCategories({{String("Scènes"), {String("A")}}});
+	EXPECT_TRUE(!box()->open);
+	EXPECT_EQ(box()->items.size(), size_t(1));
+	EXPECT_EQ(box()->selected, 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // 7. Coût du filtre — garde-fou de performance.
 //
 // La première version reconstruisait l'ordre de dessin À CHAQUE appel :

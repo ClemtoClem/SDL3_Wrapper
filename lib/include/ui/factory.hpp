@@ -116,6 +116,7 @@ struct UiTheme {
 // WidgetBuilder — accumule la configuration, Spawn() crée l'entité
 // ============================================================================
 
+
 class UiFactory;
 
 class WidgetBuilder {
@@ -892,6 +893,14 @@ public:
 	/// Liste déroulante. `selected` : index initial (-1 = aucun). onChange
 	/// reçoit l'index sélectionné (en float).
 	[[nodiscard]] WidgetBuilder Combo(std::vector<String> items, int selected = 0);
+
+	/// Liste déroulante par catégories : chaque catégorie titrée devient une
+	/// ligne « Titre ▸ » dont les éléments s'ouvrent à droite au survol, comme
+	/// un sous-menu de Menu ; une catégorie SANS titre met ses éléments au
+	/// premier niveau. Les index (`selected`, onChange) comptent les éléments
+	/// de toutes les catégories bout à bout, dans l'ordre :
+	/// `Combo({{"Scènes", {"A", "B"}}, {"Objets", {"C"}}}, 2)` choisit « C ».
+	[[nodiscard]] WidgetBuilder Combo(std::vector<ComboCategory> categories, int selected = 0);
 
 	/// Liste sélectionnable à scroll interne. onChange reçoit l'index.
 	[[nodiscard]] WidgetBuilder Listbox(std::vector<String> items, int selected = -1);

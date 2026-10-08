@@ -1,0 +1,24 @@
+# ── Égouts : un scénario fixe qui commence sous terre ────────────────────────
+#
+# Raccourci d'essai : la graine 2027 en difficulté Normal donne toujours le
+# même donjon de trois étages ; le chevalier commence au deuxième, celui des
+# égouts (canaux d'eau courante, piranhas, zombies sur les trottoirs), au
+# pied de l'escalier ou de l'échelle venus d'en haut.
+
+class Egouts extends Scene {
+    let parti = false
+
+    fn on_start() {
+        ui.label("Les égouts — graine 2027, Normal, étage 2", {anchor: "center", font_size: 22, color: "#8fd0c0"})
+    }
+
+    fn on_update(dt) {
+        if (this.parti) { return nil }
+        this.parti = true
+        let etat = this.state()
+        etat.graine = 2027
+        etat.difficulte = "Normal"
+        etat.etage_depart = 1
+        this.load("Génération")
+    }
+}

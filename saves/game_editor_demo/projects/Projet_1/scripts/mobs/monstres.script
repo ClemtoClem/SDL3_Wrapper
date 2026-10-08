@@ -1,0 +1,374 @@
+# ── Monstres : base commune (module importé par squelette, zombie, araignee,
+#    pirana) ────────────────────────────────────────────────────────────────
+#
+# Chaque monstre est un OBJET du projet (objects/<espèce>.object) dont le nœud
+# « Corps » porte le comportement de son espèce. Le Donjon en pose des
+# instances et publie dans game.state().donjon la carte des étages : cases,
+# ouvertures, salles, égouts. Les monstres s'y déplacent de case en case
+# (parcours en largeur jusqu'à la case du joueur), en glissant le long des
+# murs, et ne quittent jamais leur étage.
+#
+# Échanges avec le Donjon (game.state()) :
+#   - le Donjon compte les coups d'épée reçus dans la propriété `coups` du
+#     nœud « Corps » ; le monstre les lit, clignote en rouge, s'effondre à
+#     0 PV puis retire son instance de la scène ;
+#   - un coup porté au joueur s'ajoute à `degats_joueur`, une mort à `morts`.
+
+const CASE = 8.0
+const ETAGE = 7.0
+const DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]]
+const TROTTOIR = 1.15   # dans les égouts : on longe le canal à cette distance de l'axe
+
+fn distance_plane(a, b) {
+    let dx = a[0] - b[0]
+    let dz = a[2] - b[2]
+    return math.sqrt(dx * dx + dz * dz)
+}
+
+fn replier(a) {
+    while (a > math.pi) { a -= 2 * math.pi }
+    while (a < -math.pi) { a += 2 * math.pi }
+    return a
+}
+
+# ── Lecture de la carte publiée par le Donjon ───────────────────────────────
+
+fn etage_de(carte, y) {
+    let k = i64(math.round(-y / ETAGE))
+    if (k < 0 or k >= len(carte.etages)) { return nil }
+    return carte.etages[k]
+}
+
+fn centre(e, x, y) { return [(x - (e.largeur - 1) / 2) * CASE, (y - (e.hauteur - 1) / 2) * CASE] }
+
+fn case_de(e, px, pz) {
+    return [i64(math.round(px / CASE + (e.largeur - 1) / 2)), i64(math.round(pz / CASE + (e.hauteur - 1) / 2))]
+}
+
+fn dedans(e, c) { return c[0] >= 0 and c[1] >= 0 and c[0] < e.largeur and c[1] < e.hauteur }
+
+fn case_at(e, c) { return e.cases[c[1] * e.largeur + c[0]] }
+
+# Un marcheur (rayon ~0,4 m) peut-il se tenir en (px, pz) ? Intérieur des
+# salles, voies des couloirs, passages par les portes ouvertes ; dans les
+# égouts, les trottoirs et le pont central (jamais le canal).
+fn praticable(e, px, pz) {
+    let c = case_de(e, px, pz)
+    if (not dedans(e, c)) { return false }
+    let k = case_at(e, c)
+    let o = centre(e, c[0], c[1])
+    let lx = px - o[0]
+    let lz = pz - o[1]
+    if (k.salle) {
+        if (math.abs(lx) < 2.9 and math.abs(lz) < 2.9) { return true }
+        if (k.ouvert[0] and math.abs(lx) < 1.05 and lz > 0) { return true }
+        if (k.ouvert[1] and math.abs(lz) < 1.05 and lx > 0) { return true }
+        if (k.ouvert[2] and math.abs(lx) < 1.05 and lz < 0) { return true }
+        if (k.ouvert[3] and math.abs(lz) < 1.05 and lx < 0) { return true }
+        return false
+    }
+    if (k.egout) {
+        if (math.abs(lx) < 0.95 and math.abs(lz) < 0.95) { return true }   # le pont
+        return trottoir(lx, lz, k.ouvert)
+    }
+    let voie = 1.05
+    if (math.abs(lx) < voie and math.abs(lz) < voie) { return true }
+    if (k.ouvert[0] and math.abs(lx) < voie and lz > 0) { return true }
+    if (k.ouvert[1] and math.abs(lz) < voie and lx > 0) { return true }
+    if (k.ouvert[2] and math.abs(lx) < voie and lz < 0) { return true }
+    if (k.ouvert[3] and math.abs(lz) < voie and lx < 0) { return true }
+    return false
+}
+
+# Trottoirs d'un bras d'égout : entre le garde-corps (0,8) et le mur (1,45).
+fn trottoir(lx, lz, ouvert) {
+    let ax = math.abs(lx)
+    let az = math.abs(lz)
+    if (ouvert[0] and lz > 0 and ax > 0.8 and ax < 1.45) { return true }
+    if (ouvert[2] and lz < 0 and ax > 0.8 and ax < 1.45) { return true }
+    if (ouvert[1] and lx > 0 and az > 0.8 and az < 1.45) { return true }
+    if (ouvert[3] and lx < 0 and az > 0.8 and az < 1.45) { return true }
+    # croisement : les quatre coins entre bras ouverts
+    if (ax < 1.45 and az < 1.45 and (ax > 0.8 or az > 0.8)) { return true }
+    return false
+}
+
+# L'eau d'un canal (pour les piranhas) : bras ouverts et centre, sous le pont.
+fn dans_l_eau(e, px, pz) {
+    let c = case_de(e, px, pz)
+    if (not dedans(e, c)) { return false }
+    let k = case_at(e, c)
+    if (not k.egout) { return false }
+    let o = centre(e, c[0], c[1])
+    let lx = px - o[0]
+    let lz = pz - o[1]
+    let r = 0.5
+    if (math.abs(lx) < r and math.abs(lz) < r) { return true }
+    if (k.ouvert[0] and math.abs(lx) < r and lz > 0 and lz < 3.9) { return true }
+    if (k.ouvert[2] and math.abs(lx) < r and lz < 0 and lz > -3.9) { return true }
+    if (k.ouvert[1] and math.abs(lz) < r and lx > 0 and lx < 3.9) { return true }
+    if (k.ouvert[3] and math.abs(lz) < r and lx < 0 and lx > -3.9) { return true }
+    return false
+}
+
+# Prochaine case vers `but` (parcours en largeur sur les ouvertures), ou nil.
+fn prochaine_case(e, depart, but) {
+    if (depart[0] == but[0] and depart[1] == but[1]) { return nil }
+    let n = e.largeur * e.hauteur
+    let avant = []
+    for (i in range(n)) { avant.append(-1) }
+    let d0 = depart[1] * e.largeur + depart[0]
+    let fin = but[1] * e.largeur + but[0]
+    avant[d0] = d0
+    let file = [d0]
+    let tete = 0
+    while (tete < len(file)) {
+        let i = file[tete]
+        tete += 1
+        if (i == fin) { break }
+        let k = e.cases[i]
+        for (s in range(4)) {
+            if (not k.ouvert[s]) { continue }
+            let nx = i % e.largeur + DIRS[s][0]
+            let ny = i32(i / e.largeur) + DIRS[s][1]
+            if (nx < 0 or ny < 0 or nx >= e.largeur or ny >= e.hauteur) { continue }
+            let j = ny * e.largeur + nx
+            if (avant[j] < 0) {
+                avant[j] = i
+                file.append(j)
+            }
+        }
+    }
+    if (avant[fin] < 0) { return nil }
+    let i = fin
+    while (avant[i] != d0) { i = avant[i] }
+    return [i % e.largeur, i32(i / e.largeur)]
+}
+
+# Point de passage entre deux cases voisines : le milieu de leur bord (sur le
+# trottoir si l'une d'elles est un égout).
+fn porte_entre(e, a, b) {
+    let ca = centre(e, a[0], a[1])
+    let cb = centre(e, b[0], b[1])
+    let mx = (ca[0] + cb[0]) / 2
+    let mz = (ca[1] + cb[1]) / 2
+    if (case_at(e, a).egout or case_at(e, b).egout) {
+        if (a[0] == b[0]) { mx += TROTTOIR } else { mz += TROTTOIR }
+    }
+    return [mx, mz]
+}
+
+# ── La base ──────────────────────────────────────────────────────────────────
+
+abstract class Monstre extends Behaviour {
+    let espece = "monstre"
+    let pv = 3
+    let pv_max = 3
+    let degats = 1.0
+    let vitesse = 1.5
+    let portee = 1.6       # distance de frappe
+    let detection = 11.0   # distance à laquelle il repère le joueur
+    let recharge = 0
+    let delai = 1.1        # entre deux coups
+    let coups_lus = 0
+    let blesse = 0
+    let mort = 0           # > 0 : effondrement en cours
+    let origine = nil      # position monde de la racine de l'instance
+    let ici = nil          # position monde du corps
+    let cap = 0
+    let marche = 0         # phase de l'animation de marche
+    let cible = nil        # point (x, z) visé
+    let plan_temps = 0
+    let teintes = []       # [chemin de la pièce, [r, g, b]] : couleurs d'origine
+
+    fn on_start() {
+        this.espece = this.prop("espece") or this.espece
+        this.pv = this.prop("pv") or this.pv
+        this.pv_max = this.pv
+        this.degats = this.prop("degats") or this.degats
+        this.vitesse = this.prop("vitesse") or this.vitesse
+        let monde = this.world_position()
+        let local = this.position()
+        this.origine = [monde[0] - local[0], monde[1] - local[1], monde[2] - local[2]]
+        this.ici = monde
+        this.cap = math.random() * 2 * math.pi
+        this.preparer()
+    }
+
+    # À redéfinir : animation propre à l'espèce (vitesse au sol, temps).
+    fn animer(dt, allure) { }
+    # À redéfinir : réglages au démarrage.
+    fn preparer() { }
+
+    fn carte() {
+        let d = game.state().donjon
+        if (d == nil) { return nil }
+        return etage_de(d, this.ici[1])
+    }
+
+    fn placer(x, y, z) {
+        this.ici = [x, y, z]
+        this.set_position(x - this.origine[0], y - this.origine[1], z - this.origine[2])
+    }
+
+    fn orienter(dx, dz, dt, vitesse_angulaire) {
+        if (dx * dx + dz * dz < 0.0001) { return nil }
+        let voulu = math.atan2(dx, dz)
+        this.cap += math.clamp(replier(voulu - this.cap), -vitesse_angulaire * dt, vitesse_angulaire * dt)
+    }
+
+    # Un pas vers (tx, tz), en glissant le long des murs ; rend vrai s'il a bougé.
+    fn avancer_vers(e, tx, tz, vitesse, dt) {
+        let dx = tx - this.ici[0]
+        let dz = tz - this.ici[2]
+        let d = math.sqrt(dx * dx + dz * dz)
+        if (d < 0.05) { return false }
+        let pas = math.min(d, vitesse * dt)
+        let nx = this.ici[0] + dx / d * pas
+        let nz = this.ici[2] + dz / d * pas
+        if (this.peut_aller(e, nx, nz)) {
+            this.placer(nx, this.ici[1], nz)
+        } else if (this.peut_aller(e, nx, this.ici[2])) {
+            this.placer(nx, this.ici[1], this.ici[2])
+        } else if (this.peut_aller(e, this.ici[0], nz)) {
+            this.placer(this.ici[0], this.ici[1], nz)
+        } else {
+            return false
+        }
+        this.orienter(dx, dz, dt, 6)
+        return true
+    }
+
+    # À redéfinir pour les nageurs (piranha : l'eau au lieu du sol).
+    fn peut_aller(e, x, z) { return praticable(e, x, z) }
+
+    # Le point à viser pour rejoindre le joueur : lui-même s'il est dans la
+    # même case, sinon le passage vers la case suivante du chemin.
+    fn viser(e, joueur) {
+        let moi = case_de(e, this.ici[0], this.ici[2])
+        let lui = case_de(e, joueur[0], joueur[2])
+        if (moi[0] == lui[0] and moi[1] == lui[1]) { return [joueur[0], joueur[2]] }
+        let suivante = prochaine_case(e, moi, lui)
+        if (suivante == nil) { return nil }
+        let p = porte_entre(e, moi, suivante)
+        # Déjà sur le seuil : viser le centre de la case suivante.
+        if (distance_plane(this.ici, [p[0], 0, p[1]]) < 0.4) {
+            let c = centre(e, suivante[0], suivante[1])
+            return [c[0], c[1]]
+        }
+        return p
+    }
+
+    # Déclare une pièce du corps et sa couleur (pour l'éclat « blessé »).
+    fn teinte(nom, r, g, b) { this.teintes.append([this.enfant(nom), [r, g, b]]) }
+
+    fn colorer(r, g, b) {
+        for (t in this.teintes) { object.set_color(t[0], r, g, b) }
+    }
+
+    fn frapper_joueur() {
+        let etat = game.state()
+        etat.degats_joueur = (etat.degats_joueur or 0) + this.degats
+        etat.dernier_coup = this.espece
+    }
+
+    fn lire_coups() {
+        let coups = this.prop("coups") or 0
+        if (coups <= this.coups_lus) { return nil }
+        this.pv -= coups - this.coups_lus
+        this.coups_lus = coups
+        this.blesse = 0.25
+        if (this.pv <= 0) { this.mourir() }
+    }
+
+    fn mourir() {
+        this.mort = 0.001
+        let etat = game.state()
+        if (etat.morts == nil) { etat.morts = [] }
+        etat.morts.append({espece: this.espece, pos: this.ici})
+    }
+
+    # Effondrement : le corps bascule et s'enfonce, puis l'instance disparaît.
+    fn effondrer(dt) {
+        this.mort += dt
+        let t = math.min(1, this.mort / 1.1)
+        this.set_rotation(t * 85, this.cap * 180 / math.pi, t * 25)
+        this.placer(this.ici[0], this.origine[1] - t * 0.6, this.ici[2])
+        if (this.mort > 1.4) { this.retirer() }
+    }
+
+    # Retire la racine de l'instance (le parent du « Corps »), avec tout le monstre.
+    fn retirer() {
+        let chemin = this.path()
+        scene.remove(std.string.substr(chemin, 0, std.string.rfind(chemin, "/")))
+    }
+
+    fn on_update(dt) {
+        if (this.mort > 0) {
+            this.effondrer(dt)
+            return nil
+        }
+        this.lire_coups()
+        if (this.mort > 0) { return nil }
+        if (this.blesse > 0) {
+            this.blesse -= dt
+            this.colorer(230, 60, 50)
+            if (this.blesse <= 0) { this.restaurer_couleurs() }
+        }
+        this.recharge -= dt
+        let e = this.carte()
+        let joueur = object.position("Joueur")
+        let allure = 0
+        if (e != nil and joueur != nil and math.abs(joueur[1] - 1 - this.ici[1]) < 3) {
+            let d = distance_plane(this.ici, joueur)
+            if (d < this.portee) {
+                this.orienter(joueur[0] - this.ici[0], joueur[2] - this.ici[2], dt, 8)
+                if (this.recharge <= 0) {
+                    this.recharge = this.delai
+                    this.attaquer(d)
+                }
+            } else if (d < this.detection and this.special(e, joueur, d, dt)) {
+                allure = this.vitesse
+            } else if (d < this.detection) {
+                this.plan_temps -= dt
+                if (this.plan_temps <= 0 or this.cible == nil) {
+                    this.cible = this.viser(e, joueur)
+                    this.plan_temps = 0.4
+                }
+                if (this.cible != nil and this.avancer_vers(e, this.cible[0], this.cible[1], this.vitesse, dt)) {
+                    allure = this.vitesse
+                }
+            } else {
+                allure = this.errer(e, dt)
+            }
+        }
+        this.marche += dt * (1 + allure * 2.5)
+        this.animer(dt, allure)
+        this.set_rotation(0, this.cap * 180 / math.pi, 0)
+    }
+
+    # Sans proie : quelques pas au hasard dans sa case.
+    fn errer(e, dt) {
+        if (this.cible == nil or distance_plane(this.ici, [this.cible[0], 0, this.cible[1]]) < 0.3) {
+            let c = case_de(e, this.ici[0], this.ici[2])
+            let o = centre(e, c[0], c[1])
+            this.cible = [o[0] + (math.random() - 0.5) * 3, o[1] + (math.random() - 0.5) * 3]
+        }
+        if (this.avancer_vers(e, this.cible[0], this.cible[1], this.vitesse * 0.35, dt)) { return this.vitesse * 0.35 }
+        this.cible = nil
+        return 0
+    }
+
+    # À redéfinir : manœuvre propre à l'espèce (bond de l'araignée…) ; vrai
+    # si elle a pris la main sur la poursuite pour cette image.
+    fn special(e, joueur, d, dt) { return false }
+
+    # Par défaut : un coup au contact.
+    fn attaquer(d) { this.frapper_joueur() }
+
+    fn restaurer_couleurs() {
+        for (t in this.teintes) { object.set_color(t[0], t[1][0], t[1][1], t[1][2]) }
+    }
+
+    fn enfant(nom) { return this.path() .. "/" .. nom }
+}

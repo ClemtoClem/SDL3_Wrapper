@@ -95,7 +95,7 @@ void Runtime::Install2DApi(data::script::Interpreter &vm) {
 		auto name = data::script::detail::ArgString(args, 0, fn);
 		if (name.IsError())
 			return Err(name.Error());
-		return Ok(self->FindObject(self->ResolveId(name.Value())));
+		return Ok(self->FindNode(self->ResolveId(name.Value())));
 	};
 	/// Enregistre `ns.name(args)` où args[0] est un nom de nœud : `body`
 	/// reçoit le nœud (jamais nul : `nil` est rendu sinon).
@@ -272,7 +272,7 @@ void Runtime::Install2DApi(data::script::Interpreter &vm) {
 					"`%s` : kind `%s` inconnu (rect, circle, polygon, line, sprite, text, node, layer)", fn,
 					kindName.CStr())));
 
-			ObjectDesc object = ObjectDesc::Group(sd::FieldString(map, "name", "Objet 2D"));
+			NodeDesc object = NodeDesc::Group(sd::FieldString(map, "name", "Objet 2D"));
 			object.parent = sd::FieldString(map, "parent", "");
 			object.tag = sd::FieldString(map, "tag", "");
 			object.visible = sd::FieldBool(map, "visible", true);
@@ -308,7 +308,7 @@ void Runtime::Install2DApi(data::script::Interpreter &vm) {
 				item.Write(scratch);
 				object.components.push_back(scratch.components.front());
 			}
-			Option<String> name = self->SpawnObject(std::move(object));
+			Option<String> name = self->SpawnNamedNode(std::move(object));
 			return Ok(name.IsSome() ? Value::Str(name.Unwrap()) : Value::Nil());
 		});
 
@@ -317,7 +317,7 @@ void Runtime::Install2DApi(data::script::Interpreter &vm) {
 								   auto name = data::script::detail::ArgString(args, 0, "node2d.remove");
 								   if (name.IsError())
 									   return Err(name.Error());
-								   return Ok(Value::Boolean(self->RemoveObject(name.Value())));
+								   return Ok(Value::Boolean(self->RemoveNode(name.Value())));
 							   });
 
 	/// Élément 2D le plus en avant au point (x, y) du MONDE 2D (ou de l'écran
@@ -340,7 +340,7 @@ void Runtime::Install2DApi(data::script::Interpreter &vm) {
 				Option<Transform2D> inverse = item.transform.Inverse();
 				if (inverse.IsSome() &&
 					HitsLocal(item.item, inverse.Value().Apply({x.Value(), y.Value()}), 0.f, self->m_textMeasure))
-					if (const scene::Node *node = self->FindObject(item.id))
+					if (const scene::Node *node = self->FindNode(item.id))
 						return Ok(Value::Str(node->name));
 			}
 			return Ok(Value::Nil());
@@ -447,10 +447,10 @@ void Runtime::Install2DApi(data::script::Interpreter &vm) {
 				return Err(name.Error());
 			SceneDesc *scene = self->ActiveScene();
 			const scene::NodeId target = self->ResolveId(name.Value());
-			const scene::Node *wanted = self->FindObject(target);
+			const scene::Node *wanted = self->FindNode(target);
 			if (!scene || !wanted || !Camera2DDesc::Has(*wanted))
 				return Ok(Value::Boolean(false));
-			for (scene::NodeId id : scene->Objects())
+			for (scene::NodeId id : scene->Nodes())
 				if (scene::Node *node = scene->tree.Get(id); node && Camera2DDesc::Has(*node)) {
 					Camera2DDesc camera = Camera2DDesc::Read(*node);
 					camera.current = id == target;

@@ -648,20 +648,62 @@ struct UiShaderEffect {
 	float param = 1.f;
 };
 
+/// Une catégorie à donner à une UiComboBox (UiFactory::Combo(categories),
+/// UiComboBox::SetCategories) : un titre (vide = éléments au premier niveau
+/// de la liste) et ses éléments.
+struct ComboCategory {
+	String title;
+	std::vector<String> items;
+};
+
+/// Catégorie d'une UiComboBox : les éléments `items[first .. first+count)`.
+struct UiComboGroup {
+	String title;
+	int first = 0;
+	int count = 0;
+};
+
 /// Liste déroulante : la boîte affiche l'élément sélectionné, le clic ouvre
 /// la liste en OVERLAY (dessinée après tout le reste, sans clip). onChange
-/// reçoit l'index sélectionné.
+/// reçoit l'index sélectionné (dans `items`).
+///
+/// Avec des catégories (`groups`, cf. UiFactory::Combo(categories)), la
+/// liste déroulée montre d'abord les éléments hors catégorie, puis une ligne
+/// par catégorie (titre + ▸) ; survoler une catégorie ouvre ses éléments à
+/// DROITE, comme le sous-menu d'un Menu. Cliquer une catégorie ne ferme pas
+/// la liste.
 struct UiComboBox {
 	std::vector<String> items;
+	std::vector<UiComboGroup> groups; ///< vide : liste plate
 	int selected = -1;
 	float itemHeight = 26.f; ///< métrique de layout (dérivée de theme.fontSize à la construction)
 	// État (géré par InputSystem)
 	bool open = false;
 	int hoveredItem = -1;
+	int hoveredGroup = -1; ///< ligne de catégorie survolée
+	int openGroup = -1;	   ///< catégorie dont le sous-menu est ouvert
 	bool hovered = false;
+	/// Bas de la zone de dessin (posé par RenderSystem) : un sous-menu qui
+	/// déborderait remonte au-dessus. 0 = inconnu.
+	float screenBottom = 0.f;
 
+	/// Remplace éléments et catégories (index : catégories bout à bout) ;
+	/// garde `selected` s'il reste valide, referme la liste.
+	void SetCategories(std::vector<ComboCategory> categories);
+	[[nodiscard]] bool Grouped() const noexcept { return !groups.empty(); }
+	/// Éléments du premier niveau : tous (liste plate), ou ceux hors catégorie.
+	[[nodiscard]] std::vector<int> TopItems() const;
+	/// Lignes du premier niveau : éléments hors catégorie puis catégories.
+	[[nodiscard]] int TopRows() const;
+	/// Catégorie contenant l'élément `item`, ou -1.
+	[[nodiscard]] int GroupOf(int item) const noexcept;
 	/// Rectangle de la liste déroulée, sous la boîte `screen`.
-	[[nodiscard]] sdl3::FRect DropdownRect(const sdl3::FRect &screen) const noexcept;
+	[[nodiscard]] sdl3::FRect DropdownRect(const sdl3::FRect &screen) const;
+	/// Sous-menu de la catégorie `group`, à droite de sa ligne (vide si
+	/// `group` n'est pas une catégorie).
+	[[nodiscard]] sdl3::FRect SubmenuRect(const sdl3::FRect &screen, int group) const;
+	/// Le point `p` est-il sur la liste déroulée ou le sous-menu ouvert ?
+	[[nodiscard]] bool OverlayContains(const sdl3::FRect &screen, sdl3::FPoint p) const;
 };
 
 /// Liste sélectionnable à scroll interne (leaf : pas d'entités enfants).

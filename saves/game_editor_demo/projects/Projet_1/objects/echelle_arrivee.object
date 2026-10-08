@@ -1,0 +1,4476 @@
+{
+ "format": "game_editor.object",
+ "version": 1,
+ "name": "echelle_arrivee",
+ "description": "Pied de l'échelle venue de l'étage supérieur (salle à quatre portes)",
+ "tree": {
+  "root": {
+   "id": "98:0",
+   "type": "Node",
+   "name": "echelle_arrivee",
+   "transform": {
+    "position": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rotation": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "properties": {
+    "description": {
+     "type": "string",
+     "value": "Pied de l'échelle venue de l'étage supérieur (salle à quatre portes)"
+    }
+   },
+   "children": [
+    {
+     "id": "1:0",
+     "type": "MeshInstance",
+     "name": "Sol",
+     "transform": {
+      "position": [
+       0.0,
+       -0.2,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "MeshInstance",
+       "props": {
+        "shape": {
+         "type": "string",
+         "value": "box"
+        },
+        "dimensions": {
+         "type": "vec3",
+         "value": [
+          8.0,
+          0.4,
+          8.0
+         ]
+        },
+        "segments": {
+         "type": "int",
+         "value": 24
+        },
+        "material": {
+         "type": "string",
+         "value": "plastic"
+        },
+        "base_color": {
+         "type": "color",
+         "value": [
+          58.0,
+          50.0,
+          44.0,
+          255.0
+         ]
+        },
+        "metallic": {
+         "type": "float",
+         "value": 0.0
+        },
+        "roughness": {
+         "type": "float",
+         "value": 0.85
+        },
+        "double_sided": {
+         "type": "bool",
+         "value": false
+        },
+        "wireframe": {
+         "type": "bool",
+         "value": false
+        }
+       }
+      },
+      {
+       "type": "RigidBody",
+       "props": {
+        "body": {
+         "type": "string",
+         "value": "static"
+        },
+        "collider": {
+         "type": "string",
+         "value": "box"
+        },
+        "half_extents": {
+         "type": "vec3",
+         "value": [
+          4.0,
+          0.2,
+          4.0
+         ]
+        },
+        "mass": {
+         "type": "float",
+         "value": 1.0
+        },
+        "restitution": {
+         "type": "float",
+         "value": 0.3
+        },
+        "friction": {
+         "type": "float",
+         "value": 0.6
+        }
+       }
+      }
+     ],
+     "children": [
+      {
+       "id": "2:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -3.350967248505037,
+         0.232032621996485,
+         -3.3098686052600845
+        ],
+        "rotation": [
+         0.0,
+         3.749769109966339,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1831940237700116,
+            0.12406524399296998,
+            1.1998914261251223
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            93.0,
+            80.0,
+            68.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "3:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -3.353740722925399,
+         0.23070382276830895,
+         -1.9651196287365618
+        ],
+        "rotation": [
+         0.0,
+         0.8481618113565634,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2028988094821624,
+            0.12140764553661787,
+            1.2588055777388691
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            105.0,
+            92.0,
+            80.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "4:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -3.353764888902903,
+         0.21938502951986721,
+         -0.6627976708398806
+        ],
+        "rotation": [
+         0.0,
+         -2.3703460393842146,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1973760827907873,
+            0.0987700590397344,
+            1.2264699366808534
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            112.0,
+            99.0,
+            87.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "5:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -3.357640106054154,
+         0.23520403596709824,
+         0.6508227159142921
+        ],
+        "rotation": [
+         0.0,
+         2.882791844983947,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.199770697649409,
+            0.13040807193419646,
+            1.174797807146816
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            121.0,
+            108.0,
+            96.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "6:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -3.29864057184967,
+         0.2323112562776526,
+         2.009964265162111
+        ],
+        "rotation": [
+         0.0,
+         1.7420958521587755,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2293003573468935,
+            0.12462251255530518,
+            1.1858062753755836
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            111.0,
+            98.0,
+            86.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "7:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -3.299459306400326,
+         0.21642381682858036,
+         3.3390550196372275
+        ],
+        "rotation": [
+         0.0,
+         3.0695107077744215,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1790635349432024,
+            0.09284763365716073,
+            1.161877668696771
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            97.0,
+            85.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "8:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -1.9939752463948746,
+         0.23867064942818755,
+         -3.3606472254258466
+        ],
+        "rotation": [
+         0.0,
+         -3.7426553329992265,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2541591456066752,
+            0.1373412988563751,
+            1.2503995512842656
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            115.0,
+            102.0,
+            90.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "9:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -2.0098852373200295,
+         0.22482855198981616,
+         -1.971878002622686
+        ],
+        "rotation": [
+         0.0,
+         -1.7518115560300282,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2277683865458342,
+            0.10965710397963227,
+            1.2240121035162719
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            95.0,
+            82.0,
+            70.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "10:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -2.0036791655619717,
+         0.23056255120317243,
+         -0.6573545733045096
+        ],
+        "rotation": [
+         0.0,
+         -3.888379917366894,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1583779324661698,
+            0.12112510240634486,
+            1.1642750211381019
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            99.0,
+            86.0,
+            74.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "11:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -2.0302273284149317,
+         0.22309314887826082,
+         0.655879421669713
+        ],
+        "rotation": [
+         0.0,
+         3.0420627573925936,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1919716868264825,
+            0.10618629775652158,
+            1.1595650912691238
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            125.0,
+            112.0,
+            100.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "12:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -1.971810285651455,
+         0.22784069560925266,
+         2.0142251507136963
+        ],
+        "rotation": [
+         0.0,
+         -1.0212840655258084,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.188159426365312,
+            0.11568139121850529,
+            1.1642150608296113
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            122.0,
+            109.0,
+            97.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "13:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -1.963993213117088,
+         0.23399695367294837,
+         3.303672180098607
+        ],
+        "rotation": [
+         0.0,
+         -1.4200931264647867,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1934663215629917,
+            0.12799390734589672,
+            1.1671779614005222
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            107.0,
+            94.0,
+            82.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "14:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -0.6788361569145048,
+         0.2378069485733579,
+         -3.303628038698597
+        ],
+        "rotation": [
+         0.0,
+         0.12788005094289723,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2058064553075825,
+            0.1356138971467158,
+            1.227920395352535
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            126.0,
+            113.0,
+            101.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "15:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -0.6517434089906575,
+         0.22992048614317406,
+         -1.9697728777886225
+        ],
+        "rotation": [
+         0.0,
+         -0.3892546765625218,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1544432923751242,
+            0.11984097228634813,
+            1.1717698405241714
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            114.0,
+            101.0,
+            89.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "16:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -0.6603222182349684,
+         0.21085025721077338,
+         -0.7044633619300404
+        ],
+        "rotation": [
+         0.0,
+         -3.566563094058452,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1534626658336375,
+            0.08170051442154674,
+            1.1744290847534917
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            102.0,
+            89.0,
+            77.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "17:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -0.6998103757472417,
+         0.23126845272202085,
+         0.6675586751850227
+        ],
+        "rotation": [
+         0.0,
+         -3.981039276462278,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2151155147505954,
+            0.12253690544404165,
+            1.240879547609438
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            96.0,
+            83.0,
+            71.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "18:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -0.6404183524492068,
+         0.21876637956307649,
+         2.0100647396137363
+        ],
+        "rotation": [
+         0.0,
+         0.07018100956083817,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2003292587067156,
+            0.09753275912615295,
+            1.2048362857362618
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            92.0,
+            79.0,
+            67.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "19:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         -0.6423801331629305,
+         0.22080683387929326,
+         3.369585895709724
+        ],
+        "rotation": [
+         0.0,
+         -1.6511616514980307,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2632972661673691,
+            0.10161366775858649,
+            1.1800299174373334
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            116.0,
+            103.0,
+            91.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "20:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         0.6278061729453088,
+         0.23158700186680517,
+         -3.3479889472910567
+        ],
+        "rotation": [
+         0.0,
+         1.7432441352332892,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1677839510854053,
+            0.12317400373361032,
+            1.2342617372496683
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            122.0,
+            109.0,
+            97.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "21:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         0.6951564552943981,
+         0.23823275145583545,
+         -2.011865334117387
+        ],
+        "rotation": [
+         0.0,
+         1.0635346979704927,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2335182670025509,
+            0.13646550291167087,
+            1.216618842842399
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            95.0,
+            82.0,
+            70.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "22:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         0.6278848565700641,
+         0.23233511527793366,
+         -0.7029039441124147
+        ],
+        "rotation": [
+         0.0,
+         3.3340431092687774,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.246474370859035,
+            0.12467023055586728,
+            1.2187964688555142
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            124.0,
+            111.0,
+            99.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "23:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         0.6636301022812584,
+         0.21386341648633284,
+         0.6379159326926197
+        ],
+        "rotation": [
+         0.0,
+         3.850995884519625,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2252320634319314,
+            0.08772683297266567,
+            1.2592392925546245
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            95.0,
+            82.0,
+            70.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "24:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         0.6450623105999218,
+         0.22380577295324486,
+         1.9742053980856025
+        ],
+        "rotation": [
+         0.0,
+         -2.116917172784156,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1711138520947428,
+            0.10761154590648969,
+            1.2187007745606908
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            94.0,
+            81.0,
+            69.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "25:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         0.6612382032959719,
+         0.23152169800974784,
+         3.3279541290655907
+        ],
+        "rotation": [
+         0.0,
+         -3.36878613870123,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2260416337056546,
+            0.12304339601949565,
+            1.2068267979911185
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            101.0,
+            88.0,
+            76.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "26:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         2.0079703180345287,
+         0.23163401161358868,
+         -3.3034298638643564
+        ],
+        "rotation": [
+         0.0,
+         3.704069672987308,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1881162665253227,
+            0.12326802322717734,
+            1.2476454839775766
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            118.0,
+            105.0,
+            93.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "27:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         2.0264363108387657,
+         0.23547933883363412,
+         -2.0057134926759304
+        ],
+        "rotation": [
+         0.0,
+         -2.6997350094966626,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2199009603917834,
+            0.1309586776672682,
+            1.166032012024295
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            120.0,
+            107.0,
+            95.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "28:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         1.9997891182201184,
+         0.21829089004032473,
+         -0.6459474783328697
+        ],
+        "rotation": [
+         0.0,
+         2.208026212187863,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1527350419078626,
+            0.09658178008064945,
+            1.2081773138312664
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            116.0,
+            103.0,
+            91.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "29:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         1.9680848301234026,
+         0.2219934687641468,
+         0.6290842271534826
+        ],
+        "rotation": [
+         0.0,
+         -1.7968558173126157,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2229239102392009,
+            0.10398693752829358,
+            1.2606770537085046
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            99.0,
+            86.0,
+            74.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "30:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         1.9760424831633028,
+         0.21687514068245098,
+         1.985748431884474
+        ],
+        "rotation": [
+         0.0,
+         -2.016795758902588,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1709343681348803,
+            0.09375028136490195,
+            1.221382243425091
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            124.0,
+            111.0,
+            99.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "31:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         1.9898990549099496,
+         0.2142201397660523,
+         3.3558381766558396
+        ],
+        "rotation": [
+         0.0,
+         -2.8647061534328335,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2498043874738354,
+            0.0884402795321046,
+            1.1985310263775422
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            93.0,
+            80.0,
+            68.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "32:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         3.3685898019971576,
+         0.22375031393185185,
+         -3.340768840966086
+        ],
+        "rotation": [
+         0.0,
+         2.6951624165880634,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1966765042031966,
+            0.10750062786370371,
+            1.212645574834946
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            125.0,
+            112.0,
+            100.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "33:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         3.301500624385727,
+         0.21028892487881579,
+         -1.9690223932352573
+        ],
+        "rotation": [
+         0.0,
+         -1.6056444224479174,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2265535191051828,
+            0.08057784975763153,
+            1.2209906973540081
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            97.0,
+            85.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "34:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         3.322904780520858,
+         0.22128554828945707,
+         -0.694597613057264
+        ],
+        "rotation": [
+         0.0,
+         0.6829999348653928,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2163803216552922,
+            0.10257109657891414,
+            1.176523152672038
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            109.0,
+            96.0,
+            84.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "35:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         3.3671578487454537,
+         0.2149286823794881,
+         0.6888509576486076
+        ],
+        "rotation": [
+         0.0,
+         -1.463058198811928,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2225398337650089,
+            0.08985736475897615,
+            1.1785344120000776
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            96.0,
+            83.0,
+            71.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "36:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         3.300165253011775,
+         0.21244513570664486,
+         1.9901578243741085
+        ],
+        "rotation": [
+         0.0,
+         3.1316185197664943,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2068629537642028,
+            0.08489027141328971,
+            1.2276222339666794
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            116.0,
+            103.0,
+            91.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "37:0",
+       "type": "MeshInstance",
+       "name": "Pavé",
+       "transform": {
+        "position": [
+         3.3528783059020855,
+         0.21828086602252572,
+         3.3631709040056132
+        ],
+        "rotation": [
+         0.0,
+         -0.5182920765560253,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.1605145561917163,
+            0.09656173204505142,
+            1.1579806030857036
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            124.0,
+            111.0,
+            99.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "99:0",
+     "type": "Node3D",
+     "name": "Mur nord",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "mur_porte"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "100:0",
+     "type": "Node3D",
+     "name": "Mur est",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       90.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "mur_porte"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "101:0",
+     "type": "Node3D",
+     "name": "Mur sud",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       180.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "mur_porte"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "102:0",
+     "type": "Node3D",
+     "name": "Mur ouest",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       270.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "mur_porte"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "73:0",
+     "type": "MeshInstance",
+     "name": "Plafond",
+     "transform": {
+      "position": [
+       0.0,
+       4.65,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "MeshInstance",
+       "props": {
+        "shape": {
+         "type": "string",
+         "value": "box"
+        },
+        "dimensions": {
+         "type": "vec3",
+         "value": [
+          8.0,
+          0.5,
+          8.0
+         ]
+        },
+        "segments": {
+         "type": "int",
+         "value": 24
+        },
+        "material": {
+         "type": "string",
+         "value": "plastic"
+        },
+        "base_color": {
+         "type": "color",
+         "value": [
+          58.0,
+          50.0,
+          44.0,
+          255.0
+         ]
+        },
+        "metallic": {
+         "type": "float",
+         "value": 0.0
+        },
+        "roughness": {
+         "type": "float",
+         "value": 0.85
+        },
+        "double_sided": {
+         "type": "bool",
+         "value": false
+        },
+        "wireframe": {
+         "type": "bool",
+         "value": false
+        }
+       }
+      }
+     ],
+     "children": [
+      {
+       "id": "70:0",
+       "type": "MeshInstance",
+       "name": "Poutre",
+       "transform": {
+        "position": [
+         0.0,
+         -0.42,
+         -1.9
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            5.2,
+            0.35,
+            0.4
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            84.0,
+            53.0,
+            30.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "71:0",
+       "type": "MeshInstance",
+       "name": "Poutre 2",
+       "transform": {
+        "position": [
+         0.0,
+         -0.42,
+         1.9
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            5.2,
+            0.35,
+            0.4
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            84.0,
+            53.0,
+            30.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "72:0",
+       "type": "MeshInstance",
+       "name": "Ouverture",
+       "transform": {
+        "position": [
+         2.7,
+         -0.26,
+         2.7
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.2000000000000002,
+            0.02,
+            1.2000000000000002
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "unlit"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            6.0,
+            6.0,
+            8.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "88:0",
+     "type": "Node",
+     "name": "Échelle",
+     "transform": {
+      "position": [
+       2.7,
+       0.0,
+       3.2
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "children": [
+      {
+       "id": "74:0",
+       "type": "MeshInstance",
+       "name": "Montant",
+       "transform": {
+        "position": [
+         -0.3,
+         2.2,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.09,
+            4.4,
+            0.09
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            84.0,
+            53.0,
+            30.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "75:0",
+       "type": "MeshInstance",
+       "name": "Montant 2",
+       "transform": {
+        "position": [
+         0.3,
+         2.2,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.09,
+            4.4,
+            0.09
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            84.0,
+            53.0,
+            30.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "76:0",
+       "type": "MeshInstance",
+       "name": "Barreau 1",
+       "transform": {
+        "position": [
+         0.0,
+         0.3,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "77:0",
+       "type": "MeshInstance",
+       "name": "Barreau 2",
+       "transform": {
+        "position": [
+         0.0,
+         0.6499999999999999,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "78:0",
+       "type": "MeshInstance",
+       "name": "Barreau 3",
+       "transform": {
+        "position": [
+         0.0,
+         1.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "79:0",
+       "type": "MeshInstance",
+       "name": "Barreau 4",
+       "transform": {
+        "position": [
+         0.0,
+         1.3499999999999999,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "80:0",
+       "type": "MeshInstance",
+       "name": "Barreau 5",
+       "transform": {
+        "position": [
+         0.0,
+         1.7,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "81:0",
+       "type": "MeshInstance",
+       "name": "Barreau 6",
+       "transform": {
+        "position": [
+         0.0,
+         2.05,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "82:0",
+       "type": "MeshInstance",
+       "name": "Barreau 7",
+       "transform": {
+        "position": [
+         0.0,
+         2.3999999999999995,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "83:0",
+       "type": "MeshInstance",
+       "name": "Barreau 8",
+       "transform": {
+        "position": [
+         0.0,
+         2.7499999999999996,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "84:0",
+       "type": "MeshInstance",
+       "name": "Barreau 9",
+       "transform": {
+        "position": [
+         0.0,
+         3.0999999999999996,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "85:0",
+       "type": "MeshInstance",
+       "name": "Barreau 10",
+       "transform": {
+        "position": [
+         0.0,
+         3.4499999999999997,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "86:0",
+       "type": "MeshInstance",
+       "name": "Barreau 11",
+       "transform": {
+        "position": [
+         0.0,
+         3.8,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "87:0",
+       "type": "MeshInstance",
+       "name": "Barreau 12",
+       "transform": {
+        "position": [
+         0.0,
+         4.1499999999999995,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         90.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.05,
+            0.6,
+            0.05
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "wood"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            110.0,
+            74.0,
+            40.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "103:0",
+     "type": "Node3D",
+     "name": "Torche",
+     "transform": {
+      "position": [
+       -2.9,
+       2.3,
+       -2.9
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "torche"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "104:0",
+     "type": "Node3D",
+     "name": "Torche 2",
+     "transform": {
+      "position": [
+       -2.9,
+       2.3,
+       2.9
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "ObjectInstance",
+       "props": {
+        "source": {
+         "type": "string",
+         "value": "torche"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "96:0",
+     "type": "Node",
+     "name": "Passage",
+     "transform": {
+      "position": [
+       2.7,
+       0.0,
+       2.6
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "Script",
+       "props": {
+        "script": {
+         "type": "string",
+         "value": "echelle"
+        }
+       }
+      }
+     ],
+     "properties": {
+      "role": {
+       "type": "string",
+       "value": "montee"
+      },
+      "rayon": {
+       "type": "float",
+       "value": 1.1
+      },
+      "message": {
+       "type": "string",
+       "value": "E : monter à l'échelle"
+      },
+      "tag": {
+       "type": "string",
+       "value": "passage"
+      }
+     },
+     "children": [
+      {
+       "id": "95:0",
+       "type": "SpawnPoint",
+       "name": "Arrivée",
+       "transform": {
+        "position": [
+         -1.3000000000000003,
+         1.0,
+         -1.6
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "properties": {
+        "tag": {
+         "type": "string",
+         "value": "arrivee"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "id": "97:0",
+     "type": "SpawnPoint",
+     "name": "Départ",
+     "transform": {
+      "position": [
+       0.0,
+       1.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "properties": {
+      "tag": {
+       "type": "string",
+       "value": "depart"
+      }
+     }
+    }
+   ]
+  }
+ }
+}

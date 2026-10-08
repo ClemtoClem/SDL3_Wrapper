@@ -1,0 +1,103 @@
+{
+ "format": "game_editor.project",
+ "version": 5,
+ "name": "Projet_1",
+ "active_scene": "Menu-principal",
+ "scenes": [
+  "scenes/Menu-principal.scene",
+  "scenes/Génération.scene",
+  "scenes/Donjon.scene",
+  "scenes/Donjon-étage-supérieur.scene",
+  "scenes/Égouts.scene",
+  "scenes/Pièces.scene"
+ ],
+ "scripts": [
+  {
+   "name": "torchlight",
+   "description": "Flamme vacillante (intensité + flamme enfant)",
+   "file": "scripts/torchlight.script"
+  },
+  {
+   "name": "player",
+   "description": "Contrôleur à la première personne + visite guidée",
+   "file": "scripts/player.script"
+  },
+  {
+   "name": "chest",
+   "description": "Ouvre le couvercle quand la propriété `open` est vraie",
+   "file": "scripts/chest.script"
+  },
+  {
+   "name": "squelette",
+   "description": "Squelette (objet « squelette ») : poursuit le joueur de case en case, frappe, s'effondre et disparaît",
+   "file": "scripts/mobs/squelette.script"
+  },
+  {
+   "name": "araignee",
+   "description": "Araignée (objet « araignee ») : rapide, bondit sur sa proie",
+   "file": "scripts/mobs/araignee.script"
+  },
+  {
+   "name": "zombie",
+   "description": "Zombie (objet « zombie ») : lent, 6 PV, frappe fort",
+   "file": "scripts/mobs/zombie.script"
+  },
+  {
+   "name": "pirana",
+   "description": "Piranha (objet « pirana ») : nage dans les canaux des égouts, bondit pour mordre",
+   "file": "scripts/mobs/pirana.script"
+  },
+  {
+   "name": "eau-courante",
+   "description": "Eau courante des égouts : écume qui file dans le sens du courant, cascades, tourbillon",
+   "file": "scripts/eau-courante.script"
+  },
+  {
+   "name": "echelle",
+   "description": "Échelle entre deux étages : E pour la prendre (le Donjon joue la traversée)",
+   "file": "scripts/echelle.script"
+  },
+  {
+   "name": "escalier",
+   "description": "Escalier entre deux étages : y entrer demande la traversée au Donjon",
+   "file": "scripts/escalier.script"
+  },
+  {
+   "name": "monstres",
+   "description": "Module : base Monstre (carte des étages, poursuite, coups, mort)",
+   "file": "scripts/mobs/monstres.script"
+  }
+ ],
+ "objects": [
+  "objects/araignee.object",
+  "objects/carrefour.object",
+  "objects/couloir_angle.object",
+  "objects/couloir_droit.object",
+  "objects/couloir_t.object",
+  "objects/crypte.object",
+  "objects/cul_de_sac.object",
+  "objects/dallage.object",
+  "objects/echelle_arrivee.object",
+  "objects/egout_angle.object",
+  "objects/egout_carrefour.object",
+  "objects/egout_cul_de_sac.object",
+  "objects/egout_droit.object",
+  "objects/egout_salle.object",
+  "objects/egout_t.object",
+  "objects/entree.object",
+  "objects/escalier_arrivee.object",
+  "objects/escalier_descente.object",
+  "objects/mur_porte.object",
+  "objects/pirana.object",
+  "objects/plafond.object",
+  "objects/porte_muree.object",
+  "objects/puits_echelle.object",
+  "objects/salle_garde.object",
+  "objects/salle_piliers.object",
+  "objects/salle_tresor.object",
+  "objects/sortie.object",
+  "objects/squelette.object",
+  "objects/torche.object",
+  "objects/zombie.object"
+ ]
+}

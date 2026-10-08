@@ -187,14 +187,15 @@ Result<String, String> AssetOperations::Rename(const AssetEntry& entry, const St
 		return Err(invalid.Unwrap());
 	String name = wanted.Trim();
 	if (entry.managed) {
-		if (entry.kind == AssetKind::SCENE) {
+		if (entry.kind == AssetKind::SCENE || entry.kind == AssetKind::OBJECT) {
+			const char *folder = entry.kind == AssetKind::OBJECT ? AssetBrowserModel::OBJECTS : AssetBrowserModel::SCENES;
 			if (name.ToLower().EndsWith(".scene"))
 				name = name.Substr(0, name.size() - 6);
 			auto renamed =
-				m_runtime.RenameScene(Prefixed(entry.location, AssetBrowserModel::SCENES), name);
+				m_runtime.RenameScene(Prefixed(entry.location, folder), name);
 			if (renamed.IsError())
 				return Err(renamed.Error());
-			return Ok(String(AssetBrowserModel::SCENES) + String("/") + renamed.Value());
+			return Ok(String(folder) + String("/") + renamed.Value());
 		}
 		auto renamed =
 			m_runtime.RenameScript(Prefixed(entry.location, AssetBrowserModel::SCRIPTS), name);
@@ -227,9 +228,10 @@ AssetOpReport AssetOperations::Delete(const std::vector<AssetEntry>& entries) {
 		if (entry.managed) {
 			const String scripts = String(AssetBrowserModel::SCRIPTS) + String("/@");
 			Result<bool, String> removed = Ok(true);
-			if (entry.kind == AssetKind::SCENE) {
+			if (entry.kind == AssetKind::SCENE || entry.kind == AssetKind::OBJECT) {
+				const char *folder = entry.kind == AssetKind::OBJECT ? AssetBrowserModel::OBJECTS : AssetBrowserModel::SCENES;
 				removed =
-					m_runtime.RemoveScene(Prefixed(entry.location, AssetBrowserModel::SCENES));
+					m_runtime.RemoveScene(Prefixed(entry.location, folder));
 			} else if (entry.location.StartsWith(scripts.View())) {
 				// Script de jeu : la scène reste, sans script.
 				(void)m_runtime.SetGameplayScript(entry.location.Substr(scripts.size()), String());
@@ -266,15 +268,16 @@ AssetOpReport AssetOperations::Duplicate(const std::vector<AssetEntry>& entries)
 			continue;
 		}
 		if (entry.managed) {
-			if (entry.kind == AssetKind::SCENE) {
+			if (entry.kind == AssetKind::SCENE || entry.kind == AssetKind::OBJECT) {
+				const char *folder = entry.kind == AssetKind::OBJECT ? AssetBrowserModel::OBJECTS : AssetBrowserModel::SCENES;
 				auto copy =
-					m_runtime.DuplicateScene(Prefixed(entry.location, AssetBrowserModel::SCENES));
+					m_runtime.DuplicateScene(Prefixed(entry.location, folder));
 				if (copy.IsError()) {
 					report.errors.push_back(
 						String::Format("%s : %s", entry.name.CStr(), copy.Error().CStr()));
 					continue;
 				}
-				report.created.push_back(String(AssetBrowserModel::SCENES) + String("/") +
+				report.created.push_back(String(folder) + String("/") +
 										 copy.Value());
 			} else {
 				auto copy =

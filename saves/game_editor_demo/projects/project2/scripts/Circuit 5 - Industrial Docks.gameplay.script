@@ -1,6 +1,0 @@
-# ── Circuit 5 - Industrial Docks : Voies portuaires très larges sous un conteneur suspendu ───
-# Le sprint (voiture, adhérence des surfaces, boosters, obstacles animés,
-# chrono) vient du module partagé « sprint » : la scène n'apporte que son décor.
-const sprint = import "sprint"
-
-class IndustrialDocks extends sprint.Sprint {}

@@ -20,17 +20,17 @@
  * ── Depuis le chantier « hiérarchie de nœuds » ──────────────────────────
  * Une scène n'est plus une LISTE d'objets avec un champ `parent` portant un
  * nom : c'est un `scene::NodeTree` (lib/include/scene/), c'est-à-dire un vrai
- * arbre à profondeur libre. Ce qui était les champs d'un `ObjectDesc` est
+ * arbre à profondeur libre. Ce qui était les champs d'un `NodeDesc` est
  * devenu des COMPOSANTS attachés au nœud :
  *
- *     ObjectDesc{shape, dimensions, segments, source, material}
+ *     NodeDesc{shape, dimensions, segments, source, material}
  *         -> composant « MeshInstance »   (cf. VisualDesc::Read/Write)
- *     ObjectDesc{body, collider, halfExtents, mass, ...}
+ *     NodeDesc{body, collider, halfExtents, mass, ...}
  *         -> composant « RigidBody »      (cf. PhysicsDesc::Read/Write)
- *     ObjectDesc{tag}    -> propriété libre « tag » du nœud
- *     ObjectDesc{name, transform, visible} -> champs propres du nœud
+ *     NodeDesc{tag}    -> propriété libre « tag » du nœud
+ *     NodeDesc{name, transform, visible} -> champs propres du nœud
  *
- * `ObjectDesc` SURVIT, mais comme CONSTRUCTEUR : il décrit un objet à créer
+ * `NodeDesc` SURVIT, mais comme CONSTRUCTEUR : il décrit un objet à créer
  * (contenu livré, import glTF, scripts, tests) et sait se convertir en nœud.
  * L'édition, elle, passe par les accesseurs de composants — un nœud est la
  * seule source de vérité une fois qu'il existe.
@@ -70,7 +70,7 @@ enum class ShapeKind : uint8_t {
 	TORUS_KNOT,
 	PORTAL_QUAD,
 	/// Maillage importé d'un fichier glTF — le chemin vit dans
-	/// `ObjectDesc::source`, la géométrie est relue à chaque construction du
+	/// `NodeDesc::source`, la géométrie est relue à chaque construction du
 	/// runtime (le document ne contient JAMAIS de sommets : un projet reste
 	/// un fichier texte lisible, et le modèle reste modifiable dans son
 	/// logiciel d'origine).
@@ -178,8 +178,8 @@ inline constexpr const char *CANVAS_ITEM = "CanvasItem";
 inline constexpr const char *CAMERA_2D = "Camera2D";
 } // namespace component
 
-/// Vrai pour les composants qu'`ObjectDesc` lit dans ses champs dédiés ;
-/// les autres voyagent dans `ObjectDesc::components`.
+/// Vrai pour les composants qu'`NodeDesc` lit dans ses champs dédiés ;
+/// les autres voyagent dans `NodeDesc::components`.
 [[nodiscard]] bool IsBuiltinComponent(const String &type);
 
 /// Types de nœuds de l'éditeur (cf. scene::NodeTypeRegistry — l'éditeur les
@@ -484,7 +484,7 @@ struct ScriptAsset {
  * gagne à être lisible d'un coup d'œil, et la conversion est faite une fois
  * ici plutôt que sur chaque site d'appel.
  */
-struct ObjectDesc {
+struct NodeDesc {
 	String name;
 	/// Nom OU chemin du parent dans la scène ; vide = directement sous la
 	/// racine. Un nom est cherché dans tout l'arbre (cf. SceneDesc::FindId),
@@ -512,24 +512,24 @@ struct ObjectDesc {
 	std::vector<scene::Component> components;
 
 	/// Dossier d'organisation : un groupe dont le rôle est de RANGER.
-	[[nodiscard]] static ObjectDesc Folder(String folderName);
+	[[nodiscard]] static NodeDesc Folder(String folderName);
 
 	/// Source de lumière sans géométrie.
-	[[nodiscard]] static ObjectDesc Light(String lightName, LightDesc lightDesc);
+	[[nodiscard]] static NodeDesc Light(String lightName, LightDesc lightDesc);
 
 	/// Objet sans géométrie : un groupe, un point d'ancrage, un pivot.
-	[[nodiscard]] static ObjectDesc Group(String groupName);
+	[[nodiscard]] static NodeDesc Group(String groupName);
 
 	/// `false` pour un groupe : aucun composant d'apparence ne sera posé.
 	bool hasVisual = true;
 
 	[[nodiscard]] scene::Node ToNode() const;
 
-	[[nodiscard]] static ObjectDesc FromNode(const scene::Node &node);
+	[[nodiscard]] static NodeDesc FromNode(const scene::Node &node);
 
 	// ── Format 2 (liste plate) : lecture des projets existants ──────────────
 
-	[[nodiscard]] static Result<ObjectDesc, String> FromLegacyJson(const data::NodePtr &node);
+	[[nodiscard]] static Result<NodeDesc, String> FromLegacyJson(const data::NodePtr &node);
 };
 
 // ============================================================================
@@ -570,12 +570,12 @@ inline constexpr NodeTemplate NODE_TEMPLATES[] = {
 };
 
 /// Modèles 2D (cf. NODE_TEMPLATES, catégorie « 2D ») ; NONE pour une autre clé.
-[[nodiscard]] Option<ObjectDesc> MakeNode2DFromTemplate(const String &key, const String &label);
+[[nodiscard]] Option<NodeDesc> MakeNode2DFromTemplate(const String &key, const String &label);
 
 /// Fabrique le nœud d'un modèle, prêt à `Runtime::SpawnNode` (position
 /// locale nulle : il apparaît au pivot de son parent). NONE pour une clé
 /// inconnue.
-[[nodiscard]] Option<ObjectDesc> MakeNodeFromTemplate(const String &key);
+[[nodiscard]] Option<NodeDesc> MakeNodeFromTemplate(const String &key);
 
 /// Réglages d'ambiance d'une scène (lumière directionnelle + ambiante +
 /// couleur de fond) — ce que `render3d::Canvas::SetLighting` consomme.
@@ -625,8 +625,15 @@ struct Canvas2DDesc {
 	[[nodiscard]] static Canvas2DDesc FromJson(const data::NodePtr &node);
 };
 
+/// Genre d'un document du projet : une SCÈNE (élément final : monde,
+/// caméra, calque 2D, script de jeu) ou un OBJET (arborescence de nœuds
+/// réutilisable, instanciée dans des scènes ou d'autres objets — cf.
+/// objects.hpp).
+enum class SceneKind : uint8_t { SCENE, OBJECT };
+
 struct SceneDesc {
 	String name;
+	SceneKind kind = SceneKind::SCENE;
 	String description;
 	/// Script joué quand la scène passe en mode Jeu (chemin relatif ou
 	/// source intégrée, cf. Project::ResolveScript).
@@ -637,6 +644,8 @@ struct SceneDesc {
 	/// L'ARBRE de la scène. Sa racine porte le nom de la scène et n'est pas
 	/// un objet : c'est le point d'accroche de tout le reste.
 	scene::NodeTree tree{String("Scene")};
+
+	[[nodiscard]] bool IsObject() const noexcept { return kind == SceneKind::OBJECT; }
 
 	// ── Nom ──────────────────────────────────────────────────────────────────
 
@@ -665,10 +674,10 @@ struct SceneDesc {
 	[[nodiscard]] scene::NodeId Resolve(const String &pathOrName) const;
 
 	/// Nombre d'objets (l'arbre moins sa racine).
-	[[nodiscard]] size_t ObjectCount() const noexcept { return tree.Size() - 1; }
+	[[nodiscard]] size_t NodeCount() const noexcept { return tree.Size() - 1; }
 
 	/// Tous les objets, dans l'ordre d'affichage (racine exclue).
-	[[nodiscard]] std::vector<scene::NodeId> Objects() const;
+	[[nodiscard]] std::vector<scene::NodeId> Nodes() const;
 
 	/// `base`, `base 2`, `base 3`… — le premier nom libre DANS TOUTE LA SCÈNE
 	/// (et non seulement entre frères) : les scripts et le rapport désignent
@@ -679,10 +688,10 @@ struct SceneDesc {
 
 	/// Ajoute un objet et rend son identifiant. Le parent est celui nommé par
 	/// `object.parent` (nom ou chemin), la racine à défaut.
-	scene::NodeId AddNode(ObjectDesc object);
+	scene::NodeId AddNode(NodeDesc object);
 
 	/// Compat : ajoute et rend le NOM retenu (l'ancienne signature).
-	String Add(ObjectDesc object);
+	String Add(NodeDesc object);
 
 	/// Supprime un objet ET tout son sous-arbre. C'est un changement de
 	/// comportement assumé par rapport à la liste plate, où les enfants
@@ -716,8 +725,15 @@ struct SceneDesc {
 // Project
 // ============================================================================
 
+class ProjectFs;
+
 class Project {
 public:
+	/// Le projet vu comme un système de fichiers (cf. project_fs.hpp) : LA
+	/// façon d'accéder aux scènes, objets, scripts, ressources et nœuds.
+	[[nodiscard]] ProjectFs Fs() noexcept;
+	[[nodiscard]] ProjectFs Fs() const noexcept;
+
 	String name = "Projet sans titre";
 	std::vector<SceneDesc> scenes;
 	String activeScene;
@@ -734,6 +750,17 @@ public:
 
 	[[nodiscard]] const SceneDesc *FindScene(const String &sceneName) const noexcept;
 
+	/// Objet (document de genre OBJECT) de ce nom, nul sinon.
+	[[nodiscard]] SceneDesc *FindObject(const String &objectName) noexcept;
+
+	[[nodiscard]] const SceneDesc *FindObject(const String &objectName) const noexcept;
+
+	/// Noms des objets du projet, dans l'ordre du projet.
+	[[nodiscard]] std::vector<String> ObjectNames() const;
+
+	/// Nombre de SCÈNES (objets exclus).
+	[[nodiscard]] size_t SceneCount() const noexcept;
+
 	/// Scène active, ou la première scène si `activeScene` ne résout pas —
 	/// `nullptr` uniquement pour un projet sans AUCUNE scène.
 	[[nodiscard]] SceneDesc *ActiveScene() noexcept;
@@ -742,9 +769,10 @@ public:
 
 	bool SetActiveScene(const String &sceneName);
 
+	/// Noms des SCÈNES (objets exclus).
 	[[nodiscard]] std::vector<String> SceneNames() const;
 
-	[[nodiscard]] size_t TotalObjectCount() const noexcept;
+	[[nodiscard]] size_t TotalNodeCount() const noexcept;
 
 	// ── Sérialisation ────────────────────────────────────────────────────────
 

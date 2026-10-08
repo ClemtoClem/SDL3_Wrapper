@@ -1,0 +1,89 @@
+{
+ "name": "Donjon-étage-supérieur",
+ "description": "Scénario fixe : donjon de deux étages (graine 2026, Facile) — lance Génération puis Donjon",
+ "gameplay_script": "",
+ "environment": {
+  "sun_direction": [
+   0.3,
+   -0.7,
+   0.45
+  ],
+  "sun_intensity": 0.06,
+  "sun_color": [
+   110,
+   120,
+   140
+  ],
+  "ambient_color": [
+   46,
+   38,
+   32
+  ],
+  "background_color": [
+   8,
+   6,
+   6
+  ],
+  "gravity": [
+   0.0,
+   -9.8100004196167,
+   0.0
+  ]
+ },
+ "camera": {
+  "edit_position": [
+   0.0,
+   12.0,
+   -22.0
+  ],
+  "edit_yaw": 0.0,
+  "edit_pitch": -0.7,
+  "play_position": [
+   0.0,
+   1.7,
+   -28.0
+  ],
+  "play_yaw": 0.0,
+  "play_pitch": -0.1
+ },
+ "canvas2d": {
+  "width": 1280,
+  "height": 720,
+  "render_3d": true,
+  "background": [
+   24,
+   26,
+   34
+  ]
+ },
+ "tree": {
+  "format": "scene.tree",
+  "version": 1,
+  "root": {
+   "id": "0:0",
+   "type": "Node",
+   "name": "Donjon-étage-supérieur",
+   "transform": {
+    "position": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rotation": [
+     -0.0,
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "children": []
+  }
+ },
+ "format": "game_editor.scene",
+ "version": 1,
+ "gameplay_script_file": "../scripts/donjon-étage-supérieur.gameplay.script"
+}

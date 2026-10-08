@@ -38,7 +38,7 @@ void DocumentArea::OpenSceneScript(const String &sceneName) {
 }
 
 void DocumentArea::OpenComponentJson(scene::NodeId id, const String &type) {
-	const scene::Node *node = m_ctx.runtime.FindObject(id);
+	const scene::Node *node = m_ctx.runtime.FindNode(id);
 	if (!node)
 		return;
 	scene::PropertyMap props;

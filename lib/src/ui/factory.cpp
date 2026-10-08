@@ -1528,6 +1528,16 @@ WidgetBuilder UiFactory::Combo(std::vector<String> items, int selected) {
 	return b;
 }
 
+WidgetBuilder UiFactory::Combo(std::vector<ComboCategory> categories, int selected) {
+	WidgetBuilder b(*world, *layout);
+	UiComboBox cb;
+	cb.SetCategories(std::move(categories));
+	cb.selected = cb.items.empty() ? -1 : sdl3::Clamp(selected, -1, int(cb.items.size()) - 1);
+	cb.itemHeight = theme.fontSize + 12.f;
+	b.combo = Some(std::move(cb));
+	return b;
+}
+
 WidgetBuilder UiFactory::Listbox(std::vector<String> items, int selected) {
 	WidgetBuilder b(*world, *layout);
 	ListBox lb;

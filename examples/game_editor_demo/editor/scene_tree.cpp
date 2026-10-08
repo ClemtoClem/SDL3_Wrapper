@@ -1,6 +1,8 @@
 // Définitions de scene_tree.hpp
 #include "scene_tree.hpp"
 
+#include "../document/objects.hpp"
+
 namespace game_editor {
 
 // ── SceneTreePanel ───────────────────────────────────────────────────────────
@@ -112,7 +114,7 @@ void SceneTreePanel::OpenContextMenu(scene::NodeId target, float x, float y) {
 }
 
 Option<scene::NodeId> SceneTreePanel::CreateNode(const String &key, scene::NodeId parent) {
-	Option<ObjectDesc> desc = MakeNodeFromTemplate(key);
+	Option<NodeDesc> desc = MakeNodeFromTemplate(key);
 	SceneDesc *scene = m_ctx.runtime.ActiveScene();
 	if (desc.IsNone() || !scene)
 		return NONE;
@@ -139,7 +141,7 @@ Option<scene::NodeId> SceneTreePanel::CreateNode(const String &key, scene::NodeI
 }
 
 void SceneTreePanel::BeginRename(scene::NodeId id) {
-	const scene::Node *node = m_ctx.runtime.FindObject(id);
+	const scene::Node *node = m_ctx.runtime.FindNode(id);
 	if (!node)
 		return;
 	m_renameTarget = id;
@@ -246,9 +248,17 @@ void SceneTreePanel::AddRow(const SceneDesc &scene, scene::NodeId id, int depth,
 		return;
 	const ui::UiTheme &theme = m_ctx.Theme();
 	const bool isRoot = id == scene.tree.Root();
-	const kit::NodeLook look = isRoot ? kit::NodeLook{ui::MaterialIcons::VIEW_IN_AR, kit::Rgb(126, 172, 232), "Scène"}
-									  : kit::LookOf(*node);
-	const bool dimmed = !isRoot && (!scene.tree.IsVisibleInTree(id) || node->locked);
+	// Instance d'objet : référence (icône d'objet) ; nœud généré : contenu
+	// de l'objet, grisé, ni déplaçable ni renommable ici.
+	const bool instance = !isRoot && objects::IsInstance(*node);
+	const bool generated = !isRoot && objects::IsGenerated(*node);
+	kit::NodeLook look = isRoot ? kit::NodeLook{scene.IsObject() ? ui::MaterialIcons::CATEGORY : ui::MaterialIcons::VIEW_IN_AR,
+											   scene.IsObject() ? kit::Rgb(232, 176, 92) : kit::Rgb(126, 172, 232),
+											   scene.IsObject() ? "Objet" : "Scène"}
+								: kit::LookOf(*node);
+	if (instance)
+		look = kit::NodeLook{ui::MaterialIcons::CATEGORY, kit::Rgb(232, 176, 92), "Instance"};
+	const bool dimmed = !isRoot && (!scene.tree.IsVisibleInTree(id) || node->locked || generated);
 
 	ui::WidgetBuilder row = m_ctx.factory.Selectable(String(), index);
 	row.GrowW().HAuto().Gap(4.f).Pad(math::Sides{4.f + float(depth) * 14.f, 1.f, 6.f, 1.f}).Parent(m_list);
@@ -261,11 +271,18 @@ void SceneTreePanel::AddRow(const SceneDesc &scene, scene::NodeId id, int depth,
 			(void)m_ctx.runtime.Select(id);
 		OpenContextMenu(id, x, y);
 	});
-	row.DropTarget(String("node"), false); // indicateur propre (avant / après / dans)
-	row.OnDrop([this, id](int64_t payload) { OnDrop(uint32_t(payload), id); });
-	if (!isRoot)
+	if (!generated) {
+		row.DropTarget(String("node"), false); // indicateur propre (avant / après / dans)
+		row.OnDrop([this, id](int64_t payload) { OnDrop(uint32_t(payload), id); });
+	}
+	if (!isRoot && !generated)
 		row.DragPayload(String("node"), int64_t(id.index));
-	row.Tooltip(scene.tree.PathOf(id));
+	String tip = scene.tree.PathOf(id);
+	if (instance)
+		tip += String::Format("\nInstance de l'objet « %s » : son contenu suit l'objet", objects::SourceOf(*node).CStr());
+	if (generated)
+		tip += String("\nContenu d'une instance d'objet : modifiez l'objet pour le changer");
+	row.Tooltip(tip);
 	ecs::Entity rowEntity = row.Spawn();
 	if (auto selectable = m_ctx.registry.GetComponent<ui::UiSelectable>(rowEntity); selectable.IsSome())
 		selectable.Unwrap()->selected = m_ctx.runtime.SelectedId() == id;
@@ -290,7 +307,8 @@ void SceneTreePanel::AddRow(const SceneDesc &scene, scene::NodeId id, int depth,
 	name.Parent(rowEntity);
 	(void)name.Spawn();
 
-	String suffix = String::Format("(%s)", look.label);
+	String suffix = instance ? String::Format("(Objet : %s)", objects::SourceOf(*node).CStr())
+							 : String::Format("(%s)", look.label);
 	if (flat && !isRoot) {
 		const scene::Node *parent = scene.tree.Get(node->parent);
 		if (parent && parent->id != scene.tree.Root())
@@ -342,6 +360,10 @@ SceneTreePanel::DropZone SceneTreePanel::DropZoneAt(scene::NodeId dragged, scene
 	if (!scene || !dragged.Valid() || !target.Valid() || !scene->tree.Contains(dragged) || !scene->tree.Contains(target))
 		return DropZone::NONE;
 	if (dragged == target || scene->tree.IsAncestorOf(dragged, target))
+		return DropZone::INVALID;
+	// Le contenu d'une instance n'appartient pas à la scène : ni source ni
+	// cible (on modifie l'objet lui-même).
+	if (objects::IsGenerated(*scene->tree.Get(dragged)) || objects::IsGenerated(*scene->tree.Get(target)))
 		return DropZone::INVALID;
 	if (target == scene->tree.Root())
 		return DropZone::INSIDE; // la ligne de la scène : à la racine
@@ -435,7 +457,8 @@ void SceneTreePanel::RefreshSceneStrip() {
 							  MarkDirty();
 						  },
 						  18.f, nullptr, theme.muted);
-	ui::WidgetBuilder title = m_ctx.factory.Label(String::Format("Scènes du projet (%d)", int(project.scenes.size())));
+	// Les objets réutilisables ont leur propre onglet (« Objets ») : ici, les scènes.
+	ui::WidgetBuilder title = m_ctx.factory.Label(String::Format("Scènes du projet (%d)", int(project.SceneCount())));
 	title.GrowW().HAuto().FontSize(12.f).TextColor(theme.muted).TextEllipsis().PointerThrough().Parent(headEntity);
 	(void)title.Spawn();
 	if (!m_scenesExpanded)
@@ -443,6 +466,8 @@ void SceneTreePanel::RefreshSceneStrip() {
 
 	int index = 0;
 	for (const SceneDesc &scene : project.scenes) {
+		if (scene.IsObject())
+			continue;
 		const bool current = active && active->name == scene.name;
 		ui::WidgetBuilder row = m_ctx.factory.Selectable(String(), index++);
 		row.GrowW().HAuto().Gap(6.f).Pad(math::Sides{22.f, 2.f, 6.f, 2.f}).Parent(m_sceneStrip);
@@ -461,7 +486,7 @@ void SceneTreePanel::RefreshSceneStrip() {
 		ui::WidgetBuilder name = m_ctx.factory.Label(scene.name);
 		name.WAuto().HAuto().FontSize(13.f).PointerThrough().Parent(rowEntity);
 		(void)name.Spawn();
-		ui::WidgetBuilder count = m_ctx.factory.Label(String::Format("(%d)", int(scene.ObjectCount())));
+		ui::WidgetBuilder count = m_ctx.factory.Label(String::Format("(%d)", int(scene.NodeCount())));
 		count.GrowW().HAuto().FontSize(12.f).TextColor(theme.muted).TextEllipsis().PointerThrough().Parent(rowEntity);
 		(void)count.Spawn();
 	}
@@ -709,12 +734,38 @@ void SceneTreePanel::BuildMenus() {
 		}
 	}));
 	m_nodeOnlyItems.push_back(Item(m_contextMenu, "Supprimer", "Suppr", [this] {
-		const scene::Node *node = m_ctx.runtime.FindObject(m_contextTarget);
+		const scene::Node *node = m_ctx.runtime.FindNode(m_contextTarget);
 		const String name = node ? node->name : String();
 		if (m_ctx.runtime.RemoveNode(m_contextTarget))
 			Status(String::Format("Supprimé : %s (et son sous-arbre)", name.CStr()));
 	}));
 	m_nodeOnlyItems.push_back(Item(m_contextMenu, "Renommer…", "F2", [this] { BeginRename(m_contextTarget); }));
+	m_nodeOnlyItems.push_back(Item(m_contextMenu, "Créer un objet à partir du nœud", "", [this] {
+		auto object = m_ctx.runtime.CreateObjectFromNode(m_contextTarget);
+		if (object.IsError())
+			Status(String::Format("Objet impossible : %s", object.Error().CStr()));
+		else
+			Status(String::Format("Objet « %s » créé : le nœud en est maintenant une instance", object.Value().CStr()));
+		MarkDirty();
+	}));
+	m_nodeOnlyItems.push_back(Item(m_contextMenu, "Ouvrir l'objet", "", [this] {
+		const scene::Node *node = m_ctx.runtime.FindNode(m_contextTarget);
+		if (!node || !objects::IsInstance(*node)) {
+			Status(String("Ce nœud n'est pas une instance d'objet"));
+			return;
+		}
+		const String source = objects::SourceOf(*node);
+		if (m_ctx.runtime.GetProject().Fs().FindObject(ObjectRef{source}) && m_ctx.runtime.SwitchScene(source))
+			Status(String::Format("Objet ouvert : %s — ses instances suivront vos modifications", source.CStr()));
+		else
+			Status(String::Format("Objet « %s » introuvable", source.CStr()));
+	}));
+	m_nodeOnlyItems.push_back(Item(m_contextMenu, "Rendre indépendant", "", [this] {
+		auto detached = m_ctx.runtime.DetachInstance(m_contextTarget);
+		Status(detached.IsOk() ? String("L'instance est devenue des nœuds propres à la scène")
+							   : String::Format("Impossible : %s", detached.Error().CStr()));
+		MarkDirty();
+	}));
 	m_nodeOnlyItems.push_back(Item(m_contextMenu, "Cadrer dans la vue", "F", [this] {
 		(void)m_ctx.runtime.FocusOn(m_contextTarget);
 	}));
@@ -771,8 +822,8 @@ void SceneTreePanel::ApplyRename(const String &text) {
 	m_ctx.gui.CloseModal(m_renameModal);
 	if (name.IsEmpty() || !m_renameTarget.Valid())
 		return;
-	if (m_ctx.runtime.RenameObject(m_renameTarget, name)) {
-		const scene::Node *node = m_ctx.runtime.FindObject(m_renameTarget);
+	if (m_ctx.runtime.RenameNode(m_renameTarget, name)) {
+		const scene::Node *node = m_ctx.runtime.FindNode(m_renameTarget);
 		Status(String::Format("Renommé : %s", node ? node->name.CStr() : name.CStr()));
 	}
 }

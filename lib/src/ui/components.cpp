@@ -100,8 +100,63 @@ float UiKnob::Snap(float v) const noexcept {
 
 // ── UiComboBox ───────────────────────────────────────────────────────────────
 
-sdl3::FRect UiComboBox::DropdownRect(const sdl3::FRect &screen) const noexcept {
-	return {screen.x, screen.y + screen.h + 2.f, screen.w, itemHeight * float(items.size())};
+void UiComboBox::SetCategories(std::vector<ComboCategory> categories) {
+	items.clear();
+	groups.clear();
+	for (ComboCategory &category : categories) {
+		const int first = int(items.size());
+		for (String &item : category.items)
+			items.push_back(std::move(item));
+		if (!category.title.IsEmpty())
+			groups.push_back(UiComboGroup{std::move(category.title), first, int(items.size()) - first});
+	}
+	if (selected >= int(items.size()))
+		selected = items.empty() ? -1 : int(items.size()) - 1;
+	open = false;
+	openGroup = hoveredGroup = hoveredItem = -1;
+}
+
+std::vector<int> UiComboBox::TopItems() const {
+	std::vector<bool> grouped(items.size(), false);
+	for (const UiComboGroup &g : groups)
+		for (int i = sdl3::Max(0, g.first); i < g.first + g.count && i < int(items.size()); ++i)
+			grouped[size_t(i)] = true;
+	std::vector<int> top;
+	for (size_t i = 0; i < items.size(); ++i)
+		if (!grouped[i])
+			top.push_back(int(i));
+	return top;
+}
+
+int UiComboBox::TopRows() const {
+	return groups.empty() ? int(items.size()) : int(TopItems().size() + groups.size());
+}
+
+int UiComboBox::GroupOf(int item) const noexcept {
+	for (size_t g = 0; g < groups.size(); ++g)
+		if (item >= groups[g].first && item < groups[g].first + groups[g].count)
+			return int(g);
+	return -1;
+}
+
+sdl3::FRect UiComboBox::DropdownRect(const sdl3::FRect &screen) const {
+	return {screen.x, screen.y + screen.h + 2.f, screen.w, itemHeight * float(TopRows())};
+}
+
+sdl3::FRect UiComboBox::SubmenuRect(const sdl3::FRect &screen, int group) const {
+	if (group < 0 || group >= int(groups.size()))
+		return {0.f, 0.f, 0.f, 0.f};
+	const sdl3::FRect dd = DropdownRect(screen);
+	const int row = int(TopItems().size()) + group;
+	const float h = itemHeight * float(sdl3::Max(1, groups[size_t(group)].count));
+	float y = dd.y + float(row) * itemHeight;
+	if (screenBottom > 0.f && y + h > screenBottom)
+		y = sdl3::Max(0.f, screenBottom - h);
+	return {dd.x + dd.w + 2.f, y, screen.w, h};
+}
+
+bool UiComboBox::OverlayContains(const sdl3::FRect &screen, sdl3::FPoint p) const {
+	return DropdownRect(screen).Contains(p) || (openGroup >= 0 && SubmenuRect(screen, openGroup).Contains(p));
 }
 
 // ── UiDragValue ──────────────────────────────────────────────────────────────
@@ -282,7 +337,7 @@ ecs::Entity HitTestIndex::TopMostAt(ecs::ArchetypeRegistry &world, sdl3::FPoint 
 		auto cb = world.GetComponent<UiComboBox>(it->entity);
 		if (cb.IsNone() || !cb.Unwrap()->open)
 			continue;
-		if (!cb.Unwrap()->DropdownRect(it->screen).Contains(p))
+		if (!cb.Unwrap()->OverlayContains(it->screen, p))
 			continue;
 		if (IsHiddenRecursive(world, it->entity))
 			continue;

@@ -1,0 +1,89 @@
+{
+ "name": "Égouts",
+ "description": "Scénario fixe : commence à l'étage des égouts (graine 2027, Normal, étage 2)",
+ "gameplay_script": "",
+ "environment": {
+  "sun_direction": [
+   0.2,
+   -0.95,
+   0.15
+  ],
+  "sun_intensity": 0.04,
+  "sun_color": [
+   90,
+   110,
+   90
+  ],
+  "ambient_color": [
+   34,
+   44,
+   38
+  ],
+  "background_color": [
+   4,
+   6,
+   6
+  ],
+  "gravity": [
+   0.0,
+   -9.8100004196167,
+   0.0
+  ]
+ },
+ "camera": {
+  "edit_position": [
+   -6.0,
+   6.0,
+   -10.0
+  ],
+  "edit_yaw": 0.55,
+  "edit_pitch": -0.55,
+  "play_position": [
+   0.0,
+   1.7,
+   -8.0
+  ],
+  "play_yaw": 0.0,
+  "play_pitch": -0.1
+ },
+ "canvas2d": {
+  "width": 1280,
+  "height": 720,
+  "render_3d": true,
+  "background": [
+   24,
+   26,
+   34
+  ]
+ },
+ "tree": {
+  "format": "scene.tree",
+  "version": 1,
+  "root": {
+   "id": "0:0",
+   "type": "Node",
+   "name": "Égouts",
+   "transform": {
+    "position": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rotation": [
+     -0.0,
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "children": []
+  }
+ },
+ "format": "game_editor.scene",
+ "version": 1,
+ "gameplay_script_file": "../scripts/donjon-égouts.gameplay.script"
+}

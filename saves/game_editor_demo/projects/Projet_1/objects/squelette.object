@@ -1,0 +1,1081 @@
+{
+ "format": "game_editor.object",
+ "version": 1,
+ "name": "squelette",
+ "description": "Gardien squelette : suit le joueur dans le donjon, frappe, s'effondre",
+ "tree": {
+  "root": {
+   "id": "18:0",
+   "type": "Node",
+   "name": "squelette",
+   "transform": {
+    "position": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rotation": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "properties": {
+    "description": {
+     "type": "string",
+     "value": "Gardien squelette : suit le joueur dans le donjon, frappe, s'effondre"
+    }
+   },
+   "children": [
+    {
+     "id": "17:0",
+     "type": "Node",
+     "name": "Corps",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "Script",
+       "props": {
+        "script": {
+         "type": "string",
+         "value": "squelette"
+        }
+       }
+      }
+     ],
+     "properties": {
+      "tag": {
+       "type": "string",
+       "value": "monstre"
+      },
+      "espece": {
+       "type": "string",
+       "value": "squelette"
+      },
+      "pv": {
+       "type": "float",
+       "value": 3.0
+      },
+      "degats": {
+       "type": "float",
+       "value": 1.0
+      },
+      "vitesse": {
+       "type": "float",
+       "value": 1.7
+      }
+     },
+     "children": [
+      {
+       "id": "4:0",
+       "type": "MeshInstance",
+       "name": "Crâne",
+       "transform": {
+        "position": [
+         0.0,
+         1.72,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "sphere"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.36,
+            0.36,
+            0.36
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            226.0,
+            218.0,
+            196.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.8
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ],
+       "children": [
+        {
+         "id": "1:0",
+         "type": "MeshInstance",
+         "name": "Orbite",
+         "transform": {
+          "position": [
+           -0.08,
+           0.02,
+           0.15
+          ],
+          "rotation": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "scale": [
+           1.0,
+           1.0,
+           1.0
+          ]
+         },
+         "components": [
+          {
+           "type": "MeshInstance",
+           "props": {
+            "shape": {
+             "type": "string",
+             "value": "sphere"
+            },
+            "dimensions": {
+             "type": "vec3",
+             "value": [
+              0.08,
+              0.08,
+              0.06
+             ]
+            },
+            "segments": {
+             "type": "int",
+             "value": 24
+            },
+            "material": {
+             "type": "string",
+             "value": "unlit"
+            },
+            "base_color": {
+             "type": "color",
+             "value": [
+              6.0,
+              6.0,
+              8.0,
+              255.0
+             ]
+            },
+            "metallic": {
+             "type": "float",
+             "value": 0.0
+            },
+            "roughness": {
+             "type": "float",
+             "value": 0.85
+            },
+            "double_sided": {
+             "type": "bool",
+             "value": false
+            },
+            "wireframe": {
+             "type": "bool",
+             "value": false
+            }
+           }
+          }
+         ]
+        },
+        {
+         "id": "2:0",
+         "type": "MeshInstance",
+         "name": "Orbite 2",
+         "transform": {
+          "position": [
+           0.08,
+           0.02,
+           0.15
+          ],
+          "rotation": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "scale": [
+           1.0,
+           1.0,
+           1.0
+          ]
+         },
+         "components": [
+          {
+           "type": "MeshInstance",
+           "props": {
+            "shape": {
+             "type": "string",
+             "value": "sphere"
+            },
+            "dimensions": {
+             "type": "vec3",
+             "value": [
+              0.08,
+              0.08,
+              0.06
+             ]
+            },
+            "segments": {
+             "type": "int",
+             "value": 24
+            },
+            "material": {
+             "type": "string",
+             "value": "unlit"
+            },
+            "base_color": {
+             "type": "color",
+             "value": [
+              6.0,
+              6.0,
+              8.0,
+              255.0
+             ]
+            },
+            "metallic": {
+             "type": "float",
+             "value": 0.0
+            },
+            "roughness": {
+             "type": "float",
+             "value": 0.85
+            },
+            "double_sided": {
+             "type": "bool",
+             "value": false
+            },
+            "wireframe": {
+             "type": "bool",
+             "value": false
+            }
+           }
+          }
+         ]
+        },
+        {
+         "id": "3:0",
+         "type": "MeshInstance",
+         "name": "Mâchoire",
+         "transform": {
+          "position": [
+           0.0,
+           -0.15,
+           0.06
+          ],
+          "rotation": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "scale": [
+           1.0,
+           1.0,
+           1.0
+          ]
+         },
+         "components": [
+          {
+           "type": "MeshInstance",
+           "props": {
+            "shape": {
+             "type": "string",
+             "value": "box"
+            },
+            "dimensions": {
+             "type": "vec3",
+             "value": [
+              0.22,
+              0.07,
+              0.16
+             ]
+            },
+            "segments": {
+             "type": "int",
+             "value": 24
+            },
+            "material": {
+             "type": "string",
+             "value": "plastic"
+            },
+            "base_color": {
+             "type": "color",
+             "value": [
+              226.0,
+              218.0,
+              196.0,
+              255.0
+             ]
+            },
+            "metallic": {
+             "type": "float",
+             "value": 0.0
+            },
+            "roughness": {
+             "type": "float",
+             "value": 0.85
+            },
+            "double_sided": {
+             "type": "bool",
+             "value": false
+            },
+            "wireframe": {
+             "type": "bool",
+             "value": false
+            }
+           }
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "5:0",
+       "type": "MeshInstance",
+       "name": "Cage thoracique",
+       "transform": {
+        "position": [
+         0.0,
+         1.25,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.46,
+            0.6,
+            0.36
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            226.0,
+            218.0,
+            196.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "6:0",
+       "type": "MeshInstance",
+       "name": "Colonne",
+       "transform": {
+        "position": [
+         0.0,
+         0.98,
+         -0.05
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "cylinder"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.07,
+            0.4,
+            0.07
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            226.0,
+            218.0,
+            196.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "7:0",
+       "type": "MeshInstance",
+       "name": "Bassin",
+       "transform": {
+        "position": [
+         0.0,
+         0.85,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            0.4,
+            0.16,
+            0.2
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            226.0,
+            218.0,
+            196.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.85
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "9:0",
+       "type": "Node",
+       "name": "Épaule gauche",
+       "transform": {
+        "position": [
+         -0.3,
+         1.5,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "children": [
+        {
+         "id": "8:0",
+         "type": "MeshInstance",
+         "name": "Bras",
+         "transform": {
+          "position": [
+           0.0,
+           -0.33,
+           0.0
+          ],
+          "rotation": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "scale": [
+           1.0,
+           1.0,
+           1.0
+          ]
+         },
+         "components": [
+          {
+           "type": "MeshInstance",
+           "props": {
+            "shape": {
+             "type": "string",
+             "value": "cylinder"
+            },
+            "dimensions": {
+             "type": "vec3",
+             "value": [
+              0.08,
+              0.7,
+              0.08
+             ]
+            },
+            "segments": {
+             "type": "int",
+             "value": 24
+            },
+            "material": {
+             "type": "string",
+             "value": "plastic"
+            },
+            "base_color": {
+             "type": "color",
+             "value": [
+              226.0,
+              218.0,
+              196.0,
+              255.0
+             ]
+            },
+            "metallic": {
+             "type": "float",
+             "value": 0.0
+            },
+            "roughness": {
+             "type": "float",
+             "value": 0.85
+            },
+            "double_sided": {
+             "type": "bool",
+             "value": false
+            },
+            "wireframe": {
+             "type": "bool",
+             "value": false
+            }
+           }
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "12:0",
+       "type": "Node",
+       "name": "Épaule droite",
+       "transform": {
+        "position": [
+         0.3,
+         1.5,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "children": [
+        {
+         "id": "10:0",
+         "type": "MeshInstance",
+         "name": "Bras",
+         "transform": {
+          "position": [
+           0.0,
+           -0.33,
+           0.0
+          ],
+          "rotation": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "scale": [
+           1.0,
+           1.0,
+           1.0
+          ]
+         },
+         "components": [
+          {
+           "type": "MeshInstance",
+           "props": {
+            "shape": {
+             "type": "string",
+             "value": "cylinder"
+            },
+            "dimensions": {
+             "type": "vec3",
+             "value": [
+              0.08,
+              0.7,
+              0.08
+             ]
+            },
+            "segments": {
+             "type": "int",
+             "value": 24
+            },
+            "material": {
+             "type": "string",
+             "value": "plastic"
+            },
+            "base_color": {
+             "type": "color",
+             "value": [
+              226.0,
+              218.0,
+              196.0,
+              255.0
+             ]
+            },
+            "metallic": {
+             "type": "float",
+             "value": 0.0
+            },
+            "roughness": {
+             "type": "float",
+             "value": 0.85
+            },
+            "double_sided": {
+             "type": "bool",
+             "value": false
+            },
+            "wireframe": {
+             "type": "bool",
+             "value": false
+            }
+           }
+          }
+         ]
+        },
+        {
+         "id": "11:0",
+         "type": "MeshInstance",
+         "name": "Épée",
+         "transform": {
+          "position": [
+           0.0,
+           -0.62,
+           0.42
+          ],
+          "rotation": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "scale": [
+           1.0,
+           1.0,
+           1.0
+          ]
+         },
+         "components": [
+          {
+           "type": "MeshInstance",
+           "props": {
+            "shape": {
+             "type": "string",
+             "value": "box"
+            },
+            "dimensions": {
+             "type": "vec3",
+             "value": [
+              0.06,
+              0.06,
+              1.0
+             ]
+            },
+            "segments": {
+             "type": "int",
+             "value": 24
+            },
+            "material": {
+             "type": "string",
+             "value": "metal"
+            },
+            "base_color": {
+             "type": "color",
+             "value": [
+              170.0,
+              170.0,
+              180.0,
+              255.0
+             ]
+            },
+            "metallic": {
+             "type": "float",
+             "value": 0.9
+            },
+            "roughness": {
+             "type": "float",
+             "value": 0.35
+            },
+            "double_sided": {
+             "type": "bool",
+             "value": false
+            },
+            "wireframe": {
+             "type": "bool",
+             "value": false
+            }
+           }
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "14:0",
+       "type": "Node",
+       "name": "Hanche gauche",
+       "transform": {
+        "position": [
+         -0.13,
+         0.82,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "children": [
+        {
+         "id": "13:0",
+         "type": "MeshInstance",
+         "name": "Jambe",
+         "transform": {
+          "position": [
+           0.0,
+           -0.42,
+           0.0
+          ],
+          "rotation": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "scale": [
+           1.0,
+           1.0,
+           1.0
+          ]
+         },
+         "components": [
+          {
+           "type": "MeshInstance",
+           "props": {
+            "shape": {
+             "type": "string",
+             "value": "cylinder"
+            },
+            "dimensions": {
+             "type": "vec3",
+             "value": [
+              0.1,
+              0.85,
+              0.1
+             ]
+            },
+            "segments": {
+             "type": "int",
+             "value": 24
+            },
+            "material": {
+             "type": "string",
+             "value": "plastic"
+            },
+            "base_color": {
+             "type": "color",
+             "value": [
+              226.0,
+              218.0,
+              196.0,
+              255.0
+             ]
+            },
+            "metallic": {
+             "type": "float",
+             "value": 0.0
+            },
+            "roughness": {
+             "type": "float",
+             "value": 0.85
+            },
+            "double_sided": {
+             "type": "bool",
+             "value": false
+            },
+            "wireframe": {
+             "type": "bool",
+             "value": false
+            }
+           }
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "16:0",
+       "type": "Node",
+       "name": "Hanche droite",
+       "transform": {
+        "position": [
+         0.13,
+         0.82,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "children": [
+        {
+         "id": "15:0",
+         "type": "MeshInstance",
+         "name": "Jambe",
+         "transform": {
+          "position": [
+           0.0,
+           -0.42,
+           0.0
+          ],
+          "rotation": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "scale": [
+           1.0,
+           1.0,
+           1.0
+          ]
+         },
+         "components": [
+          {
+           "type": "MeshInstance",
+           "props": {
+            "shape": {
+             "type": "string",
+             "value": "cylinder"
+            },
+            "dimensions": {
+             "type": "vec3",
+             "value": [
+              0.1,
+              0.85,
+              0.1
+             ]
+            },
+            "segments": {
+             "type": "int",
+             "value": 24
+            },
+            "material": {
+             "type": "string",
+             "value": "plastic"
+            },
+            "base_color": {
+             "type": "color",
+             "value": [
+              226.0,
+              218.0,
+              196.0,
+              255.0
+             ]
+            },
+            "metallic": {
+             "type": "float",
+             "value": 0.0
+            },
+            "roughness": {
+             "type": "float",
+             "value": 0.85
+            },
+            "double_sided": {
+             "type": "bool",
+             "value": false
+            },
+            "wireframe": {
+             "type": "bool",
+             "value": false
+            }
+           }
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

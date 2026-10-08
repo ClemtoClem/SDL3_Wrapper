@@ -51722,5 +51722,5 @@
   },
   "format": "game_editor.scene",
   "version": 1,
-  "gameplay_script_file": "../scripts/Donjon.gameplay.script"
+  "gameplay_script_file": "../scripts/donjon.gameplay.script"
 }

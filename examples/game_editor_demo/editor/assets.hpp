@@ -42,7 +42,7 @@
 
 namespace game_editor {
 
-enum class AssetKind : uint8_t { FOLDER, SCENE, SCRIPT, MODEL, TEXTURE, SOUND, FONT, SHADER, DATA, OTHER };
+enum class AssetKind : uint8_t { FOLDER, SCENE, OBJECT, SCRIPT, MODEL, TEXTURE, SOUND, FONT, SHADER, DATA, OTHER };
 
 [[nodiscard]] const char *AssetKindLabel(AssetKind kind) noexcept;
 
@@ -67,6 +67,8 @@ public:
 	static constexpr const char *ROOT = "projet:";
 	static constexpr const char *SCENES = "projet:/scenes";
 	static constexpr const char *SCRIPTS = "projet:/scripts";
+	/// Objets réutilisables du projet (`objects/<Nom>.object`).
+	static constexpr const char *OBJECTS = "projet:/objects";
 
 	/// `diskRoot` : les ressources (`assets/`) ; `savesRoot` : les
 	/// sauvegardes de l'éditeur (projets, scènes, scripts), montrées dans un
@@ -94,6 +96,8 @@ public:
 	/// `<projet>/scenes` et `<projet>/scripts` (vides sans projet).
 	[[nodiscard]] String SceneFolder() const;
 	[[nodiscard]] String ScriptFolder() const;
+	/// `<projet>/objects` (vide sans projet).
+	[[nodiscard]] String ObjectFolder() const;
 
 	/// Forme canonique d'un emplacement : les dossiers `<projet>/scenes` et
 	/// `<projet>/scripts` SONT « Scènes » et « Scripts » (un seul emplacement,
@@ -180,6 +184,7 @@ struct AssetActions {
 	std::function<void(const String &path)> importModel;         ///< modèle glTF
 	std::function<void(const String &scene)> openScene;
 	std::function<void(const String &path)> instantiateScene;    ///< fichier .scene
+	std::function<void(const String &object)> instantiateObject;  ///< objet du projet, sous la sélection
 	std::function<void(const String &text)> status;
 };
 
@@ -380,6 +385,7 @@ private:
 	ecs::Entity m_newFolderButton{}, m_renameButton{}, m_duplicateButton{}, m_deleteButton{};
 	std::vector<ecs::Entity> m_tiles; ///< une par entrée, même ordre que m_entries
 	std::vector<ecs::Entity> m_popups;
+	ecs::Entity m_menuInstance{};
 	ecs::Entity m_menu{}, m_menuOpen{}, m_menuNewFolder{}, m_menuRename{}, m_menuDuplicate{}, m_menuCut{},
 		m_menuPaste{}, m_menuDelete{}, m_menuSelectAll{};
 	ecs::Entity m_nameModal{}, m_nameTitle{}, m_nameInput{}, m_confirmModal{}, m_confirmText{}, m_confirmTitle{};

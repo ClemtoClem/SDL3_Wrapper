@@ -1,5 +1,6 @@
 // Définitions de project.hpp
 #include "project.hpp"
+#include "objects.hpp"
 
 namespace game_editor {
 
@@ -703,30 +704,30 @@ Result<ScriptAsset, String> ScriptAsset::FromJson(const data::NodePtr &node) {
 	return Ok(std::move(asset));
 }
 
-// ── ObjectDesc ───────────────────────────────────────────────────────────────
+// ── NodeDesc ───────────────────────────────────────────────────────────────
 
-ObjectDesc ObjectDesc::Folder(String folderName) {
-	ObjectDesc desc = Group(std::move(folderName));
+NodeDesc NodeDesc::Folder(String folderName) {
+	NodeDesc desc = Group(std::move(folderName));
 	desc.type = String(node_kind::FOLDER);
 	return desc;
 }
 
-ObjectDesc ObjectDesc::Light(String lightName, LightDesc lightDesc) {
-	ObjectDesc desc = Group(std::move(lightName));
+NodeDesc NodeDesc::Light(String lightName, LightDesc lightDesc) {
+	NodeDesc desc = Group(std::move(lightName));
 	desc.type = String(node_kind::LIGHT);
 	desc.light = Some(lightDesc);
 	return desc;
 }
 
-ObjectDesc ObjectDesc::Group(String groupName) {
-	ObjectDesc desc;
+NodeDesc NodeDesc::Group(String groupName) {
+	NodeDesc desc;
 	desc.name = std::move(groupName);
 	desc.type = String(node_kind::GROUP);
 	desc.hasVisual = false;
 	return desc;
 }
 
-scene::Node ObjectDesc::ToNode() const {
+scene::Node NodeDesc::ToNode() const {
 	scene::Node node;
 	node.name = name;
 	node.transform = transform;
@@ -761,8 +762,8 @@ scene::Node ObjectDesc::ToNode() const {
 	return node;
 }
 
-ObjectDesc ObjectDesc::FromNode(const scene::Node &node) {
-	ObjectDesc desc;
+NodeDesc NodeDesc::FromNode(const scene::Node &node) {
+	NodeDesc desc;
 	desc.name = node.name;
 	desc.type = node.type;
 	desc.transform = node.transform;
@@ -789,10 +790,10 @@ ObjectDesc ObjectDesc::FromNode(const scene::Node &node) {
 	return desc;
 }
 
-Result<ObjectDesc, String> ObjectDesc::FromLegacyJson(const data::NodePtr &node) {
+Result<NodeDesc, String> NodeDesc::FromLegacyJson(const data::NodePtr &node) {
 	if (!node || !node->IsObject())
 		return Err(String("objet : objet JSON attendu"));
-	ObjectDesc desc;
+	NodeDesc desc;
 	desc.name = json::Str(node->Get("name"));
 	if (desc.name.IsEmpty())
 		return Err(String("objet : champ `name` manquant ou vide"));
@@ -813,8 +814,8 @@ Result<ObjectDesc, String> ObjectDesc::FromLegacyJson(const data::NodePtr &node)
 	return Ok(std::move(desc));
 }
 
-Option<ObjectDesc> MakeNode2DFromTemplate(const String &key, const String &label) {
-	ObjectDesc desc = ObjectDesc::Group(label);
+Option<NodeDesc> MakeNode2DFromTemplate(const String &key, const String &label) {
+	NodeDesc desc = NodeDesc::Group(label);
 	CanvasItemDesc item;
 	item.color = sdl3::Color{92, 156, 236, 255};
 	if (key == "rect2d") {
@@ -865,18 +866,18 @@ Option<ObjectDesc> MakeNode2DFromTemplate(const String &key, const String &label
 	return Some(std::move(desc));
 }
 
-Option<ObjectDesc> MakeNodeFromTemplate(const String &key) {
+Option<NodeDesc> MakeNodeFromTemplate(const String &key) {
 	const char *label = nullptr;
 	for (const NodeTemplate &entry : NODE_TEMPLATES)
 		if (key == entry.key)
 			label = entry.label;
 	if (!label)
 		return NONE;
-	if (Option<ObjectDesc> flat = MakeNode2DFromTemplate(key, String(label)); flat.IsSome())
+	if (Option<NodeDesc> flat = MakeNode2DFromTemplate(key, String(label)); flat.IsSome())
 		return flat;
 
 	if (Option<ShapeKind> shape = ShapeKindFromName(key); shape.IsSome()) {
-		ObjectDesc desc;
+		NodeDesc desc;
 		desc.name = String(label);
 		desc.shape = shape.Unwrap();
 		desc.dimensions = shape.Unwrap() == ShapeKind::PLANE   ? math::FVector3{4.f, 1.f, 4.f}
@@ -890,11 +891,11 @@ Option<ObjectDesc> MakeNodeFromTemplate(const String &key) {
 		LightDesc light;
 		light.kind = key == "spot_light" ? LightKind::SPOT : LightKind::POINT;
 		light.color = sdl3::Color{255, 238, 210, 255};
-		return Some(ObjectDesc::Light(String(label), light));
+		return Some(NodeDesc::Light(String(label), light));
 	}
 	if (key == "folder")
-		return Some(ObjectDesc::Folder(String(label)));
-	ObjectDesc desc = ObjectDesc::Group(String(label));
+		return Some(NodeDesc::Folder(String(label)));
+	NodeDesc desc = NodeDesc::Group(String(label));
 	if (key == "trigger") {
 		desc.type = String(node_kind::TRIGGER);
 		desc.trigger = Some(TriggerDesc{});
@@ -1018,7 +1019,7 @@ scene::NodeId SceneDesc::Resolve(const String &pathOrName) const {
 	return FindId(pathOrName);
 }
 
-std::vector<scene::NodeId> SceneDesc::Objects() const {
+std::vector<scene::NodeId> SceneDesc::Nodes() const {
 	std::vector<scene::NodeId> out;
 	tree.Traverse(tree.Root(), [&](scene::NodeId id, const scene::Node &) {
 		if (id != tree.Root())
@@ -1039,7 +1040,7 @@ String SceneDesc::UniqueName(const String &base) const {
 	return wanted;
 }
 
-scene::NodeId SceneDesc::AddNode(ObjectDesc object) {
+scene::NodeId SceneDesc::AddNode(NodeDesc object) {
 	scene::NodeId parent = object.parent.IsEmpty() ? tree.Root() : Resolve(object.parent);
 	if (!parent.Valid())
 		parent = tree.Root();
@@ -1047,7 +1048,7 @@ scene::NodeId SceneDesc::AddNode(ObjectDesc object) {
 	return tree.Add(parent, object.ToNode());
 }
 
-String SceneDesc::Add(ObjectDesc object) {
+String SceneDesc::Add(NodeDesc object) {
 	scene::NodeId id = AddNode(std::move(object));
 	const scene::Node *node = tree.Get(id);
 	return node ? node->name : String();
@@ -1075,7 +1076,11 @@ data::NodePtr SceneDesc::ToJson() const {
 	node->Set("environment", environment.ToJson());
 	node->Set("camera", camera.ToJson());
 	node->Set("canvas2d", canvas.ToJson());
-	node->Set("tree", tree.ToJson());
+	if (IsObject())
+		node->Set("kind", data::Node::MakeString("object"));
+	// Le contenu des instances d'objets est régénéré au chargement : seule
+	// la référence (composant ObjectInstance + transform) s'enregistre.
+	node->Set("tree", objects::StripGenerated(tree).ToJson());
 	return node;
 }
 
@@ -1091,6 +1096,8 @@ Result<SceneDesc, String> SceneDesc::FromJson(const data::NodePtr &node) {
 	scene.environment = EnvironmentDesc::FromJson(node->Get("environment"));
 	scene.camera = CameraDesc::FromJson(node->Get("camera"));
 	scene.canvas = Canvas2DDesc::FromJson(node->Get("canvas2d"));
+	if (json::Str(node->Get("kind")) == "object")
+		scene.kind = SceneKind::OBJECT;
 
 	if (auto treeJson = node->Get("tree"); treeJson && treeJson->IsObject()) {
 		auto tree = ::scene::NodeTree::FromJson(treeJson);
@@ -1110,16 +1117,16 @@ Result<SceneDesc, String> SceneDesc::FromJson(const data::NodePtr &node) {
 }
 
 Option<String> SceneDesc::FromLegacyObjects(SceneDesc &scene, const data::NodePtr &array) {
-	std::vector<ObjectDesc> objects;
+	std::vector<NodeDesc> objects;
 	for (size_t i = 0; i < array->GetSize(); ++i) {
-		auto object = ObjectDesc::FromLegacyJson(array->At(i));
+		auto object = NodeDesc::FromLegacyJson(array->At(i));
 		if (object.IsError())
 			return Some(String::Format("scène « %s » : %s", scene.name.CStr(), object.Error().CStr()));
 		objects.push_back(std::move(object).Unwrap());
 	}
 	std::vector<scene::NodeId> created;
 	created.reserve(objects.size());
-	for (const ObjectDesc &object : objects)
+	for (const NodeDesc &object : objects)
 		created.push_back(scene.tree.Add(scene.tree.Root(), object.ToNode()));
 	for (size_t i = 0; i < objects.size(); ++i) {
 		if (objects[i].parent.IsEmpty())
@@ -1161,16 +1168,43 @@ const SceneDesc * Project::FindScene(const String &sceneName) const noexcept {
 	return nullptr;
 }
 
-SceneDesc * Project::ActiveScene() noexcept {
+SceneDesc *Project::ActiveScene() noexcept {
 	if (SceneDesc *scene = FindScene(activeScene))
 		return scene;
+	for (SceneDesc &scene : scenes)
+		if (!scene.IsObject())
+			return &scene;
 	return scenes.empty() ? nullptr : &scenes.front();
 }
 
-const SceneDesc * Project::ActiveScene() const noexcept {
-	if (const SceneDesc *scene = FindScene(activeScene))
-		return scene;
-	return scenes.empty() ? nullptr : &scenes.front();
+const SceneDesc *Project::ActiveScene() const noexcept {
+	return const_cast<Project *>(this)->ActiveScene();
+}
+
+SceneDesc *Project::FindObject(const String &objectName) noexcept {
+	for (SceneDesc &scene : scenes)
+		if (scene.IsObject() && scene.name == objectName)
+			return &scene;
+	return nullptr;
+}
+
+const SceneDesc * Project::FindObject(const String &objectName) const noexcept {
+	return const_cast<Project *>(this)->FindObject(objectName);
+}
+
+std::vector<String> Project::ObjectNames() const {
+	std::vector<String> names;
+	for (const SceneDesc &scene : scenes)
+		if (scene.IsObject())
+			names.push_back(scene.name);
+	return names;
+}
+
+size_t Project::SceneCount() const noexcept {
+	size_t count = 0;
+	for (const SceneDesc &scene : scenes)
+		count += scene.IsObject() ? 0 : 1;
+	return count;
 }
 
 bool Project::SetActiveScene(const String &sceneName) {
@@ -1184,14 +1218,15 @@ std::vector<String> Project::SceneNames() const {
 	std::vector<String> names;
 	names.reserve(scenes.size());
 	for (const SceneDesc &scene : scenes)
-		names.push_back(scene.name);
+		if (!scene.IsObject())
+			names.push_back(scene.name);
 	return names;
 }
 
-size_t Project::TotalObjectCount() const noexcept {
+size_t Project::TotalNodeCount() const noexcept {
 	size_t total = 0;
 	for (const SceneDesc &scene : scenes)
-		total += scene.ObjectCount();
+		total += scene.NodeCount();
 	return total;
 }
 
@@ -1245,8 +1280,11 @@ Result<Project, String> Project::FromJson(const data::NodePtr &root) {
 			project.scripts.push_back(std::move(script).Unwrap());
 		}
 	}
+	if (project.SceneCount() == 0)
+		return Err(String("projet : aucune scène"));
 	if (!project.FindScene(project.activeScene))
-		project.activeScene = project.scenes.front().name;
+		project.activeScene = project.SceneNames().front();
+	(void)objects::ExpandProject(project);
 	return Ok(std::move(project));
 }
 

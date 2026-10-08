@@ -1,0 +1,33 @@
+# ── Échelle : passage vers un autre étage ────────────────────────────────────
+#
+# Attaché au nœud « Passage » des pièces puits_echelle (trappe en haut) et
+# echelle_arrivee (pied de l'échelle à l'étage du dessous). Près de
+# l'échelle, le message de la propriété `message` s'affiche ; E (ou la
+# visite guidée, qui ne fait que descendre) DEMANDE la traversée, que le
+# Donjon joue (montée ou descente, fondu, changement d'étage).
+
+class Echelle extends Behaviour {
+    let rayon = 1.1
+
+    fn on_start() { this.rayon = this.prop("rayon") or 1.1 }
+
+    fn on_update(dt) {
+        let vers = this.prop("vers")
+        if (vers == nil) { return nil }
+        let etat = game.state()
+        if (etat.transit != nil or (etat.transit_fin or 0) > game.time()) { return nil }
+        let j = object.position("Joueur")
+        if (j == nil) { return nil }
+        let p = this.world_position()
+        if (math.abs(j[1] - 1 - p[1]) > 2.5) { return nil }
+        let dx = j[0] - p[0]
+        let dz = j[2] - p[2]
+        if (dx * dx + dz * dz > this.rayon * this.rayon) { return nil }
+        let role = this.prop("role")
+        let manuel = node.prop("Joueur", "manuel") == true
+        etat.indice = this.prop("message") or "E : prendre l'échelle"
+        if ((manuel and input.key("e")) or (not manuel and role == "descente")) {
+            etat.demande_transit = {de: this.path(), vers: vers, genre: "echelle", role: role}
+        }
+    }
+}

@@ -8,6 +8,10 @@
  *     assets/             ressources propres au projet (modèles, textures…)
  *     scenes/<Scène>.scene
  *                         une scène par fichier : ambiance, caméras, arbre
+ *     objects/<Objet>.object
+ *                         un objet par fichier : arborescence de nœuds
+ *                         réutilisable (cf. objects.hpp), sans réglages du
+ *                         monde ; ses instances ne sont que des références
  *     scripts/<nom>.script  scripts de la bibliothèque (comportements attachés
  *                         aux nœuds) ; le script de JEU d'une scène est
  *                         `scripts/<Scène>.gameplay.script`
@@ -38,6 +42,9 @@ namespace game_editor::files {
 
 inline constexpr const char *PROJECT_FORMAT = "game_editor.project";
 inline constexpr const char *SCENE_FORMAT = "game_editor.scene";
+/// Format d'un objet réutilisable (`objects/<Nom>.object`).
+inline constexpr const char *OBJECT_FORMAT = "game_editor.object";
+inline constexpr int OBJECT_VERSION = 1;
 /// Format des sous-arbres réutilisables (« Enregistrer la sélection comme
 /// scène », cf. Runtime::SavePackedScene) — même extension `.scene`.
 inline constexpr const char *PACKED_FORMAT = "scene.packed";
@@ -47,6 +54,8 @@ inline constexpr int SCENE_VERSION = 1;
 
 inline constexpr const char *SCENES_DIR = "scenes";
 inline constexpr const char *SCRIPTS_DIR = "scripts";
+inline constexpr const char *OBJECTS_DIR = "objects";
+inline constexpr const char *OBJECT_EXTENSION = ".object";
 inline constexpr const char *ASSETS_DIR = "assets";
 inline constexpr const char *GAMEPLAY_SUFFIX = ".gameplay.script";
 
@@ -113,6 +122,19 @@ inline constexpr const char *GAMEPLAY_SUFFIX = ".gameplay.script";
 
 /// Lit un fichier de scène ; un script de jeu référencé est lu à côté.
 [[nodiscard]] Result<SceneDesc, String> LoadSceneFile(const String &path);
+
+// ============================================================================
+// Objets (.object)
+// ============================================================================
+
+/// JSON d'un fichier d'objet : nom, description, arbre (sans nœuds générés).
+[[nodiscard]] data::NodePtr ObjectFileJson(const SceneDesc &object);
+
+[[nodiscard]] Result<bool, String> SaveObjectFile(const SceneDesc &object, const String &path);
+
+/// Lit un fichier `.object` : un document de genre OBJECT (instances non
+/// développées — cf. objects::ExpandProject).
+[[nodiscard]] Result<SceneDesc, String> LoadObjectFile(const String &path);
 
 // ============================================================================
 // Scripts (.script)

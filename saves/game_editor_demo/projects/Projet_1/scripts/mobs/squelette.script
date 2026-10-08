@@ -1,0 +1,45 @@
+# ── Squelette : gardien du donjon ────────────────────────────────────────────
+#
+# Repère le joueur à une dizaine de mètres et le POURSUIT de case en case
+# (il contourne les murs au lieu de s'y coller), frappe de l'épée à portée,
+# rougit sous les coups et, à 0 PV, s'effondre puis DISPARAÎT de la scène.
+# Démarche animée : jambes et bras balancés, crâne qui pivote.
+# Réglages (propriétés du nœud « Corps » de l'objet squelette) : pv, degats,
+# vitesse.
+
+const m = import "monstres"
+
+class Squelette extends m.Monstre {
+    let frappe = 0
+
+    fn preparer() {
+        this.portee = 1.7
+        this.delai = 1.0
+        for (nom in ["Crâne", "Cage thoracique", "Colonne", "Bassin", "Épaule gauche/Bras", "Épaule droite/Bras",
+                     "Hanche gauche/Jambe", "Hanche droite/Jambe"]) {
+            this.teinte(nom, 226, 218, 196)
+        }
+    }
+
+    fn attaquer(d) {
+        this.frappe = 0.45
+        this.frapper_joueur()
+    }
+
+    fn animer(dt, allure) {
+        let ampleur = math.min(1, allure / 1.5)
+        let a = math.sin(this.marche * 4) * 32 * ampleur
+        object.set_rotation(this.enfant("Hanche gauche"), a, 0, 0)
+        object.set_rotation(this.enfant("Hanche droite"), -a, 0, 0)
+        object.set_rotation(this.enfant("Épaule gauche"), -a * 0.8, 0, -8)
+        let bras = a * 0.8
+        if (this.frappe > 0) {
+            this.frappe -= dt
+            bras = -115 * math.sin((1 - math.max(0, this.frappe) / 0.45) * math.pi)
+        }
+        object.set_rotation(this.enfant("Épaule droite"), bras, 0, 8)
+        object.set_rotation(this.enfant("Crâne"), 0, math.sin(this.marche * 1.7) * 14, 0)
+        # Pas claudicant : un léger rebond à chaque foulée.
+        this.placer(this.ici[0], this.origine[1] + math.abs(math.sin(this.marche * 4)) * 0.06 * ampleur, this.ici[2])
+    }
+}

@@ -1,0 +1,24 @@
+# ── Donjon à deux étages : un scénario fixe ──────────────────────────────────
+#
+# Raccourci d'essai : la graine 2026 en difficulté Facile donne toujours le
+# même donjon de deux étages (les salles hautes puis les égouts, reliés par
+# un escalier). La scène confie la graine à « Génération », qui construit le
+# plan et lance « Donjon » au premier étage.
+
+class EtageSuperieur extends Scene {
+    let parti = false
+
+    fn on_start() {
+        ui.label("Donjon à deux étages — graine 2026, Facile", {anchor: "center", font_size: 22, color: "#e8c27a"})
+    }
+
+    fn on_update(dt) {
+        if (this.parti) { return nil }
+        this.parti = true
+        let etat = this.state()
+        etat.graine = 2026
+        etat.difficulte = "Facile"
+        etat.etage_depart = 0
+        this.load("Génération")
+    }
+}

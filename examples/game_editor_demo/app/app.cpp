@@ -47,7 +47,7 @@ void App::PrintScenes() {
 	}
 	std::printf("Projet « %s » — %d scènes :\n", project.Value().name.CStr(), int(project.Value().scenes.size()));
 	for (const SceneDesc &scene : project.Value().scenes)
-		std::printf("  %-24s %4d objets  %s\n", scene.name.CStr(), int(scene.ObjectCount()),
+		std::printf("  %-24s %4d objets  %s\n", scene.name.CStr(), int(scene.NodeCount()),
 					scene.description.CStr());
 }
 

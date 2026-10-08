@@ -362,7 +362,7 @@ Option<ScriptError> SpawnOwnedNode(NodeOwner& self, std::vector<Value>& args,
 	if (auto error = self.RejectSecondNode(); error.IsSome())
 		return error;
 	const InitArgs init = ReadInitArgs(args);
-	ObjectDesc desc = init.options ? sd::ObjectFromTable(*init.options) : ObjectDesc();
+	NodeDesc desc = init.options ? sd::NodeFromTable(*init.options) : NodeDesc();
 	desc.name = init.name.IsSome()
 					? init.name.Unwrap()
 					: (init.options ? sd::FieldString(*init.options, "name", defaultName)
@@ -370,7 +370,7 @@ Option<ScriptError> SpawnOwnedNode(NodeOwner& self, std::vector<Value>& args,
 	const bool hasShape = init.options && (init.options->Find(String("shape")) ||
 										   init.options->Find(String("model")));
 	if (!visual && !hasShape) {
-		ObjectDesc group = ObjectDesc::Group(desc.name);
+		NodeDesc group = NodeDesc::Group(desc.name);
 		group.parent = desc.parent;
 		group.tag = desc.tag;
 		group.transform = desc.transform;
@@ -912,6 +912,110 @@ void InstallSceneAsset(Interpreter& vm, Runtime& runtime) {
 	Register(vm, "SceneAsset", builder.Type());
 }
 
+// ── ObjectAsset ──────────────────────────────────────────────────────────────
+
+/// Nom d'objet à partir de ce qu'un script écrit : `Torche`,
+/// `objects/Torche.object` ou `Torche.object`.
+String ObjectNameOf(const String& text) {
+	String name = text;
+	if (name.StartsWith("objects/"))
+		name = name.Substr(8);
+	if (name.EndsWith(".object"))
+		name = name.Substr(0, name.GetSize() - 7);
+	return name;
+}
+
+struct ObjectAssetOwner : OwnerObject {
+	Runtime* runtime = nullptr;
+	String name;
+	const scene::NodeTree* tree = nullptr;
+	std::vector<scene::NodeId> instances;
+
+	Option<ScriptError> OnInit(Interpreter&, std::vector<Value>& args) override {
+		const InitArgs init = ReadInitArgs(args);
+		if (init.name.IsNone())
+			return Some(BaseError(*this, "init", String("nom de l'objet attendu : super.init(\"Torche\")")));
+		name = ObjectNameOf(init.name.Unwrap());
+		tree = runtime->Tree();
+		return NONE;
+	}
+
+	void Clear() {
+		if (runtime->Tree() == tree)
+			for (scene::NodeId id : instances)
+				if (tree && tree->Contains(id))
+					(void)runtime->RemoveNode(id);
+		instances.clear();
+	}
+
+	void OnDeinit(Interpreter&) override { Clear(); }
+};
+
+void InstallObjectAsset(Interpreter& vm, Runtime& runtime) {
+	OwnerTypeBuilder<ObjectAssetOwner> builder([&runtime] {
+		auto owner = std::make_shared<ObjectAssetOwner>();
+		owner->runtime = &runtime;
+		return owner;
+	});
+	// `instantiate({parent, pos, rot, scale})` → nom (ou chemin) de l'instance.
+	builder.Method(
+		"instantiate", 0, 1,
+		[](Interpreter&, ObjectAssetOwner& self, std::vector<Value>& args) -> Result<Value, ScriptError> {
+			scene::NodeId parent;
+			Option<scene::Transform> placement = NONE;
+			if (!args.empty() && args[0].IsMap() && args[0].AsMap())
+				placement = sd::PlacementFromTable(*self.runtime, *args[0].AsMap(), parent);
+			else if (!args.empty() && args[0].IsString())
+				parent = self.runtime->ResolveId(args[0].AsString());
+			auto created = self.runtime->InstantiateObject(self.name, parent, placement);
+			if (created.IsError())
+				return Err(BaseError(self, "instantiate",
+									 String::Format("« %s » : %s", self.name.CStr(), created.Error().CStr())));
+			self.tree = self.runtime->Tree();
+			self.instances.push_back(created.Value());
+			return Ok(Value::Str(self.runtime->ScriptHandle(created.Value())));
+		});
+	builder.Method("instances", 0, 0,
+				   [](Interpreter&, ObjectAssetOwner& self, std::vector<Value>&) -> Result<Value, ScriptError> {
+					   auto list = std::make_shared<data::script::ListObject>();
+					   if (self.runtime->Tree() == self.tree)
+						   for (scene::NodeId id : self.instances)
+							   if (self.tree && self.tree->Contains(id))
+								   list->items.push_back(Value::Str(self.runtime->ScriptHandle(id)));
+					   return Ok(Value::List(std::move(list)));
+				   });
+	builder.Method("clear", 0, 0,
+				   [](Interpreter&, ObjectAssetOwner& self, std::vector<Value>&) -> Result<Value, ScriptError> {
+					   self.Clear();
+					   return Ok(Value::Nil());
+				   });
+	// L'objet existe-t-il dans le projet ?
+	builder.Method("exists", 0, 0,
+				   [](Interpreter&, ObjectAssetOwner& self, std::vector<Value>&) -> Result<Value, ScriptError> {
+					   return Ok(Value::Boolean(self.runtime->GetProject().Fs().FindObject(ObjectRef{self.name}) != nullptr));
+				   });
+	// `define(nœud)` : le sous-arbre de ce nœud (nom ou chemin) devient le
+	// contenu de l'objet — créé s'il n'existait pas. Les instances posées
+	// ENSUITE en ont le nouveau contenu.
+	builder.Method(
+		"define", 1, 1,
+		[](Interpreter&, ObjectAssetOwner& self, std::vector<Value>& args) -> Result<Value, ScriptError> {
+			auto node = data::script::detail::ArgString(args, 0, "ObjectAsset.define");
+			if (node.IsError())
+				return Err(node.Error());
+			auto defined = self.runtime->DefineObjectFromNode(self.name, self.runtime->ResolveId(node.Value()));
+			if (defined.IsError())
+				return Err(BaseError(self, "define",
+									 String::Format("« %s » : %s", self.name.CStr(), defined.Error().CStr())));
+			return Ok(Value::Str(defined.Value()));
+		});
+	builder.Property("name", [](const ObjectAssetOwner& self) { return Value::Str(self.name); });
+	builder.Display([](const ObjectAssetOwner& self) {
+		return String::Format("ObjectAsset(%s, %d instance(s))", self.name.CStr(), int(self.instances.size()));
+	});
+	Register(vm, "ObjectAsset", builder.Type());
+}
+
 } // namespace
 
 // ── NodeOwner ────────────────────────────────────────────────────────────────
@@ -919,7 +1023,7 @@ void InstallSceneAsset(Interpreter& vm, Runtime& runtime) {
 scene::Node* NodeOwner::Node() const {
 	if (!runtime || !tree || runtime->Tree() != tree)
 		return nullptr;
-	return runtime->FindObject(node);
+	return runtime->FindNode(node);
 }
 
 String NodeOwner::Handle() const {
@@ -964,6 +1068,7 @@ void InstallEngineBases(Interpreter& vm, Runtime& runtime) {
 	InstallLight3D(vm, runtime);
 	InstallGameplay(vm);
 	InstallSceneAsset(vm, runtime);
+	InstallObjectAsset(vm, runtime);
 }
 
 } // namespace game_editor

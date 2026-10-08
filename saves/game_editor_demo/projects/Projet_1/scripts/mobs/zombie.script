@@ -1,0 +1,54 @@
+# ── Zombie : lent mais coriace ───────────────────────────────────────────────
+#
+# Six points de vie, avance en titubant les bras tendus et frappe fort des
+# deux bras au corps-à-corps. Rougit sous les coups, s'effondre puis
+# disparaît à 0 PV.
+
+const m = import "monstres"
+
+class Zombie extends m.Monstre {
+    let frappe = 0
+
+    fn preparer() {
+        this.portee = 1.5
+        this.delai = 1.6
+        this.detection = 9.0
+        this.teinte("Tête", 112, 134, 98)
+        this.teinte("Torse", 82, 66, 50)
+        this.teinte("Épaule gauche/Bras", 112, 134, 98)
+        this.teinte("Épaule droite/Bras", 112, 134, 98)
+        this.teinte("Hanche gauche/Jambe", 82, 66, 50)
+        this.teinte("Hanche droite/Jambe", 82, 66, 50)
+    }
+
+    fn attaquer(d) {
+        this.frappe = 0.6
+        this.frapper_joueur()
+    }
+
+    fn animer(dt, allure) {
+        let ampleur = math.min(1, allure / 0.9)
+        let a = math.sin(this.marche * 2.2) * 22 * ampleur
+        object.set_rotation(this.enfant("Hanche gauche"), a, 0, 0)
+        object.set_rotation(this.enfant("Hanche droite"), -a, 0, 0)
+        # Bras tendus, qui battent l'air ; les deux s'abattent pour frapper.
+        let bras = -80 + math.sin(this.marche * 3.1) * 8
+        if (this.frappe > 0) {
+            this.frappe -= dt
+            bras = -80 - 70 * math.sin((1 - math.max(0, this.frappe) / 0.6) * math.pi)
+        }
+        object.set_rotation(this.enfant("Épaule gauche"), bras, 0, -4)
+        object.set_rotation(this.enfant("Épaule droite"), bras + 6, 0, 4)
+        object.set_rotation(this.enfant("Tête"), 14, math.sin(this.marche * 0.9) * 18, 9 + math.sin(this.marche * 1.3) * 6)
+        # Titubation : le corps penche d'un pied sur l'autre.
+        this.set_rotation(0, this.cap * 180 / math.pi, math.sin(this.marche * 2.2) * 7 * ampleur)
+    }
+
+    # La titubation porte sa propre rotation : ne pas l'écraser.
+    fn on_update(dt) {
+        super.on_update(dt)
+        if (this.mort == 0) {
+            this.set_rotation(0, this.cap * 180 / math.pi, math.sin(this.marche * 2.2) * 7)
+        }
+    }
+}

@@ -9,7 +9,7 @@
  * retirer, modifier en JSON), et « Ajouter un composant » en bas.
  *
  * ── Ne pas se reconstruire sous la souris ────────────────────────────────
- * Toute modification du nœud notifie l'interface (Runtime::onObjectChanged),
+ * Toute modification du nœud notifie l'interface (Runtime::onNodeChanged),
  * et l'inspecteur se reconstruit pour montrer la nouvelle valeur. Mais une
  * valeur tirée à la souris change à CHAQUE mouvement : reconstruire à ce
  * moment détruirait le champ qu'on est en train de tirer. Les éditions
@@ -53,8 +53,8 @@ public:
 
 	void Teardown();
 
-	/// À brancher sur Runtime::onObjectChanged / onSelectionChanged.
-	void OnObjectChanged();
+	/// À brancher sur Runtime::onNodeChanged / onSelectionChanged.
+	void OnNodeChanged();
 	void MarkDirty() noexcept { m_dirty = true; }
 
 	void Tick();
@@ -109,6 +109,9 @@ private:
 	void BuildPhysicsSection(kit::PropertyRows &rows, scene::NodeId id, const PhysicsDesc &physics);
 
 	void BuildScriptSection(kit::PropertyRows &rows, scene::NodeId id, const ScriptRef &ref);
+	/// Instance d'un objet réutilisable : objet source, contenu généré,
+	/// « Ouvrir l'objet », « Rendre indépendant ».
+	void BuildInstanceSection(kit::PropertyRows &rows, const SceneDesc &scene, scene::NodeId id);
 	/// Objets de script vivants qui portent le nœud (champs, destruction).
 	void BuildScriptObjects(kit::PropertyRows &rows, scene::NodeId id);
 

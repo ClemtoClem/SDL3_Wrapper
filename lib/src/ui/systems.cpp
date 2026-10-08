@@ -1832,17 +1832,43 @@ void InputSystem::Dispatch(ecs::ArchetypeRegistry &world, const Frame &in, Layou
 	world.Query<UiComboBox, UiComputed>([&](ecs::Entity e, UiComboBox &cb, UiComputed &c) {
 		cb.hovered = hitOk(e, c);
 		cb.hoveredItem = -1;
+		cb.hoveredGroup = -1;
 		if (cb.open) {
 			sdl3::FRect dd = cb.DropdownRect(c.screen);
 			sdl3::FPoint p{MX, MY};
 			// La liste est en overlay : pas de clip d'ancêtres à respecter.
-			bool inDrop = dd.Contains(p) && IsFrontMost(e) && !IsHiddenRecursive(world, e) &&
+			bool inDrop = cb.OverlayContains(c.screen, p) && IsFrontMost(e) && !IsHiddenRecursive(world, e) &&
 						  !IsDisabledRecursive(world, e);
-			if (inDrop && cb.itemHeight > 0.f)
-				cb.hoveredItem = sdl3::Clamp(int((MY - dd.y) / cb.itemHeight), 0, int(cb.items.size()) - 1);
+			if (inDrop && cb.itemHeight > 0.f) {
+				const sdl3::FRect sub = cb.SubmenuRect(c.screen, cb.openGroup);
+				if (cb.openGroup >= 0 && sub.Contains(p)) {
+					// Sous-menu de la catégorie ouverte.
+					const UiComboGroup &g = cb.groups[size_t(cb.openGroup)];
+					const int row = sdl3::Clamp(int((MY - sub.y) / cb.itemHeight), 0, sdl3::Max(0, g.count - 1));
+					if (g.count > 0)
+						cb.hoveredItem = g.first + row;
+				} else if (dd.Contains(p)) {
+					const int row = sdl3::Clamp(int((MY - dd.y) / cb.itemHeight), 0, sdl3::Max(0, cb.TopRows() - 1));
+					if (!cb.Grouped()) {
+						cb.hoveredItem = row;
+					} else {
+						const std::vector<int> top = cb.TopItems();
+						if (row < int(top.size())) {
+							cb.hoveredItem = top[size_t(row)];
+							cb.openGroup = -1;
+						} else {
+							// Survoler une catégorie ouvre son sous-menu (comme un Menu).
+							cb.hoveredGroup = row - int(top.size());
+							cb.openGroup = cb.hoveredGroup;
+						}
+					}
+				}
+			}
 			if (in.wheelY != 0.f && inDrop)
 				wheelConsumed = true;
-			if (in.pressed && !clickConsumed) {
+			if (in.pressed && !clickConsumed && inDrop && cb.hoveredGroup >= 0) {
+				clickConsumed = true; // une catégorie : le sous-menu reste ouvert
+			} else if (in.pressed && !clickConsumed) {
 				clickConsumed = true;
 				if (inDrop && cb.hoveredItem >= 0 && cb.hoveredItem != cb.selected) {
 					cb.selected = cb.hoveredItem;
@@ -1853,9 +1879,11 @@ void InputSystem::Dispatch(ecs::ArchetypeRegistry &world, const Frame &in, Layou
 					}
 				}
 				cb.open = false;
+				cb.openGroup = -1;
 			}
 		} else if (in.pressed && !clickConsumed && cb.hovered) {
 			cb.open = true;
+			cb.openGroup = cb.GroupOf(cb.selected); // la catégorie de l'élément choisi, déjà dépliée
 			clickConsumed = true;
 		}
 	});
@@ -3325,8 +3353,11 @@ void RenderSystem::Run(ecs::ArchetypeRegistry &world, IUiRenderBackend &ren, con
 	ren.ClearClipRect();
 
 	world.Query<UiComboBox, UiComputed>([&](ecs::Entity e, UiComboBox &cb, UiComputed &c) {
-		if (cb.open && !IsHiddenRecursive(world, e))
+		if (cb.open && !IsHiddenRecursive(world, e)) {
+			if (sdl3::Renderer *native = ren.NativeRenderer())
+				cb.screenBottom = float(native->OutputSize().y); // pour placer le sous-menu
 			DrawDropdown(ren, cb, c.screen, GetResolved(world, e));
+		}
 	});
 	DrawDragFeedback(world, ren);
 	if (tip && tip->visible && !tip->text.IsEmpty())
@@ -4704,23 +4735,61 @@ void RenderSystem::DrawScrollbars(IUiRenderBackend &ren, const UiRect &r, const 
 void RenderSystem::DrawDropdown(IUiRenderBackend &ren, const UiComboBox &cb, const sdl3::FRect &box, const ResolvedStyle &rs) {
 	m_currentFontSize = rs.FontSize(0.f);
 	ren.ClearClipRect();
-	sdl3::FRect dd = cb.DropdownRect(box);
-	sdl3::FColor textColor = rs.TextColor(sdl3::FColor::UI_TEXT_PRIMARY());
-	ren.SetDrawColor(rs.Bg(sdl3::FColor::UI_PANEL_DARKER()));
-	ren.FillRoundedRect(dd, math::Corners(4.f));
-	for (size_t i = 0; i < cb.items.size(); ++i) {
-		sdl3::FRect row{dd.x, dd.y + float(i) * cb.itemHeight, dd.w, cb.itemHeight};
-		if (int(i) == cb.selected) {
-			ren.SetDrawColor(rs.BgChecked(sdl3::FColor::UI_ACCENT_BLUE_DEEP()));
-			ren.FillRect(row);
-		} else if (int(i) == cb.hoveredItem) {
-			ren.SetDrawColor(rs.BgHovered(sdl3::FColor::UI_BORDER_SLATE()));
-			ren.FillRect(row);
+	const sdl3::FColor textColor = rs.TextColor(sdl3::FColor::UI_TEXT_PRIMARY());
+	// Un panneau de lignes : éléments (index dans `items`) ou catégories.
+	struct Row {
+		int item = -1;
+		int group = -1;
+	};
+	auto panel = [&](const sdl3::FRect &dd, const std::vector<Row> &rows) {
+		ren.SetDrawColor(rs.Bg(sdl3::FColor::UI_PANEL_DARKER()));
+		ren.FillRoundedRect(dd, math::Corners(4.f));
+		for (size_t i = 0; i < rows.size(); ++i) {
+			const Row &r = rows[i];
+			sdl3::FRect row{dd.x, dd.y + float(i) * cb.itemHeight, dd.w, cb.itemHeight};
+			const bool chosen = r.item >= 0 ? r.item == cb.selected : cb.GroupOf(cb.selected) == r.group;
+			const bool hot = r.item >= 0 ? r.item == cb.hoveredItem : (r.group == cb.openGroup || r.group == cb.hoveredGroup);
+			if (chosen && r.item >= 0) {
+				ren.SetDrawColor(rs.BgChecked(sdl3::FColor::UI_ACCENT_BLUE_DEEP()));
+				ren.FillRect(row);
+			} else if (hot) {
+				ren.SetDrawColor(rs.BgHovered(sdl3::FColor::UI_BORDER_SLATE()));
+				ren.FillRect(row);
+			}
+			if (r.item >= 0) {
+				DrawTextRaw(ren, cb.items[size_t(r.item)], textColor, row.x + 8.f, row.y, row.h);
+				continue;
+			}
+			// Catégorie : titre (accentué si elle contient le choix courant) et ▸.
+			const sdl3::FColor titleColor = chosen ? rs.BorderFocus(sdl3::FColor::UI_ACCENT_BLUE_HOVER()) : textColor;
+			DrawTextRaw(ren, cb.groups[size_t(r.group)].title, titleColor, row.x + 8.f, row.y, row.h);
+			const float ax = row.x + row.w - 12.f, ay = row.y + row.h * 0.5f;
+			ren.SetDrawColor(textColor);
+			ren.DrawLine(ax - 2.5f, ay - 5.f, ax + 2.5f, ay);
+			ren.DrawLine(ax + 2.5f, ay, ax - 2.5f, ay + 5.f);
 		}
-		DrawTextRaw(ren, cb.items[i], textColor, row.x + 8.f, row.y, row.h);
+		ren.SetDrawColor(rs.BorderFocus(sdl3::FColor::UI_ACCENT_BLUE_HOVER()));
+		ren.DrawRoundedRect(dd, math::Corners(4.f));
+	};
+
+	std::vector<Row> top;
+	if (!cb.Grouped()) {
+		for (size_t i = 0; i < cb.items.size(); ++i)
+			top.push_back({int(i), -1});
+	} else {
+		for (int i : cb.TopItems())
+			top.push_back({i, -1});
+		for (size_t g = 0; g < cb.groups.size(); ++g)
+			top.push_back({-1, int(g)});
 	}
-	ren.SetDrawColor(rs.BorderFocus(sdl3::FColor::UI_ACCENT_BLUE_HOVER()));
-	ren.DrawRoundedRect(dd, math::Corners(4.f));
+	panel(cb.DropdownRect(box), top);
+	if (cb.openGroup >= 0 && cb.openGroup < int(cb.groups.size())) {
+		const UiComboGroup &g = cb.groups[size_t(cb.openGroup)];
+		std::vector<Row> sub;
+		for (int i = g.first; i < g.first + g.count && i < int(cb.items.size()); ++i)
+			sub.push_back({i, -1});
+		panel(cb.SubmenuRect(box, cb.openGroup), sub);
+	}
 }
 
 void RenderSystem::DrawTooltip(IUiRenderBackend &ren, const InputSystem::Tooltip &tip) {

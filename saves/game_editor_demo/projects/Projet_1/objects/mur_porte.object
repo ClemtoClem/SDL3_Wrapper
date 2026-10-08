@@ -1,0 +1,999 @@
+{
+ "format": "game_editor.object",
+ "version": 1,
+ "name": "mur_porte",
+ "description": "Côté de salle percé d'une porte de 3 m (deux pans de mur et un linteau) ; posé tourné de 0, 90, 180 ou 270° pour les côtés nord, est, sud, ouest",
+ "tree": {
+  "root": {
+   "id": "0:0",
+   "type": "Node",
+   "name": "mur_porte",
+   "transform": {
+    "position": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rotation": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "children": [
+    {
+     "id": "1:0",
+     "type": "MeshInstance",
+     "name": "Mur nord (gauche)",
+     "transform": {
+      "position": [
+       -2.75,
+       2.0999999046325684,
+       3.700000047683716
+      ],
+      "rotation": [
+       -0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "MeshInstance",
+       "props": {
+        "shape": {
+         "type": "string",
+         "value": "box"
+        },
+        "dimensions": {
+         "type": "vec3",
+         "value": [
+          2.5,
+          4.599999904632568,
+          0.6000000238418579
+         ]
+        },
+        "segments": {
+         "type": "int",
+         "value": 24
+        },
+        "material": {
+         "type": "string",
+         "value": "plastic"
+        },
+        "base_color": {
+         "type": "color",
+         "value": [
+          58.0,
+          50.0,
+          44.0,
+          255.0
+         ]
+        },
+        "metallic": {
+         "type": "float",
+         "value": 0.0
+        },
+        "roughness": {
+         "type": "float",
+         "value": 0.8500000238418579
+        },
+        "double_sided": {
+         "type": "bool",
+         "value": false
+        },
+        "wireframe": {
+         "type": "bool",
+         "value": false
+        }
+       }
+      },
+      {
+       "type": "RigidBody",
+       "props": {
+        "body": {
+         "type": "string",
+         "value": "static"
+        },
+        "collider": {
+         "type": "string",
+         "value": "box"
+        },
+        "half_extents": {
+         "type": "vec3",
+         "value": [
+          1.25,
+          2.299999952316284,
+          0.30000001192092896
+         ]
+        },
+        "mass": {
+         "type": "float",
+         "value": 1.0
+        },
+        "restitution": {
+         "type": "float",
+         "value": 0.30000001192092896
+        },
+        "friction": {
+         "type": "float",
+         "value": 0.6000000238418579
+        }
+       }
+      }
+     ],
+     "children": [
+      {
+       "id": "2:0",
+       "type": "MeshInstance",
+       "name": "Pierre",
+       "transform": {
+        "position": [
+         -0.25,
+         -1.649999976158142,
+         -0.36000001430511475
+        ],
+        "rotation": [
+         -0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.8438849449157715,
+            0.8242374062538147,
+            0.14000000059604645
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            101.0,
+            89.0,
+            79.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.8500000238418579
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        },
+        {
+         "type": "RigidBody",
+         "props": {
+          "body": {
+           "type": "string",
+           "value": "none"
+          },
+          "collider": {
+           "type": "string",
+           "value": "box"
+          },
+          "half_extents": {
+           "type": "vec3",
+           "value": [
+            0.9219424724578857,
+            0.41211870312690735,
+            0.07000000029802322
+           ]
+          },
+          "mass": {
+           "type": "float",
+           "value": 1.0
+          },
+          "restitution": {
+           "type": "float",
+           "value": 0.30000001192092896
+          },
+          "friction": {
+           "type": "float",
+           "value": 0.6000000238418579
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "3:0",
+       "type": "MeshInstance",
+       "name": "Pierre 2",
+       "transform": {
+        "position": [
+         0.19999998807907104,
+         -0.5499999523162842,
+         -0.36000001430511475
+        ],
+        "rotation": [
+         -0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.8839819431304932,
+            0.7601250410079956,
+            0.14000000059604645
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            103.0,
+            91.0,
+            80.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.8500000238418579
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        },
+        {
+         "type": "RigidBody",
+         "props": {
+          "body": {
+           "type": "string",
+           "value": "none"
+          },
+          "collider": {
+           "type": "string",
+           "value": "box"
+          },
+          "half_extents": {
+           "type": "vec3",
+           "value": [
+            0.9419909715652466,
+            0.3800625205039978,
+            0.07000000029802322
+           ]
+          },
+          "mass": {
+           "type": "float",
+           "value": 1.0
+          },
+          "restitution": {
+           "type": "float",
+           "value": 0.30000001192092896
+          },
+          "friction": {
+           "type": "float",
+           "value": 0.6000000238418579
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "4:0",
+       "type": "MeshInstance",
+       "name": "Pierre 3",
+       "transform": {
+        "position": [
+         -0.25,
+         0.5500000715255737,
+         -0.36000001430511475
+        ],
+        "rotation": [
+         -0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.8692184686660767,
+            0.8022950291633606,
+            0.14000000059604645
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            89.0,
+            78.0,
+            69.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.8500000238418579
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        },
+        {
+         "type": "RigidBody",
+         "props": {
+          "body": {
+           "type": "string",
+           "value": "none"
+          },
+          "collider": {
+           "type": "string",
+           "value": "box"
+          },
+          "half_extents": {
+           "type": "vec3",
+           "value": [
+            0.9346092343330383,
+            0.4011475145816803,
+            0.07000000029802322
+           ]
+          },
+          "mass": {
+           "type": "float",
+           "value": 1.0
+          },
+          "restitution": {
+           "type": "float",
+           "value": 0.30000001192092896
+          },
+          "friction": {
+           "type": "float",
+           "value": 0.6000000238418579
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "5:0",
+     "type": "MeshInstance",
+     "name": "Mur nord (droite)",
+     "transform": {
+      "position": [
+       2.75,
+       2.0999999046325684,
+       3.700000047683716
+      ],
+      "rotation": [
+       -0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "MeshInstance",
+       "props": {
+        "shape": {
+         "type": "string",
+         "value": "box"
+        },
+        "dimensions": {
+         "type": "vec3",
+         "value": [
+          2.5,
+          4.599999904632568,
+          0.6000000238418579
+         ]
+        },
+        "segments": {
+         "type": "int",
+         "value": 24
+        },
+        "material": {
+         "type": "string",
+         "value": "plastic"
+        },
+        "base_color": {
+         "type": "color",
+         "value": [
+          58.0,
+          50.0,
+          44.0,
+          255.0
+         ]
+        },
+        "metallic": {
+         "type": "float",
+         "value": 0.0
+        },
+        "roughness": {
+         "type": "float",
+         "value": 0.8500000238418579
+        },
+        "double_sided": {
+         "type": "bool",
+         "value": false
+        },
+        "wireframe": {
+         "type": "bool",
+         "value": false
+        }
+       }
+      },
+      {
+       "type": "RigidBody",
+       "props": {
+        "body": {
+         "type": "string",
+         "value": "static"
+        },
+        "collider": {
+         "type": "string",
+         "value": "box"
+        },
+        "half_extents": {
+         "type": "vec3",
+         "value": [
+          1.25,
+          2.299999952316284,
+          0.30000001192092896
+         ]
+        },
+        "mass": {
+         "type": "float",
+         "value": 1.0
+        },
+        "restitution": {
+         "type": "float",
+         "value": 0.30000001192092896
+        },
+        "friction": {
+         "type": "float",
+         "value": 0.6000000238418579
+        }
+       }
+      }
+     ],
+     "children": [
+      {
+       "id": "6:0",
+       "type": "MeshInstance",
+       "name": "Pierre",
+       "transform": {
+        "position": [
+         -0.25,
+         -1.649999976158142,
+         -0.36000001430511475
+        ],
+        "rotation": [
+         -0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.7641702890396118,
+            0.8306147456169128,
+            0.14000000059604645
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            97.0,
+            85.0,
+            75.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.8500000238418579
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        },
+        {
+         "type": "RigidBody",
+         "props": {
+          "body": {
+           "type": "string",
+           "value": "none"
+          },
+          "collider": {
+           "type": "string",
+           "value": "box"
+          },
+          "half_extents": {
+           "type": "vec3",
+           "value": [
+            0.8820851445198059,
+            0.4153073728084564,
+            0.07000000029802322
+           ]
+          },
+          "mass": {
+           "type": "float",
+           "value": 1.0
+          },
+          "restitution": {
+           "type": "float",
+           "value": 0.30000001192092896
+          },
+          "friction": {
+           "type": "float",
+           "value": 0.6000000238418579
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "7:0",
+       "type": "MeshInstance",
+       "name": "Pierre 2",
+       "transform": {
+        "position": [
+         0.19999998807907104,
+         -0.5499999523162842,
+         -0.36000001430511475
+        ],
+        "rotation": [
+         -0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.7745853662490845,
+            0.8117830753326416,
+            0.14000000059604645
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            95.0,
+            84.0,
+            75.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.8500000238418579
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        },
+        {
+         "type": "RigidBody",
+         "props": {
+          "body": {
+           "type": "string",
+           "value": "none"
+          },
+          "collider": {
+           "type": "string",
+           "value": "box"
+          },
+          "half_extents": {
+           "type": "vec3",
+           "value": [
+            0.8872926831245422,
+            0.4058915376663208,
+            0.07000000029802322
+           ]
+          },
+          "mass": {
+           "type": "float",
+           "value": 1.0
+          },
+          "restitution": {
+           "type": "float",
+           "value": 0.30000001192092896
+          },
+          "friction": {
+           "type": "float",
+           "value": 0.6000000238418579
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "8:0",
+       "type": "MeshInstance",
+       "name": "Pierre 3",
+       "transform": {
+        "position": [
+         -0.25,
+         0.5500000715255737,
+         -0.36000001430511475
+        ],
+        "rotation": [
+         -0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "MeshInstance",
+         "props": {
+          "shape": {
+           "type": "string",
+           "value": "box"
+          },
+          "dimensions": {
+           "type": "vec3",
+           "value": [
+            1.825451374053955,
+            0.7760735154151917,
+            0.14000000059604645
+           ]
+          },
+          "segments": {
+           "type": "int",
+           "value": 24
+          },
+          "material": {
+           "type": "string",
+           "value": "plastic"
+          },
+          "base_color": {
+           "type": "color",
+           "value": [
+            106.0,
+            94.0,
+            83.0,
+            255.0
+           ]
+          },
+          "metallic": {
+           "type": "float",
+           "value": 0.0
+          },
+          "roughness": {
+           "type": "float",
+           "value": 0.8500000238418579
+          },
+          "double_sided": {
+           "type": "bool",
+           "value": false
+          },
+          "wireframe": {
+           "type": "bool",
+           "value": false
+          }
+         }
+        },
+        {
+         "type": "RigidBody",
+         "props": {
+          "body": {
+           "type": "string",
+           "value": "none"
+          },
+          "collider": {
+           "type": "string",
+           "value": "box"
+          },
+          "half_extents": {
+           "type": "vec3",
+           "value": [
+            0.9127256870269775,
+            0.3880367577075958,
+            0.07000000029802322
+           ]
+          },
+          "mass": {
+           "type": "float",
+           "value": 1.0
+          },
+          "restitution": {
+           "type": "float",
+           "value": 0.30000001192092896
+          },
+          "friction": {
+           "type": "float",
+           "value": 0.6000000238418579
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "9:0",
+     "type": "MeshInstance",
+     "name": "Linteau nord",
+     "transform": {
+      "position": [
+       0.0,
+       3.8000001907348633,
+       3.700000047683716
+      ],
+      "rotation": [
+       -0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "components": [
+      {
+       "type": "MeshInstance",
+       "props": {
+        "shape": {
+         "type": "string",
+         "value": "box"
+        },
+        "dimensions": {
+         "type": "vec3",
+         "value": [
+          3.0,
+          1.5,
+          0.6000000238418579
+         ]
+        },
+        "segments": {
+         "type": "int",
+         "value": 24
+        },
+        "material": {
+         "type": "string",
+         "value": "plastic"
+        },
+        "base_color": {
+         "type": "color",
+         "value": [
+          94.0,
+          83.0,
+          73.0,
+          255.0
+         ]
+        },
+        "metallic": {
+         "type": "float",
+         "value": 0.0
+        },
+        "roughness": {
+         "type": "float",
+         "value": 0.8500000238418579
+        },
+        "double_sided": {
+         "type": "bool",
+         "value": false
+        },
+        "wireframe": {
+         "type": "bool",
+         "value": false
+        }
+       }
+      },
+      {
+       "type": "RigidBody",
+       "props": {
+        "body": {
+         "type": "string",
+         "value": "static"
+        },
+        "collider": {
+         "type": "string",
+         "value": "box"
+        },
+        "half_extents": {
+         "type": "vec3",
+         "value": [
+          1.5,
+          0.75,
+          0.30000001192092896
+         ]
+        },
+        "mass": {
+         "type": "float",
+         "value": 1.0
+        },
+        "restitution": {
+         "type": "float",
+         "value": 0.30000001192092896
+        },
+        "friction": {
+         "type": "float",
+         "value": 0.6000000238418579
+        }
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -161,7 +161,7 @@ static String HumanSize(double bytes) {
 
 /// Heure locale (hh:mm:ss) d'un instant exprimé en ticks SDL.
 static String ClockOf(uint64_t ticksMs) {
-	SDL_Time now = 0;
+	sdl3::Time now = 0;
 	if (!SDL_GetCurrentTime(&now))
 		return "--:--";
 	SDL_Time at = now - SDL_Time(SDL_GetTicks() - ticksMs) * 1000000;

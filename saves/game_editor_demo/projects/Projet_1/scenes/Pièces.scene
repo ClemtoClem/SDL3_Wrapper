@@ -1,0 +1,1065 @@
+{
+ "name": "Atelier des pièces",
+ "description": "Chaque objet du donjon (pièces, passages, égouts, monstres) posé en instance, rangée par rangée",
+ "gameplay_script": "",
+ "environment": {
+  "sun_direction": [
+   0.30000001192092896,
+   -0.699999988079071,
+   0.44999998807907104
+  ],
+  "sun_intensity": 1.0,
+  "sun_color": [
+   255,
+   244,
+   228
+  ],
+  "ambient_color": [
+   120,
+   112,
+   104
+  ],
+  "background_color": [
+   30,
+   32,
+   40
+  ],
+  "gravity": [
+   0.0,
+   -9.8100004196167,
+   0.0
+  ]
+ },
+ "camera": {
+  "edit_position": [
+   -10.0,
+   28.0,
+   -20.0
+  ],
+  "edit_yaw": 0.75,
+  "edit_pitch": -0.949999988079071,
+  "play_position": [
+   0.0,
+   1.7000000476837158,
+   0.0
+  ],
+  "play_yaw": 0.0,
+  "play_pitch": -0.10000000149011612
+ },
+ "canvas2d": {
+  "width": 1280,
+  "height": 720,
+  "render_3d": true,
+  "background": [
+   24,
+   26,
+   34
+  ]
+ },
+ "tree": {
+  "root": {
+   "id": "0:0",
+   "type": "Node",
+   "name": "Atelier des pièces",
+   "transform": {
+    "position": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rotation": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   },
+   "children": [
+    {
+     "id": "8:0",
+     "type": "Node",
+     "name": "Pièces du donjon",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "children": [
+      {
+       "id": "1:0",
+       "type": "Node3D",
+       "name": "entree",
+       "transform": {
+        "position": [
+         -30.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "entree"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "2:0",
+       "type": "Node3D",
+       "name": "sortie",
+       "transform": {
+        "position": [
+         -20.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "sortie"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "3:0",
+       "type": "Node3D",
+       "name": "couloir_droit",
+       "transform": {
+        "position": [
+         -10.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "couloir_droit"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "4:0",
+       "type": "Node3D",
+       "name": "couloir_angle",
+       "transform": {
+        "position": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "couloir_angle"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "5:0",
+       "type": "Node3D",
+       "name": "couloir_t",
+       "transform": {
+        "position": [
+         10.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "couloir_t"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "6:0",
+       "type": "Node3D",
+       "name": "carrefour",
+       "transform": {
+        "position": [
+         20.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "carrefour"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "7:0",
+       "type": "Node3D",
+       "name": "cul_de_sac",
+       "transform": {
+        "position": [
+         30.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "cul_de_sac"
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "14:0",
+     "type": "Node",
+     "name": "Salles",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       12.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "children": [
+      {
+       "id": "9:0",
+       "type": "Node3D",
+       "name": "salle_garde",
+       "transform": {
+        "position": [
+         -20.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "salle_garde"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "10:0",
+       "type": "Node3D",
+       "name": "salle_piliers",
+       "transform": {
+        "position": [
+         -10.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "salle_piliers"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "11:0",
+       "type": "Node3D",
+       "name": "salle_tresor",
+       "transform": {
+        "position": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "salle_tresor"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "12:0",
+       "type": "Node3D",
+       "name": "crypte",
+       "transform": {
+        "position": [
+         10.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "crypte"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "13:0",
+       "type": "Node3D",
+       "name": "porte_muree",
+       "transform": {
+        "position": [
+         20.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "porte_muree"
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "19:0",
+     "type": "Node",
+     "name": "Passages entre étages",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       24.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "children": [
+      {
+       "id": "15:0",
+       "type": "Node3D",
+       "name": "escalier_descente",
+       "transform": {
+        "position": [
+         -15.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "escalier_descente"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "16:0",
+       "type": "Node3D",
+       "name": "escalier_arrivee",
+       "transform": {
+        "position": [
+         -5.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "escalier_arrivee"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "17:0",
+       "type": "Node3D",
+       "name": "puits_echelle",
+       "transform": {
+        "position": [
+         5.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "puits_echelle"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "18:0",
+       "type": "Node3D",
+       "name": "echelle_arrivee",
+       "transform": {
+        "position": [
+         15.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "echelle_arrivee"
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "26:0",
+     "type": "Node",
+     "name": "Égouts",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       36.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "children": [
+      {
+       "id": "20:0",
+       "type": "Node3D",
+       "name": "egout_droit",
+       "transform": {
+        "position": [
+         -25.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "egout_droit"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "21:0",
+       "type": "Node3D",
+       "name": "egout_angle",
+       "transform": {
+        "position": [
+         -15.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "egout_angle"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "22:0",
+       "type": "Node3D",
+       "name": "egout_t",
+       "transform": {
+        "position": [
+         -5.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "egout_t"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "23:0",
+       "type": "Node3D",
+       "name": "egout_carrefour",
+       "transform": {
+        "position": [
+         5.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "egout_carrefour"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "24:0",
+       "type": "Node3D",
+       "name": "egout_cul_de_sac",
+       "transform": {
+        "position": [
+         15.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "egout_cul_de_sac"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "25:0",
+       "type": "Node3D",
+       "name": "egout_salle",
+       "transform": {
+        "position": [
+         25.0,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "egout_salle"
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "31:0",
+     "type": "Node",
+     "name": "Monstres",
+     "transform": {
+      "position": [
+       0.0,
+       0.0,
+       -8.0
+      ],
+      "rotation": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ]
+     },
+     "children": [
+      {
+       "id": "27:0",
+       "type": "Node3D",
+       "name": "squelette",
+       "transform": {
+        "position": [
+         -3.75,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         180.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "squelette"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "28:0",
+       "type": "Node3D",
+       "name": "zombie",
+       "transform": {
+        "position": [
+         -1.25,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         180.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "zombie"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "29:0",
+       "type": "Node3D",
+       "name": "araignee",
+       "transform": {
+        "position": [
+         1.25,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         180.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "araignee"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "id": "30:0",
+       "type": "Node3D",
+       "name": "pirana",
+       "transform": {
+        "position": [
+         3.75,
+         0.0,
+         0.0
+        ],
+        "rotation": [
+         0.0,
+         180.0,
+         0.0
+        ],
+        "scale": [
+         1.0,
+         1.0,
+         1.0
+        ]
+       },
+       "components": [
+        {
+         "type": "ObjectInstance",
+         "props": {
+          "source": {
+           "type": "string",
+           "value": "pirana"
+          }
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "format": "game_editor.scene",
+ "version": 1
+}

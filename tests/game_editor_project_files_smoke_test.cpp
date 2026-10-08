@@ -49,7 +49,7 @@ TEST(ProjectFiles, CreatingAProjectLaysOutItsFolder) {
 	EXPECT_TRUE(files::IsFile(files::Join(dir, String("scenes/Scène principale.scene"))));
 	// Un projet vierge : une scène vide, aucun script.
 	EXPECT_EQ(runtime.GetProject().scenes.size(), size_t(1));
-	EXPECT_EQ(runtime.GetProject().TotalObjectCount(), size_t(0));
+	EXPECT_EQ(runtime.GetProject().TotalNodeCount(), size_t(0));
 	EXPECT_TRUE(runtime.GetProject().scripts.empty());
 	// Un second projet du même nom est refusé (le dossier existe).
 	EXPECT_TRUE(runtime.CreateProject(root, String("Mon jeu")).IsError());
@@ -88,7 +88,7 @@ TEST(ProjectFiles, SaveSplitsTheProjectIntoDataFilesAndLoadsItBack) {
 	ASSERT_TRUE(loaded.Value().scenes.size() == original.scenes.size());
 	for (size_t i = 0; i < original.scenes.size(); ++i) {
 		EXPECT_EQ(loaded.Value().scenes[i].name, original.scenes[i].name);
-		EXPECT_EQ(loaded.Value().scenes[i].ObjectCount(), original.scenes[i].ObjectCount());
+		EXPECT_EQ(loaded.Value().scenes[i].NodeCount(), original.scenes[i].NodeCount());
 		EXPECT_EQ(loaded.Value().scenes[i].gameplayScript, original.scenes[i].gameplayScript);
 	}
 	EXPECT_EQ(loaded.Value().scripts.size(), original.scripts.size());
@@ -123,7 +123,7 @@ TEST(ProjectFiles, ScenesAndScriptsSaveAsSingleFiles) {
 	Runtime runtime(registry);
 	ASSERT_TRUE(runtime.LoadProjectFile(String(DEMO_PROJECT)).IsOk());
 	ASSERT_TRUE(runtime.SwitchScene(String("Vitrine")));
-	const size_t objects = runtime.ActiveScene()->ObjectCount();
+	const size_t objects = runtime.ActiveScene()->NodeCount();
 	const String gameplay = runtime.ActiveScene()->gameplayScript;
 
 	// Scène : UN fichier, script de jeu compris.
@@ -132,7 +132,7 @@ TEST(ProjectFiles, ScenesAndScriptsSaveAsSingleFiles) {
 	EXPECT_EQ(files::FormatOf(scenePath), files::SCENE_FORMAT);
 	auto scene = files::LoadSceneFile(scenePath);
 	ASSERT_TRUE(scene.IsOk());
-	EXPECT_EQ(scene.Value().ObjectCount(), objects);
+	EXPECT_EQ(scene.Value().NodeCount(), objects);
 	EXPECT_EQ(scene.Value().gameplayScript, gameplay);
 
 	// Réimportée : ajoutée sous un nom libre, et activée.
@@ -144,7 +144,7 @@ TEST(ProjectFiles, ScenesAndScriptsSaveAsSingleFiles) {
 	EXPECT_EQ(runtime.ActiveScene()->name, "Vitrine 2");
 	// Un sous-arbre réutilisable (scene.packed) ne s'ouvre pas comme scène.
 	const String packed = files::Join(dir, String("sous_arbre.scene"));
-	ASSERT_TRUE(runtime.SavePackedScene(runtime.ActiveScene()->Objects().front(), packed).IsOk());
+	ASSERT_TRUE(runtime.SavePackedScene(runtime.ActiveScene()->Nodes().front(), packed).IsOk());
 	EXPECT_TRUE(runtime.ImportSceneFile(packed).IsError());
 
 	// Script : du Script brut, réimportable dans la bibliothèque.

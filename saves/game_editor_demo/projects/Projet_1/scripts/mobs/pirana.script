@@ -1,0 +1,76 @@
+# ── Piranha : la terreur des canaux ──────────────────────────────────────────
+#
+# Nage en banc dans l'eau des égouts (jamais hors du canal), suit le joueur
+# le long du canal et BONDIT hors de l'eau pour le mordre quand il longe le
+# garde-corps ou traverse un pont. Un coup d'épée le tue quand il est en
+# l'air.
+
+const m = import "monstres"
+const SOUS_L_EAU = 0.55   # profondeur de nage sous le niveau du sol
+
+class Pirana extends m.Monstre {
+    let saut = 0
+    let base_y = 0
+
+    fn preparer() {
+        this.portee = 0.0    # il ne frappe qu'en sautant (cf. special)
+        this.detection = 9.0
+        this.base_y = this.origine[1] - SOUS_L_EAU
+        this.placer(this.ici[0], this.base_y, this.ici[2])
+        this.teinte("Ventre", 70, 86, 74)
+    }
+
+    fn peut_aller(e, x, z) { return m.dans_l_eau(e, x, z) }
+
+    # Le joueur est rarement dans l'eau : on vise sa projection sur le canal.
+    fn viser(e, joueur) { return [joueur[0], joueur[2]] }
+
+    fn special(e, joueur, d, dt) {
+        if (this.saut > 0) {
+            this.saut += dt
+            let t = math.min(1, this.saut / 0.7)
+            this.placer(this.ici[0], this.base_y + math.sin(t * math.pi) * 1.5, this.ici[2])
+            if (t > 0.45 and t < 0.6 and this.recharge <= 0 and m.distance_plane(this.ici, joueur) < 1.5) {
+                this.recharge = 1.2
+                this.frapper_joueur()
+            }
+            if (t >= 1) {
+                this.saut = 0
+                this.placer(this.ici[0], this.base_y, this.ici[2])
+            }
+            return true
+        }
+        if (d < 1.6 and this.recharge <= 0) {
+            this.saut = 0.001
+            return true
+        }
+        return false
+    }
+
+    fn errer(e, dt) {
+        # En banc : de petits allers-retours le long du canal.
+        let x = this.ici[0] + math.sin(this.marche * 0.7) * 0.6
+        let z = this.ici[2] + math.cos(this.marche * 0.5) * 0.6
+        if (this.avancer_vers(e, x, z, this.vitesse * 0.4, dt)) { return this.vitesse * 0.4 }
+        return 0
+    }
+
+    fn animer(dt, allure) {
+        object.set_rotation(this.enfant("Queue"), 0, math.sin(this.marche * 14) * 28, 0)
+        let gueule = 0
+        if (this.saut > 0) { gueule = 35 * math.abs(math.sin(this.saut * 18)) }
+        object.set_rotation(this.enfant("Mâchoire"), gueule, 0, 0)
+        if (this.saut == 0) {
+            this.placer(this.ici[0], this.base_y + math.sin(this.marche * 3) * 0.04, this.ici[2])
+        }
+    }
+
+    # Mort : il flotte le ventre en l'air puis coule.
+    fn effondrer(dt) {
+        this.mort += dt
+        let t = math.min(1, this.mort / 1.0)
+        this.set_rotation(0, this.cap * 180 / math.pi, t * 180)
+        this.placer(this.ici[0], this.base_y + 0.2 - t * 0.5, this.ici[2])
+        if (this.mort > 1.3) { this.retirer() }
+    }
+}

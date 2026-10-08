@@ -1,5 +1,6 @@
 // Définitions de project_files.hpp
 #include "project_files.hpp"
+#include "objects.hpp"
 
 namespace game_editor::files {
 
@@ -141,6 +142,43 @@ Result<SceneDesc, String> LoadSceneFile(const String &path) {
 	return Ok(std::move(result));
 }
 
+data::NodePtr ObjectFileJson(const SceneDesc &object) {
+	auto root = data::Node::MakeObject();
+	root->Set("format", data::Node::MakeString(OBJECT_FORMAT));
+	root->Set("version", data::Node::MakeInt(OBJECT_VERSION));
+	root->Set("name", data::Node::MakeString(object.name));
+	root->Set("description", data::Node::MakeString(object.description));
+	root->Set("tree", objects::StripGenerated(object.tree).ToJson());
+	return root;
+}
+
+Result<bool, String> SaveObjectFile(const SceneDesc &object, const String &path) {
+	return WriteJson(path, ObjectFileJson(object));
+}
+
+Result<SceneDesc, String> LoadObjectFile(const String &path) {
+	auto root = ReadJson(path);
+	if (root.IsError())
+		return Err(root.Error());
+	const data::NodePtr &node = root.Value();
+	if (json::Str(node->Get("format")) != OBJECT_FORMAT)
+		return Err(String::Format("%s : fichier d'objet attendu (format « %s »)", path.CStr(), OBJECT_FORMAT));
+	if (json::Int(node->Get("version"), OBJECT_VERSION) > OBJECT_VERSION)
+		return Err(String::Format("%s : version d'objet trop récente", path.CStr()));
+	SceneDesc object;
+	object.kind = SceneKind::OBJECT;
+	object.SetName(json::Str(node->Get("name"), Stem(path).CStr()));
+	object.description = json::Str(node->Get("description"));
+	if (auto treeJson = node->Get("tree"); treeJson && treeJson->IsObject()) {
+		auto tree = scene::NodeTree::FromJson(treeJson);
+		if (tree.IsError())
+			return Err(String::Format("%s : %s", path.CStr(), tree.Error().CStr()));
+		object.tree = std::move(tree).Unwrap();
+		object.SetName(object.name); // la racine suit le nom de l'objet
+	}
+	return Ok(std::move(object));
+}
+
 Result<bool, String> SaveScriptFile(const String &source, const String &path) {
 	return WriteText(path, source);
 }
@@ -248,6 +286,17 @@ Result<Project, String> LoadProject(const String &manifestPath, FileList *files)
 			project.scenes.push_back(std::move(scene).Unwrap());
 		}
 	}
+	if (auto objectList = manifest->Get("objects"); objectList && objectList->IsArray()) {
+		for (size_t i = 0; i < objectList->GetSize(); ++i) {
+			const String path = Join(directory, json::Str(objectList->At(i)));
+			auto object = LoadObjectFile(path);
+			if (object.IsError())
+				return Err(object.Error());
+			if (files)
+				files->push_back(path);
+			project.scenes.push_back(std::move(object).Unwrap());
+		}
+	}
 	if (auto scripts = manifest->Get("scripts"); scripts && scripts->IsArray()) {
 		for (size_t i = 0; i < scripts->GetSize(); ++i) {
 			const data::NodePtr &entry = scripts->At(i);
@@ -265,10 +314,12 @@ Result<Project, String> LoadProject(const String &manifestPath, FileList *files)
 				files->push_back(path);
 		}
 	}
-	if (project.scenes.empty())
+	if (project.SceneCount() == 0)
 		return Err(String::Format("%s : le projet ne contient aucune scène", manifestPath.CStr()));
 	if (!project.FindScene(project.activeScene))
-		project.activeScene = project.scenes.front().name;
+		project.activeScene = project.SceneNames().front();
+	// Contenu des instances d'objets : généré, jamais lu du disque.
+	(void)objects::ExpandProject(project);
 	return Ok(std::move(project));
 }
 
@@ -278,7 +329,18 @@ Result<FileList, String> SaveProject(const Project &project, const String &manif
 	FileList written;
 
 	auto sceneList = data::Node::MakeArray();
+	auto objectList = data::Node::MakeArray();
 	for (const SceneDesc &scene : project.scenes) {
+		if (scene.IsObject()) {
+			const String path = Join(directory, String(OBJECTS_DIR) + String("/") + SafeFileName(scene.name) +
+														OBJECT_EXTENSION);
+			auto saved = SaveObjectFile(scene, path);
+			if (saved.IsError())
+				return Err(saved.Error());
+			written.push_back(path);
+			objectList->Push(data::Node::MakeString(RelativeTo(directory, path)));
+			continue;
+		}
 		const String base = SafeFileName(scene.name);
 		const String scenePath = Join(directory, String(SCENES_DIR) + String("/") + base + String(".scene"));
 		String gameplayRef;
@@ -317,6 +379,7 @@ Result<FileList, String> SaveProject(const Project &project, const String &manif
 	manifest->Set("name", data::Node::MakeString(project.name));
 	manifest->Set("active_scene", data::Node::MakeString(project.activeScene));
 	manifest->Set("scenes", sceneList);
+	manifest->Set("objects", objectList);
 	manifest->Set("scripts", scriptList);
 	auto saved = WriteJson(manifestPath, manifest);
 	if (saved.IsError())

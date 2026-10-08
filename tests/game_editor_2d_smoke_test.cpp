@@ -205,15 +205,15 @@ TEST(Canvas2D, PickingAndOverlaps) {
 }
 
 TEST(Canvas2D, TemplatesAndDuplicationKeepComponents) {
-	Option<ObjectDesc> text = MakeNodeFromTemplate(String("label2d"));
+	Option<NodeDesc> text = MakeNodeFromTemplate(String("label2d"));
 	ASSERT_TRUE(text.IsSome());
 	const scene::Node node = text.Value().ToNode();
 	EXPECT_EQ(node.type, String(node_kind::LABEL2D));
 	EXPECT_TRUE(CanvasItemDesc::Read(node).kind == CanvasItemKind::TEXT && Is2DNode(node));
-	// ObjectDesc::FromNode (duplication, copier-coller) garde le composant 2D.
-	const scene::Node copy = ObjectDesc::FromNode(node).ToNode();
+	// NodeDesc::FromNode (duplication, copier-coller) garde le composant 2D.
+	const scene::Node copy = NodeDesc::FromNode(node).ToNode();
 	EXPECT_TRUE(CanvasItemDesc::Has(copy) && CanvasItemDesc::Read(copy).text == CanvasItemDesc::Read(node).text);
-	Option<ObjectDesc> camera = MakeNodeFromTemplate(String("camera2d"));
+	Option<NodeDesc> camera = MakeNodeFromTemplate(String("camera2d"));
 	ASSERT_TRUE(camera.IsSome() && Camera2DDesc::Has(camera.Value().ToNode()));
 }
 

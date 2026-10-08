@@ -37,16 +37,16 @@ struct Harness {
 		(void)files::SaveProject(project, String((dir / "pieces.json").string().c_str()));
 		(void)runtime.LoadProjectFile(String((dir / "pieces.json").string().c_str()));
 
-		ObjectDesc piece = ObjectDesc::Group(String("Pièce"));
+		NodeDesc piece = NodeDesc::Group(String("Pièce"));
 		const scene::NodeId root = runtime.SpawnNode(piece).Unwrap();
-		ObjectDesc wall;
+		NodeDesc wall;
 		wall.name = String("Mur");
 		wall.dimensions = {4.f, 3.f, 0.5f};
 		wall.transform.position = {0.f, 1.5f, 3.f};
 		wall.physics.body = BodyKind::STATIC;
 		wall.physics.halfExtents = {2.f, 1.5f, 0.25f};
 		(void)runtime.SpawnNode(wall, root);
-		ObjectDesc lamp = ObjectDesc::Light(String("Torche"), LightDesc{});
+		NodeDesc lamp = NodeDesc::Light(String("Torche"), LightDesc{});
 		lamp.script = String("torche");
 		(void)runtime.SpawnNode(lamp, root);
 		ASSERT_TRUE(runtime.SavePackedScene(root, String((dir / "pieces" / "piece.scene").string().c_str())).IsOk());

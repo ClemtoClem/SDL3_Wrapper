@@ -159,9 +159,9 @@ String RunReport::ToText(const Project &project) const {
 	for (const SceneDesc &scene : project.scenes) {
 		bool active = project.ActiveScene() && project.ActiveScene()->name == scene.name;
 		line(String::Format("  %s %-24s %4d objets  %s", active ? "*" : " ", scene.name.CStr(),
-							int(scene.ObjectCount()), scene.description.CStr()));
+							int(scene.NodeCount()), scene.description.CStr()));
 	}
-	line(String::Format("Objets (total)  : %d", int(project.TotalObjectCount())));
+	line(String::Format("Objets (total)  : %d", int(project.TotalNodeCount())));
 	line(String());
 
 	if (const SceneDesc *scene = project.ActiveScene()) {
@@ -282,7 +282,7 @@ String RunReport::ToJson(const Project &project) const {
 	auto projectNode = data::Node::MakeObject();
 	projectNode->Set("name", data::Node::MakeString(project.name));
 	projectNode->Set("scene_count", data::Node::MakeInt(int64_t(project.scenes.size())));
-	projectNode->Set("object_count", data::Node::MakeInt(int64_t(project.TotalObjectCount())));
+	projectNode->Set("object_count", data::Node::MakeInt(int64_t(project.TotalNodeCount())));
 	projectNode->Set("active_scene",
 					 data::Node::MakeString(project.ActiveScene() ? project.ActiveScene()->name : String()));
 
@@ -291,7 +291,7 @@ String RunReport::ToJson(const Project &project) const {
 		auto sceneNode = data::Node::MakeObject();
 		sceneNode->Set("name", data::Node::MakeString(scene.name));
 		sceneNode->Set("description", data::Node::MakeString(scene.description));
-		sceneNode->Set("object_count", data::Node::MakeInt(int64_t(scene.ObjectCount())));
+		sceneNode->Set("object_count", data::Node::MakeInt(int64_t(scene.NodeCount())));
 		sceneNode->Set("has_gameplay_script", data::Node::MakeBool(!scene.gameplayScript.IsEmpty()));
 
 		auto objectsNode = data::Node::MakeArray();
