@@ -13,9 +13,3 @@ bin*/
 *.bin
 *.zip
 roms*/
-*.png
-*.jpg
-*.ogg
-*.wav
-*.mp3
-*.svg

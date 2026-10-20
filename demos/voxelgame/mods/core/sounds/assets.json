@@ -10,9 +10,9 @@
     "type": "sound",
     "id": "step",
     "paths": [
-      "../../../../assets/sounds/default_grass_footstep.1.ogg",
-      "../../../../assets/sounds/default_grass_footstep.2.ogg",
-      "../../../../assets/sounds/default_grass_footstep.3.ogg"
+      "sounds/default_grass_footstep.1.ogg",
+      "sounds/default_grass_footstep.2.ogg",
+      "sounds/default_grass_footstep.3.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -20,9 +20,9 @@
     "type": "sound",
     "id": "step_sand",
     "paths": [
-      "../../../../assets/sounds/default_sand_footstep.1.ogg",
-      "../../../../assets/sounds/default_sand_footstep.2.ogg",
-      "../../../../assets/sounds/default_sand_footstep.3.ogg"
+      "sounds/default_sand_footstep.1.ogg",
+      "sounds/default_sand_footstep.2.ogg",
+      "sounds/default_sand_footstep.3.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -30,8 +30,8 @@
     "type": "sound",
     "id": "break",
     "paths": [
-      "../../../../assets/sounds/backrooms_dug_node.1.ogg",
-      "../../../../assets/sounds/backrooms_dug_node.2.ogg"
+      "sounds/backrooms_dug_node.1.ogg",
+      "sounds/backrooms_dug_node.2.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -39,8 +39,8 @@
     "type": "sound",
     "id": "place",
     "paths": [
-      "../../../../assets/sounds/backrooms_place_stone.1.ogg",
-      "../../../../assets/sounds/backrooms_place_stone.2.ogg"
+      "sounds/backrooms_place_stone.1.ogg",
+      "sounds/backrooms_place_stone.2.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -48,9 +48,9 @@
     "type": "sound",
     "id": "glass_break",
     "paths": [
-      "../../../../assets/sounds/default_break_thin_glass.1.ogg",
-      "../../../../assets/sounds/default_break_thin_glass.2.ogg",
-      "../../../../assets/sounds/default_break_thin_glass.3.ogg"
+      "sounds/default_break_thin_glass.1.ogg",
+      "sounds/default_break_thin_glass.2.ogg",
+      "sounds/default_break_thin_glass.3.ogg"
     ],
     "pitchVariation": 0.05
   },
@@ -58,10 +58,10 @@
     "type": "sound",
     "id": "pickup",
     "paths": [
-      "../../../../assets/sounds/default_item_drop_pickup.1.ogg",
-      "../../../../assets/sounds/default_item_drop_pickup.2.ogg",
-      "../../../../assets/sounds/default_item_drop_pickup.3.ogg",
-      "../../../../assets/sounds/default_item_drop_pickup.4.ogg"
+      "sounds/default_item_drop_pickup.1.ogg",
+      "sounds/default_item_drop_pickup.2.ogg",
+      "sounds/default_item_drop_pickup.3.ogg",
+      "sounds/default_item_drop_pickup.4.ogg"
     ],
     "volume": 0.8,
     "pitchVariation": 0.1
@@ -70,10 +70,10 @@
     "type": "sound",
     "id": "water",
     "paths": [
-      "../../../../assets/sounds/default_water_footstep.1.ogg",
-      "../../../../assets/sounds/default_water_footstep.2.ogg",
-      "../../../../assets/sounds/default_water_footstep.3.ogg",
-      "../../../../assets/sounds/default_water_footstep.4.ogg"
+      "sounds/default_water_footstep.1.ogg",
+      "sounds/default_water_footstep.2.ogg",
+      "sounds/default_water_footstep.3.ogg",
+      "sounds/default_water_footstep.4.ogg"
     ],
     "volume": 0.9,
     "pitchVariation": 0.1
@@ -82,12 +82,12 @@
     "type": "sound",
     "id": "ghost",
     "paths": [
-      "../../../../assets/sounds/default_ambience_ghost_1.ogg",
-      "../../../../assets/sounds/default_ambience_ghost_2.ogg",
-      "../../../../assets/sounds/default_ambience_ghost_3.ogg",
-      "../../../../assets/sounds/default_ambience_ghost_4.ogg",
-      "../../../../assets/sounds/default_ambience_ghost_5.ogg",
-      "../../../../assets/sounds/default_ambience_ghost_6.ogg"
+      "sounds/default_ambience_ghost_1.ogg",
+      "sounds/default_ambience_ghost_2.ogg",
+      "sounds/default_ambience_ghost_3.ogg",
+      "sounds/default_ambience_ghost_4.ogg",
+      "sounds/default_ambience_ghost_5.ogg",
+      "sounds/default_ambience_ghost_6.ogg"
     ],
     "volume": 0.9,
     "pitchVariation": 0.05
@@ -96,35 +96,35 @@
     "type": "sound",
     "id": "tool_breaks",
     "paths": [
-      "../../../../assets/sounds/default_tool_breaks.1.ogg",
-      "../../../../assets/sounds/default_tool_breaks.2.ogg",
-      "../../../../assets/sounds/default_tool_breaks.3.ogg"
+      "sounds/default_tool_breaks.1.ogg",
+      "sounds/default_tool_breaks.2.ogg",
+      "sounds/default_tool_breaks.3.ogg"
     ],
     "pitchVariation": 0.05
   },
   {
     "type": "sound",
     "id": "chest_open",
-    "path": "../../../../assets/sounds/default_chest_open.ogg"
+    "path": "sounds/default_chest_open.ogg"
   },
   {
     "type": "sound",
     "id": "chest_close",
-    "path": "../../../../assets/sounds/default_chest_close.ogg"
+    "path": "sounds/default_chest_close.ogg"
   },
   {
     "type": "sound",
     "id": "extinguish",
-    "path": "../../../../assets/sounds/default_extinguish_flame.1.ogg",
+    "path": "sounds/default_extinguish_flame.1.ogg",
     "pitchVariation": 0.1
   },
   {
     "type": "sound",
     "id": "cool_lava",
     "paths": [
-      "../../../../assets/sounds/default_cool_lava.1.ogg",
-      "../../../../assets/sounds/default_cool_lava.2.ogg",
-      "../../../../assets/sounds/default_cool_lava.3.ogg"
+      "sounds/default_cool_lava.1.ogg",
+      "sounds/default_cool_lava.2.ogg",
+      "sounds/default_cool_lava.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -132,8 +132,8 @@
     "type": "sound",
     "id": "lava",
     "paths": [
-      "../../../../assets/sounds/default_lava_1.ogg",
-      "../../../../assets/sounds/default_lava_2.ogg"
+      "sounds/default_lava_1.ogg",
+      "sounds/default_lava_2.ogg"
     ],
     "volume": 0.7,
     "pitchVariation": 0.05
@@ -142,9 +142,9 @@
     "type": "sound",
     "id": "underwater",
     "paths": [
-      "../../../../assets/sounds/default_underwater_bubbles.1.ogg",
-      "../../../../assets/sounds/default_underwater_bubbles.2.ogg",
-      "../../../../assets/sounds/default_underwater_bubbles.3.ogg"
+      "sounds/default_underwater_bubbles.1.ogg",
+      "sounds/default_underwater_bubbles.2.ogg",
+      "sounds/default_underwater_bubbles.3.ogg"
     ],
     "volume": 0.6,
     "pitchVariation": 0.1
@@ -153,11 +153,11 @@
     "type": "sound",
     "id": "stone_footstep",
     "paths": [
-      "../../../../assets/sounds/default_stone_footstep.1.ogg",
-      "../../../../assets/sounds/default_stone_footstep.2.ogg",
-      "../../../../assets/sounds/default_stone_footstep.3.ogg",
-      "../../../../assets/sounds/default_stone_footstep.4.ogg",
-      "../../../../assets/sounds/default_stone_footstep.5.ogg"
+      "sounds/default_stone_footstep.1.ogg",
+      "sounds/default_stone_footstep.2.ogg",
+      "sounds/default_stone_footstep.3.ogg",
+      "sounds/default_stone_footstep.4.ogg",
+      "sounds/default_stone_footstep.5.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -165,9 +165,9 @@
     "type": "sound",
     "id": "stone_hit",
     "paths": [
-      "../../../../assets/sounds/default_stone_hit.1.ogg",
-      "../../../../assets/sounds/default_stone_hit.2.ogg",
-      "../../../../assets/sounds/default_stone_hit.3.ogg"
+      "sounds/default_stone_hit.1.ogg",
+      "sounds/default_stone_hit.2.ogg",
+      "sounds/default_stone_hit.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -175,9 +175,9 @@
     "type": "sound",
     "id": "stone_dug",
     "paths": [
-      "../../../../assets/sounds/default_stone_dug.1.ogg",
-      "../../../../assets/sounds/default_stone_dug.2.ogg",
-      "../../../../assets/sounds/default_stone_dug.3.ogg"
+      "sounds/default_stone_dug.1.ogg",
+      "sounds/default_stone_dug.2.ogg",
+      "sounds/default_stone_dug.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -185,10 +185,10 @@
     "type": "sound",
     "id": "stone_place",
     "paths": [
-      "../../../../assets/sounds/default_stone_place.1.ogg",
-      "../../../../assets/sounds/default_stone_place.2.ogg",
-      "../../../../assets/sounds/default_stone_place.3.ogg",
-      "../../../../assets/sounds/default_stone_place.4.ogg"
+      "sounds/default_stone_place.1.ogg",
+      "sounds/default_stone_place.2.ogg",
+      "sounds/default_stone_place.3.ogg",
+      "sounds/default_stone_place.4.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -196,10 +196,10 @@
     "type": "sound",
     "id": "dirt_footstep",
     "paths": [
-      "../../../../assets/sounds/default_dirt_footstep.1.ogg",
-      "../../../../assets/sounds/default_dirt_footstep.2.ogg",
-      "../../../../assets/sounds/default_dirt_footstep.3.ogg",
-      "../../../../assets/sounds/default_dirt_footstep.4.ogg"
+      "sounds/default_dirt_footstep.1.ogg",
+      "sounds/default_dirt_footstep.2.ogg",
+      "sounds/default_dirt_footstep.3.ogg",
+      "sounds/default_dirt_footstep.4.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -207,9 +207,9 @@
     "type": "sound",
     "id": "dirt_hit",
     "paths": [
-      "../../../../assets/sounds/default_dirt_hit.1.ogg",
-      "../../../../assets/sounds/default_dirt_hit.2.ogg",
-      "../../../../assets/sounds/default_dirt_hit.3.ogg"
+      "sounds/default_dirt_hit.1.ogg",
+      "sounds/default_dirt_hit.2.ogg",
+      "sounds/default_dirt_hit.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -217,9 +217,9 @@
     "type": "sound",
     "id": "grass_hit",
     "paths": [
-      "../../../../assets/sounds/default_grass_hit.1.ogg",
-      "../../../../assets/sounds/default_grass_hit.2.ogg",
-      "../../../../assets/sounds/default_grass_hit.3.ogg"
+      "sounds/default_grass_hit.1.ogg",
+      "sounds/default_grass_hit.2.ogg",
+      "sounds/default_grass_hit.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -227,12 +227,12 @@
     "type": "sound",
     "id": "gravel_footstep",
     "paths": [
-      "../../../../assets/sounds/default_gravel_footstep.1.ogg",
-      "../../../../assets/sounds/default_gravel_footstep.2.ogg",
-      "../../../../assets/sounds/default_gravel_footstep.3.ogg",
-      "../../../../assets/sounds/default_gravel_footstep.4.ogg",
-      "../../../../assets/sounds/default_gravel_footstep.5.ogg",
-      "../../../../assets/sounds/default_gravel_footstep.6.ogg"
+      "sounds/default_gravel_footstep.1.ogg",
+      "sounds/default_gravel_footstep.2.ogg",
+      "sounds/default_gravel_footstep.3.ogg",
+      "sounds/default_gravel_footstep.4.ogg",
+      "sounds/default_gravel_footstep.5.ogg",
+      "sounds/default_gravel_footstep.6.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -240,9 +240,9 @@
     "type": "sound",
     "id": "gravel_hit",
     "paths": [
-      "../../../../assets/sounds/default_gravel_hit.1.ogg",
-      "../../../../assets/sounds/default_gravel_hit.2.ogg",
-      "../../../../assets/sounds/default_gravel_hit.3.ogg"
+      "sounds/default_gravel_hit.1.ogg",
+      "sounds/default_gravel_hit.2.ogg",
+      "sounds/default_gravel_hit.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -250,10 +250,10 @@
     "type": "sound",
     "id": "gravel_dug",
     "paths": [
-      "../../../../assets/sounds/default_gravel_dug.1.ogg",
-      "../../../../assets/sounds/default_gravel_dug.2.ogg",
-      "../../../../assets/sounds/default_gravel_dug.3.ogg",
-      "../../../../assets/sounds/default_gravel_dug.4.ogg"
+      "sounds/default_gravel_dug.1.ogg",
+      "sounds/default_gravel_dug.2.ogg",
+      "sounds/default_gravel_dug.3.ogg",
+      "sounds/default_gravel_dug.4.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -261,9 +261,9 @@
     "type": "sound",
     "id": "gravel_place",
     "paths": [
-      "../../../../assets/sounds/default_gravel_place.1.ogg",
-      "../../../../assets/sounds/default_gravel_place.2.ogg",
-      "../../../../assets/sounds/default_gravel_place.3.ogg"
+      "sounds/default_gravel_place.1.ogg",
+      "sounds/default_gravel_place.2.ogg",
+      "sounds/default_gravel_place.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -271,9 +271,9 @@
     "type": "sound",
     "id": "sand_hit",
     "paths": [
-      "../../../../assets/sounds/default_sand_hit.1.ogg",
-      "../../../../assets/sounds/default_sand_hit.2.ogg",
-      "../../../../assets/sounds/default_sand_hit.3.ogg"
+      "sounds/default_sand_hit.1.ogg",
+      "sounds/default_sand_hit.2.ogg",
+      "sounds/default_sand_hit.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -281,9 +281,9 @@
     "type": "sound",
     "id": "sand_dug",
     "paths": [
-      "../../../../assets/sounds/default_sand_dug.1.ogg",
-      "../../../../assets/sounds/default_sand_dug.2.ogg",
-      "../../../../assets/sounds/default_sand_dug.3.ogg"
+      "sounds/default_sand_dug.1.ogg",
+      "sounds/default_sand_dug.2.ogg",
+      "sounds/default_sand_dug.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -291,11 +291,11 @@
     "type": "sound",
     "id": "sand_place",
     "paths": [
-      "../../../../assets/sounds/default_sand_place.1.ogg",
-      "../../../../assets/sounds/default_sand_place.2.ogg",
-      "../../../../assets/sounds/default_sand_place.3.ogg",
-      "../../../../assets/sounds/default_sand_place.4.ogg",
-      "../../../../assets/sounds/default_sand_place.5.ogg"
+      "sounds/default_sand_place.1.ogg",
+      "sounds/default_sand_place.2.ogg",
+      "sounds/default_sand_place.3.ogg",
+      "sounds/default_sand_place.4.ogg",
+      "sounds/default_sand_place.5.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -303,10 +303,10 @@
     "type": "sound",
     "id": "snow_footstep",
     "paths": [
-      "../../../../assets/sounds/default_snow_footstep.1.ogg",
-      "../../../../assets/sounds/default_snow_footstep.2.ogg",
-      "../../../../assets/sounds/default_snow_footstep.3.ogg",
-      "../../../../assets/sounds/default_snow_footstep.4.ogg"
+      "sounds/default_snow_footstep.1.ogg",
+      "sounds/default_snow_footstep.2.ogg",
+      "sounds/default_snow_footstep.3.ogg",
+      "sounds/default_snow_footstep.4.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -314,9 +314,9 @@
     "type": "sound",
     "id": "snow_hit",
     "paths": [
-      "../../../../assets/sounds/default_snow_hit.1.ogg",
-      "../../../../assets/sounds/default_snow_hit.2.ogg",
-      "../../../../assets/sounds/default_snow_hit.3.ogg"
+      "sounds/default_snow_hit.1.ogg",
+      "sounds/default_snow_hit.2.ogg",
+      "sounds/default_snow_hit.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -324,9 +324,9 @@
     "type": "sound",
     "id": "snow_place",
     "paths": [
-      "../../../../assets/sounds/default_snow_place.1.ogg",
-      "../../../../assets/sounds/default_snow_place.2.ogg",
-      "../../../../assets/sounds/default_snow_place.3.ogg"
+      "sounds/default_snow_place.1.ogg",
+      "sounds/default_snow_place.2.ogg",
+      "sounds/default_snow_place.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -334,12 +334,12 @@
     "type": "sound",
     "id": "wood_footstep",
     "paths": [
-      "../../../../assets/sounds/default_wood_footstep.1.ogg",
-      "../../../../assets/sounds/default_wood_footstep.2.ogg",
-      "../../../../assets/sounds/default_wood_footstep.3.ogg",
-      "../../../../assets/sounds/default_wood_footstep.4.ogg",
-      "../../../../assets/sounds/default_wood_footstep.5.ogg",
-      "../../../../assets/sounds/default_wood_footstep.6.ogg"
+      "sounds/default_wood_footstep.1.ogg",
+      "sounds/default_wood_footstep.2.ogg",
+      "sounds/default_wood_footstep.3.ogg",
+      "sounds/default_wood_footstep.4.ogg",
+      "sounds/default_wood_footstep.5.ogg",
+      "sounds/default_wood_footstep.6.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -347,12 +347,12 @@
     "type": "sound",
     "id": "wood_hit",
     "paths": [
-      "../../../../assets/sounds/default_wood_hit.1.ogg",
-      "../../../../assets/sounds/default_wood_hit.2.ogg",
-      "../../../../assets/sounds/default_wood_hit.3.ogg",
-      "../../../../assets/sounds/default_wood_hit.4.ogg",
-      "../../../../assets/sounds/default_wood_hit.5.ogg",
-      "../../../../assets/sounds/default_wood_hit.6.ogg"
+      "sounds/default_wood_hit.1.ogg",
+      "sounds/default_wood_hit.2.ogg",
+      "sounds/default_wood_hit.3.ogg",
+      "sounds/default_wood_hit.4.ogg",
+      "sounds/default_wood_hit.5.ogg",
+      "sounds/default_wood_hit.6.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -360,9 +360,9 @@
     "type": "sound",
     "id": "wood_place",
     "paths": [
-      "../../../../assets/sounds/default_wood_place.1.ogg",
-      "../../../../assets/sounds/default_wood_place.2.ogg",
-      "../../../../assets/sounds/default_wood_place.3.ogg"
+      "sounds/default_wood_place.1.ogg",
+      "sounds/default_wood_place.2.ogg",
+      "sounds/default_wood_place.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -370,8 +370,8 @@
     "type": "sound",
     "id": "wood_dug",
     "paths": [
-      "../../../../assets/sounds/backrooms_dug_node.1.ogg",
-      "../../../../assets/sounds/backrooms_dug_node.2.ogg"
+      "sounds/backrooms_dug_node.1.ogg",
+      "sounds/backrooms_dug_node.2.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -379,10 +379,10 @@
     "type": "sound",
     "id": "leaves_footstep",
     "paths": [
-      "../../../../assets/sounds/default_leaves_footstep.1.ogg",
-      "../../../../assets/sounds/default_leaves_footstep.2.ogg",
-      "../../../../assets/sounds/default_leaves_footstep.3.ogg",
-      "../../../../assets/sounds/default_leaves_footstep.4.ogg"
+      "sounds/default_leaves_footstep.1.ogg",
+      "sounds/default_leaves_footstep.2.ogg",
+      "sounds/default_leaves_footstep.3.ogg",
+      "sounds/default_leaves_footstep.4.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -390,8 +390,8 @@
     "type": "sound",
     "id": "leaves_hit",
     "paths": [
-      "../../../../assets/sounds/default_leaves_hit.1.ogg",
-      "../../../../assets/sounds/default_leaves_hit.2.ogg"
+      "sounds/default_leaves_hit.1.ogg",
+      "sounds/default_leaves_hit.2.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -399,8 +399,8 @@
     "type": "sound",
     "id": "leaves_dug",
     "paths": [
-      "../../../../assets/sounds/default_leaves_dug.1.ogg",
-      "../../../../assets/sounds/default_leaves_dug.2.ogg"
+      "sounds/default_leaves_dug.1.ogg",
+      "sounds/default_leaves_dug.2.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -408,8 +408,8 @@
     "type": "sound",
     "id": "leaves_place",
     "paths": [
-      "../../../../assets/sounds/default_leaves_place.1.ogg",
-      "../../../../assets/sounds/default_leaves_place.2.ogg"
+      "sounds/default_leaves_place.1.ogg",
+      "sounds/default_leaves_place.2.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -417,9 +417,9 @@
     "type": "sound",
     "id": "plant_hit",
     "paths": [
-      "../../../../assets/sounds/default_plant_hit.1.ogg",
-      "../../../../assets/sounds/default_plant_hit.2.ogg",
-      "../../../../assets/sounds/default_plant_hit.3.ogg"
+      "sounds/default_plant_hit.1.ogg",
+      "sounds/default_plant_hit.2.ogg",
+      "sounds/default_plant_hit.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -427,9 +427,9 @@
     "type": "sound",
     "id": "glass_footstep",
     "paths": [
-      "../../../../assets/sounds/default_glass_footstep.1.ogg",
-      "../../../../assets/sounds/default_glass_footstep.2.ogg",
-      "../../../../assets/sounds/default_glass_footstep.3.ogg"
+      "sounds/default_glass_footstep.1.ogg",
+      "sounds/default_glass_footstep.2.ogg",
+      "sounds/default_glass_footstep.3.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -437,12 +437,12 @@
     "type": "sound",
     "id": "glass_hit",
     "paths": [
-      "../../../../assets/sounds/default_ceramic_hit.1.ogg",
-      "../../../../assets/sounds/default_ceramic_hit.2.ogg",
-      "../../../../assets/sounds/default_ceramic_hit.3.ogg",
-      "../../../../assets/sounds/default_ceramic_hit.4.ogg",
-      "../../../../assets/sounds/default_ceramic_hit.5.ogg",
-      "../../../../assets/sounds/default_ceramic_hit.6.ogg"
+      "sounds/default_ceramic_hit.1.ogg",
+      "sounds/default_ceramic_hit.2.ogg",
+      "sounds/default_ceramic_hit.3.ogg",
+      "sounds/default_ceramic_hit.4.ogg",
+      "sounds/default_ceramic_hit.5.ogg",
+      "sounds/default_ceramic_hit.6.ogg"
     ],
     "volume": 0.8,
     "pitchVariation": 0.1
@@ -451,8 +451,8 @@
     "type": "sound",
     "id": "glass_dug",
     "paths": [
-      "../../../../assets/sounds/default_glass_dug.1.ogg",
-      "../../../../assets/sounds/default_glass_dug.2.ogg"
+      "sounds/default_glass_dug.1.ogg",
+      "sounds/default_glass_dug.2.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -460,9 +460,9 @@
     "type": "sound",
     "id": "glass_place",
     "paths": [
-      "../../../../assets/sounds/default_glass_place.1.ogg",
-      "../../../../assets/sounds/default_glass_place.2.ogg",
-      "../../../../assets/sounds/default_glass_place.3.ogg"
+      "sounds/default_glass_place.1.ogg",
+      "sounds/default_glass_place.2.ogg",
+      "sounds/default_glass_place.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -470,10 +470,10 @@
     "type": "sound",
     "id": "ice_footstep",
     "paths": [
-      "../../../../assets/sounds/default_ice_footstep.1.ogg",
-      "../../../../assets/sounds/default_ice_footstep.2.ogg",
-      "../../../../assets/sounds/default_ice_footstep.3.ogg",
-      "../../../../assets/sounds/default_ice_footstep.4.ogg"
+      "sounds/default_ice_footstep.1.ogg",
+      "sounds/default_ice_footstep.2.ogg",
+      "sounds/default_ice_footstep.3.ogg",
+      "sounds/default_ice_footstep.4.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -481,10 +481,10 @@
     "type": "sound",
     "id": "ice_hit",
     "paths": [
-      "../../../../assets/sounds/default_ice_hit.1.ogg",
-      "../../../../assets/sounds/default_ice_hit.2.ogg",
-      "../../../../assets/sounds/default_ice_hit.3.ogg",
-      "../../../../assets/sounds/default_ice_hit.4.ogg"
+      "sounds/default_ice_hit.1.ogg",
+      "sounds/default_ice_hit.2.ogg",
+      "sounds/default_ice_hit.3.ogg",
+      "sounds/default_ice_hit.4.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -492,12 +492,12 @@
     "type": "sound",
     "id": "ceramic_footstep",
     "paths": [
-      "../../../../assets/sounds/default_ceramic_footstep.1.ogg",
-      "../../../../assets/sounds/default_ceramic_footstep.2.ogg",
-      "../../../../assets/sounds/default_ceramic_footstep.3.ogg",
-      "../../../../assets/sounds/default_ceramic_footstep.4.ogg",
-      "../../../../assets/sounds/default_ceramic_footstep.5.ogg",
-      "../../../../assets/sounds/default_ceramic_footstep.6.ogg"
+      "sounds/default_ceramic_footstep.1.ogg",
+      "sounds/default_ceramic_footstep.2.ogg",
+      "sounds/default_ceramic_footstep.3.ogg",
+      "sounds/default_ceramic_footstep.4.ogg",
+      "sounds/default_ceramic_footstep.5.ogg",
+      "sounds/default_ceramic_footstep.6.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -505,12 +505,12 @@
     "type": "sound",
     "id": "ceramic_hit",
     "paths": [
-      "../../../../assets/sounds/default_ceramic_hit.1.ogg",
-      "../../../../assets/sounds/default_ceramic_hit.2.ogg",
-      "../../../../assets/sounds/default_ceramic_hit.3.ogg",
-      "../../../../assets/sounds/default_ceramic_hit.4.ogg",
-      "../../../../assets/sounds/default_ceramic_hit.5.ogg",
-      "../../../../assets/sounds/default_ceramic_hit.6.ogg"
+      "sounds/default_ceramic_hit.1.ogg",
+      "sounds/default_ceramic_hit.2.ogg",
+      "sounds/default_ceramic_hit.3.ogg",
+      "sounds/default_ceramic_hit.4.ogg",
+      "sounds/default_ceramic_hit.5.ogg",
+      "sounds/default_ceramic_hit.6.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -518,9 +518,9 @@
     "type": "sound",
     "id": "ceramic_dug",
     "paths": [
-      "../../../../assets/sounds/default_ceramic_dug.1.ogg",
-      "../../../../assets/sounds/default_ceramic_dug.2.ogg",
-      "../../../../assets/sounds/default_ceramic_dug.3.ogg"
+      "sounds/default_ceramic_dug.1.ogg",
+      "sounds/default_ceramic_dug.2.ogg",
+      "sounds/default_ceramic_dug.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -528,9 +528,9 @@
     "type": "sound",
     "id": "ceramic_place",
     "paths": [
-      "../../../../assets/sounds/default_ceramic_place.1.ogg",
-      "../../../../assets/sounds/default_ceramic_place.2.ogg",
-      "../../../../assets/sounds/default_ceramic_place.3.ogg"
+      "sounds/default_ceramic_place.1.ogg",
+      "sounds/default_ceramic_place.2.ogg",
+      "sounds/default_ceramic_place.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -538,11 +538,11 @@
     "type": "sound",
     "id": "metal_footstep",
     "paths": [
-      "../../../../assets/sounds/default_metal_footstep.1.ogg",
-      "../../../../assets/sounds/default_metal_footstep.2.ogg",
-      "../../../../assets/sounds/default_metal_footstep.3.ogg",
-      "../../../../assets/sounds/default_metal_footstep.4.ogg",
-      "../../../../assets/sounds/default_metal_footstep.5.ogg"
+      "sounds/default_metal_footstep.1.ogg",
+      "sounds/default_metal_footstep.2.ogg",
+      "sounds/default_metal_footstep.3.ogg",
+      "sounds/default_metal_footstep.4.ogg",
+      "sounds/default_metal_footstep.5.ogg"
     ],
     "pitchVariation": 0.08
   },
@@ -550,9 +550,9 @@
     "type": "sound",
     "id": "metal_hit",
     "paths": [
-      "../../../../assets/sounds/default_metal_hit.1.ogg",
-      "../../../../assets/sounds/default_metal_hit.2.ogg",
-      "../../../../assets/sounds/default_metal_hit.3.ogg"
+      "sounds/default_metal_hit.1.ogg",
+      "sounds/default_metal_hit.2.ogg",
+      "sounds/default_metal_hit.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -560,9 +560,9 @@
     "type": "sound",
     "id": "metal_dug",
     "paths": [
-      "../../../../assets/sounds/default_metal_dug.1.ogg",
-      "../../../../assets/sounds/default_metal_dug.2.ogg",
-      "../../../../assets/sounds/default_metal_dug.3.ogg"
+      "sounds/default_metal_dug.1.ogg",
+      "sounds/default_metal_dug.2.ogg",
+      "sounds/default_metal_dug.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -570,9 +570,9 @@
     "type": "sound",
     "id": "metal_place",
     "paths": [
-      "../../../../assets/sounds/default_metal_place.1.ogg",
-      "../../../../assets/sounds/default_metal_place.2.ogg",
-      "../../../../assets/sounds/default_metal_place.3.ogg"
+      "sounds/default_metal_place.1.ogg",
+      "sounds/default_metal_place.2.ogg",
+      "sounds/default_metal_place.3.ogg"
     ],
     "pitchVariation": 0.1
   },
@@ -580,18 +580,18 @@
     "type": "sound",
     "id": "amb_crickets",
     "paths": [
-      "../../../../assets/sounds/default_ambience_night_crickets_1.ogg",
-      "../../../../assets/sounds/default_ambience_night_crickets_2.ogg",
-      "../../../../assets/sounds/default_ambience_night_crickets_3.ogg",
-      "../../../../assets/sounds/default_ambience_night_crickets_4.ogg",
-      "../../../../assets/sounds/default_ambience_night_crickets_5.ogg"
+      "sounds/default_ambience_night_crickets_1.ogg",
+      "sounds/default_ambience_night_crickets_2.ogg",
+      "sounds/default_ambience_night_crickets_3.ogg",
+      "sounds/default_ambience_night_crickets_4.ogg",
+      "sounds/default_ambience_night_crickets_5.ogg"
     ],
     "volume": 0.5
   },
   {
     "type": "sound",
     "id": "amb_owl",
-    "path": "../../../../assets/sounds/default_ambience_owl_1.ogg",
+    "path": "sounds/default_ambience_owl_1.ogg",
     "volume": 0.6,
     "pitchVariation": 0.05
   },
@@ -599,18 +599,18 @@
     "type": "sound",
     "id": "amb_cave",
     "paths": [
-      "../../../../assets/sounds/default_ambience_cave_1.ogg",
-      "../../../../assets/sounds/default_ambience_cave_2.ogg",
-      "../../../../assets/sounds/default_ambience_cave_3.ogg",
-      "../../../../assets/sounds/default_ambience_cave_4.ogg",
-      "../../../../assets/sounds/default_ambience_cave_5.ogg",
-      "../../../../assets/sounds/default_ambience_cave_6.ogg",
-      "../../../../assets/sounds/default_ambience_cave_7.ogg",
-      "../../../../assets/sounds/default_ambience_cave_8.ogg",
-      "../../../../assets/sounds/default_ambience_cave_9.ogg",
-      "../../../../assets/sounds/default_ambience_water_drips_cave_1.ogg",
-      "../../../../assets/sounds/default_ambience_water_drips_cave_2.ogg",
-      "../../../../assets/sounds/default_ambience_rocks_falling_cave.ogg"
+      "sounds/default_ambience_cave_1.ogg",
+      "sounds/default_ambience_cave_2.ogg",
+      "sounds/default_ambience_cave_3.ogg",
+      "sounds/default_ambience_cave_4.ogg",
+      "sounds/default_ambience_cave_5.ogg",
+      "sounds/default_ambience_cave_6.ogg",
+      "sounds/default_ambience_cave_7.ogg",
+      "sounds/default_ambience_cave_8.ogg",
+      "sounds/default_ambience_cave_9.ogg",
+      "sounds/default_ambience_water_drips_cave_1.ogg",
+      "sounds/default_ambience_water_drips_cave_2.ogg",
+      "sounds/default_ambience_rocks_falling_cave.ogg"
     ],
     "volume": 0.6
   },
@@ -618,11 +618,11 @@
     "type": "sound",
     "id": "amb_wind_cave",
     "paths": [
-      "../../../../assets/sounds/default_ambience_wind_cave_1.ogg",
-      "../../../../assets/sounds/default_ambience_wind_cave_2.ogg",
-      "../../../../assets/sounds/default_ambience_wind_cave_3.ogg",
-      "../../../../assets/sounds/default_ambience_wind_cave_4.ogg",
-      "../../../../assets/sounds/default_ambience_wind_cave_5.ogg"
+      "sounds/default_ambience_wind_cave_1.ogg",
+      "sounds/default_ambience_wind_cave_2.ogg",
+      "sounds/default_ambience_wind_cave_3.ogg",
+      "sounds/default_ambience_wind_cave_4.ogg",
+      "sounds/default_ambience_wind_cave_5.ogg"
     ],
     "volume": 0.5
   },
@@ -630,10 +630,10 @@
     "type": "sound",
     "id": "amb_snow_storm",
     "paths": [
-      "../../../../assets/sounds/default_ambience_snow_storm_1.ogg",
-      "../../../../assets/sounds/default_ambience_snow_storm_2.ogg",
-      "../../../../assets/sounds/default_ambience_snow_storm_3.ogg",
-      "../../../../assets/sounds/default_ambience_snow_storm_4.ogg"
+      "sounds/default_ambience_snow_storm_1.ogg",
+      "sounds/default_ambience_snow_storm_2.ogg",
+      "sounds/default_ambience_snow_storm_3.ogg",
+      "sounds/default_ambience_snow_storm_4.ogg"
     ],
     "volume": 0.5
   },
@@ -641,10 +641,10 @@
     "type": "sound",
     "id": "amb_swamp",
     "paths": [
-      "../../../../assets/sounds/default_ambience_swamp_1.ogg",
-      "../../../../assets/sounds/default_ambience_swamp_2.ogg",
-      "../../../../assets/sounds/default_ambience_swamp_3.ogg",
-      "../../../../assets/sounds/default_ambience_swamp_4.ogg"
+      "sounds/default_ambience_swamp_1.ogg",
+      "sounds/default_ambience_swamp_2.ogg",
+      "sounds/default_ambience_swamp_3.ogg",
+      "sounds/default_ambience_swamp_4.ogg"
     ],
     "volume": 0.5
   },
@@ -652,8 +652,8 @@
     "type": "sound",
     "id": "amb_hot_stone",
     "paths": [
-      "../../../../assets/sounds/default_ambience_hot_stone_1.ogg",
-      "../../../../assets/sounds/default_ambience_hot_stone_2.ogg"
+      "sounds/default_ambience_hot_stone_1.ogg",
+      "sounds/default_ambience_hot_stone_2.ogg"
     ],
     "volume": 0.6
   },
@@ -661,9 +661,9 @@
     "type": "sound",
     "id": "amb_ice_cracking",
     "paths": [
-      "../../../../assets/sounds/default_ambience_ice_cracking_1.ogg",
-      "../../../../assets/sounds/default_ambience_ice_cracking_2.ogg",
-      "../../../../assets/sounds/default_ambience_ice_cracking_3.ogg"
+      "sounds/default_ambience_ice_cracking_1.ogg",
+      "sounds/default_ambience_ice_cracking_2.ogg",
+      "sounds/default_ambience_ice_cracking_3.ogg"
     ],
     "volume": 0.5
   },
@@ -671,21 +671,21 @@
     "type": "sound",
     "id": "music_day",
     "paths": [
-      "../../../../assets/sounds/game-music-1.mp3",
-      "../../../../assets/sounds/game-music-2.mp3",
-      "../../../../assets/sounds/game-music-3.mp3",
-      "../../../../assets/sounds/game-music-4.mp3",
-      "../../../../assets/sounds/game-music-5.mp3",
-      "../../../../assets/sounds/game-music-grassy.ogg",
-      "../../../../assets/sounds/game-music-main.ogg",
-      "../../../../assets/sounds/game-music-classic.ogg"
+      "sounds/game-music-1.mp3",
+      "sounds/game-music-2.mp3",
+      "sounds/game-music-3.mp3",
+      "sounds/game-music-4.mp3",
+      "sounds/game-music-5.mp3",
+      "sounds/game-music-grassy.ogg",
+      "sounds/game-music-main.ogg",
+      "sounds/game-music-classic.ogg"
     ],
     "volume": 0.35
   },
   {
     "type": "sound",
     "id": "music_cave",
-    "path": "../../../../assets/sounds/game-music-cave.ogg",
+    "path": "sounds/game-music-cave.ogg",
     "volume": 0.35
   },
   {
@@ -1301,16 +1301,16 @@
   {
     "type": "sound",
     "id": "music_menu",
-    "path": "../../../../assets/sounds/game-music-main.ogg",
+    "path": "sounds/game-music-main.ogg",
     "volume": 0.4
   },
   {
     "type": "sound",
     "id": "snow_hurt",
     "paths": [
-      "../../../../assets/sounds/default_snow_hit.1.ogg",
-      "../../../../assets/sounds/default_snow_hit.2.ogg",
-      "../../../../assets/sounds/default_snow_hit.3.ogg"
+      "sounds/default_snow_hit.1.ogg",
+      "sounds/default_snow_hit.2.ogg",
+      "sounds/default_snow_hit.3.ogg"
     ],
     "pitchVariation": 0.1
   },
