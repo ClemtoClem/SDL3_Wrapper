@@ -1,0 +1,28 @@
+// Définitions de sql/storage.hpp
+#include <sql/storage.hpp>
+
+namespace sql {
+
+bool SaveProjectJson(const String &path, const dataio::NodePtr &root) {
+	dataio::JsonDocument doc;
+	doc.SetRoot(root);
+	String text = doc.EncodeStr();
+	return sdl3::WriteFile(path, text.CStr(), text.GetSize());
+}
+
+Result<dataio::NodePtr, String> LoadProjectJson(const String &path) {
+	auto bytes = sdl3::ReadFile(path);
+	if (!bytes)
+		return Err(String(bytes.Error()));
+
+	String content(reinterpret_cast<const char *>(bytes.Value().data()), bytes.Value().size());
+
+	dataio::JsonDocument doc;
+	auto err = doc.DecodeStr(content);
+	if (err.IsSome())
+		return Err(err->Format());
+
+	return Ok(doc.GetRoot());
+}
+
+} // namespace sql

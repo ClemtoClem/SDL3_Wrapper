@@ -1,0 +1,826 @@
+// Matériaux, minerais, teintures et objets divers.
+[
+ {
+  "type": "item",
+  "id": "stick",
+  "displayName": "Bâton",
+  "icon": "core:items/stick",
+  "tags": [
+   "sticks",
+   "fuel"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "coal",
+  "displayName": "Charbon",
+  "icon": "core:items/coal",
+  "tags": [
+   "fuel",
+   "minerals"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "charcoal",
+  "displayName": "Charbon de bois",
+  "icon": "core:items/charcoal",
+  "tags": [
+   "fuel"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "iron_ingot",
+  "displayName": "Lingot de fer",
+  "icon": "core:items/iron_ingot",
+  "tags": [
+   "minerals",
+   "ingots"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "gold_ingot",
+  "displayName": "Lingot d'or",
+  "icon": "core:items/gold_ingot",
+  "tags": [
+   "minerals",
+   "ingots"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "iron_nugget",
+  "displayName": "Pépite de fer",
+  "icon": "core:items/iron_nugget",
+  "tags": [
+   "minerals"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "gold_nugget",
+  "displayName": "Pépite d'or",
+  "icon": "core:items/gold_nugget",
+  "tags": [
+   "minerals"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "diamond",
+  "displayName": "Diamant",
+  "icon": "core:items/diamond",
+  "tags": [
+   "minerals",
+   "gems"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "emerald",
+  "displayName": "Émeraude",
+  "icon": "core:items/emerald",
+  "tags": [
+   "minerals",
+   "gems",
+   "currency"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "lapis",
+  "displayName": "Lapis-lazuli",
+  "icon": "core:items/lapis_lazuli",
+  "tags": [
+   "minerals",
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "redstone",
+  "displayName": "Poudre de redstone",
+  "icon": "core:items/redstone",
+  "tags": [
+   "minerals"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "quartz",
+  "displayName": "Quartz",
+  "icon": "core:items/quartz",
+  "tags": [
+   "minerals"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "flint",
+  "displayName": "Silex",
+  "icon": "core:items/flint"
+ },
+ {
+  "type": "item",
+  "id": "clay_ball",
+  "displayName": "Motte d'argile",
+  "icon": "core:items/clay_ball"
+ },
+ {
+  "type": "item",
+  "id": "brick",
+  "displayName": "Brique",
+  "icon": "core:items/brick"
+ },
+ {
+  "type": "item",
+  "id": "nether_brick_item",
+  "displayName": "Brique infernale",
+  "icon": "core:items/nether_brick"
+ },
+ {
+  "type": "item",
+  "id": "glowstone_dust",
+  "displayName": "Poudre lumineuse",
+  "icon": "core:items/glowstone_dust"
+ },
+ {
+  "type": "item",
+  "id": "paper",
+  "displayName": "Papier",
+  "icon": "core:items/paper"
+ },
+ {
+  "type": "item",
+  "id": "book",
+  "displayName": "Livre",
+  "icon": "core:items/book"
+ },
+ {
+  "type": "item",
+  "id": "sugar",
+  "displayName": "Sucre",
+  "icon": "core:items/sugar"
+ },
+ {
+  "type": "item",
+  "id": "sugar_cane_item",
+  "displayName": "Canne à sucre",
+  "icon": "core:items/sugar_cane",
+  "places": "core:sugar_cane"
+ },
+ {
+  "type": "item",
+  "id": "wheat",
+  "displayName": "Blé",
+  "icon": "core:items/wheat",
+  "tags": [
+   "crops"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "wheat_seeds",
+  "displayName": "Graines de blé",
+  "icon": "core:items/wheat_seeds",
+  "tags": [
+   "seeds"
+  ],
+  "places": "core:wheat_0"
+ },
+ {
+  "type": "item",
+  "id": "beetroot_seeds",
+  "displayName": "Graines de betterave",
+  "icon": "core:items/beetroot_seeds",
+  "tags": [
+   "seeds"
+  ],
+  "places": "core:beetroots_0"
+ },
+ {
+  "type": "item",
+  "id": "turnip_seeds",
+  "displayName": "Graines de navet",
+  "icon": "core:items/turnip_seeds",
+  "tags": [
+   "seeds"
+  ],
+  "places": "core:turnips_0"
+ },
+ {
+  "type": "item",
+  "id": "melon_seeds",
+  "displayName": "Graines de pastèque",
+  "icon": "core:items/melon_seeds",
+  "tags": [
+   "seeds"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "pumpkin_seeds",
+  "displayName": "Graines de citrouille",
+  "icon": "core:items/pumpkin_seeds",
+  "tags": [
+   "seeds"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "string",
+  "displayName": "Ficelle",
+  "icon": "core:items/string"
+ },
+ {
+  "type": "item",
+  "id": "feather",
+  "displayName": "Plume",
+  "icon": "core:items/feather"
+ },
+ {
+  "type": "item",
+  "id": "leather",
+  "displayName": "Cuir",
+  "icon": "core:items/leather"
+ },
+ {
+  "type": "item",
+  "id": "rabbit_hide",
+  "displayName": "Peau de lapin",
+  "icon": "core:items/rabbit_hide"
+ },
+ {
+  "type": "item",
+  "id": "rabbit_foot",
+  "displayName": "Patte de lapin",
+  "icon": "core:items/rabbit_foot"
+ },
+ {
+  "type": "item",
+  "id": "bone",
+  "displayName": "Os",
+  "icon": "core:items/bone"
+ },
+ {
+  "type": "item",
+  "id": "bone_meal",
+  "displayName": "Poudre d'os",
+  "icon": "core:items/bone_meal",
+  "tags": [
+   "fertilizer"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "gunpowder",
+  "displayName": "Poudre à canon",
+  "icon": "core:items/gunpowder"
+ },
+ {
+  "type": "item",
+  "id": "slime_ball",
+  "displayName": "Boule de slime",
+  "icon": "core:items/slime_ball"
+ },
+ {
+  "type": "item",
+  "id": "ender_pearl",
+  "displayName": "Perle de l'Ender",
+  "icon": "core:items/ender_pearl"
+ },
+ {
+  "type": "item",
+  "id": "ender_eye",
+  "displayName": "Œil de l'Ender",
+  "icon": "core:items/ender_eye"
+ },
+ {
+  "type": "item",
+  "id": "blaze_rod",
+  "displayName": "Bâton de Blaze",
+  "icon": "core:items/blaze_rod",
+  "tags": [
+   "fuel"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "ghast_tear",
+  "displayName": "Larme de Ghast",
+  "icon": "core:items/ghast_tear"
+ },
+ {
+  "type": "item",
+  "id": "ghost_essence",
+  "displayName": "Essence spectrale",
+  "icon": "core:items/soul"
+ },
+ {
+  "type": "item",
+  "id": "egg",
+  "displayName": "Œuf",
+  "icon": "core:items/egg"
+ },
+ {
+  "type": "item",
+  "id": "snowball",
+  "displayName": "Boule de neige",
+  "icon": "core:items/snowball"
+ },
+ {
+  "type": "item",
+  "id": "ink_sac",
+  "displayName": "Poche d'encre",
+  "icon": "core:items/ink_sac"
+ },
+ {
+  "type": "item",
+  "id": "scute",
+  "displayName": "Écaille",
+  "icon": "core:items/scute"
+ },
+ {
+  "type": "item",
+  "id": "honeycomb",
+  "displayName": "Rayon de miel",
+  "icon": "core:items/honeycomb"
+ },
+ {
+  "type": "item",
+  "id": "nautilus_shell",
+  "displayName": "Coquille de nautile",
+  "icon": "core:items/nautilus_shell"
+ },
+ {
+  "type": "item",
+  "id": "heart_of_the_sea",
+  "displayName": "Cœur de la mer",
+  "icon": "core:items/heart_of_the_sea"
+ },
+ {
+  "type": "item",
+  "id": "nether_star",
+  "displayName": "Étoile du Nether",
+  "icon": "core:items/nether_star"
+ },
+ {
+  "type": "item",
+  "id": "prismarine_shard",
+  "displayName": "Éclat de prismarine",
+  "icon": "core:items/prismarine_shard"
+ },
+ {
+  "type": "item",
+  "id": "prismarine_crystals",
+  "displayName": "Cristaux de prismarine",
+  "icon": "core:items/prismarine_crystals"
+ },
+ {
+  "type": "item",
+  "id": "phantom_membrane",
+  "displayName": "Membrane de Phantom",
+  "icon": "core:items/phantom_membrane"
+ },
+ {
+  "type": "item",
+  "id": "shulker_shell",
+  "displayName": "Carapace de Shulker",
+  "icon": "core:items/shulker_shell"
+ },
+ {
+  "type": "item",
+  "id": "pixie_dust",
+  "displayName": "Poussière de fée",
+  "icon": "core:items/pixie_dust"
+ },
+ {
+  "type": "item",
+  "id": "crystal_shard",
+  "displayName": "Éclat de cristal",
+  "icon": "core:items/crystal_shard"
+ },
+ {
+  "type": "item",
+  "id": "biome_essence",
+  "displayName": "Essence de biome",
+  "icon": "core:items/biome_essence"
+ },
+ {
+  "type": "item",
+  "id": "pinecone",
+  "displayName": "Pomme de pin",
+  "icon": "core:items/pinecone",
+  "tags": [
+   "fuel"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "arrow",
+  "displayName": "Flèche",
+  "icon": "core:items/arrow",
+  "tags": [
+   "ammo"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "spectral_arrow",
+  "displayName": "Flèche spectrale",
+  "icon": "core:items/spectral_arrow",
+  "tags": [
+   "ammo"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "music_disc",
+  "displayName": "Disque",
+  "icon": "core:items/music_disc_cat"
+ },
+ {
+  "type": "item",
+  "id": "name_tag",
+  "displayName": "Étiquette",
+  "icon": "core:items/name_tag"
+ },
+ {
+  "type": "item",
+  "id": "saddle",
+  "displayName": "Selle",
+  "icon": "core:items/saddle"
+ },
+ {
+  "type": "item",
+  "id": "lead",
+  "displayName": "Laisse",
+  "icon": "core:items/lead"
+ },
+ {
+  "type": "item",
+  "id": "totem",
+  "displayName": "Totem d'immortalité",
+  "icon": "core:items/totem_of_undying"
+ },
+ {
+  "type": "item",
+  "id": "map",
+  "displayName": "Carte",
+  "icon": "core:items/map"
+ },
+ {
+  "type": "item",
+  "id": "compass",
+  "displayName": "Boussole",
+  "icon": "core:items/compass_00",
+  "tags": [
+   "tools"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "clock",
+  "displayName": "Horloge",
+  "icon": "core:items/clock_00",
+  "tags": [
+   "tools"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "bucket",
+  "displayName": "Seau",
+  "icon": "core:items/bucket"
+ },
+ {
+  "type": "item",
+  "id": "water_bucket",
+  "displayName": "Seau d'eau",
+  "icon": "core:items/water_bucket",
+  "places": "core:water"
+ },
+ {
+  "type": "item",
+  "id": "lava_bucket",
+  "displayName": "Seau de lave",
+  "icon": "core:items/lava_bucket",
+  "tags": [
+   "fuel"
+  ],
+  "places": "core:lava"
+ },
+ {
+  "type": "item",
+  "id": "milk_bucket",
+  "displayName": "Seau de lait",
+  "icon": "core:items/milk_bucket",
+  "food": 1,
+  "alwaysEdible": true
+ },
+ {
+  "type": "item",
+  "id": "bowl",
+  "displayName": "Bol",
+  "icon": "core:items/bowl"
+ },
+ {
+  "type": "item",
+  "id": "glass_bottle",
+  "displayName": "Fiole",
+  "icon": "core:items/glass_bottle"
+ },
+ {
+  "type": "item",
+  "id": "potion_regeneration",
+  "displayName": "Potion de régénération",
+  "icon": "core:items/potion",
+  "food": 0.5,
+  "alwaysEdible": true,
+  "effects": [
+   {
+    "id": "regeneration",
+    "seconds": 45,
+    "level": 1
+   }
+  ]
+ },
+ {
+  "type": "item",
+  "id": "potion_speed",
+  "displayName": "Potion de rapidité",
+  "icon": "core:items/splash_potion",
+  "food": 0.5,
+  "alwaysEdible": true,
+  "effects": [
+   {
+    "id": "speed",
+    "seconds": 120,
+    "level": 1
+   }
+  ]
+ },
+ {
+  "type": "item",
+  "id": "experience_bottle",
+  "displayName": "Fiole d'expérience",
+  "icon": "core:items/experience_bottle",
+  "onUse": "use_xp_bottle"
+ },
+ {
+  "type": "item",
+  "id": "magic_wand",
+  "displayName": "Baguette magique",
+  "icon": "core:items/blaze_rod",
+  "tags": [
+   "tools"
+  ],
+  "onUse": "use_magic_wand"
+ },
+ {
+  "type": "item",
+  "id": "magic_seed",
+  "displayName": "Graine magique",
+  "icon": "core:items/biome_essence",
+  "onUse": "use_magic_seed"
+ },
+ {
+  "type": "item",
+  "id": "book_of_knowledge",
+  "displayName": "Livre du savoir",
+  "icon": "core:items/knowledge_book",
+  "onUse": "use_knowledge_book"
+ },
+ {
+  "type": "item",
+  "id": "jar",
+  "displayName": "Bocal",
+  "icon": "core:items/jar_empty"
+ },
+ {
+  "type": "item",
+  "id": "amber",
+  "displayName": "Ambre",
+  "icon": "core:items/amber",
+  "tags": [
+   "minerals",
+   "gems"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "amethyst",
+  "displayName": "Améthyste",
+  "icon": "core:items/amethyst",
+  "tags": [
+   "minerals",
+   "gems"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "malachite",
+  "displayName": "Malachite",
+  "icon": "core:items/malachite",
+  "tags": [
+   "minerals",
+   "gems"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "peridot",
+  "displayName": "Péridot",
+  "icon": "core:items/peridot",
+  "tags": [
+   "minerals",
+   "gems"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "ruby",
+  "displayName": "Rubis",
+  "icon": "core:items/ruby",
+  "tags": [
+   "minerals",
+   "gems"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "sapphire",
+  "displayName": "Saphir",
+  "icon": "core:items/sapphire",
+  "tags": [
+   "minerals",
+   "gems"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "tanzanite",
+  "displayName": "Tanzanite",
+  "icon": "core:items/tanzanite",
+  "tags": [
+   "minerals",
+   "gems"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "topaz",
+  "displayName": "Topaze",
+  "icon": "core:items/topaz",
+  "tags": [
+   "minerals",
+   "gems"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "white_dye",
+  "displayName": "Teinture blanche",
+  "icon": "core:items/white_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "orange_dye",
+  "displayName": "Teinture orange",
+  "icon": "core:items/orange_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "magenta_dye",
+  "displayName": "Teinture magenta",
+  "icon": "core:items/magenta_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "light_blue_dye",
+  "displayName": "Teinture bleu clair",
+  "icon": "core:items/light_blue_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "yellow_dye",
+  "displayName": "Teinture jaune",
+  "icon": "core:items/dandelion_yellow",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "lime_dye",
+  "displayName": "Teinture vert clair",
+  "icon": "core:items/lime_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "pink_dye",
+  "displayName": "Teinture rose",
+  "icon": "core:items/pink_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "gray_dye",
+  "displayName": "Teinture grise",
+  "icon": "core:items/gray_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "light_gray_dye",
+  "displayName": "Teinture gris clair",
+  "icon": "core:items/light_gray_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "cyan_dye",
+  "displayName": "Teinture cyan",
+  "icon": "core:items/cyan_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "purple_dye",
+  "displayName": "Teinture violette",
+  "icon": "core:items/purple_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "blue_dye",
+  "displayName": "Teinture bleue",
+  "icon": "core:items/blue_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "brown_dye",
+  "displayName": "Teinture marron",
+  "icon": "core:items/brown_dye",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "green_dye",
+  "displayName": "Teinture verte",
+  "icon": "core:items/cactus_green",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "red_dye",
+  "displayName": "Teinture rouge",
+  "icon": "core:items/rose_red",
+  "tags": [
+   "dyes"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "black_dye",
+  "displayName": "Teinture noire",
+  "icon": "core:items/black_dye",
+  "tags": [
+   "dyes"
+  ]
+ }
+]

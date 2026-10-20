@@ -1,0 +1,866 @@
+// Terrain naturel : terres, pierres, sables, terres cuites (généré par gen/content.py).
+[
+ {
+  "id": "coarse_dirt",
+  "displayName": "Terre stérile",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "texture": "core:blocks/coarse_dirt"
+  },
+  "sounds": "core:dirt",
+  "gameplay": {
+   "hardness": 0.9,
+   "tool": "shovel"
+  }
+ },
+ {
+  "id": "podzol",
+  "displayName": "Podzol",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/podzol_top",
+    "side": "core:blocks/podzol_side",
+    "bottom": "core:blocks/dirt"
+   }
+  },
+  "sounds": "core:dirt",
+  "gameplay": {
+   "hardness": 0.9,
+   "tool": "shovel",
+   "drops": "core:dirt"
+  }
+ },
+ {
+  "id": "mycelium",
+  "displayName": "Mycélium",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/mycelium_top",
+    "side": "core:blocks/mycelium_side",
+    "bottom": "core:blocks/dirt"
+   }
+  },
+  "sounds": "core:dirt",
+  "gameplay": {
+   "hardness": 0.9,
+   "tool": "shovel",
+   "drops": "core:dirt"
+  }
+ },
+ {
+  "id": "snowy_grass",
+  "displayName": "Herbe enneigée",
+  "tags": [
+   "terrain",
+   "cold"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/snow",
+    "side": "core:blocks/grass_block_snow",
+    "bottom": "core:blocks/dirt"
+   }
+  },
+  "sounds": "core:snow",
+  "gameplay": {
+   "hardness": 0.9,
+   "tool": "shovel",
+   "drops": "core:dirt"
+  }
+ },
+ {
+  "id": "grass_path",
+  "displayName": "Chemin",
+  "tags": [
+   "terrain"
+  ],
+  "size": {
+   "x": 1,
+   "y": 0.9375,
+   "z": 1
+  },
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/grass_path_top",
+    "side": "core:blocks/grass_path_side",
+    "bottom": "core:blocks/dirt"
+   }
+  },
+  "sounds": "core:gravel",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shovel",
+   "drops": "core:dirt"
+  }
+ },
+ {
+  "id": "farmland",
+  "displayName": "Terre labourée",
+  "tags": [
+   "terrain",
+   "farmland"
+  ],
+  "size": {
+   "x": 1,
+   "y": 0.9375,
+   "z": 1
+  },
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/farmland_moist",
+    "side": "core:blocks/dirt",
+    "bottom": "core:blocks/dirt"
+   }
+  },
+  "sounds": "core:dirt",
+  "gameplay": {
+   "hardness": 0.7,
+   "tool": "shovel",
+   "drops": "core:dirt"
+  }
+ },
+ {
+  "id": "mud",
+  "displayName": "Boue",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "texture": "core:blocks/mud"
+  },
+  "sounds": "core:dirt",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "shovel"
+  },
+  "physics": {
+   "surface": {
+    "slipperiness": 0.2
+   }
+  }
+ },
+ {
+  "id": "clay",
+  "displayName": "Argile",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "texture": "core:blocks/clay"
+  },
+  "sounds": "core:dirt",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shovel",
+   "drops": {
+    "item": "core:clay_ball",
+    "count": 4
+   }
+  }
+ },
+ {
+  "id": "red_sand",
+  "displayName": "Sable rouge",
+  "tags": [
+   "terrain",
+   "granular"
+  ],
+  "graphics": {
+   "texture": "core:blocks/red_sand"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "white_sand",
+  "displayName": "Sable blanc",
+  "tags": [
+   "terrain",
+   "granular"
+  ],
+  "graphics": {
+   "texture": "core:blocks/white_sand"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "packed_ice",
+  "displayName": "Glace compacte",
+  "tags": [
+   "cold"
+  ],
+  "graphics": {
+   "texture": "core:blocks/packed_ice"
+  },
+  "sounds": "core:ice",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "surface": {
+    "slipperiness": 0.95
+   }
+  }
+ },
+ {
+  "id": "blue_ice",
+  "displayName": "Glace bleue",
+  "tags": [
+   "cold"
+  ],
+  "graphics": {
+   "texture": "core:blocks/blue_ice"
+  },
+  "sounds": "core:ice",
+  "gameplay": {
+   "hardness": 1.2,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "surface": {
+    "slipperiness": 0.98
+   }
+  }
+ },
+ {
+  "id": "obsidian",
+  "displayName": "Obsidienne",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/obsidian"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 25,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "netherrack",
+  "displayName": "Roche infernale",
+  "tags": [
+   "stone",
+   "hot"
+  ],
+  "graphics": {
+   "texture": "core:blocks/netherrack"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "soul_sand",
+  "displayName": "Sable des âmes",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "texture": "core:blocks/soul_sand"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "shovel"
+  },
+  "physics": {
+   "viscosity": 0.4
+  }
+ },
+ {
+  "id": "end_stone",
+  "displayName": "Pierre de l'End",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/end_stone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "ash_block",
+  "displayName": "Bloc de cendre",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "texture": "core:blocks/ash_block"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  }
+ },
+ {
+  "id": "mossy_cobblestone",
+  "displayName": "Pierre moussue",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/mossy_cobblestone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "overgrown_stone",
+  "displayName": "Pierre envahie",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:grass_top",
+    "side": "core:blocks/overgrown_stone_side",
+    "bottom": "core:blocks/stone"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe",
+   "drops": "core:cobble"
+  }
+ },
+ {
+  "id": "spectral_moss",
+  "displayName": "Mousse spectrale",
+  "tags": [
+   "terrain",
+   "magic"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/spectral_moss_top",
+    "side": "core:blocks/spectral_moss_side",
+    "bottom": "core:blocks/dirt"
+   },
+   "light": 4
+  },
+  "sounds": "core:grass",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "shovel",
+   "drops": "core:dirt"
+  }
+ },
+ {
+  "id": "granite",
+  "displayName": "Granite",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "polished_granite",
+  "displayName": "Granite poli",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/polished_granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "diorite",
+  "displayName": "Diorite",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/diorite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "polished_diorite",
+  "displayName": "Diorite poli",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/polished_diorite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "andesite",
+  "displayName": "Andésite",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/andesite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "polished_andesite",
+  "displayName": "Andésite poli",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/polished_andesite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "sandstone",
+  "displayName": "Grès",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/sandstone_top",
+    "side": "core:blocks/sandstone",
+    "bottom": "core:blocks/sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "chiseled_sandstone",
+  "displayName": "Grès sculpté",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/chiseled_sandstone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cut_sandstone",
+  "displayName": "Grès taillé",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/cut_sandstone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "red_sandstone",
+  "displayName": "Grès rouge",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/red_sandstone_top",
+    "side": "core:blocks/red_sandstone",
+    "bottom": "core:blocks/red_sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "chiseled_red_sandstone",
+  "displayName": "Grès rouge sculpté",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/chiseled_red_sandstone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cut_red_sandstone",
+  "displayName": "Grès rouge taillé",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/cut_red_sandstone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "white_sandstone",
+  "displayName": "Grès blanc",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/white_sandstone_top",
+    "side": "core:blocks/white_sandstone_normal",
+    "bottom": "core:blocks/white_sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "terracotta",
+  "displayName": "Terre cuite",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "white_terracotta",
+  "displayName": "Terre cuite blanche",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/white_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "orange_terracotta",
+  "displayName": "Terre cuite orange",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/orange_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "magenta_terracotta",
+  "displayName": "Terre cuite magenta",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/magenta_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "light_blue_terracotta",
+  "displayName": "Terre cuite bleu clair",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_blue_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "yellow_terracotta",
+  "displayName": "Terre cuite jaune",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/yellow_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "lime_terracotta",
+  "displayName": "Terre cuite vert clair",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/lime_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "pink_terracotta",
+  "displayName": "Terre cuite rose",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/pink_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "gray_terracotta",
+  "displayName": "Terre cuite grise",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/gray_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "light_gray_terracotta",
+  "displayName": "Terre cuite gris clair",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_gray_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cyan_terracotta",
+  "displayName": "Terre cuite cyan",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/cyan_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "purple_terracotta",
+  "displayName": "Terre cuite violette",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/purple_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "blue_terracotta",
+  "displayName": "Terre cuite bleue",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/blue_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "brown_terracotta",
+  "displayName": "Terre cuite marron",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/brown_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "green_terracotta",
+  "displayName": "Terre cuite verte",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/green_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "red_terracotta",
+  "displayName": "Terre cuite rouge",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/red_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "black_terracotta",
+  "displayName": "Terre cuite noire",
+  "tags": [
+   "stone",
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/black_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ }
+]

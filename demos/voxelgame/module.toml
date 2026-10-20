@@ -1,0 +1,18 @@
+[module]
+name = "voxelgame"
+layer = "application"
+version = "0.1.0"
+description = "Jeu voxel de démonstration : moteur ECS piloté par les données (mods JSON + scripts), rendu render3d, son, interface"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]
+
+[dependencies]
+modules = ["core", "math", "events", "dataio", "ecs", "resources", "script", "voxel", "render3d", "ui", "audio", "sdl3"]
+
+[tests]
+dirs = ["tests"]

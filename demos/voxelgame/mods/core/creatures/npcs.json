@@ -1,0 +1,831 @@
+// Personnages non joueurs : marchands (onInteract → npc_trade), gardes, golems.
+[
+ {
+  "type": "interactive",
+  "id": "villager",
+  "displayName": "Villageois",
+  "tags": [
+   "npc",
+   "friendly",
+   "trader"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.2,
+   "jumpSpeed": 7,
+   "pushable": false
+  },
+  "health": 20,
+  "behaviors": [
+   "look_at_player",
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:villager",
+   "skins": [
+    "core:entities/villager/villager",
+    "core:entities/villager/farmer"
+   ]
+  },
+  "sounds": {
+   "idle": "core:villager_idle",
+   "hurt": "core:villager_idle"
+  },
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:meadow",
+    "core:savanna"
+   ],
+   "chance": 0.002,
+   "max": 2,
+   "onBlocks": [
+    "core:grass"
+   ]
+  },
+  "onInteract": "npc_trade",
+  "profession": "Fermier",
+  "trades": [
+   {
+    "give": [
+     "core:wheat",
+     20
+    ],
+    "get": [
+     "core:emerald",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:carrot",
+     15
+    ],
+    "get": [
+     "core:emerald",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     1
+    ],
+    "get": [
+     "core:bread",
+     6
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     1
+    ],
+    "get": [
+     "core:pumpkin_pie",
+     4
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     2
+    ],
+    "get": [
+     "core:golden_carrot",
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "type": "interactive",
+  "id": "librarian",
+  "displayName": "Bibliothécaire",
+  "tags": [
+   "npc",
+   "friendly",
+   "trader"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.0,
+   "jumpSpeed": 7,
+   "pushable": false
+  },
+  "health": 20,
+  "behaviors": [
+   "look_at_player",
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:villager",
+   "skins": [
+    "core:entities/villager/librarian"
+   ]
+  },
+  "sounds": {
+   "idle": "core:villager_idle",
+   "hurt": "core:villager_idle"
+  },
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:birch_forest"
+   ],
+   "chance": 0.001,
+   "max": 1,
+   "onBlocks": [
+    "core:grass"
+   ]
+  },
+  "onInteract": "npc_trade",
+  "profession": "Bibliothécaire",
+  "trades": [
+   {
+    "give": [
+     "core:paper",
+     24
+    ],
+    "get": [
+     "core:emerald",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     1
+    ],
+    "get": [
+     "core:book",
+     2
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     3
+    ],
+    "get": [
+     "core:bookshelf",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     5
+    ],
+    "get": [
+     "core:book_of_knowledge",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     2
+    ],
+    "get": [
+     "core:compass",
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "type": "interactive",
+  "id": "priest",
+  "displayName": "Clerc",
+  "tags": [
+   "npc",
+   "friendly",
+   "trader"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.0,
+   "jumpSpeed": 7,
+   "pushable": false
+  },
+  "health": 20,
+  "behaviors": [
+   "look_at_player",
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:villager",
+   "skins": [
+    "core:entities/villager/priest"
+   ]
+  },
+  "sounds": {
+   "idle": "core:villager_idle",
+   "hurt": "core:villager_idle"
+  },
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:desert"
+   ],
+   "chance": 0.001,
+   "max": 1,
+   "onBlocks": [
+    "core:grass",
+    "core:sand"
+   ]
+  },
+  "onInteract": "npc_trade",
+  "profession": "Clerc",
+  "trades": [
+   {
+    "give": [
+     "core:rotten_flesh",
+     24
+    ],
+    "get": [
+     "core:emerald",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     1
+    ],
+    "get": [
+     "core:redstone",
+     4
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     2
+    ],
+    "get": [
+     "core:lapis",
+     4
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     4
+    ],
+    "get": [
+     "core:potion_regeneration",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     6
+    ],
+    "get": [
+     "core:experience_bottle",
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "type": "interactive",
+  "id": "blacksmith",
+  "displayName": "Forgeron",
+  "tags": [
+   "npc",
+   "friendly",
+   "trader",
+   "craft"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.7,
+   "y": 1.95,
+   "z": 0.7
+  },
+  "physics": {
+   "collider": [
+    0.7,
+    1.95,
+    0.7
+   ],
+   "mass": 30,
+   "maxSpeed": 1.0,
+   "jumpSpeed": 7,
+   "pushable": false
+  },
+  "health": 30,
+  "behaviors": [
+   "look_at_player",
+   "float"
+  ],
+  "rig": {
+   "model": "core:villager",
+   "skins": [
+    "core:entities/villager/smith"
+   ]
+  },
+  "sounds": {
+   "idle": "core:blacksmith_idle",
+   "hurt": "core:hurt"
+  },
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:mountains"
+   ],
+   "chance": 0.0006,
+   "max": 1,
+   "onBlocks": [
+    "core:grass",
+    "core:stone"
+   ]
+  },
+  "onInteract": "npc_trade",
+  "profession": "Forgeron",
+  "trades": [
+   {
+    "give": [
+     "core:coal",
+     15
+    ],
+    "get": [
+     "core:emerald",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:iron_ingot",
+     4
+    ],
+    "get": [
+     "core:emerald",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     5
+    ],
+    "get": [
+     "core:iron_pickaxe",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     7
+    ],
+    "get": [
+     "core:iron_chestplate",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     12
+    ],
+    "get": [
+     "core:diamond_sword",
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "type": "interactive",
+  "id": "butcher",
+  "displayName": "Boucher",
+  "tags": [
+   "npc",
+   "friendly",
+   "trader"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.0,
+   "jumpSpeed": 7,
+   "pushable": false
+  },
+  "health": 20,
+  "behaviors": [
+   "look_at_player",
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:villager",
+   "skins": [
+    "core:entities/villager/butcher"
+   ]
+  },
+  "sounds": {
+   "idle": "core:villager_idle",
+   "hurt": "core:villager_idle"
+  },
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:savanna"
+   ],
+   "chance": 0.0008,
+   "max": 1,
+   "onBlocks": [
+    "core:grass"
+   ]
+  },
+  "onInteract": "npc_trade",
+  "profession": "Boucher",
+  "trades": [
+   {
+    "give": [
+     "core:chicken",
+     14
+    ],
+    "get": [
+     "core:emerald",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:porkchop",
+     7
+    ],
+    "get": [
+     "core:emerald",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     1
+    ],
+    "get": [
+     "core:cooked_beef",
+     5
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     1
+    ],
+    "get": [
+     "core:rabbit_stew",
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "type": "interactive",
+  "id": "merchant",
+  "displayName": "Marchand ambulant",
+  "tags": [
+   "npc",
+   "friendly",
+   "trader"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.3,
+   "jumpSpeed": 7,
+   "pushable": false
+  },
+  "health": 20,
+  "behaviors": [
+   "look_at_player",
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:biped",
+   "skins": [
+    "core:skins/skin_rogue_male"
+   ]
+  },
+  "sounds": {
+   "idle": "core:villager_idle",
+   "hurt": "core:hurt"
+  },
+  "spawn": {
+   "chance": 0.0006,
+   "max": 1,
+   "onBlocks": [
+    "core:grass",
+    "core:sand"
+   ]
+  },
+  "onInteract": "npc_trade",
+  "profession": "Marchand",
+  "trades": [
+   {
+    "give": [
+     "core:emerald",
+     1
+    ],
+    "get": [
+     "core:oak_sapling",
+     2
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     1
+    ],
+    "get": [
+     "core:cherry_sapling",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     2
+    ],
+    "get": [
+     "core:magic_seed",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:emerald",
+     3
+    ],
+    "get": [
+     "core:ruby",
+     1
+    ]
+   },
+   {
+    "give": [
+     "core:ghost_essence",
+     1
+    ],
+    "get": [
+     "core:magic_wand",
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "type": "interactive",
+  "id": "guard",
+  "displayName": "Garde",
+  "tags": [
+   "npc",
+   "friendly",
+   "guard"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.65,
+   "y": 1.95,
+   "z": 0.65
+  },
+  "physics": {
+   "collider": [
+    0.65,
+    1.95,
+    0.65
+   ],
+   "mass": 30,
+   "maxSpeed": 2.4,
+   "jumpSpeed": 7,
+   "pushable": false
+  },
+  "health": 40,
+  "behaviors": [
+   {
+    "id": "core:defend",
+    "range": 14,
+    "speed": 2.8,
+    "damage": 6
+   },
+   "look_at_player",
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:biped",
+   "skins": [
+    "core:skins/skin_prince"
+   ]
+  },
+  "sounds": {
+   "idle": "core:guard_idle",
+   "hurt": "core:hurt"
+  },
+  "spawn": {
+   "biomes": [
+    "core:plains"
+   ],
+   "chance": 0.0008,
+   "max": 1,
+   "onBlocks": [
+    "core:grass",
+    "core:cobble"
+   ]
+  },
+  "onInteract": "guard_talk"
+ },
+ {
+  "type": "interactive",
+  "id": "iron_golem",
+  "displayName": "Golem de fer",
+  "tags": [
+   "npc",
+   "friendly",
+   "guard"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 1.4,
+   "y": 2.7,
+   "z": 1.4
+  },
+  "physics": {
+   "collider": [
+    1.4,
+    2.7,
+    1.4
+   ],
+   "mass": 300,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7,
+   "pushable": false
+  },
+  "health": 100,
+  "behaviors": [
+   {
+    "id": "core:defend",
+    "range": 16,
+    "speed": 2.2,
+    "damage": 10
+   },
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:iron_golem",
+   "skins": [
+    "core:entities/iron_golem"
+   ]
+  },
+  "sounds": {
+   "idle": "core:golem_idle",
+   "hurt": "core:golem_hurt"
+  },
+  "drops": [
+   [
+    "core:iron_ingot",
+    4
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:plains"
+   ],
+   "chance": 0.0003,
+   "max": 1,
+   "onBlocks": [
+    "core:grass"
+   ]
+  },
+  "xp": 10
+ },
+ {
+  "type": "interactive",
+  "id": "snow_golem",
+  "displayName": "Bonhomme de neige",
+  "tags": [
+   "npc",
+   "friendly"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.7,
+   "y": 1.9,
+   "z": 0.7
+  },
+  "physics": {
+   "collider": [
+    0.7,
+    1.9,
+    0.7
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 4,
+  "behaviors": [
+   "wander",
+   {
+    "id": "core:defend",
+    "range": 10,
+    "speed": 1.6,
+    "damage": 1,
+    "ranged": true
+   }
+  ],
+  "rig": {
+   "model": "core:snow_golem",
+   "skins": [
+    "core:entities/snow_golem"
+   ]
+  },
+  "sounds": {
+   "hurt": "core:snow_hurt"
+  },
+  "drops": [
+   [
+    "core:snowball",
+    4
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:tundra",
+    "core:ice_spikes"
+   ],
+   "chance": 0.001,
+   "max": 1,
+   "onBlocks": [
+    "core:snow",
+    "core:snowy_grass"
+   ]
+  }
+ }
+]

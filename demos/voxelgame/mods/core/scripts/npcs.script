@@ -1,0 +1,38 @@
+# Personnages non joueurs : commerce et dialogues. Le jeu affiche les
+# demandes d'interface (game.open_ui) ; les échanges sont décrits dans la
+# définition de chaque PNJ (« trades » : [{give: [objet, n], get: [objet, n]}]).
+
+# Clic droit sur un marchand : fenêtre de commerce.
+fn npc_trade(npc, player) {
+    let def = content.get("entity", entity.kind(npc))
+    if (def == nil or def.trades == nil) { return nil }
+    let p = entity.pos(npc)
+    game.sound("villager_idle", p.x, p.y, p.z)
+    game.open_ui(player, "trade", {
+        title: def.displayName,
+        profession: def.profession,
+        offers: def.trades
+    }, npc)
+}
+
+# Garde : conseils selon l'heure et le danger alentour.
+fn guard_talk(guard, player) {
+    let p = entity.pos(guard)
+    let monsters = 0
+    for (e in world.entities(p.x, p.y, p.z, 32, "creature")) {
+        for (t in entity.tags(e)) { if (t == "hostile") { monsters += 1 } }
+    }
+    let t = game.time()
+    let text = "Le village est calme. Pense à construire un abri avant la nuit."
+    if (t > 0.78 or t < 0.22) { text = "La nuit est dangereuse : reste près des torches, je monte la garde." }
+    if (monsters > 0) { text = format("Attention ! {} créature(s) hostile(s) rôdent par ici.", monsters) }
+    game.sound("guard_idle", p.x, p.y, p.z)
+    game.open_ui(player, "dialog", {
+        title: "Garde du village",
+        text: text,
+        options: ["Merci !", "Je m'en occupe."]
+    }, guard)
+}
+
+# Ancien nom (mondes enregistrés avant la refonte) : même comportement.
+fn merchant_trade(npc, player) { npc_trade(npc, player) }

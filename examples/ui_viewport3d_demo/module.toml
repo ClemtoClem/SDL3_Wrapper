@@ -1,0 +1,12 @@
+[module]
+name = "ui_viewport3d_demo"
+layer = "application"
+version = "0.1.0"
+description = "Scène render3d intégrée dans un widget (ui::Viewport3D)"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["core", "render3d", "sdl3", "ui"]

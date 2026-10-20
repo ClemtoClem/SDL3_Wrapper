@@ -1,0 +1,339 @@
+// Armures : « armor.slot » (head, chest, legs, feet), « armor.points », « armor.durability ».
+[
+ {
+  "type": "item",
+  "id": "leather_helmet",
+  "displayName": "Casque en cuir",
+  "icon": "core:items/leather_helmet",
+  "tags": [
+   "armor",
+   "head"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "head",
+   "points": 1,
+   "durability": 80
+  }
+ },
+ {
+  "type": "item",
+  "id": "leather_chestplate",
+  "displayName": "Plastron en cuir",
+  "icon": "core:items/leather_chestplate",
+  "tags": [
+   "armor",
+   "chest"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "chest",
+   "points": 3,
+   "durability": 80
+  }
+ },
+ {
+  "type": "item",
+  "id": "leather_leggings",
+  "displayName": "Jambières en cuir",
+  "icon": "core:items/leather_leggings",
+  "tags": [
+   "armor",
+   "legs"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "legs",
+   "points": 2,
+   "durability": 80
+  }
+ },
+ {
+  "type": "item",
+  "id": "leather_boots",
+  "displayName": "Bottes en cuir",
+  "icon": "core:items/leather_boots",
+  "tags": [
+   "armor",
+   "feet"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "feet",
+   "points": 1,
+   "durability": 80
+  }
+ },
+ {
+  "type": "item",
+  "id": "chainmail_helmet",
+  "displayName": "Casque en mailles",
+  "icon": "core:items/chainmail_helmet",
+  "tags": [
+   "armor",
+   "head"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "head",
+   "points": 2,
+   "durability": 200
+  }
+ },
+ {
+  "type": "item",
+  "id": "chainmail_chestplate",
+  "displayName": "Plastron en mailles",
+  "icon": "core:items/chainmail_chestplate",
+  "tags": [
+   "armor",
+   "chest"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "chest",
+   "points": 5,
+   "durability": 200
+  }
+ },
+ {
+  "type": "item",
+  "id": "chainmail_leggings",
+  "displayName": "Jambières en mailles",
+  "icon": "core:items/chainmail_leggings",
+  "tags": [
+   "armor",
+   "legs"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "legs",
+   "points": 4,
+   "durability": 200
+  }
+ },
+ {
+  "type": "item",
+  "id": "chainmail_boots",
+  "displayName": "Bottes en mailles",
+  "icon": "core:items/chainmail_boots",
+  "tags": [
+   "armor",
+   "feet"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "feet",
+   "points": 1,
+   "durability": 200
+  }
+ },
+ {
+  "type": "item",
+  "id": "iron_helmet",
+  "displayName": "Casque en fer",
+  "icon": "core:items/iron_helmet",
+  "tags": [
+   "armor",
+   "head"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "head",
+   "points": 2,
+   "durability": 240
+  }
+ },
+ {
+  "type": "item",
+  "id": "iron_chestplate",
+  "displayName": "Plastron en fer",
+  "icon": "core:items/iron_chestplate",
+  "tags": [
+   "armor",
+   "chest"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "chest",
+   "points": 6,
+   "durability": 240
+  }
+ },
+ {
+  "type": "item",
+  "id": "iron_leggings",
+  "displayName": "Jambières en fer",
+  "icon": "core:items/iron_leggings",
+  "tags": [
+   "armor",
+   "legs"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "legs",
+   "points": 5,
+   "durability": 240
+  }
+ },
+ {
+  "type": "item",
+  "id": "iron_boots",
+  "displayName": "Bottes en fer",
+  "icon": "core:items/iron_boots",
+  "tags": [
+   "armor",
+   "feet"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "feet",
+   "points": 2,
+   "durability": 240
+  }
+ },
+ {
+  "type": "item",
+  "id": "golden_helmet",
+  "displayName": "Casque en or",
+  "icon": "core:items/golden_helmet",
+  "tags": [
+   "armor",
+   "head"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "head",
+   "points": 2,
+   "durability": 112
+  }
+ },
+ {
+  "type": "item",
+  "id": "golden_chestplate",
+  "displayName": "Plastron en or",
+  "icon": "core:items/golden_chestplate",
+  "tags": [
+   "armor",
+   "chest"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "chest",
+   "points": 5,
+   "durability": 112
+  }
+ },
+ {
+  "type": "item",
+  "id": "golden_leggings",
+  "displayName": "Jambières en or",
+  "icon": "core:items/golden_leggings",
+  "tags": [
+   "armor",
+   "legs"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "legs",
+   "points": 3,
+   "durability": 112
+  }
+ },
+ {
+  "type": "item",
+  "id": "golden_boots",
+  "displayName": "Bottes en or",
+  "icon": "core:items/golden_boots",
+  "tags": [
+   "armor",
+   "feet"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "feet",
+   "points": 1,
+   "durability": 112
+  }
+ },
+ {
+  "type": "item",
+  "id": "diamond_helmet",
+  "displayName": "Casque en diamant",
+  "icon": "core:items/diamond_helmet",
+  "tags": [
+   "armor",
+   "head"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "head",
+   "points": 3,
+   "durability": 528
+  }
+ },
+ {
+  "type": "item",
+  "id": "diamond_chestplate",
+  "displayName": "Plastron en diamant",
+  "icon": "core:items/diamond_chestplate",
+  "tags": [
+   "armor",
+   "chest"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "chest",
+   "points": 8,
+   "durability": 528
+  }
+ },
+ {
+  "type": "item",
+  "id": "diamond_leggings",
+  "displayName": "Jambières en diamant",
+  "icon": "core:items/diamond_leggings",
+  "tags": [
+   "armor",
+   "legs"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "legs",
+   "points": 6,
+   "durability": 528
+  }
+ },
+ {
+  "type": "item",
+  "id": "diamond_boots",
+  "displayName": "Bottes en diamant",
+  "icon": "core:items/diamond_boots",
+  "tags": [
+   "armor",
+   "feet"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "feet",
+   "points": 3,
+   "durability": 528
+  }
+ },
+ {
+  "type": "item",
+  "id": "turtle_helmet",
+  "displayName": "Carapace de tortue",
+  "icon": "core:items/turtle_helmet",
+  "tags": [
+   "armor",
+   "head"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "head",
+   "points": 2,
+   "durability": 275
+  }
+ }
+]

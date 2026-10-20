@@ -1,0 +1,1710 @@
+// Animaux : modèles articulés (rig) et modèles .obj du pack (models/animals.json).
+[
+ {
+  "type": "creature",
+  "id": "pig",
+  "displayName": "Cochon",
+  "tags": [
+   "animal",
+   "passive",
+   "farm"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.9,
+   "y": 0.9,
+   "z": 0.9
+  },
+  "physics": {
+   "collider": [
+    0.9,
+    0.9,
+    0.9
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 10,
+  "behaviors": [
+   "wander",
+   {
+    "id": "follow",
+    "item": "core:carrot",
+    "range": 8,
+    "speed": 2.2
+   },
+   {
+    "id": "flee",
+    "range": 3,
+    "speed": 2.6
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:pig",
+   "skins": [
+    "core:entities/pig/pig",
+    "core:mobs/pig/pig2",
+    "core:mobs/pig/pig3",
+    "core:mobs/pig/pig4",
+    "core:mobs/pig/pig5",
+    "core:mobs/pig/pig6",
+    "core:mobs/pig/pig7",
+    "core:mobs/pig/pig8"
+   ]
+  },
+  "drops": [
+   [
+    "core:porkchop",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:forest",
+    "core:flower_forest"
+   ],
+   "chance": 0.015,
+   "max": 4,
+   "onBlocks": [
+    "core:grass"
+   ]
+  },
+  "xp": 2
+ },
+ {
+  "type": "creature",
+  "id": "cow",
+  "displayName": "Vache",
+  "tags": [
+   "animal",
+   "passive",
+   "farm"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.9,
+   "y": 1.4,
+   "z": 0.9
+  },
+  "physics": {
+   "collider": [
+    0.9,
+    1.4,
+    0.9
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 10,
+  "behaviors": [
+   "wander",
+   {
+    "id": "follow",
+    "item": "core:wheat",
+    "range": 8,
+    "speed": 2.0
+   },
+   {
+    "id": "flee",
+    "range": 2,
+    "speed": 2.4
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:cow",
+   "skins": [
+    "core:entities/cow/cow",
+    "core:mobs/cow/cow2",
+    "core:mobs/cow/cow3"
+   ]
+  },
+  "drops": [
+   [
+    "core:beef",
+    2
+   ],
+   [
+    "core:leather",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:forest",
+    "core:mountains",
+    "core:savanna"
+   ],
+   "chance": 0.015,
+   "max": 4,
+   "onBlocks": [
+    "core:grass"
+   ]
+  },
+  "xp": 2
+ },
+ {
+  "type": "creature",
+  "id": "mooshroom",
+  "displayName": "Champimeuh",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.9,
+   "y": 1.4,
+   "z": 0.9
+  },
+  "physics": {
+   "collider": [
+    0.9,
+    1.4,
+    0.9
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 10,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:cow",
+   "skins": [
+    "core:entities/cow/mooshroom"
+   ]
+  },
+  "drops": [
+   [
+    "core:beef",
+    2
+   ],
+   [
+    "core:red_mushroom",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:mushroom_island"
+   ],
+   "chance": 0.03,
+   "max": 5,
+   "onBlocks": [
+    "core:mycelium"
+   ]
+  },
+  "xp": 3
+ },
+ {
+  "type": "creature",
+  "id": "sheep",
+  "displayName": "Mouton",
+  "tags": [
+   "animal",
+   "passive",
+   "farm"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.9,
+   "y": 1.3,
+   "z": 0.9
+  },
+  "physics": {
+   "collider": [
+    0.9,
+    1.3,
+    0.9
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 8,
+  "behaviors": [
+   "wander",
+   {
+    "id": "follow",
+    "item": "core:wheat",
+    "range": 8,
+    "speed": 2.0
+   },
+   {
+    "id": "flee",
+    "range": 3
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:sheep",
+   "skins": [
+    "core:entities/sheep/sheep^entities/sheep/sheep_fur.png"
+   ]
+  },
+  "drops": [
+   [
+    "core:white_wool",
+    1
+   ],
+   [
+    "core:mutton",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:mountains",
+    "core:meadow"
+   ],
+   "chance": 0.012,
+   "max": 5,
+   "onBlocks": [
+    "core:grass"
+   ]
+  },
+  "xp": 2
+ },
+ {
+  "type": "creature",
+  "id": "chicken",
+  "displayName": "Poule",
+  "tags": [
+   "animal",
+   "passive",
+   "farm"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.5,
+   "y": 0.7,
+   "z": 0.5
+  },
+  "physics": {
+   "collider": [
+    0.5,
+    0.7,
+    0.5
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7,
+   "gravityScale": 0.6
+  },
+  "health": 4,
+  "behaviors": [
+   "wander",
+   {
+    "id": "follow",
+    "item": "core:wheat_seeds",
+    "range": 8,
+    "speed": 2.0
+   },
+   {
+    "id": "flee",
+    "range": 3
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:chicken",
+   "skins": [
+    "core:entities/chicken"
+   ]
+  },
+  "drops": [
+   [
+    "core:feather",
+    1
+   ],
+   [
+    "core:chicken",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:jungle",
+    "core:savanna"
+   ],
+   "chance": 0.02,
+   "max": 6,
+   "onBlocks": [
+    "core:grass"
+   ]
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "wolf",
+  "displayName": "Loup",
+  "tags": [
+   "animal",
+   "neutral"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 0.85,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    0.85,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 8,
+  "behaviors": [
+   "wander",
+   {
+    "id": "core:chase",
+    "range": 10,
+    "speed": 3.2,
+    "damage": 2,
+    "targets": [
+     "core:sheep",
+     "core:rabbit_mob"
+    ],
+    "onlyProvoked": true
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:wolf",
+   "skins": [
+    "core:entities/wolf/wolf"
+   ]
+  },
+  "drops": [
+   [
+    "core:bone",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:taiga",
+    "core:forest",
+    "core:snowy_taiga"
+   ],
+   "chance": 0.006,
+   "max": 4,
+   "onBlocks": [
+    "core:grass",
+    "core:podzol",
+    "core:snowy_grass"
+   ]
+  },
+  "xp": 3
+ },
+ {
+  "type": "creature",
+  "id": "polar_bear",
+  "displayName": "Ours polaire",
+  "tags": [
+   "animal",
+   "neutral"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 1.3,
+   "y": 1.4,
+   "z": 1.3
+  },
+  "physics": {
+   "collider": [
+    1.3,
+    1.4,
+    1.3
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 30,
+  "behaviors": [
+   "wander",
+   {
+    "id": "core:chase",
+    "range": 8,
+    "speed": 2.6,
+    "damage": 4,
+    "onlyProvoked": true
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:polar_bear",
+   "skins": [
+    "core:entities/bear/polarbear"
+   ]
+  },
+  "drops": [
+   [
+    "core:cod",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:tundra",
+    "core:ice_spikes"
+   ],
+   "chance": 0.006,
+   "max": 2,
+   "onBlocks": [
+    "core:snow",
+    "core:snowy_grass",
+    "core:ice"
+   ]
+  },
+  "xp": 4
+ },
+ {
+  "type": "creature",
+  "id": "llama",
+  "displayName": "Lama",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.9,
+   "y": 1.87,
+   "z": 0.9
+  },
+  "physics": {
+   "collider": [
+    0.9,
+    1.87,
+    0.9
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 15,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:llama",
+   "skins": [
+    "core:entities/llama/brown",
+    "core:entities/llama/creamy",
+    "core:entities/llama/gray",
+    "core:entities/llama/white"
+   ]
+  },
+  "drops": [
+   [
+    "core:leather",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:mountains",
+    "core:savanna"
+   ],
+   "chance": 0.006,
+   "max": 3,
+   "onBlocks": [
+    "core:grass",
+    "core:stone"
+   ]
+  },
+  "xp": 3
+ },
+ {
+  "type": "creature",
+  "id": "squid",
+  "displayName": "Calmar",
+  "tags": [
+   "animal",
+   "aquatic",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.8,
+   "y": 0.8,
+   "z": 0.8
+  },
+  "physics": {
+   "collider": [
+    0.8,
+    0.8,
+    0.8
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7,
+   "gravityScale": 0.1,
+   "swims": true
+  },
+  "health": 10,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:squid",
+   "skins": [
+    "core:entities/squid"
+   ],
+   "scale": 0.8
+  },
+  "drops": [
+   [
+    "core:ink_sac",
+    1
+   ]
+  ],
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "axolotl",
+  "displayName": "Axolotl",
+  "tags": [
+   "animal",
+   "aquatic"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 0.4,
+   "z": 0.9
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    0.4,
+    0.9
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 8,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_axolotl",
+   "yaw": 180
+  },
+  "spawn": {
+   "biomes": [
+    "core:swamp",
+    "core:mangrove_swamp"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass",
+    "core:mud",
+    "core:clay"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "bear",
+  "displayName": "Ours brun",
+  "tags": [
+   "animal",
+   "neutral"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 1.2,
+   "y": 1.3,
+   "z": 1.6
+  },
+  "physics": {
+   "collider": [
+    1.2,
+    1.3,
+    1.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 24,
+  "behaviors": [
+   "wander",
+   {
+    "id": "core:chase",
+    "range": 6,
+    "speed": 2.6,
+    "damage": 4,
+    "onlyProvoked": true
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_bear",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:leather",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:taiga",
+    "core:forest",
+    "core:dark_forest"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass",
+    "core:podzol"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "rabbit_mob",
+  "displayName": "Lapin",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.45,
+   "y": 0.55,
+   "z": 0.45
+  },
+  "physics": {
+   "collider": [
+    0.45,
+    0.55,
+    0.45
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 3,
+  "behaviors": [
+   "wander",
+   {
+    "id": "hop",
+    "interval": 0.8
+   },
+   {
+    "id": "flee",
+    "range": 4,
+    "speed": 3
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_bunny",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:rabbit",
+    1
+   ],
+   [
+    "core:rabbit_hide",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:flower_forest",
+    "core:meadow",
+    "core:birch_forest"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "cat",
+  "displayName": "Chat",
+  "tags": [
+   "animal",
+   "passive",
+   "pet"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.5,
+   "y": 0.6,
+   "z": 0.7
+  },
+  "physics": {
+   "collider": [
+    0.5,
+    0.6,
+    0.7
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 10,
+  "behaviors": [
+   "wander",
+   {
+    "id": "follow",
+    "item": "core:cod",
+    "range": 10,
+    "speed": 2.8
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_cat",
+   "yaw": 180
+  },
+  "spawn": {
+   "biomes": [
+    "core:plains"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "crocodile",
+  "displayName": "Crocodile",
+  "tags": [
+   "animal",
+   "hostile",
+   "aquatic"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.9,
+   "y": 0.6,
+   "z": 2.2
+  },
+  "physics": {
+   "collider": [
+    0.9,
+    0.6,
+    2.2
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 20,
+  "behaviors": [
+   "wander",
+   {
+    "id": "core:chase",
+    "range": 8,
+    "speed": 2.4,
+    "damage": 3
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_crocodile",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:leather",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:swamp",
+    "core:mangrove_swamp"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass",
+    "core:mud"
+   ]
+  },
+  "xp": 4
+ },
+ {
+  "type": "creature",
+  "id": "dog",
+  "displayName": "Chien",
+  "tags": [
+   "animal",
+   "passive",
+   "pet"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 0.8,
+   "z": 0.9
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    0.8,
+    0.9
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 12,
+  "behaviors": [
+   "wander",
+   {
+    "id": "follow",
+    "item": "core:bone",
+    "range": 10,
+    "speed": 2.8
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_dog",
+   "yaw": 180
+  },
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:meadow"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "elephant",
+  "displayName": "Éléphant",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 2.0,
+   "y": 2.6,
+   "z": 2.8
+  },
+  "physics": {
+   "collider": [
+    2.0,
+    2.6,
+    2.8
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 60,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_elephant",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:leather",
+    4
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:savanna"
+   ],
+   "chance": 0.003,
+   "max": 3,
+   "onBlocks": [
+    "core:grass",
+    "core:red_sand"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "fox",
+  "displayName": "Renard",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 0.7,
+   "z": 0.9
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    0.7,
+    0.9
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 10,
+  "behaviors": [
+   "wander",
+   {
+    "id": "hop",
+    "interval": 0.8
+   },
+   {
+    "id": "flee",
+    "range": 4,
+    "speed": 3
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_fox",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:rabbit_hide",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:taiga",
+    "core:snowy_taiga",
+    "core:birch_forest"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass",
+    "core:podzol",
+    "core:snowy_grass"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "frog",
+  "displayName": "Grenouille",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.5,
+   "y": 0.45,
+   "z": 0.5
+  },
+  "physics": {
+   "collider": [
+    0.5,
+    0.45,
+    0.5
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 6,
+  "behaviors": [
+   "wander",
+   {
+    "id": "hop",
+    "interval": 0.8
+   },
+   {
+    "id": "flee",
+    "range": 4,
+    "speed": 3
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_frog",
+   "yaw": 180
+  },
+  "spawn": {
+   "biomes": [
+    "core:swamp",
+    "core:mangrove_swamp"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass",
+    "core:mud"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "mole",
+  "displayName": "Taupe",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.5,
+   "y": 0.4,
+   "z": 0.7
+  },
+  "physics": {
+   "collider": [
+    0.5,
+    0.4,
+    0.7
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 4,
+  "behaviors": [
+   "wander",
+   {
+    "id": "hop",
+    "interval": 0.8
+   },
+   {
+    "id": "flee",
+    "range": 4,
+    "speed": 3
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_mole",
+   "yaw": 180
+  },
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:meadow"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass",
+    "core:dirt"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "monkey",
+  "displayName": "Singe",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 0.9,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    0.9,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 10,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_monkey",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:berries",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:jungle"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "mouse",
+  "displayName": "Souris",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.3,
+   "y": 0.25,
+   "z": 0.4
+  },
+  "physics": {
+   "collider": [
+    0.3,
+    0.25,
+    0.4
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 2,
+  "behaviors": [
+   "wander",
+   {
+    "id": "hop",
+    "interval": 0.8
+   },
+   {
+    "id": "flee",
+    "range": 4,
+    "speed": 3
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_mouse",
+   "yaw": 180
+  },
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:forest"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "panda",
+  "displayName": "Panda",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 1.3,
+   "y": 1.25,
+   "z": 1.6
+  },
+  "physics": {
+   "collider": [
+    1.3,
+    1.25,
+    1.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 20,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_panda",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:bamboo",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:bamboo_jungle",
+    "core:jungle"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass",
+    "core:podzol"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "parrot",
+  "displayName": "Perroquet",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.5,
+   "y": 0.9,
+   "z": 0.5
+  },
+  "physics": {
+   "collider": [
+    0.5,
+    0.9,
+    0.5
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 6,
+  "behaviors": [
+   "wander",
+   {
+    "id": "hop",
+    "interval": 1.4
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_parrot",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:feather",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:jungle",
+    "core:bamboo_jungle"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "penguin",
+  "displayName": "Manchot",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.5,
+   "y": 0.9,
+   "z": 0.5
+  },
+  "physics": {
+   "collider": [
+    0.5,
+    0.9,
+    0.5
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 6,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_penguin",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:feather",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:tundra",
+    "core:ice_spikes",
+    "core:snowy_beach"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:snow",
+    "core:snowy_grass",
+    "core:ice"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "piglet",
+  "displayName": "Porcelet",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 0.6,
+   "z": 0.7
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    0.6,
+    0.7
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 6,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_piglet",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:porkchop",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:plains",
+    "core:forest"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "turtle",
+  "displayName": "Tortue",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 1.0,
+   "y": 0.5,
+   "z": 1.1
+  },
+  "physics": {
+   "collider": [
+    1.0,
+    0.5,
+    1.1
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 30,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_turtle",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:scute",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:beach"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:sand",
+    "core:white_sand"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "unicorn",
+  "displayName": "Licorne",
+  "tags": [
+   "animal",
+   "passive",
+   "magic"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 1.2,
+   "y": 2.0,
+   "z": 1.9
+  },
+  "physics": {
+   "collider": [
+    1.2,
+    2.0,
+    1.9
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 40,
+  "behaviors": [
+   "wander",
+   {
+    "id": "flee",
+    "range": 6,
+    "speed": 4
+   },
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_unicorn",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:pixie_dust",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:enchanted_forest",
+    "core:flower_forest"
+   ],
+   "chance": 0.003,
+   "max": 3,
+   "onBlocks": [
+    "core:grass",
+    "core:spectral_moss"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "obj_cow",
+  "displayName": "Génisse",
+  "tags": [
+   "animal",
+   "passive",
+   "farm"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.9,
+   "y": 1.3,
+   "z": 1.4
+  },
+  "physics": {
+   "collider": [
+    0.9,
+    1.3,
+    1.4
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 10,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_obj_cow",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:beef",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:meadow"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass"
+   ],
+   "night": false
+  },
+  "xp": 1
+ },
+ {
+  "type": "creature",
+  "id": "obj_chicken",
+  "displayName": "Poussin",
+  "tags": [
+   "animal",
+   "passive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.4,
+   "y": 0.5,
+   "z": 0.4
+  },
+  "physics": {
+   "collider": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 3,
+  "behaviors": [
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:animal_obj_chicken",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:feather",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:meadow",
+    "core:savanna"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "onBlocks": [
+    "core:grass"
+   ],
+   "night": false
+  },
+  "xp": 1
+ }
+]

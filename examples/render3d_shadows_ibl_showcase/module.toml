@@ -1,0 +1,12 @@
+[module]
+name = "render3d_shadows_ibl_showcase"
+layer = "application"
+version = "0.1.0"
+description = "Ombres et éclairage par image (IBL) de render3d"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["render3d", "sdl3", "ui"]

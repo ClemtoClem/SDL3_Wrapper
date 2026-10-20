@@ -1,0 +1,156 @@
+[project]
+name = "SDL3_Wrapper"
+version = "0.1.0"
+description = "SDL3 Wrapper and tools to make applications and games"
+standard = "c++23"              # standard C++
+c_standard = "c17"               # standard C
+minimum_cpp_maker_version = "0.6.0"
+
+# Couches d'architecture (de la plus basse à la plus haute) : un module ne
+# dépend que de sa couche ou d'une couche inférieure (vérifié par cpp-maker).
+#   foundation     : briques élémentaires, aucune dépendance à SDL
+#   infrastructure : wrappers SDL3 et moteurs (rendu, audio, UI, réseau...)
+#   application    : scènes, démos, exemples, tests d'intégration
+[layers]
+order = ["foundation", "infrastructure", "application"]
+
+[layers.foundation]
+forbid_pkg_config = ["sdl3", "sdl3-ttf", "sdl3-image", "sdl3-mixer", "sdl3-net", "shaderc"]
+
+[workspace]
+modules = [
+    # Niveau A — Foundation (aucune dépendance à SDL)
+    "libs/foundation/core",
+    "libs/foundation/math",
+    "libs/foundation/jobs",
+    "libs/foundation/events",
+    "libs/foundation/diagnostics",
+
+    # Niveau B — Infrastructure et moteurs
+    "libs/infrastructure/sdl3",
+    "libs/infrastructure/platform",
+    "libs/infrastructure/ecs",
+    "libs/infrastructure/dataio",
+    "libs/infrastructure/archive",
+    "libs/infrastructure/resources",
+    "libs/infrastructure/generators",
+    "libs/infrastructure/audio",
+    "libs/infrastructure/modeling",
+    "libs/infrastructure/render3d",
+    "libs/infrastructure/ui",
+    "libs/infrastructure/script",
+    "libs/infrastructure/script_bindings",
+    "libs/infrastructure/physics",
+    "libs/infrastructure/voxel",
+    "libs/infrastructure/net",
+    "libs/infrastructure/sql",
+
+    # Niveau C — Application
+    "libs/application/scene",
+    "demos/emulator",
+    "demos/sandbox",
+    "demos/voxelgame",
+
+    # Exemples (un exécutable par module : cpp-maker run <nom>)
+    "examples/adhoc_chat_demo",
+    "examples/platform_app",
+    "examples/audio_patchbay",
+    "examples/audio_signal_generator",
+    "examples/audio_spectrum_analyzer",
+    "examples/render3d_cube",
+    "examples/render3d_shadows_ibl_showcase",
+    "examples/render3d_showcase",
+    "examples/renderer",
+    "examples/ui_aero_basics",
+    "examples/ui_aero_lists",
+    "examples/ui_aero_windows",
+    "examples/ui_minimal",
+    "examples/ui_node_graph_demo",
+    "examples/ui_plot_demo",
+    "examples/ui_shader_effects_demo",
+    "examples/ui_showcase",
+    "examples/ui_viewport3d_demo",
+
+    # Tests d'intégration entre modules (aucune source)
+    "tests/integration",
+]
+
+# Toolchains : cpp-maker build -t <nom>[,<nom>…] (ou -t all).
+# Sans profil, tout préfixe de triplet du PATH fonctionne : -t arm-linux-gnueabihf
+[toolchains.host]
+cc = "auto"
+cxx = "auto"
+
+# ARM 32 bits (Raspberry Pi…) — détectée
+[toolchains.armhf]
+prefix = "arm-linux-gnueabihf-"
+# sysroot = "/usr/arm-linux-gnueabihf"
+# runner = []          # émulateur (auto : qemu-*/wine), [] = désactivé
+
+# ARM 64 bits
+# [toolchains.aarch64]
+# prefix = "aarch64-linux-gnu-"
+# sysroot = "/usr/aarch64-linux-gnu"
+# runner = []          # émulateur (auto : qemu-*/wine), [] = désactivé
+
+# Windows 64 bits (MinGW-w64)
+# [toolchains.win64]
+# prefix = "x86_64-w64-mingw32-"
+# runner = []          # émulateur (auto : qemu-*/wine), [] = désactivé
+
+# Clang en compilation croisée :
+# [toolchains.clang-arm64]
+# cc = "clang"
+# cxx = "clang++"
+# target = "aarch64-linux-gnu"
+
+[build]
+default_mode = "debug"
+default_toolchain = "host"
+jobs = 0                       # 0 = nombre de cœurs
+warnings = ["-Wall", "-Wextra"]
+
+# Modes : release, debug, relwithdebinfo, minsize, asan, tsan, ubsan, valgrind
+# sont prédéfinis ; on peut les redéfinir ou en ajouter (base = "<mode>").
+[build.modes.release]
+flags = ["-O2"]
+defines = ["NDEBUG"]
+
+[build.modes.debug]
+flags = ["-O0", "-g3"]
+defines = ["DEBUG"]
+
+[build.modes.asan]
+base = "debug"
+sanitizer = "address"
+
+# Étapes de génération : relancées avant le build quand une entrée change.
+[generate.shaders]
+command = "assets/shaders/compiler.sh"   # GLSL → SPIR-V / MSL (/ DXIL si dxc)
+inputs = ["assets/shaders/src", "assets/shaders/compiler.sh"]
+outputs = ["assets/shaders/bin"]
+
+[tests]
+timeout = 300                  # secondes par exécutable de test
+
+[tests.env]
+# Fuites connues des pilotes (SDL, Mesa...) ignorées en mode asan.
+LSAN_OPTIONS = "suppressions={root}/tests/lsan_suppressions.txt"
+
+[package]
+formats = ["tar.gz"]           # tar.gz | tar.xz | zip | deb
+strip = true
+maintainer = "Nom <email@example.com>"
+description = ""
+# deb_depends = ["libc6"]
+
+# Déploiement : cpp-maker deploy <nom>
+# [deploy.rpi]
+# method = "rsync"             # rsync | scp | copy
+# host = "raspberrypi.local"
+# user = "pi"
+# path = "/home/pi/{name}"
+# toolchain = "armhf"
+# mode = "release"
+# artifact = "stage"           # stage | tar.gz | tar.xz | zip | deb
+# after = ["{path}/bin/{name} --version"]

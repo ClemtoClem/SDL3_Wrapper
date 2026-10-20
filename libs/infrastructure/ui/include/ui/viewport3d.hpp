@@ -1,0 +1,140 @@
+#pragma once
+/**
+ * ui::Viewport3D — widget qui embarque une scène render3d:: indépendante
+ * dans l'arbre UI 2D (M22, Phase 3 du plan d'expansion moteur
+ * `/home/clement/.claude/plans/optimized-humming-toast.md`). Suit le
+ * précédent NodeGraphSystem (nodegraph.hpp) : un widget "complexe" reçoit son
+ * propre système dédié (Viewport3DSystem), appelé explicitement par
+ * ui::Ui::Render() (ou l'appli, en usage sans façade), plutôt que noyé dans
+ * LayoutSystem/InputSystem générique.
+ *
+ * PAS `ui::Scene` — collision volontairement évitée avec le `ui::Scene`/
+ * `ui::SceneManager` existant (scene.hpp), un tout autre concept (navigation
+ * façon GtkStack entre écrans 2D).
+ *
+ * Pipeline complet (cf. ui.hpp::Ui::Render()) :
+ *
+ *   1. Viewport3DSystem::Update(world, canvas, ren) — AVANT tout dessin 2D :
+ *      pour chaque UiViewport3D, lit UiComputed.screen (taille résolue par
+ *      LayoutSystem, PEUT changer chaque frame — redimensionnement de
+ *      fenêtre, layout réactif...), redimensionne son OffscreenTarget
+ *      GPU (EnsureSize) si besoin, rend la scène offscreen
+ *      (RenderObjectToTexture, M21), puis crée/rafraîchit sa sdl3::Texture
+ *      d'affichage à partir des pixels téléchargés.
+ *   2. RenderSystem::DrawWidget (systems.hpp) — dispatch normal : si le
+ *      widget porte un UiViewport3D avec displayTexture posé, blit la
+ *      texture déjà rendue via DrawImageFit (même primitive que UiImage) ;
+ *      chrome (fond/bordure/radius) suit la cascade UiStyle normale, seul le
+ *      contenu intérieur est spécial.
+ *
+ * Ownership de la racine de scène (cf. rapport de tâche pour le
+ * raisonnement) : Object3D est non-copiable/non-déplaçable (object3d.hpp:38-
+ * 41, un déplacement invaliderait le pointeur `parent` que tiennent les
+ * enfants existants) — UiViewport3D référence donc une Object3D& possédée
+ * par l'APPELANT (comme root.Add(...) dans render3d_showcase.cpp), jamais
+ * par valeur. Chaque UiViewport3D possède en revanche sa propre Camera (type
+ * simple, camera.hpp) et son propre OffscreenTarget (M21) : aucun état GPU
+ * partagé entre deux Viewport3D, plusieurs scènes/caméras indépendantes
+ * "gratuites" par construction.
+ *
+ * Hors scope M22 (cf. plan) : ombres/IBL à l'intérieur d'un Viewport3D
+ * (limite héritée de RenderObjectToTexture, M21 — pas contournée ici) ;
+ * interaction avec la scène 3D (orbite caméra, sélection au clic...) —
+ * purement un widget d'AFFICHAGE pour l'instant, l'interaction est un souci
+ * du niveau éditeur (M30+).
+ */
+#include <vector>
+
+#include <render3d/camera.hpp>
+#include <render3d/canvas.hpp>
+#include <render3d/object3d.hpp>
+#include <render3d/offscreen.hpp>
+#include <sdl3/render.hpp>
+#include "components.hpp"
+#include "render_backend.hpp"
+
+namespace ui {
+
+/// Formats couleur/profondeur de l'OffscreenTarget interne de chaque
+/// UiViewport3D — mêmes formats larges (couverts par tous les backends
+/// SDL_GPU de cet environnement) que tests/offscreen_smoke_test.cpp, choisis
+/// sans sondage de support pour la même raison (cf. offscreen.hpp).
+constexpr sdl3::GpuTextureFormat VIEWPORT3D_COLOR_FORMAT = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+constexpr sdl3::GpuTextureFormat VIEWPORT3D_DEPTH_FORMAT = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
+
+/// Widget qui affiche une scène render3d:: indépendante. `root` est une
+/// référence NON POSSÉDÉE (cf. en-tête du fichier) — l'appelant doit garder
+/// la Object3D racine en vie au moins aussi longtemps que ce composant.
+struct UiViewport3D {
+	render3d::Object3D *root = nullptr;
+	render3d::Camera camera{};
+
+	/// Cible offscreen GPU (couleur+profondeur) — redimensionnée par
+	/// Viewport3DSystem::Update quand UiComputed.screen change de taille.
+	render3d::OffscreenTarget target{};
+
+	/// Texture SDL_Renderer affichée par RenderSystem::DrawWidget — NONE tant
+	/// qu'aucune frame n'a encore pu être rendue (backend sans
+	/// sdl3::Renderer réel, ou tout premier appel avant layout) ; le widget
+	/// ne dessine alors simplement rien ce frame-là (dégradation cohérente
+	/// avec le reste du dépôt, cf. EnsureShadowResources/EnsureIblSamplers).
+	Option<sdl3::Texture> displayTexture = NONE;
+
+	/// Dernière taille pixel pour laquelle displayTexture a été CRÉÉE (pas
+	/// seulement mise à jour) — permet à Viewport3DSystem::Update de savoir
+	/// s'il doit appeler Texture::Create (taille changée / première fois) ou
+	/// juste Texture::Update (même taille, juste un nouveau contenu) : une
+	/// texture SDL_Renderer ne peut pas être redimensionnée en place.
+	uint32_t textureWidth = 0;
+	uint32_t textureHeight = 0;
+
+	/// Pixels CPU tightly-packed réutilisés chaque frame comme buffer
+	/// intermédiaire (RenderObjectToTexture -> Texture::Update) — membre
+	/// plutôt que local à Update() pour éviter une réallocation par frame et
+	/// par viewport.
+	std::vector<uint8_t> pixels;
+
+	/// Rendu continu (défaut : chaque image) ou À LA DEMANDE : avec `false`,
+	/// la scène n'est rendue que lorsque `needsRender` est vrai ou que la
+	/// taille change — une vignette de modèle, un aperçu figé ne coûtent
+	/// alors qu'un rendu, pas un par image.
+	bool continuous = true;
+	bool needsRender = true;
+
+	/// Éclairage PROPRE au widget. Sans lui, un viewport rend avec l'éclairage
+	/// courant du Canvas partagé — celui de la scène principale : une vignette
+	/// sortirait noire dans une scène de nuit. Avec lui, l'éclairage du Canvas
+	/// est remplacé le temps de CE rendu, puis restauré.
+	struct Lighting {
+		render3d::DirectionalLight sun;
+		render3d::AmbientLight ambient;
+		sdl3::Color background{0, 0, 0, 255};
+	};
+	Option<Lighting> lighting = NONE;
+};
+
+/// Système dédié (précédent : NodeGraphSystem, nodegraph.hpp) — pas intégré
+/// au dispatch générique de LayoutSystem/InputSystem : appelé explicitement,
+/// une fois par frame, AVANT le passage de dessin 2D (cf. en-tête du fichier
+/// pour l'ordre complet).
+class Viewport3DSystem {
+public:
+	/// Rend la scène de chaque UiViewport3D dans son OffscreenTarget puis
+	/// rafraîchit sa texture d'affichage SDL_Renderer. `canvas` est PARTAGÉ
+	/// entre tous les viewports (un seul render3d::GpuDevice par appli, cf.
+	/// ui::Ui::Initialize(render3d::Canvas&)) — chaque UiViewport3D garde en
+	/// revanche son propre OffscreenTarget/Camera, donc aucun état de scène
+	/// n'est partagé, seulement le device GPU sous-jacent.
+	///
+	/// Hazard ECS (cf. memory/project_ui_ecs_module.md — StyleSystem::resolve
+	/// s'y est fait piéger deux fois) : COLLECTE d'abord la liste des
+	/// entités via EntitiesWith<UiViewport3D>() (copie, cf. ecs.hpp:899-901),
+	/// PUIS mute leurs composants dans une boucle séparée — jamais
+	/// AddComponent/RemoveComponent pendant une itération de Query, même si
+	/// ce système lui-même n'en appelle aucun (défensif : reste valide même
+	/// combiné, la même frame, à du code applicatif qui, lui, en ajoute/
+	/// retire pendant que ce Update() tourne).
+	void Update(ecs::ArchetypeRegistry &world, render3d::Canvas &canvas, IUiRenderBackend &ren);
+};
+
+} // namespace ui

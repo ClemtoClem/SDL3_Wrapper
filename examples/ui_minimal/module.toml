@@ -1,0 +1,12 @@
+[module]
+name = "ui_minimal"
+layer = "application"
+version = "0.1.0"
+description = "Exemple minimal du module ui"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["core", "sdl3", "ui"]

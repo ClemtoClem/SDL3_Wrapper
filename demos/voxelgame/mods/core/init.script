@@ -1,0 +1,103 @@
+# Mod « core » — logique de jeu écrite en script (aucun C++ propre au contenu).
+# Chargé après les définitions JSON du mod. Voir l'API dans voxel/scripting.hpp.
+
+voxel.on("player_join", fn(player) {
+    game.say("Bienvenue ! Clic gauche : casser — clic droit : poser / utiliser — E : inventaire — C : fabrication — T : discussion — / : commandes")
+})
+
+# ── Commandes de console ────────────────────────────────────────────────────
+voxel.command("day", "/day", "fait se lever le soleil", fn(sender, args) {
+    game.set_time(0.3)
+    return "jour"
+})
+voxel.command("night", "/night", "fait tomber la nuit", fn(sender, args) {
+    game.set_time(0.85)
+    return "nuit"
+})
+voxel.command("sethome", "/sethome", "mémorise la position actuelle", fn(sender, args) {
+    let p = entity.pos(sender)
+    entity.set_prop(sender, "home", [p.x, p.y, p.z])
+    return "maison mémorisée"
+})
+voxel.command("home", "/home", "retourne à la maison mémorisée", fn(sender, args) {
+    let home = entity.prop(sender, "home")
+    if (home == nil) { return "aucune maison : /sethome" }
+    entity.set_pos(sender, home[0], home[1], home[2])
+    return "de retour à la maison"
+})
+voxel.command("house", "/house", "construit une maisonnette devant soi", fn(sender, args) {
+    let p = entity.pos(sender)
+    let f = entity.forward(sender)
+    world.structure("house", p.x + f.x * 6, p.y, p.z + f.z * 6)
+    return "maison construite"
+})
+# Cuisson : recettes « cooking » du contenu, un charbon par cuisson.
+voxel.command("cook", "/cook <recette> [fois]", "cuit (verre, lingots…) en brûlant du charbon", fn(sender, args) {
+    if (len(args) == 0) { return "/cook <recette> [fois] — ex. /cook glass 4" }
+    let id = args[0]
+    let r = content.get("recipe", id)
+    if (r == nil or r.kind != "cooking") { return format("pas une recette de cuisson : {}", id) }
+    let times = 1
+    if (len(args) > 1) { times = math.floor(num(args[1])) }
+    let ingredient = r.ingredients[0]
+    if (not ingredient.contains(":")) { ingredient = "core:" .. ingredient }
+    let result = r.result
+    if (not result.contains(":")) { result = "core:" .. result }
+    let made = 0
+    for (i in range(0, times)) {
+        if (entity.count(sender, ingredient) < 1 or entity.count(sender, "core:coal") < 1) { break }
+        entity.take(sender, ingredient, 1)
+        entity.take(sender, "core:coal", 1)
+        entity.give(sender, result, 1)
+        made += 1
+    }
+    if (made == 0) { return "il faut l'ingrédient et du charbon" }
+    return format("{} × {} cuit(s)", made, result)
+})
+
+# ── TNT : clic droit pour l'allumer, explosion après un délai ───────────────
+let fuses = []
+fn ignite_tnt(x, y, z) {
+    let def = content.get("block", "core:tnt")
+    push(fuses, {x: x, y: y, z: z, t: def.gameplay.explosion.delay, r: def.gameplay.explosion.radius})
+    game.sound("fuse", x + 0.5, y + 0.5, z + 0.5)
+    game.say("La mèche est allumée !")
+}
+voxel.on("block_use", fn(x, y, z, block, actor) {
+    if (block != "core:tnt") { return true }
+    ignite_tnt(x, y, z)
+    return false     # utilisation prise en charge : rien n'est posé
+})
+voxel.system("tnt", fn(dt) {
+    let still = []
+    for (f in fuses) {
+        f.t -= dt
+        if (f.t > 0) { push(still, f); continue }
+        game.sound("explosion", f.x, f.y, f.z)
+        let r = f.r
+        for (dx in range(0 - r, r + 1)) {
+            for (dy in range(0 - r, r + 1)) {
+                for (dz in range(0 - r, r + 1)) {
+                    if (dx * dx + dy * dy + dz * dz <= r * r) {
+                        let b = world.get(f.x + dx, f.y + dy, f.z + dz)
+                        if (b == "core:tnt" and (dx != 0 or dy != 0 or dz != 0)) {
+                            push(still, {x: f.x + dx, y: f.y + dy, z: f.z + dz, t: 0.3, r: r})
+                        }
+                        if (b != "core:bedrock" and b != "core:air") { world.set(f.x + dx, f.y + dy, f.z + dz, "core:air") }
+                    }
+                }
+            }
+        }
+        for (e in world.entities(f.x + 0.5, f.y + 0.5, f.z + 0.5, r + 2)) {
+            let p = entity.pos(e)
+            let dx = p.x - f.x - 0.5
+            let dz = p.z - f.z - 0.5
+            let d = math.max(0.5, math.sqrt(dx * dx + dz * dz))
+            entity.impulse(e, dx / d * 10, 8, dz / d * 10)
+            entity.damage(e, 8)
+        }
+    }
+    fuses = still
+})
+
+# Marchands, gardes : scripts/npcs.script — objets utilisables : scripts/items.script.

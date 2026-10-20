@@ -1,0 +1,2596 @@
+// Essences de bois : bûches, planches, feuilles (teintées par le biome si grises), pousses.
+[
+ {
+  "id": "oak_log",
+  "displayName": "Bûche de chêne",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/oak_log_top",
+    "bottom": "core:blocks/oak_log_top",
+    "side": "core:blocks/oak_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "stripped_oak_log",
+  "displayName": "Bûche écorcée de chêne",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/stripped_oak_log_top",
+    "bottom": "core:blocks/stripped_oak_log_top",
+    "side": "core:blocks/stripped_oak_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "planks",
+  "displayName": "Planches de chêne",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "oak_leaves",
+  "displayName": "Feuilles de chêne",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/oak_leaves",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:oak_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "oak_sapling",
+  "displayName": "Pousse de chêne",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/oak_sapling",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:oak_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "birch_log",
+  "displayName": "Bûche de bouleau",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/birch_log_top",
+    "bottom": "core:blocks/birch_log_top",
+    "side": "core:blocks/birch_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "stripped_birch_log",
+  "displayName": "Bûche écorcée de bouleau",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/stripped_birch_log_top",
+    "bottom": "core:blocks/stripped_birch_log_top",
+    "side": "core:blocks/stripped_birch_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "birch_planks",
+  "displayName": "Planches de bouleau",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/birch_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "birch_leaves",
+  "displayName": "Feuilles de bouleau",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/birch_leaves",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:birch_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "birch_sapling",
+  "displayName": "Pousse de bouleau",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/birch_sapling",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:birch_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "spruce_log",
+  "displayName": "Bûche de épicéa",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/spruce_log_top",
+    "bottom": "core:blocks/spruce_log_top",
+    "side": "core:blocks/spruce_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "stripped_spruce_log",
+  "displayName": "Bûche écorcée de épicéa",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/stripped_spruce_log_top",
+    "bottom": "core:blocks/stripped_spruce_log_top",
+    "side": "core:blocks/stripped_spruce_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "spruce_planks",
+  "displayName": "Planches de épicéa",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/spruce_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "spruce_leaves",
+  "displayName": "Feuilles de épicéa",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/spruce_leaves",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:spruce_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "spruce_sapling",
+  "displayName": "Pousse de épicéa",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/spruce_sapling",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:spruce_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "jungle_log",
+  "displayName": "Bûche de acajou de jungle",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/jungle_log_top",
+    "bottom": "core:blocks/jungle_log_top",
+    "side": "core:blocks/jungle_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "stripped_jungle_log",
+  "displayName": "Bûche écorcée de acajou de jungle",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/stripped_jungle_log_top",
+    "bottom": "core:blocks/stripped_jungle_log_top",
+    "side": "core:blocks/stripped_jungle_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jungle_planks",
+  "displayName": "Planches de acajou de jungle",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/jungle_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jungle_leaves",
+  "displayName": "Feuilles de acajou de jungle",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/jungle_leaves",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:jungle_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "jungle_sapling",
+  "displayName": "Pousse de acajou de jungle",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/jungle_sapling",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:jungle_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "acacia_log",
+  "displayName": "Bûche de acacia",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/acacia_log_top",
+    "bottom": "core:blocks/acacia_log_top",
+    "side": "core:blocks/acacia_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "stripped_acacia_log",
+  "displayName": "Bûche écorcée de acacia",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/stripped_acacia_log_top",
+    "bottom": "core:blocks/stripped_acacia_log_top",
+    "side": "core:blocks/stripped_acacia_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "acacia_planks",
+  "displayName": "Planches de acacia",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/acacia_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "acacia_leaves",
+  "displayName": "Feuilles de acacia",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/acacia_leaves",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:acacia_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "acacia_sapling",
+  "displayName": "Pousse de acacia",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/acacia_sapling",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:acacia_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "dark_oak_log",
+  "displayName": "Bûche de chêne noir",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/dark_oak_log_top",
+    "bottom": "core:blocks/dark_oak_log_top",
+    "side": "core:blocks/dark_oak_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "stripped_dark_oak_log",
+  "displayName": "Bûche écorcée de chêne noir",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/stripped_dark_oak_log_top",
+    "bottom": "core:blocks/stripped_dark_oak_log_top",
+    "side": "core:blocks/stripped_dark_oak_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "dark_oak_planks",
+  "displayName": "Planches de chêne noir",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/dark_oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "dark_oak_leaves",
+  "displayName": "Feuilles de chêne noir",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/dark_oak_leaves",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:dark_oak_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "dark_oak_sapling",
+  "displayName": "Pousse de chêne noir",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/dark_oak_sapling",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:dark_oak_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "cherry_log",
+  "displayName": "Bûche de cerisier",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/cherry_log_top",
+    "bottom": "core:blocks/cherry_log_top",
+    "side": "core:blocks/cherry_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "cherry_planks",
+  "displayName": "Planches de cerisier",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/cherry_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "cherry_leaves",
+  "displayName": "Feuilles de cerisier",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_pink_cherry",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:cherry_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "cherry_sapling",
+  "displayName": "Pousse de cerisier",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_pink_cherry",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:cherry_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "white_cherry_leaves",
+  "displayName": "Feuilles de cerisier blanc",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_white_cherry",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:white_cherry_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "white_cherry_sapling",
+  "displayName": "Pousse de cerisier blanc",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_white_cherry",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:white_cherry_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "ebony_log",
+  "displayName": "Bûche de ébène",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/ebony_log_top",
+    "bottom": "core:blocks/ebony_log_top",
+    "side": "core:blocks/ebony_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "ebony_planks",
+  "displayName": "Planches de ébène",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/ebony_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "ebony_leaves",
+  "displayName": "Feuilles de ébène",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_ebony",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:ebony_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "ebony_sapling",
+  "displayName": "Pousse de ébène",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_ebony",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:ebony_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "ethereal_log",
+  "displayName": "Bûche de bois éthéré",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/ethereal_log_top",
+    "bottom": "core:blocks/ethereal_log_top",
+    "side": "core:blocks/ethereal_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "ethereal_planks",
+  "displayName": "Planches de bois éthéré",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/ethereal_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "ethereal_leaves",
+  "displayName": "Feuilles de bois éthéré",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_ethereal",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:ethereal_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "ethereal_sapling",
+  "displayName": "Pousse de bois éthéré",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_ethereal",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:ethereal_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "eucalyptus_log",
+  "displayName": "Bûche de eucalyptus",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/eucalyptus_log_top",
+    "bottom": "core:blocks/eucalyptus_log_top",
+    "side": "core:blocks/eucalyptus_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "eucalyptus_planks",
+  "displayName": "Planches de eucalyptus",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/eucalyptus_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "eucalyptus_leaves",
+  "displayName": "Feuilles de eucalyptus",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_eucalyptus",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:eucalyptus_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "eucalyptus_sapling",
+  "displayName": "Pousse de eucalyptus",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_eucalyptus",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:eucalyptus_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "fir_log",
+  "displayName": "Bûche de sapin",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/fir_log_top",
+    "bottom": "core:blocks/fir_log_top",
+    "side": "core:blocks/fir_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "fir_planks",
+  "displayName": "Planches de sapin",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/fir_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "fir_leaves",
+  "displayName": "Feuilles de sapin",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_fir",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:fir_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "fir_sapling",
+  "displayName": "Pousse de sapin",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_fir",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:fir_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "hellbark_log",
+  "displayName": "Bûche de écorce infernale",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/hellbark_log_top",
+    "bottom": "core:blocks/hellbark_log_top",
+    "side": "core:blocks/hellbark_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "hellbark_planks",
+  "displayName": "Planches de écorce infernale",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/hellbark_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "hellbark_leaves",
+  "displayName": "Feuilles de écorce infernale",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_hellbark",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:hellbark_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "hellbark_sapling",
+  "displayName": "Pousse de écorce infernale",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_hellbark",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:hellbark_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "jacaranda_log",
+  "displayName": "Bûche de jacaranda",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/jacaranda_log_top",
+    "bottom": "core:blocks/jacaranda_log_top",
+    "side": "core:blocks/jacaranda_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jacaranda_planks",
+  "displayName": "Planches de jacaranda",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/jacaranda_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jacaranda_leaves",
+  "displayName": "Feuilles de jacaranda",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_jacaranda",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:jacaranda_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "jacaranda_sapling",
+  "displayName": "Pousse de jacaranda",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_jacaranda",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:jacaranda_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "magic_log",
+  "displayName": "Bûche de bois magique",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/magic_log_top",
+    "bottom": "core:blocks/magic_log_top",
+    "side": "core:blocks/magic_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "magic_planks",
+  "displayName": "Planches de bois magique",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/magic_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "magic_leaves",
+  "displayName": "Feuilles de bois magique",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_magic",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:magic_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "magic_sapling",
+  "displayName": "Pousse de bois magique",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_magic",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:magic_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "mahogany_log",
+  "displayName": "Bûche de acajou",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/mahogany_log_top",
+    "bottom": "core:blocks/mahogany_log_top",
+    "side": "core:blocks/mahogany_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "mahogany_planks",
+  "displayName": "Planches de acajou",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/mahogany_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "mahogany_leaves",
+  "displayName": "Feuilles de acajou",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_mahogany",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:mahogany_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "mahogany_sapling",
+  "displayName": "Pousse de acajou",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_mahogany",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:mahogany_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "mangrove_log",
+  "displayName": "Bûche de palétuvier",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/mangrove_log_top",
+    "bottom": "core:blocks/mangrove_log_top",
+    "side": "core:blocks/mangrove_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "mangrove_planks",
+  "displayName": "Planches de palétuvier",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/mangrove_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "mangrove_leaves",
+  "displayName": "Feuilles de palétuvier",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_mangrove",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:mangrove_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "mangrove_sapling",
+  "displayName": "Pousse de palétuvier",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_mangrove",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:mangrove_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "palm_log",
+  "displayName": "Bûche de palmier",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/palm_log_top",
+    "bottom": "core:blocks/palm_log_top",
+    "side": "core:blocks/palm_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "palm_planks",
+  "displayName": "Planches de palmier",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/palm_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "palm_leaves",
+  "displayName": "Feuilles de palmier",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_palm",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:palm_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "palm_sapling",
+  "displayName": "Pousse de palmier",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_palm",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:palm_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "pine_log",
+  "displayName": "Bûche de pin",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/pine_log_top",
+    "bottom": "core:blocks/pine_log_top",
+    "side": "core:blocks/pine_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "pine_planks",
+  "displayName": "Planches de pin",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/pine_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "pine_leaves",
+  "displayName": "Feuilles de pin",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_pine",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:pine_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "pine_sapling",
+  "displayName": "Pousse de pin",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_pine",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:pine_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "redwood_log",
+  "displayName": "Bûche de séquoia",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/redwood_log_top",
+    "bottom": "core:blocks/redwood_log_top",
+    "side": "core:blocks/redwood_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "redwood_planks",
+  "displayName": "Planches de séquoia",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/redwood_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "redwood_leaves",
+  "displayName": "Feuilles de séquoia",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_redwood",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:redwood_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "redwood_sapling",
+  "displayName": "Pousse de séquoia",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_redwood",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:redwood_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "sacred_oak_log",
+  "displayName": "Bûche de chêne sacré",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/sacred_oak_log_top",
+    "bottom": "core:blocks/sacred_oak_log_top",
+    "side": "core:blocks/sacred_oak_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "sacred_oak_planks",
+  "displayName": "Planches de chêne sacré",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/sacred_oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "sacred_oak_leaves",
+  "displayName": "Feuilles de chêne sacré",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_sacred_oak",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:sacred_oak_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "sacred_oak_sapling",
+  "displayName": "Pousse de chêne sacré",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_sacred_oak",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:sacred_oak_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "umbran_log",
+  "displayName": "Bûche de bois d'ombre",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/umbran_log_top",
+    "bottom": "core:blocks/umbran_log_top",
+    "side": "core:blocks/umbran_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "umbran_planks",
+  "displayName": "Planches de bois d'ombre",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/umbran_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "umbran_leaves",
+  "displayName": "Feuilles de bois d'ombre",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_umbran",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:umbran_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "umbran_sapling",
+  "displayName": "Pousse de bois d'ombre",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_umbran",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:umbran_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "willow_log",
+  "displayName": "Bûche de saule",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/willow_log_top",
+    "bottom": "core:blocks/willow_log_top",
+    "side": "core:blocks/willow_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "willow_planks",
+  "displayName": "Planches de saule",
+  "tags": [
+   "wood",
+   "planks",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/willow_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "willow_leaves",
+  "displayName": "Feuilles de saule",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_willow",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:willow_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "willow_sapling",
+  "displayName": "Pousse de saule",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_willow",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:willow_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "dead_log",
+  "displayName": "Bûche de bois mort",
+  "tags": [
+   "wood",
+   "logs",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/dead_log_top",
+    "bottom": "core:blocks/dead_log_top",
+    "side": "core:blocks/dead_log"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "dead_leaves",
+  "displayName": "Feuilles de bois mort",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_dead",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:dead_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "dead_sapling",
+  "displayName": "Pousse de bois mort",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_dead",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:dead_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "maple_leaves",
+  "displayName": "Feuilles de érable",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_maple",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:maple_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "maple_sapling",
+  "displayName": "Pousse de érable",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_maple",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:maple_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "orange_autumn_leaves",
+  "displayName": "Feuilles de arbre d'automne orange",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_orange_autumn",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:orange_autumn_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "orange_autumn_sapling",
+  "displayName": "Pousse de arbre d'automne orange",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_orange_autumn",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:orange_autumn_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "yellow_autumn_leaves",
+  "displayName": "Feuilles de arbre d'automne jaune",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_yellow_autumn",
+   "material": "CUTOUT",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:yellow_autumn_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "yellow_autumn_sapling",
+  "displayName": "Pousse de arbre d'automne jaune",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_yellow_autumn",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:yellow_autumn_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ },
+ {
+  "id": "flowering_leaves",
+  "displayName": "Feuilles de arbre en fleurs",
+  "tags": [
+   "leaves"
+  ],
+  "graphics": {
+   "texture": "core:blocks/leaves_flowering",
+   "material": "CUTOUT",
+   "biomeTint": "foliage",
+   "backface_culling": false
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.3,
+   "tool": "shears",
+   "drops": {
+    "item": "core:flowering_sapling",
+    "count": 1,
+    "chance": 0.08
+   }
+  }
+ },
+ {
+  "id": "flowering_sapling",
+  "displayName": "Pousse de arbre en fleurs",
+  "tags": [
+   "plant",
+   "sapling"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sapling_flowering",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.06,
+    "structure": "core:flowering_tree"
+   }
+  },
+  "placement": {
+   "on": [
+    "core:grass",
+    "core:dirt",
+    "core:podzol",
+    "core:farmland",
+    "core:snowy_grass"
+   ]
+  }
+ }
+]

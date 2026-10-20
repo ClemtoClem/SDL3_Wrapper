@@ -1,0 +1,582 @@
+// Nourriture : « food » (faim rendue), « saturation », effets éventuels.
+[
+ {
+  "type": "item",
+  "id": "apple",
+  "displayName": "Pomme",
+  "icon": "core:items/apple",
+  "tags": [
+   "food"
+  ],
+  "food": 4,
+  "saturation": 2.4
+ },
+ {
+  "type": "item",
+  "id": "golden_apple",
+  "displayName": "Pomme dorée",
+  "icon": "core:items/golden_apple",
+  "tags": [
+   "food"
+  ],
+  "food": 4,
+  "saturation": 9.6,
+  "effects": [
+   {
+    "id": "regeneration",
+    "seconds": 10,
+    "level": 2
+   },
+   {
+    "id": "absorption",
+    "seconds": 120,
+    "level": 1
+   }
+  ],
+  "alwaysEdible": true
+ },
+ {
+  "type": "item",
+  "id": "bread",
+  "displayName": "Pain",
+  "icon": "core:items/bread",
+  "tags": [
+   "food"
+  ],
+  "food": 5,
+  "saturation": 6
+ },
+ {
+  "type": "item",
+  "id": "beef",
+  "displayName": "Bœuf cru",
+  "icon": "core:items/beef",
+  "tags": [
+   "food"
+  ],
+  "food": 3,
+  "saturation": 1.8
+ },
+ {
+  "type": "item",
+  "id": "cooked_beef",
+  "displayName": "Steak",
+  "icon": "core:items/cooked_beef",
+  "tags": [
+   "food"
+  ],
+  "food": 8,
+  "saturation": 12.8
+ },
+ {
+  "type": "item",
+  "id": "porkchop",
+  "displayName": "Côtelette crue",
+  "icon": "core:items/porkchop",
+  "tags": [
+   "food"
+  ],
+  "food": 3,
+  "saturation": 1.8
+ },
+ {
+  "type": "item",
+  "id": "cooked_porkchop",
+  "displayName": "Côtelette cuite",
+  "icon": "core:items/cooked_porkchop",
+  "tags": [
+   "food"
+  ],
+  "food": 8,
+  "saturation": 12.8
+ },
+ {
+  "type": "item",
+  "id": "chicken",
+  "displayName": "Poulet cru",
+  "icon": "core:items/chicken",
+  "tags": [
+   "food"
+  ],
+  "food": 2,
+  "saturation": 1.2,
+  "effects": [
+   {
+    "id": "hunger",
+    "seconds": 15,
+    "level": 1,
+    "chance": 0.3
+   }
+  ]
+ },
+ {
+  "type": "item",
+  "id": "cooked_chicken",
+  "displayName": "Poulet rôti",
+  "icon": "core:items/cooked_chicken",
+  "tags": [
+   "food"
+  ],
+  "food": 6,
+  "saturation": 7.2
+ },
+ {
+  "type": "item",
+  "id": "mutton",
+  "displayName": "Mouton cru",
+  "icon": "core:items/mutton",
+  "tags": [
+   "food"
+  ],
+  "food": 2,
+  "saturation": 1.2
+ },
+ {
+  "type": "item",
+  "id": "cooked_mutton",
+  "displayName": "Mouton rôti",
+  "icon": "core:items/cooked_mutton",
+  "tags": [
+   "food"
+  ],
+  "food": 6,
+  "saturation": 9.6
+ },
+ {
+  "type": "item",
+  "id": "rabbit",
+  "displayName": "Lapin cru",
+  "icon": "core:items/rabbit",
+  "tags": [
+   "food"
+  ],
+  "food": 3,
+  "saturation": 1.8
+ },
+ {
+  "type": "item",
+  "id": "cooked_rabbit",
+  "displayName": "Lapin rôti",
+  "icon": "core:items/cooked_rabbit",
+  "tags": [
+   "food"
+  ],
+  "food": 5,
+  "saturation": 6
+ },
+ {
+  "type": "item",
+  "id": "cod",
+  "displayName": "Morue crue",
+  "icon": "core:items/cod",
+  "tags": [
+   "food"
+  ],
+  "food": 2,
+  "saturation": 0.4
+ },
+ {
+  "type": "item",
+  "id": "cooked_cod",
+  "displayName": "Morue cuite",
+  "icon": "core:items/cooked_cod",
+  "tags": [
+   "food"
+  ],
+  "food": 5,
+  "saturation": 6
+ },
+ {
+  "type": "item",
+  "id": "salmon",
+  "displayName": "Saumon cru",
+  "icon": "core:items/salmon",
+  "tags": [
+   "food"
+  ],
+  "food": 2,
+  "saturation": 0.4
+ },
+ {
+  "type": "item",
+  "id": "cooked_salmon",
+  "displayName": "Saumon cuit",
+  "icon": "core:items/cooked_salmon",
+  "tags": [
+   "food"
+  ],
+  "food": 6,
+  "saturation": 9.6
+ },
+ {
+  "type": "item",
+  "id": "tropical_fish",
+  "displayName": "Poisson tropical",
+  "icon": "core:items/tropical_fish",
+  "tags": [
+   "food"
+  ],
+  "food": 1,
+  "saturation": 0.2
+ },
+ {
+  "type": "item",
+  "id": "pufferfish",
+  "displayName": "Poisson-globe",
+  "icon": "core:items/pufferfish",
+  "tags": [
+   "food"
+  ],
+  "food": 1,
+  "saturation": 0.2,
+  "effects": [
+   {
+    "id": "poison",
+    "seconds": 30,
+    "level": 2
+   },
+   {
+    "id": "hunger",
+    "seconds": 15,
+    "level": 3
+   }
+  ]
+ },
+ {
+  "type": "item",
+  "id": "carrot",
+  "displayName": "Carotte",
+  "icon": "core:items/carrot",
+  "tags": [
+   "food"
+  ],
+  "food": 3,
+  "saturation": 3.6
+ },
+ {
+  "type": "item",
+  "id": "golden_carrot",
+  "displayName": "Carotte dorée",
+  "icon": "core:items/golden_carrot",
+  "tags": [
+   "food"
+  ],
+  "food": 6,
+  "saturation": 14.4
+ },
+ {
+  "type": "item",
+  "id": "potato",
+  "displayName": "Pomme de terre",
+  "icon": "core:items/potato",
+  "tags": [
+   "food"
+  ],
+  "food": 1,
+  "saturation": 0.6
+ },
+ {
+  "type": "item",
+  "id": "baked_potato",
+  "displayName": "Pomme de terre cuite",
+  "icon": "core:items/baked_potato",
+  "tags": [
+   "food"
+  ],
+  "food": 5,
+  "saturation": 6
+ },
+ {
+  "type": "item",
+  "id": "poisonous_potato",
+  "displayName": "Pomme de terre empoisonnée",
+  "icon": "core:items/poisonous_potato",
+  "tags": [
+   "food"
+  ],
+  "food": 2,
+  "saturation": 1.2,
+  "effects": [
+   {
+    "id": "poison",
+    "seconds": 5,
+    "chance": 0.6
+   }
+  ]
+ },
+ {
+  "type": "item",
+  "id": "beetroot",
+  "displayName": "Betterave",
+  "icon": "core:items/beetroot",
+  "tags": [
+   "food"
+  ],
+  "food": 1,
+  "saturation": 1.2
+ },
+ {
+  "type": "item",
+  "id": "beetroot_soup",
+  "displayName": "Soupe de betterave",
+  "icon": "core:items/beetroot_soup",
+  "tags": [
+   "food"
+  ],
+  "food": 6,
+  "saturation": 7.2
+ },
+ {
+  "type": "item",
+  "id": "mushroom_stew",
+  "displayName": "Ragoût de champignons",
+  "icon": "core:items/mushroom_stew",
+  "tags": [
+   "food"
+  ],
+  "food": 6,
+  "saturation": 7.2
+ },
+ {
+  "type": "item",
+  "id": "rabbit_stew",
+  "displayName": "Ragoût de lapin",
+  "icon": "core:items/rabbit_stew",
+  "tags": [
+   "food"
+  ],
+  "food": 10,
+  "saturation": 12
+ },
+ {
+  "type": "item",
+  "id": "cookie",
+  "displayName": "Cookie",
+  "icon": "core:items/cookie",
+  "tags": [
+   "food"
+  ],
+  "food": 2,
+  "saturation": 0.4
+ },
+ {
+  "type": "item",
+  "id": "pumpkin_pie",
+  "displayName": "Tarte à la citrouille",
+  "icon": "core:items/pumpkin_pie",
+  "tags": [
+   "food"
+  ],
+  "food": 8,
+  "saturation": 4.8
+ },
+ {
+  "type": "item",
+  "id": "melon_slice",
+  "displayName": "Tranche de pastèque",
+  "icon": "core:items/melon_slice",
+  "tags": [
+   "food"
+  ],
+  "food": 2,
+  "saturation": 1.2
+ },
+ {
+  "type": "item",
+  "id": "glistering_melon",
+  "displayName": "Pastèque scintillante",
+  "icon": "core:items/glistering_melon_slice",
+  "tags": [
+   "food"
+  ],
+  "food": 2,
+  "saturation": 1.2,
+  "effects": [
+   {
+    "id": "regeneration",
+    "seconds": 5
+   }
+  ]
+ },
+ {
+  "type": "item",
+  "id": "berries",
+  "displayName": "Baies",
+  "icon": "core:items/berries",
+  "tags": [
+   "food"
+  ],
+  "food": 2,
+  "saturation": 0.4
+ },
+ {
+  "type": "item",
+  "id": "peach",
+  "displayName": "Pêche",
+  "icon": "core:items/peach",
+  "tags": [
+   "food"
+  ],
+  "food": 4,
+  "saturation": 2.4
+ },
+ {
+  "type": "item",
+  "id": "pear",
+  "displayName": "Poire",
+  "icon": "core:items/pear",
+  "tags": [
+   "food"
+  ],
+  "food": 4,
+  "saturation": 2.4
+ },
+ {
+  "type": "item",
+  "id": "persimmon",
+  "displayName": "Kaki",
+  "icon": "core:items/persimmon",
+  "tags": [
+   "food"
+  ],
+  "food": 4,
+  "saturation": 2.4
+ },
+ {
+  "type": "item",
+  "id": "turnip",
+  "displayName": "Navet",
+  "icon": "core:items/turnip",
+  "tags": [
+   "food"
+  ],
+  "food": 3,
+  "saturation": 3.6
+ },
+ {
+  "type": "item",
+  "id": "rice_bowl",
+  "displayName": "Bol de riz",
+  "icon": "core:items/ricebowl",
+  "tags": [
+   "food"
+  ],
+  "food": 7,
+  "saturation": 8
+ },
+ {
+  "type": "item",
+  "id": "salad_fruit",
+  "displayName": "Salade de fruits",
+  "icon": "core:items/saladfruit",
+  "tags": [
+   "food"
+  ],
+  "food": 6,
+  "saturation": 7
+ },
+ {
+  "type": "item",
+  "id": "salad_veggie",
+  "displayName": "Salade de légumes",
+  "icon": "core:items/saladveggie",
+  "tags": [
+   "food"
+  ],
+  "food": 6,
+  "saturation": 7
+ },
+ {
+  "type": "item",
+  "id": "salad_shroom",
+  "displayName": "Salade aux champignons",
+  "icon": "core:items/saladshroom",
+  "tags": [
+   "food"
+  ],
+  "food": 6,
+  "saturation": 7
+ },
+ {
+  "type": "item",
+  "id": "dried_kelp",
+  "displayName": "Varech séché",
+  "icon": "core:items/dried_kelp",
+  "tags": [
+   "food"
+  ],
+  "food": 1,
+  "saturation": 0.6
+ },
+ {
+  "type": "item",
+  "id": "chorus_fruit",
+  "displayName": "Fruit de chorus",
+  "icon": "core:items/chorus_fruit",
+  "tags": [
+   "food"
+  ],
+  "food": 4,
+  "saturation": 2.4,
+  "alwaysEdible": true
+ },
+ {
+  "type": "item",
+  "id": "rotten_flesh",
+  "displayName": "Chair putréfiée",
+  "icon": "core:items/rotten_flesh",
+  "tags": [
+   "food"
+  ],
+  "food": 4,
+  "saturation": 0.8,
+  "effects": [
+   {
+    "id": "hunger",
+    "seconds": 30,
+    "level": 1,
+    "chance": 0.8
+   }
+  ]
+ },
+ {
+  "type": "item",
+  "id": "spider_eye",
+  "displayName": "Œil d'araignée",
+  "icon": "core:items/spider_eye",
+  "tags": [
+   "food"
+  ],
+  "food": 2,
+  "saturation": 3.2,
+  "effects": [
+   {
+    "id": "poison",
+    "seconds": 5,
+    "level": 1
+   }
+  ]
+ },
+ {
+  "type": "item",
+  "id": "ambrosia",
+  "displayName": "Ambroisie",
+  "icon": "core:items/ambrosia",
+  "tags": [
+   "food"
+  ],
+  "food": 8,
+  "saturation": 10,
+  "effects": [
+   {
+    "id": "speed",
+    "seconds": 60
+   },
+   {
+    "id": "jump_boost",
+    "seconds": 60
+   }
+  ],
+  "alwaysEdible": true
+ }
+]

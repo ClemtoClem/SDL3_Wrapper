@@ -1,0 +1,15 @@
+[module]
+name = "integration"
+layer = "application"
+version = "0.1.0"
+description = "Tests d'intégration entre modules (aucune source : seulement tests/)"
+type = "header-only"
+
+[sources]
+dirs = []
+
+[dependencies]
+modules = ["resources", "render3d", "audio"]
+
+[tests]
+dirs = ["tests"]

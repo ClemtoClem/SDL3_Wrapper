@@ -1,0 +1,78 @@
+// Projectiles (flèches, fioles) lancés par les scripts.
+[
+ {
+  "type": "entity",
+  "id": "arrow_projectile",
+  "displayName": "Flèche",
+  "tags": [
+   "projectile"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.3,
+   "y": 0.3,
+   "z": 0.3
+  },
+  "physics": {
+   "collider": [
+    0.3,
+    0.3,
+    0.3
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7,
+   "gravityScale": 0.6,
+   "collidesWithEntities": false,
+   "pushable": false,
+   "friction": 0.9
+  },
+  "health": 1,
+  "behaviors": [
+   "core:projectile"
+  ],
+  "rig": {
+   "model": "core:arrow",
+   "skins": [
+    "core:entities/arrow"
+   ]
+  },
+  "persistent": false
+ },
+ {
+  "type": "entity",
+  "id": "potion_projectile",
+  "displayName": "Fiole lancée",
+  "tags": [
+   "projectile"
+  ],
+  "shape": "cross",
+  "size": {
+   "x": 0.4,
+   "y": 0.4,
+   "z": 0.4
+  },
+  "physics": {
+   "collider": [
+    0.3,
+    0.3,
+    0.3
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7,
+   "gravityScale": 0.8,
+   "collidesWithEntities": false,
+   "pushable": false
+  },
+  "health": 1,
+  "behaviors": [
+   "core:projectile"
+  ],
+  "graphics": {
+   "texture": "core:items/splash_potion",
+   "material": "CUTOUT"
+  },
+  "persistent": false
+ }
+]

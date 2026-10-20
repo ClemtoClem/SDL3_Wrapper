@@ -1,0 +1,82 @@
+// Fluides supplémentaires (sources chaudes, miel, marais toxique).
+[
+ {
+  "id": "hot_spring_water",
+  "displayName": "Source chaude",
+  "tags": [
+   "fluid",
+   "warm"
+  ],
+  "graphics": {
+   "texture": "core:blocks/hot_spring_water_still",
+   "material": "TRANSPARENT",
+   "tint": [
+    255,
+    255,
+    255,
+    190
+   ],
+   "backface_culling": false
+  },
+  "sounds": "core:water",
+  "gameplay": {
+   "hardness": 100
+  },
+  "physics": {
+   "solid": false,
+   "viscosity": 0.6
+  }
+ },
+ {
+  "id": "honey",
+  "displayName": "Miel",
+  "tags": [
+   "fluid"
+  ],
+  "graphics": {
+   "texture": "core:blocks/honey_still",
+   "material": "TRANSPARENT",
+   "tint": [
+    255,
+    255,
+    255,
+    220
+   ]
+  },
+  "sounds": "core:water",
+  "gameplay": {
+   "hardness": 100
+  },
+  "physics": {
+   "solid": false,
+   "viscosity": 0.92
+  }
+ },
+ {
+  "id": "poison",
+  "displayName": "Marais toxique",
+  "tags": [
+   "fluid",
+   "toxic"
+  ],
+  "graphics": {
+   "texture": "core:blocks/poison_still",
+   "material": "TRANSPARENT",
+   "tint": [
+    255,
+    255,
+    255,
+    200
+   ]
+  },
+  "sounds": "core:water",
+  "gameplay": {
+   "hardness": 100,
+   "damagePerSecond": 1.5
+  },
+  "physics": {
+   "solid": false,
+   "viscosity": 0.7
+  }
+ }
+]

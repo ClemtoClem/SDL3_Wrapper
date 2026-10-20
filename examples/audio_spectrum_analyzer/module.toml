@@ -1,0 +1,12 @@
+[module]
+name = "audio_spectrum_analyzer"
+layer = "application"
+version = "0.1.0"
+description = "Analyseur de spectre temps réel (audio::dsp + ui::plot)"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["audio", "core", "sdl3", "ui"]

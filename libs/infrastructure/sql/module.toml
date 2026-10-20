@@ -1,0 +1,27 @@
+[module]
+name = "sql"
+layer = "infrastructure"
+version = "0.1.0"
+description = "Base de données embarquée : SQL, B-arbre, stockage binaire/JSON/CSV"
+type = "static"              # executable | static | shared | header-only
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]      # propagé aux modules dépendants
+private = ["src"]
+
+[dependencies]
+modules = ["core", "sdl3", "dataio"]
+pkg_config = []
+system = []
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = []
+
+[tests]
+dirs = ["tests"]

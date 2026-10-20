@@ -1,0 +1,20 @@
+[module]
+name = "voxel"
+layer = "infrastructure"
+version = "0.1.0"
+description = "Moteur de jeu voxel piloté par les données : contenu JSON et mods scriptés, monde en chunks, génération, physique voxel, entités ECS, inventaires, recettes, sauvegardes"
+type = "static"
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]
+private = ["src"]
+
+[dependencies]
+modules = ["core", "math", "events", "dataio", "ecs", "generators", "resources", "script"]
+
+[tests]
+dirs = ["tests"]
+

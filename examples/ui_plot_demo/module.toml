@@ -1,0 +1,12 @@
+[module]
+name = "ui_plot_demo"
+layer = "application"
+version = "0.1.0"
+description = "Galerie interactive des graphiques (ui::plot)"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["core", "sdl3", "ui"]

@@ -1,0 +1,12 @@
+[module]
+name = "audio_patchbay"
+layer = "application"
+version = "0.1.0"
+description = "Routage audio par node-graph (ui::nodegraph + audio::dsp)"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["audio", "core", "sdl3", "ui"]

@@ -1,0 +1,27 @@
+[module]
+name = "render3d"
+layer = "infrastructure"
+version = "0.1.0"
+description = "Renderer 3D/2D sur SDL_GPU : scène Object3D, matériaux, lumières, ombres, IBL, shaders"
+type = "static"              # executable | static | shared | header-only
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]      # propagé aux modules dépendants
+private = ["src"]
+
+[dependencies]
+modules = ["core", "math", "sdl3", "ecs", "dataio", "resources"]
+pkg_config = ["shaderc"]
+system = ["spirv-cross-msl", "spirv-cross-glsl", "spirv-cross-core", "spirv-cross-util"]
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = []
+
+[tests]
+dirs = ["tests"]

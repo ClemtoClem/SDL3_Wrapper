@@ -1,0 +1,9 @@
+{
+	"id": "extra",
+	"name": "Extra — exemple de mod",
+	"version": "0.3.0",
+	"description": "Ajoute des rubis, des pingouins et un générateur modifié — sans une ligne de C++, et sans toucher au mod core.",
+	"dependencies": [
+		"core"
+	]
+}

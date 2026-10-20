@@ -1,0 +1,27 @@
+[module]
+name = "platform"
+layer = "infrastructure"
+version = "0.1.0"
+description = "Plate-forme : fenêtre, entrées, temps et cycle de vie de l'application (au-dessus de sdl3)"
+type = "static"              # executable | static | shared | header-only
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]      # propagé aux modules dépendants
+private = ["src"]
+
+[dependencies]
+modules = ["core", "sdl3", "events", "diagnostics"]
+pkg_config = []
+system = []
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = []
+
+[tests]
+dirs = ["tests"]

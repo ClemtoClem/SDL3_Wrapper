@@ -1,0 +1,451 @@
+[
+	{
+		"schemaVersion": 1,
+		"id": "gold_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai d'or",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:gold_ore"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe",
+			"drops": "core:gold_ingot"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "gold_block",
+		"sounds": "core:metal",
+		"displayName": "Bloc d'or",
+		"graphics": {
+			"texture": "core:gold_block"
+		},
+		"gameplay": {
+			"hardness": 5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "diamond_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de diamant",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:diamond_ore"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe",
+			"drops": "core:diamond"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "diamond_block",
+		"sounds": "core:stone",
+		"displayName": "Bloc de diamant",
+		"graphics": {
+			"texture": "core:diamond_block"
+		},
+		"gameplay": {
+			"hardness": 5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "emerald_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai d'émeraude",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:emerald_ore"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe",
+			"drops": "core:emerald"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "emerald_block",
+		"sounds": "core:stone",
+		"displayName": "Bloc d'émeraude",
+		"graphics": {
+			"texture": "core:emerald_block"
+		},
+		"gameplay": {
+			"hardness": 5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "lapis_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de lapis",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:lapis_ore"
+		},
+		"gameplay": {
+			"hardness": 3,
+			"tool": "pickaxe",
+			"drops": "core:lapis"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "lapis_block",
+		"sounds": "core:stone",
+		"displayName": "Bloc de lapis",
+		"graphics": {
+			"texture": "core:lapis_block"
+		},
+		"gameplay": {
+			"hardness": 3,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "redstone_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de redstone",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:redstone_ore",
+			"light": 7
+		},
+		"gameplay": {
+			"hardness": 3,
+			"tool": "pickaxe",
+			"drops": "core:redstone"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "redstone_block",
+		"sounds": "core:stone",
+		"displayName": "Bloc de redstone",
+		"graphics": {
+			"texture": "core:redstone_block"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "amethyst_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai d'améthyste",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:amethyst_ore"
+		},
+		"gameplay": {
+			"hardness": 3.5,
+			"tool": "pickaxe",
+			"drops": "core:amethyst"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "amethyst_block",
+		"sounds": "core:glass",
+		"displayName": "Bloc d'améthyste",
+		"graphics": {
+			"texture": "core:amethyst_block"
+		},
+		"gameplay": {
+			"hardness": 3,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "ruby_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de rubis",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:ruby_ore"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe",
+			"drops": "core:ruby"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "ruby_block",
+		"sounds": "core:glass",
+		"displayName": "Bloc de rubis",
+		"graphics": {
+			"texture": "core:ruby_block"
+		},
+		"gameplay": {
+			"hardness": 5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "sapphire_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de saphir",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:sapphire_ore"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe",
+			"drops": "core:sapphire"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "sapphire_block",
+		"sounds": "core:glass",
+		"displayName": "Bloc de saphir",
+		"graphics": {
+			"texture": "core:sapphire_block"
+		},
+		"gameplay": {
+			"hardness": 5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "topaz_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de topaze",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:topaz_ore"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe",
+			"drops": "core:topaz"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "topaz_block",
+		"sounds": "core:glass",
+		"displayName": "Bloc de topaze",
+		"graphics": {
+			"texture": "core:topaz_block"
+		},
+		"gameplay": {
+			"hardness": 5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "amber_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai d'ambre",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:amber_ore"
+		},
+		"gameplay": {
+			"hardness": 3,
+			"tool": "pickaxe",
+			"drops": "core:amber"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "amber_block",
+		"sounds": "core:wood",
+		"displayName": "Bloc d'ambre",
+		"graphics": {
+			"texture": "core:amber_block"
+		},
+		"gameplay": {
+			"hardness": 2.5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "peridot_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de péridot",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:peridot_ore"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe",
+			"drops": "core:peridot"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "peridot_block",
+		"sounds": "core:glass",
+		"displayName": "Bloc de péridot",
+		"graphics": {
+			"texture": "core:peridot_block"
+		},
+		"gameplay": {
+			"hardness": 5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "tanzanite_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de tanzanite",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:tanzanite_ore"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe",
+			"drops": "core:tanzanite"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "tanzanite_block",
+		"sounds": "core:glass",
+		"displayName": "Bloc de tanzanite",
+		"graphics": {
+			"texture": "core:tanzanite_block"
+		},
+		"gameplay": {
+			"hardness": 5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "malachite_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de malachite",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:malachite_ore"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe",
+			"drops": "core:malachite"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "malachite_block",
+		"sounds": "core:glass",
+		"displayName": "Bloc de malachite",
+		"graphics": {
+			"texture": "core:malachite_block"
+		},
+		"gameplay": {
+			"hardness": 5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "iron_block",
+		"sounds": "core:metal",
+		"displayName": "Bloc de fer",
+		"graphics": {
+			"texture": "core:iron_block"
+		},
+		"gameplay": {
+			"hardness": 5,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "coal_block",
+		"sounds": "core:stone",
+		"displayName": "Bloc de charbon",
+		"graphics": {
+			"texture": "core:coal_block"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "glowstone",
+		"sounds": "core:glass",
+		"displayName": "Pierre lumineuse",
+		"graphics": {
+			"texture": "core:glowstone",
+			"light": 15
+		},
+		"gameplay": {
+			"hardness": 0.5
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "sea_lantern",
+		"sounds": "core:glass",
+		"displayName": "Lanterne des mers",
+		"graphics": {
+			"texture": "core:sea_lantern",
+			"light": 15
+		},
+		"gameplay": {
+			"hardness": 0.4
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "magma",
+		"sounds": "core:stone",
+		"displayName": "Bloc de"
+	}
+]

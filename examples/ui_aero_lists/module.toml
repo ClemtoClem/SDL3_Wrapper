@@ -1,0 +1,12 @@
+[module]
+name = "ui_aero_lists"
+layer = "application"
+version = "0.1.0"
+description = "Thème Frutiger Aero : listes, arbres et tableaux"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["core", "sdl3", "ui"]

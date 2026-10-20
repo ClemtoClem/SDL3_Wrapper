@@ -1,0 +1,12 @@
+[module]
+name = "renderer"
+layer = "application"
+version = "0.1.0"
+description = "Renderer 2D SDL (sdl3::Renderer) : formes, textures, texte"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["core", "sdl3", "ui"]

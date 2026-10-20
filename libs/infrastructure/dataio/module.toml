@@ -1,0 +1,32 @@
+[module]
+name = "dataio"
+layer = "infrastructure"
+version = "0.1.0"
+description = "Codecs multi-formats (JSON, XML, YAML, TOML, INI, CSV, CSS, HTML, glTF) — arbre commun documents::Node"
+type = "static"
+
+[sources]
+dirs = ["src"]
+# exclude = ["src/experimental/**"]
+
+[include]
+public = ["include"]      # propagé aux modules dépendants
+private = ["src"]
+
+[dependencies]
+modules = ["core", "sdl3"]
+pkg_config = []           # ex. ["zlib", "libcurl"]
+system = []               # ex. ["m", "pthread"]
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = []
+
+[tests]
+dirs = ["tests"]
+
+# Surcharges par plate-forme cible (linux | windows | macos | android | unix…)
+# [platform.windows]
+# system = ["ws2_32"]

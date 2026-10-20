@@ -1,0 +1,19 @@
+[module]
+name = "modeling"
+layer = "infrastructure"
+version = "0.1.0"
+description = "Modélisation à la SketchUp : maillage éditable, outils (Pousser/Tirer, Suivez-moi…), inférences, primitives (ezGeometry), export"
+type = "static"
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]
+private = ["src"]
+
+[dependencies]
+modules = ["core", "math", "dataio"]
+
+[tests]
+dirs = ["tests"]

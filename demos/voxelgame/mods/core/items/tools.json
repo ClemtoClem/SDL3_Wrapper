@@ -1,0 +1,499 @@
+// Outils et armes (cinq matériaux), arc, cisailles, briquet…
+[
+ {
+  "type": "tool",
+  "id": "wooden_pickaxe",
+  "displayName": "Pioche en bois",
+  "icon": "core:items/wooden_pickaxe",
+  "tags": [
+   "tools",
+   "pickaxes"
+  ],
+  "tool": {
+   "kind": "pickaxe",
+   "speed": 1.8,
+   "durability": 60,
+   "damage": 2,
+   "level": 0
+  }
+ },
+ {
+  "type": "tool",
+  "id": "wooden_axe",
+  "displayName": "Hache en bois",
+  "icon": "core:items/wooden_axe",
+  "tags": [
+   "tools",
+   "axes"
+  ],
+  "tool": {
+   "kind": "axe",
+   "speed": 1.8,
+   "durability": 60,
+   "damage": 4,
+   "level": 0
+  }
+ },
+ {
+  "type": "tool",
+  "id": "wooden_shovel",
+  "displayName": "Pelle en bois",
+  "icon": "core:items/wooden_shovel",
+  "tags": [
+   "tools",
+   "shovels"
+  ],
+  "tool": {
+   "kind": "shovel",
+   "speed": 1.8,
+   "durability": 60,
+   "damage": 2,
+   "level": 0
+  }
+ },
+ {
+  "type": "tool",
+  "id": "wooden_hoe",
+  "displayName": "Houe en bois",
+  "icon": "core:items/wooden_hoe",
+  "tags": [
+   "tools",
+   "hoes"
+  ],
+  "tool": {
+   "kind": "hoe",
+   "speed": 1.8,
+   "durability": 60,
+   "damage": 1,
+   "level": 0
+  }
+ },
+ {
+  "type": "tool",
+  "id": "wooden_sword",
+  "displayName": "Épée en bois",
+  "icon": "core:items/wooden_sword",
+  "tags": [
+   "weapons",
+   "swords"
+  ],
+  "tool": {
+   "kind": "sword",
+   "speed": 1.5,
+   "durability": 60,
+   "damage": 5,
+   "level": 0
+  }
+ },
+ {
+  "type": "tool",
+  "id": "stone_pickaxe",
+  "displayName": "Pioche en pierre",
+  "icon": "core:items/stone_pickaxe",
+  "tags": [
+   "tools",
+   "pickaxes"
+  ],
+  "tool": {
+   "kind": "pickaxe",
+   "speed": 3.5,
+   "durability": 132,
+   "damage": 3,
+   "level": 1
+  }
+ },
+ {
+  "type": "tool",
+  "id": "stone_axe",
+  "displayName": "Hache en pierre",
+  "icon": "core:items/stone_axe",
+  "tags": [
+   "tools",
+   "axes"
+  ],
+  "tool": {
+   "kind": "axe",
+   "speed": 3.5,
+   "durability": 132,
+   "damage": 5,
+   "level": 1
+  }
+ },
+ {
+  "type": "tool",
+  "id": "stone_shovel",
+  "displayName": "Pelle en pierre",
+  "icon": "core:items/stone_shovel",
+  "tags": [
+   "tools",
+   "shovels"
+  ],
+  "tool": {
+   "kind": "shovel",
+   "speed": 3.5,
+   "durability": 132,
+   "damage": 3,
+   "level": 1
+  }
+ },
+ {
+  "type": "tool",
+  "id": "stone_hoe",
+  "displayName": "Houe en pierre",
+  "icon": "core:items/stone_hoe",
+  "tags": [
+   "tools",
+   "hoes"
+  ],
+  "tool": {
+   "kind": "hoe",
+   "speed": 3.5,
+   "durability": 132,
+   "damage": 2,
+   "level": 1
+  }
+ },
+ {
+  "type": "tool",
+  "id": "stone_sword",
+  "displayName": "Épée en pierre",
+  "icon": "core:items/stone_sword",
+  "tags": [
+   "weapons",
+   "swords"
+  ],
+  "tool": {
+   "kind": "sword",
+   "speed": 1.5,
+   "durability": 132,
+   "damage": 6,
+   "level": 1
+  }
+ },
+ {
+  "type": "tool",
+  "id": "iron_pickaxe",
+  "displayName": "Pioche en fer",
+  "icon": "core:items/iron_pickaxe",
+  "tags": [
+   "tools",
+   "pickaxes"
+  ],
+  "tool": {
+   "kind": "pickaxe",
+   "speed": 5.5,
+   "durability": 251,
+   "damage": 4,
+   "level": 2
+  }
+ },
+ {
+  "type": "tool",
+  "id": "iron_axe",
+  "displayName": "Hache en fer",
+  "icon": "core:items/iron_axe",
+  "tags": [
+   "tools",
+   "axes"
+  ],
+  "tool": {
+   "kind": "axe",
+   "speed": 5.5,
+   "durability": 251,
+   "damage": 6,
+   "level": 2
+  }
+ },
+ {
+  "type": "tool",
+  "id": "iron_shovel",
+  "displayName": "Pelle en fer",
+  "icon": "core:items/iron_shovel",
+  "tags": [
+   "tools",
+   "shovels"
+  ],
+  "tool": {
+   "kind": "shovel",
+   "speed": 5.5,
+   "durability": 251,
+   "damage": 4,
+   "level": 2
+  }
+ },
+ {
+  "type": "tool",
+  "id": "iron_hoe",
+  "displayName": "Houe en fer",
+  "icon": "core:items/iron_hoe",
+  "tags": [
+   "tools",
+   "hoes"
+  ],
+  "tool": {
+   "kind": "hoe",
+   "speed": 5.5,
+   "durability": 251,
+   "damage": 3,
+   "level": 2
+  }
+ },
+ {
+  "type": "tool",
+  "id": "iron_sword",
+  "displayName": "Épée en fer",
+  "icon": "core:items/iron_sword",
+  "tags": [
+   "weapons",
+   "swords"
+  ],
+  "tool": {
+   "kind": "sword",
+   "speed": 1.5,
+   "durability": 251,
+   "damage": 7,
+   "level": 2
+  }
+ },
+ {
+  "type": "tool",
+  "id": "golden_pickaxe",
+  "displayName": "Pioche en or",
+  "icon": "core:items/golden_pickaxe",
+  "tags": [
+   "tools",
+   "pickaxes"
+  ],
+  "tool": {
+   "kind": "pickaxe",
+   "speed": 8,
+   "durability": 33,
+   "damage": 2,
+   "level": 0
+  }
+ },
+ {
+  "type": "tool",
+  "id": "golden_axe",
+  "displayName": "Hache en or",
+  "icon": "core:items/golden_axe",
+  "tags": [
+   "tools",
+   "axes"
+  ],
+  "tool": {
+   "kind": "axe",
+   "speed": 8,
+   "durability": 33,
+   "damage": 4,
+   "level": 0
+  }
+ },
+ {
+  "type": "tool",
+  "id": "golden_shovel",
+  "displayName": "Pelle en or",
+  "icon": "core:items/golden_shovel",
+  "tags": [
+   "tools",
+   "shovels"
+  ],
+  "tool": {
+   "kind": "shovel",
+   "speed": 8,
+   "durability": 33,
+   "damage": 2,
+   "level": 0
+  }
+ },
+ {
+  "type": "tool",
+  "id": "golden_hoe",
+  "displayName": "Houe en or",
+  "icon": "core:items/golden_hoe",
+  "tags": [
+   "tools",
+   "hoes"
+  ],
+  "tool": {
+   "kind": "hoe",
+   "speed": 8,
+   "durability": 33,
+   "damage": 1,
+   "level": 0
+  }
+ },
+ {
+  "type": "tool",
+  "id": "golden_sword",
+  "displayName": "Épée en or",
+  "icon": "core:items/golden_sword",
+  "tags": [
+   "weapons",
+   "swords"
+  ],
+  "tool": {
+   "kind": "sword",
+   "speed": 1.5,
+   "durability": 33,
+   "damage": 5,
+   "level": 0
+  }
+ },
+ {
+  "type": "tool",
+  "id": "diamond_pickaxe",
+  "displayName": "Pioche en diamant",
+  "icon": "core:items/diamond_pickaxe",
+  "tags": [
+   "tools",
+   "pickaxes"
+  ],
+  "tool": {
+   "kind": "pickaxe",
+   "speed": 7.5,
+   "durability": 1562,
+   "damage": 5,
+   "level": 3
+  }
+ },
+ {
+  "type": "tool",
+  "id": "diamond_axe",
+  "displayName": "Hache en diamant",
+  "icon": "core:items/diamond_axe",
+  "tags": [
+   "tools",
+   "axes"
+  ],
+  "tool": {
+   "kind": "axe",
+   "speed": 7.5,
+   "durability": 1562,
+   "damage": 7,
+   "level": 3
+  }
+ },
+ {
+  "type": "tool",
+  "id": "diamond_shovel",
+  "displayName": "Pelle en diamant",
+  "icon": "core:items/diamond_shovel",
+  "tags": [
+   "tools",
+   "shovels"
+  ],
+  "tool": {
+   "kind": "shovel",
+   "speed": 7.5,
+   "durability": 1562,
+   "damage": 5,
+   "level": 3
+  }
+ },
+ {
+  "type": "tool",
+  "id": "diamond_hoe",
+  "displayName": "Houe en diamant",
+  "icon": "core:items/diamond_hoe",
+  "tags": [
+   "tools",
+   "hoes"
+  ],
+  "tool": {
+   "kind": "hoe",
+   "speed": 7.5,
+   "durability": 1562,
+   "damage": 4,
+   "level": 3
+  }
+ },
+ {
+  "type": "tool",
+  "id": "diamond_sword",
+  "displayName": "Épée en diamant",
+  "icon": "core:items/diamond_sword",
+  "tags": [
+   "weapons",
+   "swords"
+  ],
+  "tool": {
+   "kind": "sword",
+   "speed": 1.5,
+   "durability": 1562,
+   "damage": 8,
+   "level": 3
+  }
+ },
+ {
+  "type": "tool",
+  "id": "bow",
+  "displayName": "Arc",
+  "icon": "core:items/bow",
+  "tags": [
+   "weapons"
+  ],
+  "tool": {
+   "kind": "bow",
+   "durability": 385,
+   "damage": 1
+  },
+  "onUse": "use_bow"
+ },
+ {
+  "type": "tool",
+  "id": "shears",
+  "displayName": "Cisailles",
+  "icon": "core:items/shears",
+  "tags": [
+   "tools"
+  ],
+  "tool": {
+   "kind": "shears",
+   "speed": 6,
+   "durability": 238
+  }
+ },
+ {
+  "type": "tool",
+  "id": "flint_and_steel",
+  "displayName": "Briquet",
+  "icon": "core:items/flint_and_steel",
+  "tags": [
+   "tools"
+  ],
+  "tool": {
+   "kind": "igniter",
+   "durability": 64
+  },
+  "onUse": "use_flint_and_steel"
+ },
+ {
+  "type": "tool",
+  "id": "fishing_rod",
+  "displayName": "Canne à pêche",
+  "icon": "core:items/fishing_rod",
+  "tags": [
+   "tools"
+  ],
+  "tool": {
+   "kind": "rod",
+   "durability": 64
+  },
+  "onUse": "use_fishing_rod"
+ },
+ {
+  "type": "tool",
+  "id": "trident",
+  "displayName": "Trident",
+  "icon": "core:items/trident",
+  "tags": [
+   "weapons"
+  ],
+  "tool": {
+   "kind": "sword",
+   "durability": 250,
+   "damage": 9
+  }
+ }
+]

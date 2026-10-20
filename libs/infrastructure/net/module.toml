@@ -1,0 +1,27 @@
+[module]
+name = "net"
+layer = "infrastructure"
+version = "0.1.0"
+description = "Réseau au-dessus de SDL_net : découverte Wi-Fi locale, chat ad hoc"
+type = "static"              # executable | static | shared | header-only
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]      # propagé aux modules dépendants
+private = ["src"]
+
+[dependencies]
+modules = ["core", "sdl3", "archive"]
+pkg_config = []
+system = []
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = []
+
+[tests]
+dirs = ["tests"]

@@ -1,0 +1,12 @@
+[module]
+name = "render3d_cube"
+layer = "application"
+version = "0.1.0"
+description = "Premier rendu render3d bout en bout : Canvas + cube texturé"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["render3d", "sdl3", "ui"]

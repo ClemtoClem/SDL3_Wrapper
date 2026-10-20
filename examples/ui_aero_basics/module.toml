@@ -1,0 +1,12 @@
+[module]
+name = "ui_aero_basics"
+layer = "application"
+version = "0.1.0"
+description = "Thème Frutiger Aero, fenêtre sans bordure : widgets de base"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["core", "sdl3", "ui"]

@@ -1,0 +1,31 @@
+[module]
+name = "sdl3"
+layer = "infrastructure"
+version = "0.1.0"
+type = "static"              # executable | static | shared | header-only
+
+[sources]
+dirs = ["src"]
+# exclude = ["src/experimental/**"]
+
+[include]
+public = ["include"]      # propagé aux modules dépendants
+private = ["src"]
+
+[dependencies]
+modules = ["core", "math"]
+pkg_config = ["sdl3", "sdl3-ttf", "sdl3-image", "sdl3-mixer", "sdl3-net"]
+system = []
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = ["-Werror", "-Wsign-compare"]
+
+[tests]
+dirs = ["tests"]
+
+# Surcharges par plate-forme cible (linux | windows | macos | android | unix…)
+# [platform.windows]
+# system = ["ws2_32"]

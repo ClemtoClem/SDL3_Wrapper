@@ -1,0 +1,1620 @@
+// Végétation : fleurs, herbes, champignons, coraux, lianes.
+[
+ {
+  "id": "dandelion",
+  "displayName": "Pissenlit",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/dandelion",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "poppy",
+  "displayName": "Coquelicot",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/poppy",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "allium",
+  "displayName": "Allium",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/allium",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "azure_bluet",
+  "displayName": "Houstonie bleue",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/azure_bluet",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "blue_orchid",
+  "displayName": "Orchidée bleue",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/blue_orchid",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "oxeye_daisy",
+  "displayName": "Marguerite",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/oxeye_daisy",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "orange_tulip",
+  "displayName": "Tulipe orange",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/orange_tulip",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "pink_tulip",
+  "displayName": "Tulipe rose",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/pink_tulip",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "red_tulip",
+  "displayName": "Tulipe rouge",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/red_tulip",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "white_tulip",
+  "displayName": "Tulipe blanche",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/white_tulip",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "lily_of_the_valley",
+  "displayName": "Muguet",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/lily_of_the_valley",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "rose",
+  "displayName": "Rose",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/rose",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "violet",
+  "displayName": "Violette",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/violet",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "lavender",
+  "displayName": "Lavande",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/lavender",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "wildflower",
+  "displayName": "Fleur sauvage",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/wildflower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "goldenrod",
+  "displayName": "Verge d'or",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/goldenrod",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "bluebells",
+  "displayName": "Jacinthes des bois",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/bluebells",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "white_anemone",
+  "displayName": "Anémone blanche",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/white_anemone",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "pink_daffodil",
+  "displayName": "Jonquille rose",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/pink_daffodil",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "pink_hibiscus",
+  "displayName": "Hibiscus rose",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/pink_hibiscus",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "orange_cosmos",
+  "displayName": "Cosmos orange",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/orange_cosmos",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "icy_iris",
+  "displayName": "Iris des glaces",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/icy_iris",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "swampflower",
+  "displayName": "Fleur des marais",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/swampflower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "deathbloom",
+  "displayName": "Fleur funèbre",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/deathbloom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "blue_hydrangea",
+  "displayName": "Hortensia bleu",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/blue_hydrangea",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "bromeliad",
+  "displayName": "Broméliacée",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/bromeliad",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "burning_blossom",
+  "displayName": "Fleur ardente",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/burning_blossom",
+   "material": "CUTOUT",
+   "light": 6
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "enderlotus",
+  "displayName": "Lotus de l'End",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/enderlotus",
+   "material": "CUTOUT",
+   "light": 6
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "flower_red",
+  "displayName": "Fleur rouge",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/poppy",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "flower_yellow",
+  "displayName": "Fleur jaune",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/dandelion",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "glowflower",
+  "displayName": "Fleur luisante",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/glowflower",
+   "material": "CUTOUT",
+   "light": 10
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "tall_grass",
+  "displayName": "Herbes hautes",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/shortgrass",
+   "material": "CUTOUT",
+   "biomeTint": "foliage"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:wheat_seeds",
+    "count": 1,
+    "chance": 0.12
+   }
+  },
+  "physics": {
+   "solid": false,
+   "replaceable": true
+  }
+ },
+ {
+  "id": "medium_grass",
+  "displayName": "Herbes",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/mediumgrass",
+   "material": "CUTOUT",
+   "biomeTint": "foliage"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:wheat_seeds",
+    "count": 1,
+    "chance": 0.12
+   }
+  },
+  "physics": {
+   "solid": false,
+   "replaceable": true
+  }
+ },
+ {
+  "id": "fern",
+  "displayName": "Fougère",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/fern",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false,
+   "replaceable": true
+  }
+ },
+ {
+  "id": "dead_bush",
+  "displayName": "Buisson mort",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/dead_bush",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:stick",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "dune_grass",
+  "displayName": "Oyat",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/dunegrass",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "desert_grass",
+  "displayName": "Herbe du désert",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/desertgrass",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "desert_sprouts",
+  "displayName": "Pousses du désert",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/desertsprouts",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "wheatgrass",
+  "displayName": "Chiendent",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/wheatgrass",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "clover",
+  "displayName": "Trèfle",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/clover",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "sprout",
+  "displayName": "Pousse",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sprout",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "bush",
+  "displayName": "Buisson",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/bush",
+   "material": "CUTOUT",
+   "biomeTint": "foliage"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "shrub",
+  "displayName": "Arbuste",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/shrub",
+   "material": "CUTOUT",
+   "biomeTint": "foliage"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "thorn",
+  "displayName": "Ronces",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/thorn",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "damagePerSecond": 0.5
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "cattail",
+  "displayName": "Massette",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/cattail",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "reed",
+  "displayName": "Roseau",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/reed",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "rivercane",
+  "displayName": "Canne de rivière",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/rivercane",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "sugar_cane",
+  "displayName": "Canne à sucre",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sugar_cane",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:sugar_cane_item",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "bamboo",
+  "displayName": "Bambou",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/bamboo",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "berry_bush",
+  "displayName": "Buisson à baies",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/berrybush_berry",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:berries",
+    "count": 2
+   }
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "poison_ivy",
+  "displayName": "Herbe à puce",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/poisonivy",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "devilweed",
+  "displayName": "Herbe du diable",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/devilweed",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "miners_delight",
+  "displayName": "Délice du mineur",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/miners_delight",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "koru",
+  "displayName": "Koru",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/koru",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "spectral_fern",
+  "displayName": "Fougère spectrale",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/spectralfern",
+   "material": "CUTOUT",
+   "light": 5
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "red_mushroom",
+  "displayName": "Champignon rouge",
+  "tags": [
+   "plant",
+   "mushroom"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/red_mushroom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "brown_mushroom",
+  "displayName": "Champignon brun",
+  "tags": [
+   "plant",
+   "mushroom"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/brown_mushroom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "toadstool",
+  "displayName": "Amanite",
+  "tags": [
+   "plant",
+   "mushroom"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/toadstool",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "portobello",
+  "displayName": "Portobello",
+  "tags": [
+   "plant",
+   "mushroom"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/portobello",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "blue_milk_cap",
+  "displayName": "Lactaire bleu",
+  "tags": [
+   "plant",
+   "mushroom"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/blue_milk_cap",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "glowshroom",
+  "displayName": "Champignon lumineux",
+  "tags": [
+   "plant",
+   "mushroom"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/glowshroom",
+   "material": "CUTOUT",
+   "light": 10
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "shadow_shroom",
+  "displayName": "Champignon d'ombre",
+  "tags": [
+   "plant",
+   "mushroom"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/shadow_shroom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "seagrass",
+  "displayName": "Herbe marine",
+  "tags": [
+   "plant",
+   "aquatic"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/seagrass",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "kelp",
+  "displayName": "Varech",
+  "tags": [
+   "plant",
+   "aquatic"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/kelp_plant",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "sea_pickle",
+  "displayName": "Cornichon de mer",
+  "tags": [
+   "plant",
+   "aquatic"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sea_pickle",
+   "material": "CUTOUT",
+   "light": 6
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "sunflower",
+  "displayName": "Tournesol",
+  "tags": [
+   "plant",
+   "flower"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/sunflower_front",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "vine",
+  "displayName": "Liane",
+  "tags": [
+   "plant",
+   "climbable"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/vine",
+   "material": "CUTOUT",
+   "biomeTint": "foliage"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false,
+   "climbable": true
+  }
+ },
+ {
+  "id": "willow_vine",
+  "displayName": "Liane de saule",
+  "tags": [
+   "plant",
+   "climbable"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/willow_vine",
+   "material": "CUTOUT",
+   "biomeTint": "foliage"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false,
+   "climbable": true
+  }
+ },
+ {
+  "id": "lily_pad",
+  "displayName": "Nénuphar",
+  "tags": [
+   "plant",
+   "water"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/lily_pad",
+   "material": "CUTOUT",
+   "biomeTint": "foliage"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0.2
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "leaf_pile",
+  "displayName": "Tas de feuilles",
+  "tags": [
+   "plant"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/leafpile",
+   "material": "CUTOUT",
+   "biomeTint": "foliage"
+  },
+  "sounds": "core:leaves",
+  "gameplay": {
+   "hardness": 0.1
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "tube_coral",
+  "displayName": "Corail tubulaire",
+  "tags": [
+   "plant",
+   "aquatic",
+   "coral"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/tube_coral",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "tube_coral_block",
+  "displayName": "Bloc de corail tubulaire",
+  "tags": [
+   "coral"
+  ],
+  "graphics": {
+   "texture": "core:blocks/tube_coral_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "brain_coral",
+  "displayName": "Corail cerveau",
+  "tags": [
+   "plant",
+   "aquatic",
+   "coral"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/brain_coral",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "brain_coral_block",
+  "displayName": "Bloc de corail cerveau",
+  "tags": [
+   "coral"
+  ],
+  "graphics": {
+   "texture": "core:blocks/brain_coral_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "bubble_coral",
+  "displayName": "Corail bulles",
+  "tags": [
+   "plant",
+   "aquatic",
+   "coral"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/bubble_coral",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "bubble_coral_block",
+  "displayName": "Bloc de corail bulles",
+  "tags": [
+   "coral"
+  ],
+  "graphics": {
+   "texture": "core:blocks/bubble_coral_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "fire_coral",
+  "displayName": "Corail de feu",
+  "tags": [
+   "plant",
+   "aquatic",
+   "coral"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/fire_coral",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "fire_coral_block",
+  "displayName": "Bloc de corail de feu",
+  "tags": [
+   "coral"
+  ],
+  "graphics": {
+   "texture": "core:blocks/fire_coral_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "horn_coral",
+  "displayName": "Corail corne",
+  "tags": [
+   "plant",
+   "aquatic",
+   "coral"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/horn_coral",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "horn_coral_block",
+  "displayName": "Bloc de corail corne",
+  "tags": [
+   "coral"
+  ],
+  "graphics": {
+   "texture": "core:blocks/horn_coral_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ }
+]

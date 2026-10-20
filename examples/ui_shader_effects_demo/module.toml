@@ -1,0 +1,12 @@
+[module]
+name = "ui_shader_effects_demo"
+layer = "application"
+version = "0.1.0"
+description = "Effets de shader sur les widgets (ui::UiShaderEffect)"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["core", "sdl3", "ui"]

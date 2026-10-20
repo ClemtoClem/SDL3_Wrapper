@@ -1,0 +1,6 @@
+{
+	"id": "core",
+	"name": "Voxel — contenu de base",
+	"version": "1.0.0",
+	"description": "Blocs, objets, outils, créatures, recettes, biomes, structures et générateurs du jeu de démonstration. Tout est défini ici (JSON, images, sons, modèles, scripts) : aucun code C++ n'en dépend."
+}

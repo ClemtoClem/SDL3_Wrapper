@@ -1,0 +1,59 @@
+# Ambiances sonores et musique (sons de assets/sounds, voir sounds/assets.json).
+# Toutes les quelques secondes, un son d'ambiance choisi selon le lieu du
+# joueur : grotte (sous la surface), biome, nuit ; de temps en temps, un
+# morceau de musique.
+
+let ambience_timer = 5
+let music_timer = 30
+
+fn between(range) {
+    return range[0] + math.random() * (range[1] - range[0])
+}
+
+fn night() {
+    let t = game.time()
+    return t > 0.78 or t < 0.22
+}
+
+fn ambience_for(p) {
+    let surface = world.surface(math.floor(p.x), math.floor(p.z))
+    if (surface != nil and p.y < surface - 6) {
+        if (math.random() < 0.3) { return "amb_wind_cave" }
+        return "amb_cave"
+    }
+    let biome = world.biome(p.x, p.z)
+    if (biome == "core:tundra") {
+        if (math.random() < 0.3) { return "amb_ice_cracking" }
+        return "amb_snow_storm"
+    }
+    if (biome == "core:swamp") { return "amb_swamp" }
+    if (biome == "core:desert" and not night()) { return "amb_hot_stone" }
+    if (night()) {
+        if (math.random() < 0.2) { return "amb_owl" }
+        return "amb_crickets"
+    }
+    return nil
+}
+
+voxel.system("ambience", fn(dt) {
+    let config = content.config("ambience")
+    ambience_timer -= dt
+    music_timer -= dt
+    let players = entity.players()
+    if (len(players) == 0) { return nil }
+    let p = entity.pos(players[0])
+    if (ambience_timer <= 0) {
+        ambience_timer = between(config.interval)
+        let sound = ambience_for(p)
+        if (sound != nil) { game.ambient(sound) }
+    }
+    if (music_timer <= 0) {
+        music_timer = between(config.musicInterval)
+        let surface = world.surface(math.floor(p.x), math.floor(p.z))
+        if (surface != nil and p.y < surface - 6) {
+            game.ambient("music_cave")
+        } else {
+            game.ambient("music_day")
+        }
+    }
+})

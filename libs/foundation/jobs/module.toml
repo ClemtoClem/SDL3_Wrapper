@@ -1,0 +1,27 @@
+[module]
+name = "jobs"
+layer = "foundation"
+version = "0.1.0"
+description = "Ordonnanceur de tâches (vivier de fils, ParallelFor) — bibliothèque standard uniquement"
+type = "static"              # executable | static | shared | header-only
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]      # propagé aux modules dépendants
+private = ["src"]
+
+[dependencies]
+modules = []
+pkg_config = []
+system = []
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = []
+
+[tests]
+dirs = ["tests"]

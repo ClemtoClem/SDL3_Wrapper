@@ -1,0 +1,2431 @@
+// Construction et décoration : briques, ateliers, laines, bétons, verres, tapis…
+[
+ {
+  "id": "glass",
+  "displayName": "Verre",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "bricks",
+  "displayName": "Briques",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/bricks"
+  },
+  "sounds": "core:ceramic",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_bricks",
+  "displayName": "Briques de pierre",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mossy_stone_bricks",
+  "displayName": "Briques de pierre moussues",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/mossy_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cracked_stone_bricks",
+  "displayName": "Briques de pierre fissurées",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/cracked_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "chiseled_stone_bricks",
+  "displayName": "Briques de pierre sculptées",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/chiseled_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mud_bricks",
+  "displayName": "Briques de boue",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/mud_brick_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "nether_bricks",
+  "displayName": "Briques infernales",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/nether_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "red_nether_bricks",
+  "displayName": "Briques infernales rouges",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/red_nether_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "end_stone_bricks",
+  "displayName": "Briques de pierre de l'End",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/end_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "quartz_block",
+  "displayName": "Bloc de quartz",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/quartz_block_top",
+    "bottom": "core:blocks/quartz_block_bottom",
+    "side": "core:blocks/quartz_block_side"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "chiseled_quartz",
+  "displayName": "Quartz sculpté",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/chiseled_quartz_block_top",
+    "side": "core:blocks/chiseled_quartz_block"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "quartz_pillar",
+  "displayName": "Pilier de quartz",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/quartz_pillar_top",
+    "bottom": "core:blocks/quartz_pillar_top",
+    "side": "core:blocks/quartz_pillar"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "prismarine",
+  "displayName": "Prismarine",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/prismarine"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "prismarine_bricks",
+  "displayName": "Briques de prismarine",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/prismarine_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "dark_prismarine",
+  "displayName": "Prismarine sombre",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/dark_prismarine"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "purpur_block",
+  "displayName": "Bloc de purpur",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blocks/purpur_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "purpur_pillar",
+  "displayName": "Pilier de purpur",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/purpur_pillar_top",
+    "side": "core:blocks/purpur_pillar"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "crafting_table",
+  "displayName": "Établi",
+  "tags": [
+   "station",
+   "workbench"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/crafting_table_top",
+    "bottom": "core:blocks/oak_planks",
+    "side": "core:blocks/crafting_table_side",
+    "south": "core:blocks/crafting_table_front"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "furnace",
+  "displayName": "Four",
+  "tags": [
+   "station",
+   "furnace"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/furnace_top",
+    "bottom": "core:blocks/furnace_top",
+    "side": "core:blocks/furnace_side",
+    "south": "core:blocks/furnace_front"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "bookshelf",
+  "displayName": "Bibliothèque",
+  "tags": [
+   "wood",
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/oak_planks",
+    "side": "core:blocks/bookshelf"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "axe",
+   "drops": {
+    "item": "core:book",
+    "count": 3
+   }
+  }
+ },
+ {
+  "id": "tnt",
+  "displayName": "TNT",
+  "tags": [
+   "explosive"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/tnt_top",
+    "bottom": "core:blocks/tnt_bottom",
+    "side": "core:blocks/tnt_side"
+   }
+  },
+  "sounds": "core:grass",
+  "gameplay": {
+   "hardness": 0,
+   "explosion": {
+    "radius": 3,
+    "delay": 3
+   }
+  }
+ },
+ {
+  "id": "pumpkin",
+  "displayName": "Citrouille",
+  "tags": [
+   "plant"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/pumpkin_top",
+    "side": "core:blocks/pumpkin_side"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "carved_pumpkin",
+  "displayName": "Citrouille sculptée",
+  "tags": [
+   "plant"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/pumpkin_top",
+    "side": "core:blocks/pumpkin_side",
+    "south": "core:blocks/carved_pumpkin"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jack_o_lantern",
+  "displayName": "Citrouille-lanterne",
+  "tags": [
+   "light"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/pumpkin_top",
+    "side": "core:blocks/pumpkin_side",
+    "south": "core:blocks/jack_o_lantern"
+   },
+   "light": 15
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "melon",
+  "displayName": "Pastèque",
+  "tags": [
+   "plant"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/melon_top",
+    "side": "core:blocks/melon_side"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "axe",
+   "drops": {
+    "item": "core:melon_slice",
+    "count": 5
+   }
+  }
+ },
+ {
+  "id": "hay_block",
+  "displayName": "Botte de foin",
+  "tags": [
+   "fuel"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/hay_block_top",
+    "side": "core:blocks/hay_block_side"
+   }
+  },
+  "sounds": "core:grass",
+  "gameplay": {
+   "hardness": 0.5
+  }
+ },
+ {
+  "id": "bone_block",
+  "displayName": "Bloc d'os",
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/bone_block_top",
+    "side": "core:blocks/bone_block_side"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "sponge",
+  "displayName": "Éponge",
+  "graphics": {
+   "texture": "core:blocks/sponge"
+  },
+  "sounds": "core:grass",
+  "gameplay": {
+   "hardness": 0.6
+  }
+ },
+ {
+  "id": "slime_block",
+  "displayName": "Bloc de slime",
+  "tags": [
+   "bouncy"
+  ],
+  "graphics": {
+   "texture": "core:blocks/slime_block",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:grass",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "bounciness": 0.85
+  }
+ },
+ {
+  "id": "honeycomb_block",
+  "displayName": "Bloc de rayon de miel",
+  "graphics": {
+   "texture": "core:blocks/honeycomb_block"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 0.6
+  }
+ },
+ {
+  "id": "note_block",
+  "displayName": "Bloc musical",
+  "graphics": {
+   "texture": "core:blocks/note_block"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jukebox",
+  "displayName": "Juke-box",
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/jukebox_top",
+    "side": "core:blocks/jukebox_side"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "redstone_lamp",
+  "displayName": "Lampe",
+  "tags": [
+   "light"
+  ],
+  "graphics": {
+   "texture": "core:blocks/redstone_lamp_on",
+   "light": 15
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3
+  }
+ },
+ {
+  "id": "beacon",
+  "displayName": "Balise",
+  "tags": [
+   "light"
+  ],
+  "graphics": {
+   "texture": "core:blocks/beacon",
+   "material": "TRANSLUCENT",
+   "light": 15
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 3
+  }
+ },
+ {
+  "id": "enchanting_table",
+  "displayName": "Table d'enchantement",
+  "tags": [
+   "station",
+   "magic"
+  ],
+  "size": {
+   "x": 1,
+   "y": 0.75,
+   "z": 1
+  },
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/enchanting_table_top",
+    "bottom": "core:blocks/enchanting_table_bottom",
+    "side": "core:blocks/enchanting_table_side"
+   },
+   "light": 7
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "spawner",
+  "displayName": "Cage à monstres",
+  "graphics": {
+   "texture": "core:blocks/spawner",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe",
+   "drops": ""
+  }
+ },
+ {
+  "id": "iron_bars",
+  "displayName": "Barreaux de fer",
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.0625,
+    0.5,
+    0.5,
+    0.0625
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/iron_bars",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cactus",
+  "displayName": "Cactus",
+  "tags": [
+   "plant"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.4375,
+    -0.5,
+    -0.4375,
+    0.4375,
+    0.5,
+    0.4375
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/cactus_top",
+    "bottom": "core:blocks/cactus_bottom",
+    "side": "core:blocks/cactus_side"
+   }
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0.4,
+   "damagePerSecond": 1
+  }
+ },
+ {
+  "id": "cake",
+  "displayName": "Gâteau",
+  "tags": [
+   "food"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.4375,
+    -0.5,
+    -0.4375,
+    0.4375,
+    0.0,
+    0.4375
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:blocks/cake_top",
+    "bottom": "core:blocks/cake_bottom",
+    "side": "core:blocks/cake_side"
+   }
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0.5
+  }
+ },
+ {
+  "id": "hive",
+  "displayName": "Ruche",
+  "graphics": {
+   "texture": "core:blocks/hive_block"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "white_wool",
+  "displayName": "Laine blanche",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/white_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "white_concrete",
+  "displayName": "Béton blanc",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/white_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "white_concrete_powder",
+  "displayName": "Poudre de béton blanche",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/white_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "white_glazed_terracotta",
+  "displayName": "Terre cuite émaillée blanche",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/white_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "white_stained_glass",
+  "displayName": "Verre blanc",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/white_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "white_carpet",
+  "displayName": "Tapis blanc",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_white"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "orange_wool",
+  "displayName": "Laine orange",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/orange_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "orange_concrete",
+  "displayName": "Béton orange",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/orange_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "orange_concrete_powder",
+  "displayName": "Poudre de béton orange",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/orange_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "orange_glazed_terracotta",
+  "displayName": "Terre cuite émaillée orange",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/orange_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "orange_stained_glass",
+  "displayName": "Verre orange",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/orange_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "orange_carpet",
+  "displayName": "Tapis orange",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_orange"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "magenta_wool",
+  "displayName": "Laine magenta",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/magenta_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "magenta_concrete",
+  "displayName": "Béton magenta",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/magenta_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "magenta_concrete_powder",
+  "displayName": "Poudre de béton magenta",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/magenta_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "magenta_glazed_terracotta",
+  "displayName": "Terre cuite émaillée magenta",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/magenta_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "magenta_stained_glass",
+  "displayName": "Verre magenta",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/magenta_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "magenta_carpet",
+  "displayName": "Tapis magenta",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_magenta"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "light_blue_wool",
+  "displayName": "Laine bleu clair",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_blue_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "light_blue_concrete",
+  "displayName": "Béton bleu clair",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_blue_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "light_blue_concrete_powder",
+  "displayName": "Poudre de béton bleu clair",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_blue_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "light_blue_glazed_terracotta",
+  "displayName": "Terre cuite émaillée bleu clair",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_blue_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "light_blue_stained_glass",
+  "displayName": "Verre bleu clair",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_blue_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "light_blue_carpet",
+  "displayName": "Tapis bleu clair",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_light_blue"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "yellow_wool",
+  "displayName": "Laine jaune",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/yellow_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "yellow_concrete",
+  "displayName": "Béton jaune",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/yellow_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "yellow_concrete_powder",
+  "displayName": "Poudre de béton jaune",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/yellow_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "yellow_glazed_terracotta",
+  "displayName": "Terre cuite émaillée jaune",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/yellow_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "yellow_stained_glass",
+  "displayName": "Verre jaune",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/yellow_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "yellow_carpet",
+  "displayName": "Tapis jaune",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_yellow"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "lime_wool",
+  "displayName": "Laine vert clair",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/lime_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "lime_concrete",
+  "displayName": "Béton vert clair",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/lime_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "lime_concrete_powder",
+  "displayName": "Poudre de béton vert clair",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/lime_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "lime_glazed_terracotta",
+  "displayName": "Terre cuite émaillée vert clair",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/lime_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "lime_stained_glass",
+  "displayName": "Verre vert clair",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/lime_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "lime_carpet",
+  "displayName": "Tapis vert clair",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_lime"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "pink_wool",
+  "displayName": "Laine rose",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/pink_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "pink_concrete",
+  "displayName": "Béton rose",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/pink_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "pink_concrete_powder",
+  "displayName": "Poudre de béton rose",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/pink_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "pink_glazed_terracotta",
+  "displayName": "Terre cuite émaillée rose",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/pink_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "pink_stained_glass",
+  "displayName": "Verre rose",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/pink_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "pink_carpet",
+  "displayName": "Tapis rose",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_pink"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "gray_wool",
+  "displayName": "Laine grise",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/gray_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "gray_concrete",
+  "displayName": "Béton gris",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/gray_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "gray_concrete_powder",
+  "displayName": "Poudre de béton grise",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/gray_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "gray_glazed_terracotta",
+  "displayName": "Terre cuite émaillée grise",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/gray_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "gray_stained_glass",
+  "displayName": "Verre gris",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/gray_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "gray_carpet",
+  "displayName": "Tapis gris",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_gray"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "light_gray_wool",
+  "displayName": "Laine gris clair",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_gray_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "light_gray_concrete",
+  "displayName": "Béton gris clair",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_gray_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "light_gray_concrete_powder",
+  "displayName": "Poudre de béton gris clair",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_gray_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "light_gray_glazed_terracotta",
+  "displayName": "Terre cuite émaillée gris clair",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_gray_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "light_gray_stained_glass",
+  "displayName": "Verre gris clair",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/light_gray_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "light_gray_carpet",
+  "displayName": "Tapis gris clair",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_silver"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "cyan_wool",
+  "displayName": "Laine cyan",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/cyan_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "cyan_concrete",
+  "displayName": "Béton cyan",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/cyan_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cyan_concrete_powder",
+  "displayName": "Poudre de béton cyan",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/cyan_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "cyan_glazed_terracotta",
+  "displayName": "Terre cuite émaillée cyan",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/cyan_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cyan_stained_glass",
+  "displayName": "Verre cyan",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/cyan_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "cyan_carpet",
+  "displayName": "Tapis cyan",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_cyan"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "purple_wool",
+  "displayName": "Laine violette",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/purple_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "purple_concrete",
+  "displayName": "Béton violet",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/purple_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "purple_concrete_powder",
+  "displayName": "Poudre de béton violette",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/purple_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "purple_glazed_terracotta",
+  "displayName": "Terre cuite émaillée violette",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/purple_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "purple_stained_glass",
+  "displayName": "Verre violet",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/purple_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "purple_carpet",
+  "displayName": "Tapis violet",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_purple"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "blue_wool",
+  "displayName": "Laine bleue",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/blue_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "blue_concrete",
+  "displayName": "Béton bleu",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/blue_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "blue_concrete_powder",
+  "displayName": "Poudre de béton bleue",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/blue_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "blue_glazed_terracotta",
+  "displayName": "Terre cuite émaillée bleue",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/blue_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "blue_stained_glass",
+  "displayName": "Verre bleu",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/blue_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "blue_carpet",
+  "displayName": "Tapis bleu",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_blue"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "brown_wool",
+  "displayName": "Laine marron",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/brown_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "brown_concrete",
+  "displayName": "Béton marron",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/brown_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "brown_concrete_powder",
+  "displayName": "Poudre de béton marron",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/brown_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "brown_glazed_terracotta",
+  "displayName": "Terre cuite émaillée marron",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/brown_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "brown_stained_glass",
+  "displayName": "Verre marron",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/brown_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "brown_carpet",
+  "displayName": "Tapis marron",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_brown"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "green_wool",
+  "displayName": "Laine verte",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/green_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "green_concrete",
+  "displayName": "Béton vert",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/green_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "green_concrete_powder",
+  "displayName": "Poudre de béton verte",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/green_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "green_glazed_terracotta",
+  "displayName": "Terre cuite émaillée verte",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/green_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "green_stained_glass",
+  "displayName": "Verre vert",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/green_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "green_carpet",
+  "displayName": "Tapis vert",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_green"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "red_wool",
+  "displayName": "Laine rouge",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/red_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "red_concrete",
+  "displayName": "Béton rouge",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/red_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "red_concrete_powder",
+  "displayName": "Poudre de béton rouge",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/red_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "red_glazed_terracotta",
+  "displayName": "Terre cuite émaillée rouge",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/red_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "red_stained_glass",
+  "displayName": "Verre rouge",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/red_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "red_carpet",
+  "displayName": "Tapis rouge",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_red"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ },
+ {
+  "id": "black_wool",
+  "displayName": "Laine noire",
+  "tags": [
+   "wool",
+   "fuel"
+  ],
+  "graphics": {
+   "texture": "core:blocks/black_wool"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shears"
+  }
+ },
+ {
+  "id": "black_concrete",
+  "displayName": "Béton noir",
+  "tags": [
+   "concrete"
+  ],
+  "graphics": {
+   "texture": "core:blocks/black_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "black_concrete_powder",
+  "displayName": "Poudre de béton noire",
+  "tags": [
+   "concrete_powder"
+  ],
+  "graphics": {
+   "texture": "core:blocks/black_concrete_powder"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "simulation": {
+   "falling": {
+    "enabled": true
+   }
+  }
+ },
+ {
+  "id": "black_glazed_terracotta",
+  "displayName": "Terre cuite émaillée noire",
+  "tags": [
+   "terracotta"
+  ],
+  "graphics": {
+   "texture": "core:blocks/black_glazed_terracotta"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "black_stained_glass",
+  "displayName": "Verre noir",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:blocks/black_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": ""
+  }
+ },
+ {
+  "id": "black_carpet",
+  "displayName": "Tapis noir",
+  "tags": [
+   "carpet"
+  ],
+  "shape": "nodebox",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.4375,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:blocks/carpet_black"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.1
+  }
+ }
+]

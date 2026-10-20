@@ -1,0 +1,943 @@
+// Monstres : comportements dans scripts/creatures.script.
+[
+ {
+  "type": "creature",
+  "id": "zombie",
+  "displayName": "Zombie",
+  "tags": [
+   "monster",
+   "undead",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 20,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 24,
+    "speed": 2.3,
+    "damage": 3
+   },
+   "core:burn_in_daylight",
+   "wander",
+   "float"
+  ],
+  "rig": {
+   "model": "core:zombie",
+   "skins": [
+    "core:entities/zombie/zombie",
+    "core:mobs/zombie/zombie2",
+    "core:mobs/zombie/zombie3",
+    "core:mobs/zombie/zombie4",
+    "core:mobs/zombie/zombie5",
+    "core:mobs/zombie/zombie6"
+   ]
+  },
+  "sounds": {
+   "idle": "core:zombie_idle",
+   "hurt": "core:zombie_hurt",
+   "death": "core:zombie_death"
+  },
+  "drops": [
+   [
+    "core:rotten_flesh",
+    2
+   ]
+  ],
+  "spawn": {
+   "chance": 0.012,
+   "max": 6,
+   "night": true
+  },
+  "xp": 5
+ },
+ {
+  "type": "creature",
+  "id": "husk",
+  "displayName": "Momie",
+  "tags": [
+   "monster",
+   "undead",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 20,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 24,
+    "speed": 2.3,
+    "damage": 3,
+    "effect": "hunger"
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:zombie",
+   "skins": [
+    "core:entities/zombie/husk"
+   ]
+  },
+  "sounds": {
+   "idle": "core:zombie_idle",
+   "hurt": "core:zombie_hurt"
+  },
+  "drops": [
+   [
+    "core:rotten_flesh",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:desert",
+    "core:badlands"
+   ],
+   "chance": 0.012,
+   "max": 4,
+   "night": true
+  },
+  "xp": 5
+ },
+ {
+  "type": "creature",
+  "id": "drowned",
+  "displayName": "Noyé",
+  "tags": [
+   "monster",
+   "undead",
+   "hostile",
+   "aquatic"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7,
+   "swims": true
+  },
+  "health": 20,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 20,
+    "speed": 2.2,
+    "damage": 3
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:zombie",
+   "skins": [
+    "core:entities/zombie/drowned^entities/zombie/drowned_outer_layer.png"
+   ]
+  },
+  "sounds": {
+   "idle": "core:zombie_idle",
+   "hurt": "core:zombie_hurt"
+  },
+  "drops": [
+   [
+    "core:rotten_flesh",
+    1
+   ],
+   [
+    "core:nautilus_shell",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:swamp",
+    "core:beach",
+    "core:mangrove_swamp"
+   ],
+   "chance": 0.006,
+   "max": 3,
+   "night": true
+  },
+  "xp": 5
+ },
+ {
+  "type": "creature",
+  "id": "zombie_villager",
+  "displayName": "Villageois zombie",
+  "tags": [
+   "monster",
+   "undead",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 20,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 20,
+    "speed": 2.2,
+    "damage": 3
+   },
+   "core:burn_in_daylight",
+   "wander"
+  ],
+  "rig": {
+   "model": "core:zombie_villager",
+   "skins": [
+    "core:entities/zombie_villager/zombie_villager",
+    "core:entities/zombie_villager/zombie_farmer",
+    "core:entities/zombie_villager/zombie_librarian",
+    "core:entities/zombie_villager/zombie_smith"
+   ]
+  },
+  "sounds": {
+   "idle": "core:zombie_idle",
+   "hurt": "core:zombie_hurt"
+  },
+  "drops": [
+   [
+    "core:rotten_flesh",
+    1
+   ],
+   [
+    "core:emerald",
+    1
+   ]
+  ],
+  "spawn": {
+   "chance": 0.003,
+   "max": 2,
+   "night": true
+  },
+  "xp": 6
+ },
+ {
+  "type": "creature",
+  "id": "skeleton",
+  "displayName": "Squelette",
+  "tags": [
+   "monster",
+   "undead",
+   "hostile",
+   "ranged"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 16,
+  "behaviors": [
+   {
+    "id": "core:keep_distance",
+    "range": 16,
+    "distance": 7,
+    "speed": 2.2
+   },
+   {
+    "id": "core:shoot",
+    "range": 16,
+    "interval": 2.2,
+    "damage": 3,
+    "speed": 16
+   },
+   "core:burn_in_daylight",
+   "wander"
+  ],
+  "rig": {
+   "model": "core:skeleton_archer",
+   "skins": [
+    "core:entities/skeleton/skeleton"
+   ]
+  },
+  "sounds": {
+   "idle": "core:skeleton_idle",
+   "hurt": "core:skeleton_hurt",
+   "death": "core:skeleton_death"
+  },
+  "drops": [
+   [
+    "core:bone",
+    2
+   ],
+   [
+    "core:arrow",
+    2
+   ]
+  ],
+  "spawn": {
+   "chance": 0.009,
+   "max": 4,
+   "night": true
+  },
+  "xp": 5
+ },
+ {
+  "type": "creature",
+  "id": "stray",
+  "displayName": "Vagabond",
+  "tags": [
+   "monster",
+   "undead",
+   "hostile",
+   "ranged"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 16,
+  "behaviors": [
+   {
+    "id": "core:keep_distance",
+    "range": 16,
+    "distance": 7,
+    "speed": 2.2
+   },
+   {
+    "id": "core:shoot",
+    "range": 16,
+    "interval": 2.4,
+    "damage": 2,
+    "speed": 16,
+    "effect": "slowness"
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:skeleton_archer",
+   "skins": [
+    "core:entities/skeleton/stray^entities/skeleton/stray_overlay.png"
+   ]
+  },
+  "sounds": {
+   "idle": "core:skeleton_idle",
+   "hurt": "core:skeleton_hurt"
+  },
+  "drops": [
+   [
+    "core:bone",
+    2
+   ],
+   [
+    "core:arrow",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:tundra",
+    "core:ice_spikes",
+    "core:snowy_taiga"
+   ],
+   "chance": 0.008,
+   "max": 3,
+   "night": true
+  },
+  "xp": 5
+ },
+ {
+  "type": "creature",
+  "id": "wither_skeleton",
+  "displayName": "Squelette Wither",
+  "tags": [
+   "monster",
+   "undead",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.7,
+   "y": 2.4,
+   "z": 0.7
+  },
+  "physics": {
+   "collider": [
+    0.7,
+    2.4,
+    0.7
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 24,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 18,
+    "speed": 2.4,
+    "damage": 5,
+    "effect": "poison"
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:skeleton",
+   "skins": [
+    "core:entities/skeleton/wither_skeleton"
+   ],
+   "scale": 1.2
+  },
+  "sounds": {
+   "idle": "core:skeleton_idle",
+   "hurt": "core:skeleton_hurt"
+  },
+  "drops": [
+   [
+    "core:bone",
+    3
+   ],
+   [
+    "core:coal",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:volcanic"
+   ],
+   "chance": 0.01,
+   "max": 3
+  },
+  "xp": 8
+ },
+ {
+  "type": "creature",
+  "id": "creeper",
+  "displayName": "Creeper",
+  "tags": [
+   "monster",
+   "hostile",
+   "explosive"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.7,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 20,
+  "behaviors": [
+   {
+    "id": "core:creeper",
+    "range": 12,
+    "fuseTime": 1.5,
+    "radius": 3,
+    "speed": 2.0
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:creeper",
+   "skins": [
+    "core:entities/creeper/creeper",
+    "core:mobs/creeper/creeper2",
+    "core:mobs/creeper/creeper3",
+    "core:mobs/creeper/creeper4",
+    "core:mobs/creeper/creeper5",
+    "core:mobs/creeper/creeper6"
+   ]
+  },
+  "sounds": {
+   "idle": "core:creeper_idle",
+   "hurt": "core:creeper_hurt"
+  },
+  "drops": [
+   [
+    "core:gunpowder",
+    2
+   ]
+  ],
+  "spawn": {
+   "chance": 0.007,
+   "max": 3,
+   "night": true
+  },
+  "xp": 5
+ },
+ {
+  "type": "creature",
+  "id": "spider",
+  "displayName": "Araignée",
+  "tags": [
+   "monster",
+   "hostile",
+   "arthropod"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 1.4,
+   "y": 0.9,
+   "z": 1.4
+  },
+  "physics": {
+   "collider": [
+    1.4,
+    0.9,
+    1.4
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 16,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 16,
+    "speed": 3.0,
+    "damage": 2,
+    "nightOnly": true
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:spider",
+   "skins": [
+    "core:entities/spider/spider"
+   ]
+  },
+  "sounds": {
+   "idle": "core:spider_idle",
+   "hurt": "core:spider_hurt"
+  },
+  "drops": [
+   [
+    "core:string",
+    2
+   ],
+   [
+    "core:spider_eye",
+    1
+   ]
+  ],
+  "spawn": {
+   "chance": 0.008,
+   "max": 4,
+   "night": true
+  },
+  "xp": 5
+ },
+ {
+  "type": "creature",
+  "id": "cave_spider",
+  "displayName": "Araignée venimeuse",
+  "tags": [
+   "monster",
+   "hostile",
+   "arthropod"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.7,
+   "y": 0.5,
+   "z": 0.7
+  },
+  "physics": {
+   "collider": [
+    0.7,
+    0.5,
+    0.7
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 12,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 12,
+    "speed": 3.2,
+    "damage": 2,
+    "effect": "poison"
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:spider",
+   "skins": [
+    "core:entities/spider/cave_spider"
+   ],
+   "scale": 0.7
+  },
+  "sounds": {
+   "idle": "core:spider_idle",
+   "hurt": "core:spider_hurt"
+  },
+  "drops": [
+   [
+    "core:string",
+    1
+   ]
+  ],
+  "spawn": {
+   "chance": 0.006,
+   "max": 4,
+   "underground": true
+  },
+  "xp": 5
+ },
+ {
+  "type": "creature",
+  "id": "enderman",
+  "displayName": "Enderman",
+  "tags": [
+   "monster",
+   "neutral"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 2.9,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    2.9,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 40,
+  "behaviors": [
+   "wander",
+   {
+    "id": "core:chase",
+    "range": 16,
+    "speed": 3.4,
+    "damage": 7,
+    "onlyProvoked": true
+   },
+   "core:teleport_when_hurt"
+  ],
+  "rig": {
+   "model": "core:enderman",
+   "skins": [
+    "core:entities/enderman/enderman"
+   ]
+  },
+  "sounds": {
+   "idle": "core:enderman_idle",
+   "hurt": "core:enderman_hurt"
+  },
+  "drops": [
+   [
+    "core:ender_pearl",
+    1
+   ]
+  ],
+  "spawn": {
+   "chance": 0.002,
+   "max": 1,
+   "night": true
+  },
+  "xp": 8
+ },
+ {
+  "type": "creature",
+  "id": "slime",
+  "displayName": "Slime",
+  "tags": [
+   "monster",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 1.0,
+   "y": 1.0,
+   "z": 1.0
+  },
+  "physics": {
+   "collider": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 8,
+  "behaviors": [
+   {
+    "id": "hop",
+    "interval": 1.2
+   },
+   {
+    "id": "core:chase",
+    "range": 12,
+    "speed": 2.0,
+    "damage": 2
+   }
+  ],
+  "rig": {
+   "model": "core:slime",
+   "skins": [
+    "core:entities/slime/slime"
+   ],
+   "scale": 2.0
+  },
+  "sounds": {
+   "idle": "core:slime_idle",
+   "hurt": "core:slime_idle"
+  },
+  "drops": [
+   [
+    "core:slime_ball",
+    2
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:swamp",
+    "core:mangrove_swamp"
+   ],
+   "chance": 0.01,
+   "max": 4,
+   "onBlocks": [
+    "core:grass",
+    "core:mud"
+   ]
+  },
+  "xp": 3,
+  "graphics": {
+   "material": "TRANSLUCENT"
+  }
+ },
+ {
+  "type": "creature",
+  "id": "ghost",
+  "displayName": "Spectre",
+  "tags": [
+   "monster",
+   "hostile",
+   "flying",
+   "undead"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.9,
+   "y": 1.2,
+   "z": 0.9
+  },
+  "physics": {
+   "collider": [
+    0.9,
+    1.2,
+    0.9
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7,
+   "gravityScale": 0,
+   "flies": true
+  },
+  "health": 10,
+  "behaviors": [
+   {
+    "id": "core:haunt",
+    "range": 24,
+    "speed": 2.6,
+    "damage": 2
+   }
+  ],
+  "rig": {
+   "model": "core:ghast",
+   "skins": [
+    "core:entities/ghast/ghast"
+   ],
+   "scale": 0.32
+  },
+  "sounds": {
+   "idle": "core:ghost",
+   "hurt": "core:ghost",
+   "death": "core:ghost"
+  },
+  "drops": [
+   [
+    "core:ghost_essence",
+    1
+   ],
+   [
+    "core:ghast_tear",
+    1
+   ]
+  ],
+  "spawn": {
+   "chance": 0.004,
+   "max": 2,
+   "night": true
+  },
+  "xp": 6,
+  "graphics": {
+   "material": "TRANSLUCENT"
+  }
+ },
+ {
+  "type": "creature",
+  "id": "witch",
+  "displayName": "Sorcière",
+  "tags": [
+   "monster",
+   "hostile",
+   "ranged"
+  ],
+  "shape": "cube",
+  "size": {
+   "x": 0.6,
+   "y": 1.95,
+   "z": 0.6
+  },
+  "physics": {
+   "collider": [
+    0.6,
+    1.95,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 26,
+  "behaviors": [
+   {
+    "id": "core:keep_distance",
+    "range": 14,
+    "distance": 6,
+    "speed": 2.0
+   },
+   {
+    "id": "core:throw_potion",
+    "range": 12,
+    "interval": 3.0,
+    "effect": "poison"
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:villager",
+   "skins": [
+    "core:entities/witch"
+   ]
+  },
+  "sounds": {
+   "idle": "core:witch_idle",
+   "hurt": "core:hurt"
+  },
+  "drops": [
+   [
+    "core:glass_bottle",
+    1
+   ],
+   [
+    "core:redstone",
+    2
+   ],
+   [
+    "core:glowstone_dust",
+    1
+   ]
+  ],
+  "spawn": {
+   "biomes": [
+    "core:swamp",
+    "core:dark_forest"
+   ],
+   "chance": 0.002,
+   "max": 1,
+   "night": true
+  },
+  "xp": 8
+ }
+]

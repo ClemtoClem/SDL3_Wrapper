@@ -1,0 +1,870 @@
+// Cultures : stades de croissance (ticks aléatoires sur terre labourée).
+[
+ {
+  "id": "wheat_0",
+  "displayName": "Blé (1/8)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/wheat_stage0",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:wheat_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:wheat_1",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "wheat_1",
+  "displayName": "Blé (2/8)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/wheat_stage1",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:wheat_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:wheat_2",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "wheat_2",
+  "displayName": "Blé (3/8)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/wheat_stage2",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:wheat_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:wheat_3",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "wheat_3",
+  "displayName": "Blé (4/8)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/wheat_stage3",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:wheat_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:wheat_4",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "wheat_4",
+  "displayName": "Blé (5/8)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/wheat_stage4",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:wheat_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:wheat_5",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "wheat_5",
+  "displayName": "Blé (6/8)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/wheat_stage5",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:wheat_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:wheat_6",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "wheat_6",
+  "displayName": "Blé (7/8)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/wheat_stage6",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:wheat_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:wheat_7",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "wheat_7",
+  "displayName": "Blé (8/8)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/wheat_stage7",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:wheat",
+    "count": 2
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  }
+ },
+ {
+  "id": "carrots_0",
+  "displayName": "Carottes (1/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/carrots_stage0",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:carrot",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:carrots_1",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "carrots_1",
+  "displayName": "Carottes (2/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/carrots_stage1",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:carrot",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:carrots_2",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "carrots_2",
+  "displayName": "Carottes (3/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/carrots_stage2",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:carrot",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:carrots_3",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "carrots_3",
+  "displayName": "Carottes (4/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/carrots_stage3",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:carrot",
+    "count": 2
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  }
+ },
+ {
+  "id": "potatoes_0",
+  "displayName": "Pommes de terre (1/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/potatoes_stage0",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:potato",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:potatoes_1",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "potatoes_1",
+  "displayName": "Pommes de terre (2/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/potatoes_stage1",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:potato",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:potatoes_2",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "potatoes_2",
+  "displayName": "Pommes de terre (3/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/potatoes_stage2",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:potato",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:potatoes_3",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "potatoes_3",
+  "displayName": "Pommes de terre (4/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/potatoes_stage3",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:potato",
+    "count": 2
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  }
+ },
+ {
+  "id": "beetroots_0",
+  "displayName": "Betteraves (1/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/beetroots_stage0",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:beetroot_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:beetroots_1",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "beetroots_1",
+  "displayName": "Betteraves (2/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/beetroots_stage1",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:beetroot_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:beetroots_2",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "beetroots_2",
+  "displayName": "Betteraves (3/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/beetroots_stage2",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:beetroot_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:beetroots_3",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "beetroots_3",
+  "displayName": "Betteraves (4/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/beetroots_stage3",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:beetroot",
+    "count": 2
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  }
+ },
+ {
+  "id": "turnips_0",
+  "displayName": "Navets (1/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/turnip_stage_0",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:turnip_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:turnips_1",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "turnips_1",
+  "displayName": "Navets (2/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/turnip_stage_1",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:turnip_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:turnips_2",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "turnips_2",
+  "displayName": "Navets (3/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/turnip_stage_2",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:turnip_seeds",
+    "count": 1
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  },
+  "simulation": {
+   "randomTick": {
+    "chance": 0.25,
+    "replaceWith": "core:turnips_3",
+    "requiresBelow": [
+     "core:farmland"
+    ]
+   }
+  }
+ },
+ {
+  "id": "turnips_3",
+  "displayName": "Navets (4/4)",
+  "tags": [
+   "plant",
+   "crop"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:blocks/turnip_stage_3",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "drops": {
+    "item": "core:turnip",
+    "count": 2
+   }
+  },
+  "physics": {
+   "solid": false
+  },
+  "placement": {
+   "on": [
+    "core:farmland"
+   ]
+  }
+ }
+]

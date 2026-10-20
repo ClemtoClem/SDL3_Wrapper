@@ -1,0 +1,123 @@
+// Modèles .obj des animaux (texture : image du même nom à côté du fichier).
+[
+ {
+  "type": "model",
+  "id": "animal_axolotl",
+  "format": "obj",
+  "path": "textures/animals/axolotl/axolotl.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_bear",
+  "format": "obj",
+  "path": "textures/animals/bear/bear.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_bunny",
+  "format": "obj",
+  "path": "textures/animals/bunny/bunny.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_cat",
+  "format": "obj",
+  "path": "textures/animals/cat/cat.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_crocodile",
+  "format": "obj",
+  "path": "textures/animals/crocodile/crocodile.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_dog",
+  "format": "obj",
+  "path": "textures/animals/dog/dog.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_elephant",
+  "format": "obj",
+  "path": "textures/animals/elephant/elephant.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_fox",
+  "format": "obj",
+  "path": "textures/animals/fox/fox.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_frog",
+  "format": "obj",
+  "path": "textures/animals/frog/frog.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_mole",
+  "format": "obj",
+  "path": "textures/animals/mole/mole.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_monkey",
+  "format": "obj",
+  "path": "textures/animals/monkey/monkey.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_mouse",
+  "format": "obj",
+  "path": "textures/animals/mouse/mouse.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_panda",
+  "format": "obj",
+  "path": "textures/animals/panda/panda.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_parrot",
+  "format": "obj",
+  "path": "textures/animals/parrot/parrot.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_penguin",
+  "format": "obj",
+  "path": "textures/animals/penguin/penguin.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_piglet",
+  "format": "obj",
+  "path": "textures/animals/piglet/piglet.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_turtle",
+  "format": "obj",
+  "path": "textures/animals/turtle/turtle.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_unicorn",
+  "format": "obj",
+  "path": "textures/animals/unicorn/unicorn.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_obj_cow",
+  "format": "obj",
+  "path": "textures/animals/cow/cow.obj"
+ },
+ {
+  "type": "model",
+  "id": "animal_obj_chicken",
+  "format": "obj",
+  "path": "textures/animals/chicken/chicken.obj"
+ }
+]

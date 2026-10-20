@@ -1,0 +1,169 @@
+// Générateurs de terrain : « noise » (biomes + bruit), « flat », « script ».
+[
+ {
+  "type": "generator",
+  "id": "overworld",
+  "kind": "noise",
+  "seaLevel": 62,
+  "fluid": "water",
+  "bedrock": "bedrock",
+  "bedrockLevel": -30,
+  "frequency": 0.006,
+  "octaves": 5,
+  "caves": 0.6,
+  "ores": [
+   {
+    "block": "coal_ore",
+    "in": "stone",
+    "chance": 0.012,
+    "maxY": 90
+   },
+   {
+    "block": "iron_ore",
+    "in": "stone",
+    "chance": 0.007,
+    "maxY": 60
+   },
+   {
+    "block": "gold_ore",
+    "in": "stone",
+    "chance": 0.003,
+    "maxY": 32
+   },
+   {
+    "block": "redstone_ore",
+    "in": "stone",
+    "chance": 0.004,
+    "maxY": 20
+   },
+   {
+    "block": "lapis_ore",
+    "in": "stone",
+    "chance": 0.003,
+    "maxY": 30
+   },
+   {
+    "block": "diamond_ore",
+    "in": "stone",
+    "chance": 0.0012,
+    "maxY": 16
+   },
+   {
+    "block": "emerald_ore",
+    "in": "stone",
+    "chance": 0.0008,
+    "maxY": 40
+   },
+   {
+    "block": "amethyst_ore",
+    "in": "stone",
+    "chance": 0.0015,
+    "maxY": 40
+   },
+   {
+    "block": "ruby_ore",
+    "in": "stone",
+    "chance": 0.0012,
+    "maxY": 30
+   },
+   {
+    "block": "sapphire_ore",
+    "in": "stone",
+    "chance": 0.0012,
+    "maxY": 30
+   },
+   {
+    "block": "topaz_ore",
+    "in": "stone",
+    "chance": 0.0012,
+    "maxY": 35
+   },
+   {
+    "block": "amber_ore",
+    "in": "stone",
+    "chance": 0.0015,
+    "maxY": 50
+   },
+   {
+    "block": "peridot_ore",
+    "in": "stone",
+    "chance": 0.0012,
+    "maxY": 35
+   },
+   {
+    "block": "tanzanite_ore",
+    "in": "stone",
+    "chance": 0.0008,
+    "maxY": 20
+   },
+   {
+    "block": "malachite_ore",
+    "in": "stone",
+    "chance": 0.0015,
+    "maxY": 45
+   },
+   {
+    "block": "gravel",
+    "in": "stone",
+    "chance": 0.004,
+    "maxY": 200
+   },
+   {
+    "block": "clay",
+    "in": "stone",
+    "chance": 0.002,
+    "maxY": 70
+   },
+   {
+    "block": "granite",
+    "in": "stone",
+    "chance": 0.004,
+    "maxY": 90
+   },
+   {
+    "block": "diorite",
+    "in": "stone",
+    "chance": 0.004,
+    "maxY": 90
+   },
+   {
+    "block": "andesite",
+    "in": "stone",
+    "chance": 0.004,
+    "maxY": 90
+   },
+   {
+    "block": "lava",
+    "in": "stone",
+    "chance": 0.0008,
+    "maxY": 30
+   }
+  ]
+ },
+ {
+  "type": "generator",
+  "id": "flat",
+  "kind": "flat",
+  "layers": [
+   [
+    "bedrock",
+    1
+   ],
+   [
+    "stone",
+    8
+   ],
+   [
+    "dirt",
+    3
+   ],
+   [
+    "grass",
+    1
+   ]
+  ],
+  "biomes": [
+   "plains"
+  ]
+ }
+]

@@ -1,0 +1,134 @@
+# Objets utilisables (« onUse » des définitions) et outils agricoles.
+
+fn eye(player) {
+    let p = entity.pos(player)
+    return {x: p.x, y: p.y + 1.62, z: p.z}
+}
+
+fn aim(player, reach) {
+    let o = eye(player)
+    let f = entity.forward(player)
+    return world.raycast(o.x, o.y, o.z, f.x, f.y, f.z, reach)
+}
+
+fn creative() { return game.mode() == "creative" }
+
+# Arc : tire une flèche (consomme une flèche hors mode créatif).
+fn use_bow(player, item) {
+    if (not creative()) {
+        if (entity.count(player, "core:arrow") < 1) {
+            game.say("Il te faut des flèches.")
+            return nil
+        }
+        entity.take(player, "core:arrow", 1)
+    }
+    let o = eye(player)
+    let f = entity.forward(player)
+    let arrow = world.spawn("core:arrow_projectile", o.x + f.x, o.y + f.y, o.z + f.z)
+    if (arrow == nil) { return nil }
+    entity.set_velocity(arrow, f.x * 28, f.y * 28 + 1, f.z * 28)
+    entity.look(arrow, math.atan2(f.x, f.z))
+    entity.set_prop(arrow, "owner", player)
+    entity.set_prop(arrow, "damage", 6)
+    entity.set_prop(arrow, "age", 0)
+    game.sound("bow", o.x, o.y, o.z)
+}
+
+# Briquet : allume la TNT visée, ou un feu de camp (citrouille-lanterne).
+fn use_flint_and_steel(player, item) {
+    let hit = aim(player, 5)
+    if (hit == nil) { return nil }
+    if (hit.block == "core:tnt") {
+        ignite_tnt(hit.x, hit.y, hit.z)
+        return nil
+    }
+    if (hit.block == "core:carved_pumpkin") { world.set(hit.x, hit.y, hit.z, "core:jack_o_lantern") }
+    game.sound("cook", hit.x, hit.y, hit.z)
+}
+
+# Canne à pêche : face à l'eau, un poisson après une courte attente.
+let fishing = []
+fn use_fishing_rod(player, item) {
+    let hit = aim(player, 12)
+    if (hit == nil or (hit.block != "core:water" and hit.block != "core:hot_spring_water")) {
+        game.say("Vise l'eau pour pêcher.")
+        return nil
+    }
+    game.sound("splash", hit.x, hit.y, hit.z)
+    push(fishing, {player: player, t: 2 + math.random() * 4})
+    game.say("La ligne est à l'eau…")
+}
+voxel.system("fishing", fn(dt) {
+    let still = []
+    for (f in fishing) {
+        f.t -= dt
+        if (f.t > 0) { push(still, f); continue }
+        if (not entity.exists(f.player)) { continue }
+        let r = math.random()
+        let catch = "core:cod"
+        if (r > 0.6) { catch = "core:salmon" }
+        if (r > 0.88) { catch = "core:tropical_fish" }
+        if (r > 0.96) { catch = "core:nautilus_shell" }
+        entity.give(f.player, catch, 1)
+        entity.add_xp(f.player, 2)
+        game.say("Ça mord ! " .. catch)
+    }
+    fishing = still
+})
+
+fn use_xp_bottle(player, item) {
+    entity.take(player, "core:experience_bottle", 1)
+    entity.add_xp(player, 8 + math.floor(math.random() * 8))
+}
+
+fn use_knowledge_book(player, item) {
+    entity.take(player, "core:book_of_knowledge", 1)
+    entity.add_xp(player, 40)
+    game.say("Tu as appris de nouvelles recettes.")
+}
+
+# Graine magique : fait pousser un arbre fabuleux là où l'on vise.
+fn use_magic_seed(player, item) {
+    let hit = aim(player, 8)
+    if (hit == nil) { return nil }
+    let trees = ["magic_tree", "ethereal_tree", "sacred_oak_tree", "jacaranda_tree", "flowering_tree"]
+    let tree = trees[math.floor(math.random() * len(trees))]
+    world.structure(tree, hit.x, hit.y + 1, hit.z)
+    if (not creative()) { entity.take(player, "core:magic_seed", 1) }
+    game.sound("teleport", hit.x, hit.y, hit.z)
+}
+
+# Baguette magique : fait pousser un arbre où l'on vise (portée 30).
+fn use_magic_wand(player, item) {
+    let hit = aim(player, 30)
+    if (hit == nil) { return nil }
+    world.structure("oak_tree", hit.x, hit.y + 1, hit.z)
+    game.sound("teleport", hit.x, hit.y, hit.z)
+}
+
+# Clic droit sur un bloc avec une houe ou de la poudre d'os.
+voxel.on("block_use", fn(x, y, z, block, actor) {
+    let held = entity.held(actor)
+    if (held == nil) { return true }
+    if (ends_with(held, "_hoe") and (block == "core:grass" or block == "core:dirt" or block == "core:grass_path"
+                                    or block == "core:coarse_dirt" or block == "core:podzol")) {
+        if (world.get(x, y + 1, z) != "core:air") { return true }
+        world.set(x, y, z, "core:farmland")
+        game.sound("gravel_place", x + 0.5, y + 1, z + 0.5)
+        return false
+    }
+    if (held == "core:bone_meal") {
+        let def = content.get("block", block)
+        if (def == nil or def.simulation == nil or def.simulation.randomTick == nil) { return true }
+        let tick = def.simulation.randomTick
+        if (tick.replaceWith != nil) { world.set(x, y, z, tick.replaceWith) }
+        if (tick.structure != nil) {
+            world.set(x, y, z, "core:air")
+            world.structure(tick.structure, x, y, z)
+        }
+        if (not creative()) { entity.take(actor, "core:bone_meal", 1) }
+        game.sound("leaves_place", x + 0.5, y + 0.5, z + 0.5)
+        return false
+    }
+    return true
+})

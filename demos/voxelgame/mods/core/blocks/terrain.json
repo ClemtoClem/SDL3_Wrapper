@@ -1,0 +1,318 @@
+[
+	{
+		"schemaVersion": 1,
+		"id": "core:grass",
+		"type": "block",
+		"size": {
+			"x": 1,
+			"y": 1,
+			"z": 1
+		},
+		"displayName": "Grass",
+		"tags": [
+			"terrain"
+		],
+		"graphics": {
+			"textures": {
+				"top": "core:grass_top",
+				"bottom": "core:dirt",
+				"side": "core:grass_side"
+			},
+			"material": "OPAQUE"
+		},
+		"physics": {
+			"solid": true,
+			"collision": {
+				"shape": "FULL_CUBE"
+			},
+			"surface": {
+				"slipperiness": 0
+			}
+		},
+		"gameplay": {
+			"hardness": 1.5,
+			"tool": "shovel",
+			"drops": "core:dirt"
+		},
+		"sounds": {
+			"step": "core:step",
+			"break": "core:break",
+			"place": "core:place"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:water",
+		"type": "block",
+		"size": {
+			"x": 1,
+			"y": 1,
+			"z": 1
+		},
+		"displayName": "Water",
+		"tags": [
+			"fluid"
+		],
+		"graphics": {
+			"texture": "core:water",
+			"material": "TRANSPARENT",
+			"backface_culling": false,
+			"tint": [255, 255, 255, 175]
+		},
+		"physics": {
+			"solid": false,
+			"collision": {
+				"shape": "FULL_CUBE"
+			},
+			"surface": {
+				"slipperiness": 0.05
+			}
+		},
+		"gameplay": {
+			"hardness": 100
+		},
+		"sounds": {
+			"step": "core:water"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:sand",
+		"type": "block",
+		"size": {
+			"x": 1,
+			"y": 1,
+			"z": 1
+		},
+		"displayName": "Sand",
+		"tags": [
+			"terrain",
+			"granular"
+		],
+		"graphics": {
+			"texture": "core:sand",
+			"material": "OPAQUE"
+		},
+		"physics": {
+			"solid": true,
+			"collision": {
+				"shape": "FULL_CUBE"
+			},
+			"surface": {
+				"slipperiness": 0.05,
+				"walkable": true
+			},
+			"structural": {
+				"requiresSupport": false,
+				"supportStrength": 0
+			}
+		},
+		"simulation": {
+			"falling": {
+				"enabled": true,
+				"behavior": "FALL_AS_BLOCK"
+			}
+		},
+		"gameplay": {
+			"hardness": 0.6,
+			"tool": "shovel"
+		},
+		"sounds": {
+			"step": "core:step_sand",
+			"break": "core:break",
+			"place": "core:place"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:ice",
+		"type": "block",
+		"size": {
+			"x": 1,
+			"y": 1,
+			"z": 1
+		},
+		"displayName": "Ice",
+		"tags": [
+			"terrain",
+			"cold"
+		],
+		"graphics": {
+			"texture": "core:ice",
+			"material": "TRANSLUCENT",
+			"backface_culling": false
+		},
+		"physics": {
+			"solid": true,
+			"collision": {
+				"shape": "FULL_CUBE"
+			},
+			"surface": {
+				"slipperiness": 0.95,
+				"walkable": true
+			}
+		},
+		"gameplay": {
+			"hardness": 0.5,
+			"tool": "pickaxe"
+		},
+		"sounds": {
+			"break": "core:glass_break"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:dirt",
+		"sounds": "core:dirt",
+		"displayName": "Terre",
+		"tags": [
+			"terrain"
+		],
+		"graphics": {
+			"texture": "core:dirt"
+		},
+		"gameplay": {
+			"hardness": 0.9,
+			"tool": "shovel"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:stone",
+		"sounds": "core:stone",
+		"displayName": "Pierre",
+		"tags": [
+			"stone"
+		],
+		"graphics": {
+			"texture": "core:stone"
+		},
+		"gameplay": {
+			"hardness": 3,
+			"tool": "pickaxe",
+			"drops": "core:cobble"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:cobble",
+		"sounds": "core:stone",
+		"displayName": "Pierre taillée",
+		"tags": [
+			"stone"
+		],
+		"graphics": {
+			"texture": "core:cobble"
+		},
+		"gameplay": {
+			"hardness": 3,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:gravel",
+		"sounds": "core:gravel",
+		"displayName": "Gravier",
+		"tags": [
+			"terrain",
+			"granular"
+		],
+		"graphics": {
+			"texture": "core:gravel"
+		},
+		"simulation": {
+			"falling": {
+				"enabled": true
+			}
+		},
+		"gameplay": {
+			"hardness": 0.8,
+			"tool": "shovel"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:snow",
+		"sounds": "core:snow",
+		"displayName": "Neige",
+		"tags": [
+			"terrain",
+			"cold"
+		],
+		"graphics": {
+			"texture": "core:snow"
+		},
+		"gameplay": {
+			"hardness": 0.4,
+			"tool": "shovel"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:bedrock",
+		"sounds": "core:stone",
+		"displayName": "Socle",
+		"graphics": {
+			"texture": "core:bedrock"
+		},
+		"gameplay": {
+			"hardness": -1
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:coal_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de charbon",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:coal_ore"
+		},
+		"gameplay": {
+			"hardness": 3,
+			"tool": "pickaxe",
+			"drops": "core:coal"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:iron_ore",
+		"sounds": "core:stone",
+		"displayName": "Minerai de fer",
+		"tags": [
+			"ore"
+		],
+		"graphics": {
+			"texture": "core:iron_ore"
+		},
+		"gameplay": {
+			"hardness": 4,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:lava",
+		"sounds": "core:lava",
+		"displayName": "Lave",
+		"tags": [
+			"fluid",
+			"hot"
+		],
+		"graphics": {
+			"texture": "core:lava",
+			"light": 15
+		},
+		"physics": {
+			"solid": false,
+			"viscosity": 0.85
+		},
+		"gameplay": {
+			"hardness": 100,
+			"damagePerSecond": 6
+		}
+	}
+]

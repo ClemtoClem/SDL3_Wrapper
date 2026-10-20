@@ -1,0 +1,27 @@
+[module]
+name = "physics"
+layer = "infrastructure"
+version = "0.1.0"
+description = "Physique rigide 3D sur l'ECS : formes, phase large/étroite, solveur, articulations, portails"
+type = "static"              # executable | static | shared | header-only
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]      # propagé aux modules dépendants
+private = ["src"]
+
+[dependencies]
+modules = ["core", "math", "ecs", "jobs"]
+pkg_config = []
+system = []
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = []
+
+[tests]
+dirs = ["tests"]

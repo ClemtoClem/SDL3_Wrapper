@@ -1,0 +1,12 @@
+[module]
+name = "audio_signal_generator"
+layer = "application"
+version = "0.1.0"
+description = "Générateur de signaux : 4 oscillateurs paramétrables (audio::dsp)"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["audio", "core", "sdl3", "ui"]

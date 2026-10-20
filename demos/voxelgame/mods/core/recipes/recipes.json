@@ -1,0 +1,4406 @@
+// Recettes : « category » (interface), « station » (atelier requis), « requiresLevel ».
+[
+ {
+  "type": "recipe",
+  "id": "planks_from_oak_log",
+  "category": "building",
+  "ingredients": [
+   "oak_log"
+  ],
+  "result": {
+   "item": "planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "planks_from_stripped_oak_log",
+  "category": "building",
+  "ingredients": [
+   "stripped_oak_log"
+  ],
+  "result": {
+   "item": "planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_planks_from_birch_log",
+  "category": "building",
+  "ingredients": [
+   "birch_log"
+  ],
+  "result": {
+   "item": "birch_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_planks_from_stripped_birch_log",
+  "category": "building",
+  "ingredients": [
+   "stripped_birch_log"
+  ],
+  "result": {
+   "item": "birch_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_planks_from_spruce_log",
+  "category": "building",
+  "ingredients": [
+   "spruce_log"
+  ],
+  "result": {
+   "item": "spruce_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_planks_from_stripped_spruce_log",
+  "category": "building",
+  "ingredients": [
+   "stripped_spruce_log"
+  ],
+  "result": {
+   "item": "spruce_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_planks_from_jungle_log",
+  "category": "building",
+  "ingredients": [
+   "jungle_log"
+  ],
+  "result": {
+   "item": "jungle_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_planks_from_stripped_jungle_log",
+  "category": "building",
+  "ingredients": [
+   "stripped_jungle_log"
+  ],
+  "result": {
+   "item": "jungle_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_planks_from_acacia_log",
+  "category": "building",
+  "ingredients": [
+   "acacia_log"
+  ],
+  "result": {
+   "item": "acacia_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_planks_from_stripped_acacia_log",
+  "category": "building",
+  "ingredients": [
+   "stripped_acacia_log"
+  ],
+  "result": {
+   "item": "acacia_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_planks_from_dark_oak_log",
+  "category": "building",
+  "ingredients": [
+   "dark_oak_log"
+  ],
+  "result": {
+   "item": "dark_oak_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_planks_from_stripped_dark_oak_log",
+  "category": "building",
+  "ingredients": [
+   "stripped_dark_oak_log"
+  ],
+  "result": {
+   "item": "dark_oak_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cherry_planks_from_cherry_log",
+  "category": "building",
+  "ingredients": [
+   "cherry_log"
+  ],
+  "result": {
+   "item": "cherry_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "ebony_planks_from_ebony_log",
+  "category": "building",
+  "ingredients": [
+   "ebony_log"
+  ],
+  "result": {
+   "item": "ebony_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "ethereal_planks_from_ethereal_log",
+  "category": "building",
+  "ingredients": [
+   "ethereal_log"
+  ],
+  "result": {
+   "item": "ethereal_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "eucalyptus_planks_from_eucalyptus_log",
+  "category": "building",
+  "ingredients": [
+   "eucalyptus_log"
+  ],
+  "result": {
+   "item": "eucalyptus_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "fir_planks_from_fir_log",
+  "category": "building",
+  "ingredients": [
+   "fir_log"
+  ],
+  "result": {
+   "item": "fir_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "hellbark_planks_from_hellbark_log",
+  "category": "building",
+  "ingredients": [
+   "hellbark_log"
+  ],
+  "result": {
+   "item": "hellbark_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jacaranda_planks_from_jacaranda_log",
+  "category": "building",
+  "ingredients": [
+   "jacaranda_log"
+  ],
+  "result": {
+   "item": "jacaranda_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "magic_planks_from_magic_log",
+  "category": "building",
+  "ingredients": [
+   "magic_log"
+  ],
+  "result": {
+   "item": "magic_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mahogany_planks_from_mahogany_log",
+  "category": "building",
+  "ingredients": [
+   "mahogany_log"
+  ],
+  "result": {
+   "item": "mahogany_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mangrove_planks_from_mangrove_log",
+  "category": "building",
+  "ingredients": [
+   "mangrove_log"
+  ],
+  "result": {
+   "item": "mangrove_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "palm_planks_from_palm_log",
+  "category": "building",
+  "ingredients": [
+   "palm_log"
+  ],
+  "result": {
+   "item": "palm_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "pine_planks_from_pine_log",
+  "category": "building",
+  "ingredients": [
+   "pine_log"
+  ],
+  "result": {
+   "item": "pine_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "redwood_planks_from_redwood_log",
+  "category": "building",
+  "ingredients": [
+   "redwood_log"
+  ],
+  "result": {
+   "item": "redwood_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sacred_oak_planks_from_sacred_oak_log",
+  "category": "building",
+  "ingredients": [
+   "sacred_oak_log"
+  ],
+  "result": {
+   "item": "sacred_oak_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "umbran_planks_from_umbran_log",
+  "category": "building",
+  "ingredients": [
+   "umbran_log"
+  ],
+  "result": {
+   "item": "umbran_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "willow_planks_from_willow_log",
+  "category": "building",
+  "ingredients": [
+   "willow_log"
+  ],
+  "result": {
+   "item": "willow_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "planks_from_dead_log",
+  "category": "building",
+  "ingredients": [
+   "dead_log"
+  ],
+  "result": {
+   "item": "planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sticks",
+  "category": "materials",
+  "pattern": [
+   "P",
+   "P"
+  ],
+  "key": {
+   "P": "#planks"
+  },
+  "result": {
+   "item": "stick",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "crafting_table",
+  "category": "stations",
+  "pattern": [
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "#planks"
+  },
+  "result": "crafting_table"
+ },
+ {
+  "type": "recipe",
+  "id": "furnace",
+  "category": "stations",
+  "pattern": [
+   "CCC",
+   "C C",
+   "CCC"
+  ],
+  "key": {
+   "C": "cobble"
+  },
+  "result": "furnace"
+ },
+ {
+  "type": "recipe",
+  "id": "enchanting_table",
+  "category": "stations",
+  "pattern": [
+   " B ",
+   "DOD",
+   "OOO"
+  ],
+  "key": {
+   "B": "book",
+   "D": "diamond",
+   "O": "obsidian"
+  },
+  "result": "enchanting_table",
+  "requiresLevel": 10
+ },
+ {
+  "type": "recipe",
+  "id": "wooden_pickaxe",
+  "category": "tools",
+  "pattern": [
+   "MMM",
+   " S ",
+   " S "
+  ],
+  "key": {
+   "M": "#planks",
+   "S": "stick"
+  },
+  "result": "wooden_pickaxe"
+ },
+ {
+  "type": "recipe",
+  "id": "wooden_axe",
+  "category": "tools",
+  "pattern": [
+   "MM",
+   "MS",
+   " S"
+  ],
+  "key": {
+   "M": "#planks",
+   "S": "stick"
+  },
+  "result": "wooden_axe"
+ },
+ {
+  "type": "recipe",
+  "id": "wooden_shovel",
+  "category": "tools",
+  "pattern": [
+   "M",
+   "S",
+   "S"
+  ],
+  "key": {
+   "M": "#planks",
+   "S": "stick"
+  },
+  "result": "wooden_shovel"
+ },
+ {
+  "type": "recipe",
+  "id": "wooden_hoe",
+  "category": "tools",
+  "pattern": [
+   "MM",
+   " S",
+   " S"
+  ],
+  "key": {
+   "M": "#planks",
+   "S": "stick"
+  },
+  "result": "wooden_hoe"
+ },
+ {
+  "type": "recipe",
+  "id": "wooden_sword",
+  "category": "combat",
+  "pattern": [
+   "M",
+   "M",
+   "S"
+  ],
+  "key": {
+   "M": "#planks",
+   "S": "stick"
+  },
+  "result": "wooden_sword"
+ },
+ {
+  "type": "recipe",
+  "id": "stone_pickaxe",
+  "category": "tools",
+  "pattern": [
+   "MMM",
+   " S ",
+   " S "
+  ],
+  "key": {
+   "M": "cobble",
+   "S": "stick"
+  },
+  "result": "stone_pickaxe"
+ },
+ {
+  "type": "recipe",
+  "id": "stone_axe",
+  "category": "tools",
+  "pattern": [
+   "MM",
+   "MS",
+   " S"
+  ],
+  "key": {
+   "M": "cobble",
+   "S": "stick"
+  },
+  "result": "stone_axe"
+ },
+ {
+  "type": "recipe",
+  "id": "stone_shovel",
+  "category": "tools",
+  "pattern": [
+   "M",
+   "S",
+   "S"
+  ],
+  "key": {
+   "M": "cobble",
+   "S": "stick"
+  },
+  "result": "stone_shovel"
+ },
+ {
+  "type": "recipe",
+  "id": "stone_hoe",
+  "category": "tools",
+  "pattern": [
+   "MM",
+   " S",
+   " S"
+  ],
+  "key": {
+   "M": "cobble",
+   "S": "stick"
+  },
+  "result": "stone_hoe"
+ },
+ {
+  "type": "recipe",
+  "id": "stone_sword",
+  "category": "combat",
+  "pattern": [
+   "M",
+   "M",
+   "S"
+  ],
+  "key": {
+   "M": "cobble",
+   "S": "stick"
+  },
+  "result": "stone_sword"
+ },
+ {
+  "type": "recipe",
+  "id": "iron_pickaxe",
+  "category": "tools",
+  "pattern": [
+   "MMM",
+   " S ",
+   " S "
+  ],
+  "key": {
+   "M": "iron_ingot",
+   "S": "stick"
+  },
+  "result": "iron_pickaxe",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "iron_axe",
+  "category": "tools",
+  "pattern": [
+   "MM",
+   "MS",
+   " S"
+  ],
+  "key": {
+   "M": "iron_ingot",
+   "S": "stick"
+  },
+  "result": "iron_axe",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "iron_shovel",
+  "category": "tools",
+  "pattern": [
+   "M",
+   "S",
+   "S"
+  ],
+  "key": {
+   "M": "iron_ingot",
+   "S": "stick"
+  },
+  "result": "iron_shovel",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "iron_hoe",
+  "category": "tools",
+  "pattern": [
+   "MM",
+   " S",
+   " S"
+  ],
+  "key": {
+   "M": "iron_ingot",
+   "S": "stick"
+  },
+  "result": "iron_hoe",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "iron_sword",
+  "category": "combat",
+  "pattern": [
+   "M",
+   "M",
+   "S"
+  ],
+  "key": {
+   "M": "iron_ingot",
+   "S": "stick"
+  },
+  "result": "iron_sword",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "golden_pickaxe",
+  "category": "tools",
+  "pattern": [
+   "MMM",
+   " S ",
+   " S "
+  ],
+  "key": {
+   "M": "gold_ingot",
+   "S": "stick"
+  },
+  "result": "golden_pickaxe",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "golden_axe",
+  "category": "tools",
+  "pattern": [
+   "MM",
+   "MS",
+   " S"
+  ],
+  "key": {
+   "M": "gold_ingot",
+   "S": "stick"
+  },
+  "result": "golden_axe",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "golden_shovel",
+  "category": "tools",
+  "pattern": [
+   "M",
+   "S",
+   "S"
+  ],
+  "key": {
+   "M": "gold_ingot",
+   "S": "stick"
+  },
+  "result": "golden_shovel",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "golden_hoe",
+  "category": "tools",
+  "pattern": [
+   "MM",
+   " S",
+   " S"
+  ],
+  "key": {
+   "M": "gold_ingot",
+   "S": "stick"
+  },
+  "result": "golden_hoe",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "golden_sword",
+  "category": "combat",
+  "pattern": [
+   "M",
+   "M",
+   "S"
+  ],
+  "key": {
+   "M": "gold_ingot",
+   "S": "stick"
+  },
+  "result": "golden_sword",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_pickaxe",
+  "category": "tools",
+  "pattern": [
+   "MMM",
+   " S ",
+   " S "
+  ],
+  "key": {
+   "M": "diamond",
+   "S": "stick"
+  },
+  "result": "diamond_pickaxe",
+  "requiresLevel": 8
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_axe",
+  "category": "tools",
+  "pattern": [
+   "MM",
+   "MS",
+   " S"
+  ],
+  "key": {
+   "M": "diamond",
+   "S": "stick"
+  },
+  "result": "diamond_axe",
+  "requiresLevel": 8
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_shovel",
+  "category": "tools",
+  "pattern": [
+   "M",
+   "S",
+   "S"
+  ],
+  "key": {
+   "M": "diamond",
+   "S": "stick"
+  },
+  "result": "diamond_shovel",
+  "requiresLevel": 8
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_hoe",
+  "category": "tools",
+  "pattern": [
+   "MM",
+   " S",
+   " S"
+  ],
+  "key": {
+   "M": "diamond",
+   "S": "stick"
+  },
+  "result": "diamond_hoe",
+  "requiresLevel": 8
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_sword",
+  "category": "combat",
+  "pattern": [
+   "M",
+   "M",
+   "S"
+  ],
+  "key": {
+   "M": "diamond",
+   "S": "stick"
+  },
+  "result": "diamond_sword",
+  "requiresLevel": 8
+ },
+ {
+  "type": "recipe",
+  "id": "leather_helmet",
+  "category": "combat",
+  "pattern": [
+   "MMM",
+   "M M"
+  ],
+  "key": {
+   "M": "leather"
+  },
+  "result": "leather_helmet"
+ },
+ {
+  "type": "recipe",
+  "id": "leather_chestplate",
+  "category": "combat",
+  "pattern": [
+   "M M",
+   "MMM",
+   "MMM"
+  ],
+  "key": {
+   "M": "leather"
+  },
+  "result": "leather_chestplate"
+ },
+ {
+  "type": "recipe",
+  "id": "leather_leggings",
+  "category": "combat",
+  "pattern": [
+   "MMM",
+   "M M",
+   "M M"
+  ],
+  "key": {
+   "M": "leather"
+  },
+  "result": "leather_leggings"
+ },
+ {
+  "type": "recipe",
+  "id": "leather_boots",
+  "category": "combat",
+  "pattern": [
+   "M M",
+   "M M"
+  ],
+  "key": {
+   "M": "leather"
+  },
+  "result": "leather_boots"
+ },
+ {
+  "type": "recipe",
+  "id": "chainmail_helmet",
+  "category": "combat",
+  "pattern": [
+   "MMM",
+   "M M"
+  ],
+  "key": {
+   "M": "iron_nugget"
+  },
+  "result": "chainmail_helmet",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "chainmail_chestplate",
+  "category": "combat",
+  "pattern": [
+   "M M",
+   "MMM",
+   "MMM"
+  ],
+  "key": {
+   "M": "iron_nugget"
+  },
+  "result": "chainmail_chestplate",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "chainmail_leggings",
+  "category": "combat",
+  "pattern": [
+   "MMM",
+   "M M",
+   "M M"
+  ],
+  "key": {
+   "M": "iron_nugget"
+  },
+  "result": "chainmail_leggings",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "chainmail_boots",
+  "category": "combat",
+  "pattern": [
+   "M M",
+   "M M"
+  ],
+  "key": {
+   "M": "iron_nugget"
+  },
+  "result": "chainmail_boots",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "iron_helmet",
+  "category": "combat",
+  "pattern": [
+   "MMM",
+   "M M"
+  ],
+  "key": {
+   "M": "iron_ingot"
+  },
+  "result": "iron_helmet",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "iron_chestplate",
+  "category": "combat",
+  "pattern": [
+   "M M",
+   "MMM",
+   "MMM"
+  ],
+  "key": {
+   "M": "iron_ingot"
+  },
+  "result": "iron_chestplate",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "iron_leggings",
+  "category": "combat",
+  "pattern": [
+   "MMM",
+   "M M",
+   "M M"
+  ],
+  "key": {
+   "M": "iron_ingot"
+  },
+  "result": "iron_leggings",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "iron_boots",
+  "category": "combat",
+  "pattern": [
+   "M M",
+   "M M"
+  ],
+  "key": {
+   "M": "iron_ingot"
+  },
+  "result": "iron_boots",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "golden_helmet",
+  "category": "combat",
+  "pattern": [
+   "MMM",
+   "M M"
+  ],
+  "key": {
+   "M": "gold_ingot"
+  },
+  "result": "golden_helmet",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "golden_chestplate",
+  "category": "combat",
+  "pattern": [
+   "M M",
+   "MMM",
+   "MMM"
+  ],
+  "key": {
+   "M": "gold_ingot"
+  },
+  "result": "golden_chestplate",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "golden_leggings",
+  "category": "combat",
+  "pattern": [
+   "MMM",
+   "M M",
+   "M M"
+  ],
+  "key": {
+   "M": "gold_ingot"
+  },
+  "result": "golden_leggings",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "golden_boots",
+  "category": "combat",
+  "pattern": [
+   "M M",
+   "M M"
+  ],
+  "key": {
+   "M": "gold_ingot"
+  },
+  "result": "golden_boots",
+  "requiresLevel": 3
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_helmet",
+  "category": "combat",
+  "pattern": [
+   "MMM",
+   "M M"
+  ],
+  "key": {
+   "M": "diamond"
+  },
+  "result": "diamond_helmet",
+  "requiresLevel": 8
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_chestplate",
+  "category": "combat",
+  "pattern": [
+   "M M",
+   "MMM",
+   "MMM"
+  ],
+  "key": {
+   "M": "diamond"
+  },
+  "result": "diamond_chestplate",
+  "requiresLevel": 8
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_leggings",
+  "category": "combat",
+  "pattern": [
+   "MMM",
+   "M M",
+   "M M"
+  ],
+  "key": {
+   "M": "diamond"
+  },
+  "result": "diamond_leggings",
+  "requiresLevel": 8
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_boots",
+  "category": "combat",
+  "pattern": [
+   "M M",
+   "M M"
+  ],
+  "key": {
+   "M": "diamond"
+  },
+  "result": "diamond_boots",
+  "requiresLevel": 8
+ },
+ {
+  "type": "recipe",
+  "id": "bow",
+  "category": "combat",
+  "pattern": [
+   " TS",
+   "T S",
+   " TS"
+  ],
+  "key": {
+   "T": "stick",
+   "S": "string"
+  },
+  "result": "bow"
+ },
+ {
+  "type": "recipe",
+  "id": "arrows",
+  "category": "combat",
+  "pattern": [
+   "F",
+   "S",
+   "P"
+  ],
+  "key": {
+   "F": "flint",
+   "S": "stick",
+   "P": "feather"
+  },
+  "result": {
+   "item": "arrow",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "shears",
+  "category": "tools",
+  "pattern": [
+   " I",
+   "I "
+  ],
+  "key": {
+   "I": "iron_ingot"
+  },
+  "result": "shears"
+ },
+ {
+  "type": "recipe",
+  "id": "flint_and_steel",
+  "category": "tools",
+  "ingredients": [
+   "iron_ingot",
+   "flint"
+  ],
+  "result": "flint_and_steel"
+ },
+ {
+  "type": "recipe",
+  "id": "fishing_rod",
+  "category": "tools",
+  "pattern": [
+   "  S",
+   " ST",
+   "S T"
+  ],
+  "key": {
+   "S": "stick",
+   "T": "string"
+  },
+  "result": "fishing_rod"
+ },
+ {
+  "type": "recipe",
+  "id": "bucket",
+  "category": "tools",
+  "pattern": [
+   "I I",
+   " I "
+  ],
+  "key": {
+   "I": "iron_ingot"
+  },
+  "result": "bucket"
+ },
+ {
+  "type": "recipe",
+  "id": "compass",
+  "category": "tools",
+  "pattern": [
+   " I ",
+   "IRI",
+   " I "
+  ],
+  "key": {
+   "I": "iron_ingot",
+   "R": "redstone"
+  },
+  "result": "compass"
+ },
+ {
+  "type": "recipe",
+  "id": "clock",
+  "category": "tools",
+  "pattern": [
+   " G ",
+   "GRG",
+   " G "
+  ],
+  "key": {
+   "G": "gold_ingot",
+   "R": "redstone"
+  },
+  "result": "clock"
+ },
+ {
+  "type": "recipe",
+  "id": "torch",
+  "category": "building",
+  "pattern": [
+   "C",
+   "S"
+  ],
+  "key": {
+   "C": "coal",
+   "S": "stick"
+  },
+  "result": {
+   "item": "torch",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "torch_charcoal",
+  "category": "building",
+  "pattern": [
+   "C",
+   "S"
+  ],
+  "key": {
+   "C": "charcoal",
+   "S": "stick"
+  },
+  "result": {
+   "item": "torch",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "ladder",
+  "category": "building",
+  "pattern": [
+   "S S",
+   "SSS",
+   "S S"
+  ],
+  "key": {
+   "S": "stick"
+  },
+  "result": {
+   "item": "ladder",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "fence",
+  "category": "building",
+  "pattern": [
+   "PSP",
+   "PSP"
+  ],
+  "key": {
+   "P": "#planks",
+   "S": "stick"
+  },
+  "result": {
+   "item": "fence",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "slab",
+  "category": "building",
+  "pattern": [
+   "CCC"
+  ],
+  "key": {
+   "C": "cobble"
+  },
+  "result": {
+   "item": "slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stairs",
+  "category": "building",
+  "pattern": [
+   "P  ",
+   "PP ",
+   "PPP"
+  ],
+  "key": {
+   "P": "#planks"
+  },
+  "result": {
+   "item": "stairs",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "table",
+  "category": "decoration",
+  "pattern": [
+   "PPP",
+   "S S"
+  ],
+  "key": {
+   "P": "#planks",
+   "S": "stick"
+  },
+  "result": "table"
+ },
+ {
+  "type": "recipe",
+  "id": "chair",
+  "category": "decoration",
+  "pattern": [
+   "P  ",
+   "PPP",
+   "S S"
+  ],
+  "key": {
+   "P": "#planks",
+   "S": "stick"
+  },
+  "result": "chair"
+ },
+ {
+  "type": "recipe",
+  "id": "shelf",
+  "category": "decoration",
+  "pattern": [
+   "PPP",
+   "   ",
+   "PPP"
+  ],
+  "key": {
+   "P": "#planks"
+  },
+  "result": {
+   "item": "shelf",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "lamp",
+  "category": "decoration",
+  "pattern": [
+   "G",
+   "T",
+   "I"
+  ],
+  "key": {
+   "G": "glass",
+   "T": "torch",
+   "I": "iron_ingot"
+  },
+  "result": "lamp"
+ },
+ {
+  "type": "recipe",
+  "id": "bookshelf",
+  "category": "decoration",
+  "pattern": [
+   "PPP",
+   "BBB",
+   "PPP"
+  ],
+  "key": {
+   "P": "#planks",
+   "B": "book"
+  },
+  "result": "bookshelf"
+ },
+ {
+  "type": "recipe",
+  "id": "paper",
+  "category": "materials",
+  "ingredients": [
+   "sugar_cane_item",
+   "sugar_cane_item",
+   "sugar_cane_item"
+  ],
+  "result": {
+   "item": "paper",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "book",
+  "category": "materials",
+  "ingredients": [
+   "paper",
+   "paper",
+   "paper",
+   "leather"
+  ],
+  "result": "book"
+ },
+ {
+  "type": "recipe",
+  "id": "sugar",
+  "category": "food",
+  "ingredients": [
+   "sugar_cane_item"
+  ],
+  "result": "sugar"
+ },
+ {
+  "type": "recipe",
+  "id": "bone_meal",
+  "category": "materials",
+  "ingredients": [
+   "bone"
+  ],
+  "result": {
+   "item": "bone_meal",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bricks",
+  "category": "building",
+  "pattern": [
+   "BB",
+   "BB"
+  ],
+  "key": {
+   "B": "brick"
+  },
+  "result": "bricks"
+ },
+ {
+  "type": "recipe",
+  "id": "stone_bricks",
+  "category": "building",
+  "pattern": [
+   "SS",
+   "SS"
+  ],
+  "key": {
+   "S": "stone"
+  },
+  "result": {
+   "item": "stone_bricks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mossy_cobblestone",
+  "category": "building",
+  "ingredients": [
+   "cobble",
+   "vine"
+  ],
+  "result": "mossy_cobblestone"
+ },
+ {
+  "type": "recipe",
+  "id": "mossy_stone_bricks",
+  "category": "building",
+  "ingredients": [
+   "stone_bricks",
+   "vine"
+  ],
+  "result": "mossy_stone_bricks"
+ },
+ {
+  "type": "recipe",
+  "id": "sandstone",
+  "category": "building",
+  "pattern": [
+   "SS",
+   "SS"
+  ],
+  "key": {
+   "S": "sand"
+  },
+  "result": "sandstone"
+ },
+ {
+  "type": "recipe",
+  "id": "red_sandstone",
+  "category": "building",
+  "pattern": [
+   "SS",
+   "SS"
+  ],
+  "key": {
+   "S": "red_sand"
+  },
+  "result": "red_sandstone"
+ },
+ {
+  "type": "recipe",
+  "id": "quartz_block",
+  "category": "building",
+  "pattern": [
+   "QQ",
+   "QQ"
+  ],
+  "key": {
+   "Q": "quartz"
+  },
+  "result": "quartz_block"
+ },
+ {
+  "type": "recipe",
+  "id": "tnt",
+  "category": "combat",
+  "pattern": [
+   "GSG",
+   "SGS",
+   "GSG"
+  ],
+  "key": {
+   "G": "gunpowder",
+   "S": "sand"
+  },
+  "result": "tnt"
+ },
+ {
+  "type": "recipe",
+  "id": "glowstone",
+  "category": "decoration",
+  "pattern": [
+   "GG",
+   "GG"
+  ],
+  "key": {
+   "G": "glowstone_dust"
+  },
+  "result": "glowstone"
+ },
+ {
+  "type": "recipe",
+  "id": "jack_o_lantern",
+  "category": "decoration",
+  "ingredients": [
+   "carved_pumpkin",
+   "torch"
+  ],
+  "result": "jack_o_lantern"
+ },
+ {
+  "type": "recipe",
+  "id": "hay_block",
+  "category": "building",
+  "pattern": [
+   "WWW",
+   "WWW",
+   "WWW"
+  ],
+  "key": {
+   "W": "wheat"
+  },
+  "result": "hay_block"
+ },
+ {
+  "type": "recipe",
+  "id": "wheat_from_hay",
+  "category": "materials",
+  "ingredients": [
+   "hay_block"
+  ],
+  "result": {
+   "item": "wheat",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bread",
+  "category": "food",
+  "pattern": [
+   "WWW"
+  ],
+  "key": {
+   "W": "wheat"
+  },
+  "result": "bread"
+ },
+ {
+  "type": "recipe",
+  "id": "cookie",
+  "category": "food",
+  "pattern": [
+   "WCW"
+  ],
+  "key": {
+   "W": "wheat",
+   "C": "brown_dye"
+  },
+  "result": {
+   "item": "cookie",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "pumpkin_pie",
+  "category": "food",
+  "ingredients": [
+   "pumpkin",
+   "sugar",
+   "egg"
+  ],
+  "result": "pumpkin_pie"
+ },
+ {
+  "type": "recipe",
+  "id": "golden_apple",
+  "category": "food",
+  "pattern": [
+   "GGG",
+   "GAG",
+   "GGG"
+  ],
+  "key": {
+   "G": "gold_ingot",
+   "A": "apple"
+  },
+  "result": "golden_apple",
+  "requiresLevel": 5
+ },
+ {
+  "type": "recipe",
+  "id": "golden_carrot",
+  "category": "food",
+  "pattern": [
+   "NNN",
+   "NCN",
+   "NNN"
+  ],
+  "key": {
+   "N": "gold_nugget",
+   "C": "carrot"
+  },
+  "result": "golden_carrot"
+ },
+ {
+  "type": "recipe",
+  "id": "bowl",
+  "category": "food",
+  "pattern": [
+   "P P",
+   " P "
+  ],
+  "key": {
+   "P": "#planks"
+  },
+  "result": {
+   "item": "bowl",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mushroom_stew",
+  "category": "food",
+  "ingredients": [
+   "bowl",
+   "red_mushroom",
+   "brown_mushroom"
+  ],
+  "result": "mushroom_stew"
+ },
+ {
+  "type": "recipe",
+  "id": "beetroot_soup",
+  "category": "food",
+  "ingredients": [
+   "bowl",
+   "beetroot",
+   "beetroot",
+   "beetroot"
+  ],
+  "result": "beetroot_soup"
+ },
+ {
+  "type": "recipe",
+  "id": "rabbit_stew",
+  "category": "food",
+  "ingredients": [
+   "bowl",
+   "cooked_rabbit",
+   "carrot",
+   "baked_potato",
+   "brown_mushroom"
+  ],
+  "result": "rabbit_stew"
+ },
+ {
+  "type": "recipe",
+  "id": "salad_fruit",
+  "category": "food",
+  "ingredients": [
+   "bowl",
+   "apple",
+   "peach",
+   "pear"
+  ],
+  "result": "salad_fruit"
+ },
+ {
+  "type": "recipe",
+  "id": "salad_veggie",
+  "category": "food",
+  "ingredients": [
+   "bowl",
+   "carrot",
+   "turnip",
+   "beetroot"
+  ],
+  "result": "salad_veggie"
+ },
+ {
+  "type": "recipe",
+  "id": "salad_shroom",
+  "category": "food",
+  "ingredients": [
+   "bowl",
+   "toadstool",
+   "portobello"
+  ],
+  "result": "salad_shroom"
+ },
+ {
+  "type": "recipe",
+  "id": "cake",
+  "category": "food",
+  "pattern": [
+   "MMM",
+   "SES",
+   "WWW"
+  ],
+  "key": {
+   "M": "milk_bucket",
+   "S": "sugar",
+   "E": "egg",
+   "W": "wheat"
+  },
+  "result": "cake"
+ },
+ {
+  "type": "recipe",
+  "id": "glass_bottle",
+  "category": "materials",
+  "pattern": [
+   "G G",
+   " G "
+  ],
+  "key": {
+   "G": "glass"
+  },
+  "result": {
+   "item": "glass_bottle",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "potion_regeneration",
+  "category": "magic",
+  "ingredients": [
+   "glass_bottle",
+   "ghast_tear",
+   "glistering_melon"
+  ],
+  "result": "potion_regeneration",
+  "requiresLevel": 6
+ },
+ {
+  "type": "recipe",
+  "id": "potion_speed",
+  "category": "magic",
+  "ingredients": [
+   "glass_bottle",
+   "sugar",
+   "redstone"
+  ],
+  "result": "potion_speed",
+  "requiresLevel": 4
+ },
+ {
+  "type": "recipe",
+  "id": "glistering_melon",
+  "category": "magic",
+  "ingredients": [
+   "melon_slice",
+   "gold_nugget"
+  ],
+  "result": "glistering_melon"
+ },
+ {
+  "type": "recipe",
+  "id": "magic_wand",
+  "category": "magic",
+  "ingredients": [
+   "blaze_rod",
+   "ghost_essence",
+   "amethyst"
+  ],
+  "result": "magic_wand",
+  "requiresLevel": 10
+ },
+ {
+  "type": "recipe",
+  "id": "magic_seed",
+  "category": "magic",
+  "ingredients": [
+   "wheat_seeds",
+   "pixie_dust",
+   "emerald"
+  ],
+  "result": "magic_seed",
+  "requiresLevel": 5
+ },
+ {
+  "type": "recipe",
+  "id": "iron_bars",
+  "category": "building",
+  "pattern": [
+   "III",
+   "III"
+  ],
+  "key": {
+   "I": "iron_ingot"
+  },
+  "result": {
+   "item": "iron_bars",
+   "count": 16
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "beacon",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GSG",
+   "OOO"
+  ],
+  "key": {
+   "G": "glass",
+   "S": "nether_star",
+   "O": "obsidian"
+  },
+  "result": "beacon",
+  "requiresLevel": 20
+ },
+ {
+  "type": "recipe",
+  "id": "note_block",
+  "category": "decoration",
+  "pattern": [
+   "PPP",
+   "PRP",
+   "PPP"
+  ],
+  "key": {
+   "P": "#planks",
+   "R": "redstone"
+  },
+  "result": "note_block"
+ },
+ {
+  "type": "recipe",
+  "id": "jukebox",
+  "category": "decoration",
+  "pattern": [
+   "PPP",
+   "PDP",
+   "PPP"
+  ],
+  "key": {
+   "P": "#planks",
+   "D": "diamond"
+  },
+  "result": "jukebox"
+ },
+ {
+  "type": "recipe",
+  "id": "redstone_lamp",
+  "category": "decoration",
+  "pattern": [
+   " R ",
+   "RGR",
+   " R "
+  ],
+  "key": {
+   "R": "redstone",
+   "G": "glowstone"
+  },
+  "result": "redstone_lamp"
+ },
+ {
+  "type": "recipe",
+  "id": "lead",
+  "category": "tools",
+  "pattern": [
+   "SS ",
+   "SB ",
+   "  S"
+  ],
+  "key": {
+   "S": "string",
+   "B": "slime_ball"
+  },
+  "result": {
+   "item": "lead",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "slime_block",
+  "category": "building",
+  "pattern": [
+   "SSS",
+   "SSS",
+   "SSS"
+  ],
+  "key": {
+   "S": "slime_ball"
+  },
+  "result": "slime_block"
+ },
+ {
+  "type": "recipe",
+  "id": "bone_block",
+  "category": "building",
+  "pattern": [
+   "BBB",
+   "BBB",
+   "BBB"
+  ],
+  "key": {
+   "B": "bone_meal"
+  },
+  "result": "bone_block"
+ },
+ {
+  "type": "recipe",
+  "id": "chiseled_stone_bricks",
+  "category": "building",
+  "ingredients": [
+   "stone_bricks",
+   "stone_bricks"
+  ],
+  "result": "chiseled_stone_bricks"
+ },
+ {
+  "type": "recipe",
+  "id": "amber_block",
+  "category": "building",
+  "pattern": [
+   "GGG",
+   "GGG",
+   "GGG"
+  ],
+  "key": {
+   "G": "amber"
+  },
+  "result": "amber_block"
+ },
+ {
+  "type": "recipe",
+  "id": "amber_from_block",
+  "category": "materials",
+  "ingredients": [
+   "amber_block"
+  ],
+  "result": {
+   "item": "amber",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "amethyst_block",
+  "category": "building",
+  "pattern": [
+   "GGG",
+   "GGG",
+   "GGG"
+  ],
+  "key": {
+   "G": "amethyst"
+  },
+  "result": "amethyst_block"
+ },
+ {
+  "type": "recipe",
+  "id": "amethyst_from_block",
+  "category": "materials",
+  "ingredients": [
+   "amethyst_block"
+  ],
+  "result": {
+   "item": "amethyst",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "malachite_block",
+  "category": "building",
+  "pattern": [
+   "GGG",
+   "GGG",
+   "GGG"
+  ],
+  "key": {
+   "G": "malachite"
+  },
+  "result": "malachite_block"
+ },
+ {
+  "type": "recipe",
+  "id": "malachite_from_block",
+  "category": "materials",
+  "ingredients": [
+   "malachite_block"
+  ],
+  "result": {
+   "item": "malachite",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "peridot_block",
+  "category": "building",
+  "pattern": [
+   "GGG",
+   "GGG",
+   "GGG"
+  ],
+  "key": {
+   "G": "peridot"
+  },
+  "result": "peridot_block"
+ },
+ {
+  "type": "recipe",
+  "id": "peridot_from_block",
+  "category": "materials",
+  "ingredients": [
+   "peridot_block"
+  ],
+  "result": {
+   "item": "peridot",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "ruby_block",
+  "category": "building",
+  "pattern": [
+   "GGG",
+   "GGG",
+   "GGG"
+  ],
+  "key": {
+   "G": "ruby"
+  },
+  "result": "ruby_block"
+ },
+ {
+  "type": "recipe",
+  "id": "ruby_from_block",
+  "category": "materials",
+  "ingredients": [
+   "ruby_block"
+  ],
+  "result": {
+   "item": "ruby",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sapphire_block",
+  "category": "building",
+  "pattern": [
+   "GGG",
+   "GGG",
+   "GGG"
+  ],
+  "key": {
+   "G": "sapphire"
+  },
+  "result": "sapphire_block"
+ },
+ {
+  "type": "recipe",
+  "id": "sapphire_from_block",
+  "category": "materials",
+  "ingredients": [
+   "sapphire_block"
+  ],
+  "result": {
+   "item": "sapphire",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "tanzanite_block",
+  "category": "building",
+  "pattern": [
+   "GGG",
+   "GGG",
+   "GGG"
+  ],
+  "key": {
+   "G": "tanzanite"
+  },
+  "result": "tanzanite_block"
+ },
+ {
+  "type": "recipe",
+  "id": "tanzanite_from_block",
+  "category": "materials",
+  "ingredients": [
+   "tanzanite_block"
+  ],
+  "result": {
+   "item": "tanzanite",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "topaz_block",
+  "category": "building",
+  "pattern": [
+   "GGG",
+   "GGG",
+   "GGG"
+  ],
+  "key": {
+   "G": "topaz"
+  },
+  "result": "topaz_block"
+ },
+ {
+  "type": "recipe",
+  "id": "topaz_from_block",
+  "category": "materials",
+  "ingredients": [
+   "topaz_block"
+  ],
+  "result": {
+   "item": "topaz",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_block",
+  "category": "building",
+  "pattern": [
+   "GGG",
+   "GGG",
+   "GGG"
+  ],
+  "key": {
+   "G": "diamond"
+  },
+  "result": "diamond_block"
+ },
+ {
+  "type": "recipe",
+  "id": "diamond_from_block",
+  "category": "materials",
+  "ingredients": [
+   "diamond_block"
+  ],
+  "result": {
+   "item": "diamond",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "emerald_block",
+  "category": "building",
+  "pattern": [
+   "GGG",
+   "GGG",
+   "GGG"
+  ],
+  "key": {
+   "G": "emerald"
+  },
+  "result": "emerald_block"
+ },
+ {
+  "type": "recipe",
+  "id": "emerald_from_block",
+  "category": "materials",
+  "ingredients": [
+   "emerald_block"
+  ],
+  "result": {
+   "item": "emerald",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "iron_block",
+  "category": "building",
+  "pattern": [
+   "III",
+   "III",
+   "III"
+  ],
+  "key": {
+   "I": "iron_ingot"
+  },
+  "result": "iron_block"
+ },
+ {
+  "type": "recipe",
+  "id": "gold_block",
+  "category": "building",
+  "pattern": [
+   "III",
+   "III",
+   "III"
+  ],
+  "key": {
+   "I": "gold_ingot"
+  },
+  "result": "gold_block"
+ },
+ {
+  "type": "recipe",
+  "id": "coal_block",
+  "category": "building",
+  "pattern": [
+   "III",
+   "III",
+   "III"
+  ],
+  "key": {
+   "I": "coal"
+  },
+  "result": "coal_block"
+ },
+ {
+  "type": "recipe",
+  "id": "lapis_block",
+  "category": "building",
+  "pattern": [
+   "III",
+   "III",
+   "III"
+  ],
+  "key": {
+   "I": "lapis"
+  },
+  "result": "lapis_block"
+ },
+ {
+  "type": "recipe",
+  "id": "redstone_block",
+  "category": "building",
+  "pattern": [
+   "III",
+   "III",
+   "III"
+  ],
+  "key": {
+   "I": "redstone"
+  },
+  "result": "redstone_block"
+ },
+ {
+  "type": "recipe",
+  "id": "gold_ingot_from_nuggets",
+  "category": "building",
+  "pattern": [
+   "NNN",
+   "NNN",
+   "NNN"
+  ],
+  "key": {
+   "N": "gold_nugget"
+  },
+  "result": "gold_ingot"
+ },
+ {
+  "type": "recipe",
+  "id": "gold_nuggets",
+  "category": "materials",
+  "ingredients": [
+   "gold_ingot"
+  ],
+  "result": {
+   "item": "gold_nugget",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "iron_nuggets",
+  "category": "materials",
+  "ingredients": [
+   "iron_ingot"
+  ],
+  "result": {
+   "item": "iron_nugget",
+   "count": 9
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_dye",
+  "category": "dyes",
+  "ingredients": [
+   "bone_meal"
+  ],
+  "result": {
+   "item": "white_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "white_dye"
+  ],
+  "result": "white_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "white_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "white_wool"
+  },
+  "result": {
+   "item": "white_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "white_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "white_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "white_concrete_powder"
+  ],
+  "result": "white_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "white_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "white_dye"
+  },
+  "result": {
+   "item": "white_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "white_dye"
+  },
+  "result": {
+   "item": "white_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "white_terracotta"
+  ],
+  "result": "white_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "orange_dye",
+  "category": "dyes",
+  "ingredients": [
+   "orange_tulip"
+  ],
+  "result": {
+   "item": "orange_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "orange_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "orange_dye"
+  ],
+  "result": "orange_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "orange_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "orange_wool"
+  },
+  "result": {
+   "item": "orange_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "orange_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "orange_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "orange_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "orange_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "orange_concrete_powder"
+  ],
+  "result": "orange_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "orange_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "orange_dye"
+  },
+  "result": {
+   "item": "orange_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "orange_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "orange_dye"
+  },
+  "result": {
+   "item": "orange_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "orange_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "orange_terracotta"
+  ],
+  "result": "orange_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "magenta_dye",
+  "category": "dyes",
+  "ingredients": [
+   "allium"
+  ],
+  "result": {
+   "item": "magenta_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "magenta_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "magenta_dye"
+  ],
+  "result": "magenta_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "magenta_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "magenta_wool"
+  },
+  "result": {
+   "item": "magenta_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "magenta_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "magenta_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "magenta_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "magenta_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "magenta_concrete_powder"
+  ],
+  "result": "magenta_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "magenta_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "magenta_dye"
+  },
+  "result": {
+   "item": "magenta_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "magenta_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "magenta_dye"
+  },
+  "result": {
+   "item": "magenta_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "magenta_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "magenta_terracotta"
+  ],
+  "result": "magenta_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "light_blue_dye",
+  "category": "dyes",
+  "ingredients": [
+   "blue_orchid"
+  ],
+  "result": {
+   "item": "light_blue_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "light_blue_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "light_blue_dye"
+  ],
+  "result": "light_blue_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "light_blue_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "light_blue_wool"
+  },
+  "result": {
+   "item": "light_blue_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "light_blue_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "light_blue_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "light_blue_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "light_blue_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "light_blue_concrete_powder"
+  ],
+  "result": "light_blue_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "light_blue_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "light_blue_dye"
+  },
+  "result": {
+   "item": "light_blue_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "light_blue_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "light_blue_dye"
+  },
+  "result": {
+   "item": "light_blue_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "light_blue_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "light_blue_terracotta"
+  ],
+  "result": "light_blue_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "yellow_dye",
+  "category": "dyes",
+  "ingredients": [
+   "dandelion"
+  ],
+  "result": {
+   "item": "yellow_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "yellow_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "yellow_dye"
+  ],
+  "result": "yellow_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "yellow_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "yellow_wool"
+  },
+  "result": {
+   "item": "yellow_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "yellow_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "yellow_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "yellow_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "yellow_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "yellow_concrete_powder"
+  ],
+  "result": "yellow_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "yellow_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "yellow_dye"
+  },
+  "result": {
+   "item": "yellow_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "yellow_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "yellow_dye"
+  },
+  "result": {
+   "item": "yellow_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "yellow_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "yellow_terracotta"
+  ],
+  "result": "yellow_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "lime_dye",
+  "category": "dyes",
+  "ingredients": [
+   "green_dye",
+   "white_dye"
+  ],
+  "result": {
+   "item": "lime_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "lime_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "lime_dye"
+  ],
+  "result": "lime_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "lime_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "lime_wool"
+  },
+  "result": {
+   "item": "lime_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "lime_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "lime_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "lime_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "lime_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "lime_concrete_powder"
+  ],
+  "result": "lime_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "lime_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "lime_dye"
+  },
+  "result": {
+   "item": "lime_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "lime_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "lime_dye"
+  },
+  "result": {
+   "item": "lime_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "lime_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "lime_terracotta"
+  ],
+  "result": "lime_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "pink_dye",
+  "category": "dyes",
+  "ingredients": [
+   "pink_tulip"
+  ],
+  "result": {
+   "item": "pink_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "pink_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "pink_dye"
+  ],
+  "result": "pink_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "pink_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "pink_wool"
+  },
+  "result": {
+   "item": "pink_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "pink_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "pink_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "pink_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "pink_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "pink_concrete_powder"
+  ],
+  "result": "pink_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "pink_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "pink_dye"
+  },
+  "result": {
+   "item": "pink_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "pink_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "pink_dye"
+  },
+  "result": {
+   "item": "pink_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "pink_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "pink_terracotta"
+  ],
+  "result": "pink_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "gray_dye",
+  "category": "dyes",
+  "ingredients": [
+   "black_dye",
+   "white_dye"
+  ],
+  "result": {
+   "item": "gray_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "gray_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "gray_dye"
+  ],
+  "result": "gray_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "gray_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "gray_wool"
+  },
+  "result": {
+   "item": "gray_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "gray_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "gray_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "gray_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "gray_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "gray_concrete_powder"
+  ],
+  "result": "gray_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "gray_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "gray_dye"
+  },
+  "result": {
+   "item": "gray_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "gray_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "gray_dye"
+  },
+  "result": {
+   "item": "gray_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "gray_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "gray_terracotta"
+  ],
+  "result": "gray_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "light_gray_dye",
+  "category": "dyes",
+  "ingredients": [
+   "oxeye_daisy"
+  ],
+  "result": {
+   "item": "light_gray_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "light_gray_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "light_gray_dye"
+  ],
+  "result": "light_gray_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "light_gray_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "light_gray_wool"
+  },
+  "result": {
+   "item": "light_gray_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "light_gray_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "light_gray_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "light_gray_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "light_gray_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "light_gray_concrete_powder"
+  ],
+  "result": "light_gray_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "light_gray_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "light_gray_dye"
+  },
+  "result": {
+   "item": "light_gray_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "light_gray_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "light_gray_dye"
+  },
+  "result": {
+   "item": "light_gray_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "light_gray_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "light_gray_terracotta"
+  ],
+  "result": "light_gray_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "cyan_dye",
+  "category": "dyes",
+  "ingredients": [
+   "blue_dye",
+   "green_dye"
+  ],
+  "result": {
+   "item": "cyan_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cyan_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "cyan_dye"
+  ],
+  "result": "cyan_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "cyan_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "cyan_wool"
+  },
+  "result": {
+   "item": "cyan_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cyan_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "cyan_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "cyan_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cyan_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "cyan_concrete_powder"
+  ],
+  "result": "cyan_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "cyan_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "cyan_dye"
+  },
+  "result": {
+   "item": "cyan_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cyan_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "cyan_dye"
+  },
+  "result": {
+   "item": "cyan_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cyan_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "cyan_terracotta"
+  ],
+  "result": "cyan_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "purple_dye",
+  "category": "dyes",
+  "ingredients": [
+   "lavender"
+  ],
+  "result": {
+   "item": "purple_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "purple_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "purple_dye"
+  ],
+  "result": "purple_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "purple_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "purple_wool"
+  },
+  "result": {
+   "item": "purple_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "purple_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "purple_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "purple_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "purple_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "purple_concrete_powder"
+  ],
+  "result": "purple_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "purple_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "purple_dye"
+  },
+  "result": {
+   "item": "purple_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "purple_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "purple_dye"
+  },
+  "result": {
+   "item": "purple_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "purple_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "purple_terracotta"
+  ],
+  "result": "purple_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "blue_dye",
+  "category": "dyes",
+  "ingredients": [
+   "lapis"
+  ],
+  "result": {
+   "item": "blue_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "blue_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "blue_dye"
+  ],
+  "result": "blue_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "blue_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "blue_wool"
+  },
+  "result": {
+   "item": "blue_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "blue_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "blue_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "blue_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "blue_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "blue_concrete_powder"
+  ],
+  "result": "blue_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "blue_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "blue_dye"
+  },
+  "result": {
+   "item": "blue_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "blue_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "blue_dye"
+  },
+  "result": {
+   "item": "blue_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "blue_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "blue_terracotta"
+  ],
+  "result": "blue_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "brown_dye",
+  "category": "dyes",
+  "ingredients": [
+   "dead_bush"
+  ],
+  "result": {
+   "item": "brown_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "brown_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "brown_dye"
+  ],
+  "result": "brown_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "brown_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "brown_wool"
+  },
+  "result": {
+   "item": "brown_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "brown_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "brown_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "brown_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "brown_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "brown_concrete_powder"
+  ],
+  "result": "brown_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "brown_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "brown_dye"
+  },
+  "result": {
+   "item": "brown_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "brown_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "brown_dye"
+  },
+  "result": {
+   "item": "brown_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "brown_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "brown_terracotta"
+  ],
+  "result": "brown_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "green_dye",
+  "kind": "cooking",
+  "category": "dyes",
+  "ingredients": [
+   "cactus"
+  ],
+  "result": {
+   "item": "green_dye",
+   "count": 2
+  },
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "green_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "green_dye"
+  ],
+  "result": "green_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "green_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "green_wool"
+  },
+  "result": {
+   "item": "green_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "green_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "green_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "green_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "green_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "green_concrete_powder"
+  ],
+  "result": "green_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "green_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "green_dye"
+  },
+  "result": {
+   "item": "green_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "green_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "green_dye"
+  },
+  "result": {
+   "item": "green_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "green_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "green_terracotta"
+  ],
+  "result": "green_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "red_dye",
+  "category": "dyes",
+  "ingredients": [
+   "poppy"
+  ],
+  "result": {
+   "item": "red_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "red_dye"
+  ],
+  "result": "red_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "red_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "red_wool"
+  },
+  "result": {
+   "item": "red_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "red_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "red_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "red_concrete_powder"
+  ],
+  "result": "red_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "red_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "red_dye"
+  },
+  "result": {
+   "item": "red_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "red_dye"
+  },
+  "result": {
+   "item": "red_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "red_terracotta"
+  ],
+  "result": "red_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "black_dye",
+  "category": "dyes",
+  "ingredients": [
+   "ink_sac"
+  ],
+  "result": {
+   "item": "black_dye",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "black_wool",
+  "category": "decoration",
+  "ingredients": [
+   "#wool",
+   "black_dye"
+  ],
+  "result": "black_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "black_carpet",
+  "category": "decoration",
+  "pattern": [
+   "WW"
+  ],
+  "key": {
+   "W": "black_wool"
+  },
+  "result": {
+   "item": "black_carpet",
+   "count": 3
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "black_concrete_powder",
+  "category": "building",
+  "ingredients": [
+   "black_dye",
+   "sand",
+   "sand",
+   "sand",
+   "sand",
+   "gravel",
+   "gravel",
+   "gravel",
+   "gravel"
+  ],
+  "result": {
+   "item": "black_concrete_powder",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "black_concrete",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "black_concrete_powder"
+  ],
+  "result": "black_concrete",
+  "time": 3
+ },
+ {
+  "type": "recipe",
+  "id": "black_stained_glass",
+  "category": "decoration",
+  "pattern": [
+   "GGG",
+   "GDG",
+   "GGG"
+  ],
+  "key": {
+   "G": "glass",
+   "D": "black_dye"
+  },
+  "result": {
+   "item": "black_stained_glass",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "black_terracotta",
+  "category": "building",
+  "pattern": [
+   "TTT",
+   "TDT",
+   "TTT"
+  ],
+  "key": {
+   "T": "terracotta",
+   "D": "black_dye"
+  },
+  "result": {
+   "item": "black_terracotta",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "black_glazed_terracotta",
+  "kind": "cooking",
+  "category": "decoration",
+  "ingredients": [
+   "black_terracotta"
+  ],
+  "result": "black_glazed_terracotta",
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "white_wool_from_string",
+  "category": "decoration",
+  "pattern": [
+   "SS",
+   "SS"
+  ],
+  "key": {
+   "S": "string"
+  },
+  "result": "white_wool"
+ },
+ {
+  "type": "recipe",
+  "id": "cook_beef",
+  "kind": "cooking",
+  "category": "food",
+  "ingredients": [
+   "beef"
+  ],
+  "result": "cooked_beef",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "cook_porkchop",
+  "kind": "cooking",
+  "category": "food",
+  "ingredients": [
+   "porkchop"
+  ],
+  "result": "cooked_porkchop",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "cook_chicken",
+  "kind": "cooking",
+  "category": "food",
+  "ingredients": [
+   "chicken"
+  ],
+  "result": "cooked_chicken",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "cook_mutton",
+  "kind": "cooking",
+  "category": "food",
+  "ingredients": [
+   "mutton"
+  ],
+  "result": "cooked_mutton",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "cook_rabbit",
+  "kind": "cooking",
+  "category": "food",
+  "ingredients": [
+   "rabbit"
+  ],
+  "result": "cooked_rabbit",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "cook_cod",
+  "kind": "cooking",
+  "category": "food",
+  "ingredients": [
+   "cod"
+  ],
+  "result": "cooked_cod",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "cook_salmon",
+  "kind": "cooking",
+  "category": "food",
+  "ingredients": [
+   "salmon"
+  ],
+  "result": "cooked_salmon",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "cook_potato",
+  "kind": "cooking",
+  "category": "food",
+  "ingredients": [
+   "potato"
+  ],
+  "result": "baked_potato",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "cook_kelp",
+  "kind": "cooking",
+  "category": "food",
+  "ingredients": [
+   "kelp"
+  ],
+  "result": "dried_kelp",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "glass",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "sand"
+  ],
+  "result": "glass",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "glass_red_sand",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "red_sand"
+  ],
+  "result": "glass",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "stone",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "cobble"
+  ],
+  "result": "stone",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "smooth_stone_bricks",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "stone_bricks"
+  ],
+  "result": "cracked_stone_bricks",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "iron_ingot",
+  "kind": "cooking",
+  "category": "materials",
+  "ingredients": [
+   "iron_ore"
+  ],
+  "result": "iron_ingot",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "gold_ingot",
+  "kind": "cooking",
+  "category": "materials",
+  "ingredients": [
+   "gold_ore"
+  ],
+  "result": "gold_ingot",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "brick",
+  "kind": "cooking",
+  "category": "materials",
+  "ingredients": [
+   "clay_ball"
+  ],
+  "result": "brick",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "terracotta",
+  "kind": "cooking",
+  "category": "building",
+  "ingredients": [
+   "clay"
+  ],
+  "result": "terracotta",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "charcoal",
+  "kind": "cooking",
+  "category": "materials",
+  "ingredients": [
+   "#logs"
+  ],
+  "result": "charcoal",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "nether_brick_item",
+  "kind": "cooking",
+  "category": "materials",
+  "ingredients": [
+   "netherrack"
+  ],
+  "result": "nether_brick_item",
+  "time": 5
+ },
+ {
+  "type": "recipe",
+  "id": "green_dye_cactus",
+  "kind": "cooking",
+  "category": "dyes",
+  "ingredients": [
+   "cactus"
+  ],
+  "result": "green_dye",
+  "time": 5
+ }
+]

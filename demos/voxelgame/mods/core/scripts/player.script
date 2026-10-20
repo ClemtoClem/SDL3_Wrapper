@@ -1,0 +1,36 @@
+# Skins du joueur : modèle articulé « core:biped » (models/rigs.json) et
+# images du dossier textures/skins (format 64×32 ou 64×64). Le skin choisi
+# est enregistré avec le joueur ; l'interface propose aussi un sélecteur.
+
+fn featured_skins() {
+    return content.config("skins").featured
+}
+
+fn skin_id(name) {
+    # « 42 » → core:skins/skin.42 ; « prince » → core:skins/skin_prince ;
+    # « steve » → core:entities/steve ; un id complet est gardé tel quel.
+    if (name.contains(":")) { return name }
+    if (num(name) != nil) { return format("core:skins/skin.{}", name) }
+    if (name == "steve" or name == "alex") { return "core:entities/" .. name }
+    return "core:skins/skin_" .. name
+}
+
+voxel.command("skin", "/skin [n° | nom | id]", "change de skin (sans argument : liste)", fn(sender, args) {
+    if (len(args) == 0) {
+        return "Skins : " .. join(featured_skins(), ", ") .. " — ou /skin <1..1958>"
+    }
+    let id = skin_id(args[0])
+    if (not entity.set_skin(sender, id)) { return "pas de skin pour cette entité" }
+    return "skin : " .. id
+})
+
+voxel.command("skinnext", "/skinnext", "skin suivant parmi ceux mis en avant", fn(sender, args) {
+    let list = featured_skins()
+    let current = entity.skin(sender)
+    let next = list[0]
+    for (i in range(0, len(list))) {
+        if (list[i] == current) { next = list[(i + 1) % len(list)] }
+    }
+    entity.set_skin(sender, next)
+    return "skin : " .. next
+})

@@ -1,0 +1,31 @@
+[module]
+name = "emulator"
+layer = "application"
+version = "0.1.0"
+type = "executable"       # executable | static | shared | header-only
+
+[sources]
+dirs = ["src"]
+# exclude = ["src/experimental/**"]
+
+[include]
+public = ["include"]      # propagé aux modules dépendants
+# private = ["src"]
+
+[dependencies]
+modules = ["core", "ecs", "sdl3", "ui", "archive"]
+pkg_config = []           # ex. ["zlib", "libcurl"]
+system = []               # ex. ["m", "pthread"]
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = ["-Wsign-compare", "-O2"]   # -O2 même en debug : émulation temps réel
+
+[tests]
+dirs = ["tests"]
+
+# Surcharges par plate-forme cible (linux | windows | macos | android | unix…)
+# [platform.windows]
+# system = ["ws2_32"]

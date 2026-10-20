@@ -1,0 +1,12 @@
+[module]
+name = "adhoc_chat_demo"
+layer = "application"
+version = "0.1.0"
+description = "Chat et échange de fichiers entre ordinateurs d'un même réseau local (net::)"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["core", "net", "sdl3", "ui"]

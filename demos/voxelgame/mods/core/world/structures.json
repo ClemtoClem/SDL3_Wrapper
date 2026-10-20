@@ -1,0 +1,316 @@
+[
+	{
+		"type": "structure",
+		"id": "oak_tree",
+		"anchor": [
+			2,
+			0,
+			2
+		],
+		"palette": {
+			"L": "oak_log",
+			"#": "oak_leaves"
+		},
+		"layers": [
+			[
+				"",
+				"",
+				"  L"
+			],
+			[
+				"",
+				"",
+				"  L"
+			],
+			[
+				"",
+				"",
+				"  L"
+			],
+			[
+				"#####",
+				"#####",
+				"##L##",
+				"#####",
+				"#####"
+			],
+			[
+				" ### ",
+				"#####",
+				"##L##",
+				"#####",
+				" ### "
+			],
+			[
+				"",
+				" ### ",
+				" #L# ",
+				" ### "
+			],
+			[
+				"",
+				"  #",
+				" ###",
+				"  #"
+			]
+		]
+	},
+	{
+		"type": "structure",
+		"id": "big_oak",
+		"anchor": [
+			3,
+			0,
+			3
+		],
+		"palette": {
+			"L": "oak_log",
+			"#": "oak_leaves"
+		},
+		"layers": [
+			[
+				"",
+				"",
+				"",
+				"   L"
+			],
+			[
+				"",
+				"",
+				"",
+				"   L"
+			],
+			[
+				"",
+				"",
+				"",
+				"   L"
+			],
+			[
+				"",
+				"",
+				"",
+				"   L"
+			],
+			[
+				" ##### ",
+				"#######",
+				"#######",
+				"###L###",
+				"#######",
+				"#######",
+				" ##### "
+			],
+			[
+				" ##### ",
+				"#######",
+				"#######",
+				"###L###",
+				"#######",
+				"#######",
+				" ##### "
+			],
+			[
+				"",
+				"  ###",
+				" #####",
+				" ##L##",
+				" #####",
+				"  ###"
+			],
+			[
+				"",
+				"",
+				"  ###",
+				"  ###",
+				"  ###"
+			]
+		]
+	},
+	{
+		"type": "structure",
+		"id": "boulder",
+		"anchor": [
+			1,
+			0,
+			1
+		],
+		"palette": {
+			"C": "cobble",
+			"S": "stone"
+		},
+		"layers": [
+			[
+				"CSC",
+				"SSS",
+				"CSC"
+			],
+			[
+				" C ",
+				"CSC",
+				" C "
+			],
+			[
+				"",
+				" C"
+			]
+		]
+	},
+	{
+		"type": "structure",
+		"id": "well",
+		"anchor": [
+			2,
+			0,
+			2
+		],
+		"replaceSolid": true,
+		"palette": {
+			"C": "cobble",
+			"W": "water",
+			"F": "fence",
+			"S": "slab"
+		},
+		"layers": [
+			[
+				"CCCCC",
+				"CCCCC",
+				"CCCCC",
+				"CCCCC",
+				"CCCCC"
+			],
+			[
+				"CCCCC",
+				"CWWWC",
+				"CWWWC",
+				"CWWWC",
+				"CCCCC"
+			],
+			[
+				"F   F",
+				"",
+				"",
+				"",
+				"F   F"
+			],
+			[
+				"F   F",
+				"",
+				"",
+				"",
+				"F   F"
+			],
+			[
+				"SSSSS",
+				"SSSSS",
+				"SSSSS",
+				"SSSSS",
+				"SSSSS"
+			]
+		]
+	},
+	{
+		"type": "structure",
+		"id": "ruin",
+		"anchor": [
+			3,
+			0,
+			3
+		],
+		"palette": {
+			"B": "bricks",
+			"G": "glass",
+			"T": "tnt"
+		},
+		"layers": [
+			[
+				"BBBBBBB",
+				"B     B",
+				"B     B",
+				"B  T  B",
+				"B     B",
+				"B     B",
+				"BBB BBB"
+			],
+			[
+				"BB BBBB",
+				"B     B",
+				"      B",
+				"B     B",
+				"B      ",
+				"B     B",
+				"BBB BBB"
+			],
+			[
+				"B G  BB",
+				"       ",
+				"B     B",
+				"      B",
+				"B      ",
+				"       ",
+				"BB  B B"
+			]
+		]
+	},
+	{
+		"type": "structure",
+		"id": "house",
+		"anchor": [
+			3,
+			0,
+			3
+		],
+		"palette": {
+			"P": "planks",
+			"L": "oak_log",
+			"G": "glass",
+			"S": "stairs",
+			"T": "table",
+			"C": "chair",
+			"c": "crafting_table",
+			"t": "torch"
+		},
+		"layers": [
+			[
+				"LPPPPPL",
+				"PPPPPPP",
+				"PPPPPPP",
+				"PPPPPPP",
+				"PPPPPPP",
+				"LPPPPPL"
+			],
+			[
+				"LPPPPPL",
+				"P t   P",
+				"P     P",
+				"P  T C P",
+				"Pc    P",
+				"LPP PPL"
+			],
+			[
+				"LPGPGPL",
+				"P     P",
+				"G     G",
+				"P     P",
+				"P     P",
+				"LPP PPL"
+			],
+			[
+				"LPPPPPL",
+				"P     P",
+				"P     P",
+				"P     P",
+				"P     P",
+				"LPPPPPL"
+			],
+			[
+				"PPPPPPP",
+				"PPPPPPP",
+				"PPPPPPP",
+				"PPPPPPP",
+				"PPPPPPP",
+				"PPPPPPP"
+			]
+		]
+	}
+]

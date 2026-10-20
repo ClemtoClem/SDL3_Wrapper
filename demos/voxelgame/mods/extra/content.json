@@ -1,0 +1,315 @@
+// Mod « extra » : contenu ajouté sans toucher au C++ ni au mod « core ».
+// — textures procédurales (minerai et gemme de rubis) ;
+// — textures COMPOSÉES : « a^b » superpose b sur a, « (…) » groupe,
+//   « ^filtre(args) » s'applique à tout ce qui précède (voir voxel/assets.hpp) ;
+// — surcharge du générateur core:overworld (minerais, grottes) ;
+// — créature qui réutilise un modèle du mod « core » (core:animal_penguin).
+[
+ {
+  "type": "texture",
+  "id": "ruby_ore",
+  "procedural": {
+   "color": [
+    125,
+    125,
+    128
+   ],
+   "color2": [
+    220,
+    30,
+    70
+   ],
+   "pattern": "ore",
+   "density": 0.18
+  }
+ },
+ {
+  "type": "texture",
+  "id": "ruby",
+  "procedural": {
+   "color": [
+    230,
+    40,
+    80
+   ],
+   "color2": [
+    140,
+    10,
+    40
+   ],
+   "pattern": "checker",
+   "noise": 0.1
+  }
+ },
+ {
+  "id": "ruby_ore",
+  "displayName": "Minerai de rubis",
+  "tags": [
+   "ore"
+  ],
+  "graphics": {
+   "texture": "ruby_ore"
+  },
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe",
+   "drops": "ruby"
+  }
+ },
+ {
+  "id": "dark_grass",
+  "displayName": "Herbe sombre",
+  "tags": [
+   "terrain"
+  ],
+  "sounds": "core:grass",
+  "graphics": {
+   "textures": {
+    "top": "core:grass_top^ligthing(0.5)",
+    "bottom": "core:dirt.png^ligthing(0.5)",
+    "side": "(core:dirt^core:grass_top)^ligthing(0.5)"
+   }
+  },
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "shovel"
+  }
+ },
+ {
+  "id": "frozen_cobble",
+  "displayName": "Pierre gelée",
+  "tags": [
+   "stone",
+   "cold"
+  ],
+  "sounds": "core:ice",
+  "graphics": {
+   "texture": "core:cobble^(core:snow^opacity(0.25))^colorize(150, 200, 255, 0.2)"
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "type": "item",
+  "id": "ruby",
+  "displayName": "Rubis",
+  "icon": "ruby"
+ },
+ {
+  "type": "tool",
+  "id": "ruby_sword",
+  "displayName": "Épée de rubis",
+  "icon": "ruby",
+  "tool": {
+   "kind": "sword",
+   "damage": 10,
+   "durability": 500
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "ruby_sword",
+  "pattern": [
+   "R",
+   "R",
+   "S"
+  ],
+  "key": {
+   "R": "ruby",
+   "S": "core:stick"
+  },
+  "result": "ruby_sword"
+ },
+ {
+  "type": "creature",
+  "id": "penguin",
+  "displayName": "Pingouin royal",
+  "shape": "cube",
+  "size": [
+   0.6,
+   1.1,
+   0.6
+  ],
+  "physics": {
+   "collider": [
+    0.6,
+    1.1,
+    0.6
+   ],
+   "maxSpeed": 1.6
+  },
+  "health": 6,
+  "behaviors": [
+   "wander",
+   {
+    "id": "flee",
+    "range": 4
+   },
+   "float"
+  ],
+  "spawn": {
+   "biomes": [
+    "core:tundra"
+   ],
+   "chance": 0.03,
+   "max": 6,
+   "onBlocks": [
+    "core:snow",
+    "core:ice"
+   ]
+  },
+  "rig": {
+   "model": "core:animal_penguin",
+   "yaw": 180,
+   "scale": 1.25
+  }
+ },
+ {
+  "type": "generator",
+  "id": "core:overworld",
+  "kind": "noise",
+  "seaLevel": 62,
+  "fluid": "core:water",
+  "bedrock": "core:bedrock",
+  "bedrockLevel": -30,
+  "frequency": 0.006,
+  "octaves": 5,
+  "caves": 0.7,
+  "ores": [
+   {
+    "block": "core:coal_ore",
+    "in": "core:stone",
+    "chance": 0.012,
+    "maxY": 90
+   },
+   {
+    "block": "core:iron_ore",
+    "in": "core:stone",
+    "chance": 0.007,
+    "maxY": 60
+   },
+   {
+    "block": "core:gold_ore",
+    "in": "core:stone",
+    "chance": 0.003,
+    "maxY": 32
+   },
+   {
+    "block": "core:redstone_ore",
+    "in": "core:stone",
+    "chance": 0.004,
+    "maxY": 20
+   },
+   {
+    "block": "core:lapis_ore",
+    "in": "core:stone",
+    "chance": 0.003,
+    "maxY": 30
+   },
+   {
+    "block": "core:diamond_ore",
+    "in": "core:stone",
+    "chance": 0.0012,
+    "maxY": 16
+   },
+   {
+    "block": "core:emerald_ore",
+    "in": "core:stone",
+    "chance": 0.0008,
+    "maxY": 40
+   },
+   {
+    "block": "core:amethyst_ore",
+    "in": "core:stone",
+    "chance": 0.0015,
+    "maxY": 40
+   },
+   {
+    "block": "core:ruby_ore",
+    "in": "core:stone",
+    "chance": 0.0012,
+    "maxY": 30
+   },
+   {
+    "block": "core:sapphire_ore",
+    "in": "core:stone",
+    "chance": 0.0012,
+    "maxY": 30
+   },
+   {
+    "block": "core:topaz_ore",
+    "in": "core:stone",
+    "chance": 0.0012,
+    "maxY": 35
+   },
+   {
+    "block": "core:amber_ore",
+    "in": "core:stone",
+    "chance": 0.0015,
+    "maxY": 50
+   },
+   {
+    "block": "core:peridot_ore",
+    "in": "core:stone",
+    "chance": 0.0012,
+    "maxY": 35
+   },
+   {
+    "block": "core:tanzanite_ore",
+    "in": "core:stone",
+    "chance": 0.0008,
+    "maxY": 20
+   },
+   {
+    "block": "core:malachite_ore",
+    "in": "core:stone",
+    "chance": 0.0015,
+    "maxY": 45
+   },
+   {
+    "block": "core:gravel",
+    "in": "core:stone",
+    "chance": 0.004,
+    "maxY": 200
+   },
+   {
+    "block": "core:clay",
+    "in": "core:stone",
+    "chance": 0.002,
+    "maxY": 70
+   },
+   {
+    "block": "core:granite",
+    "in": "core:stone",
+    "chance": 0.004,
+    "maxY": 90
+   },
+   {
+    "block": "core:diorite",
+    "in": "core:stone",
+    "chance": 0.004,
+    "maxY": 90
+   },
+   {
+    "block": "core:andesite",
+    "in": "core:stone",
+    "chance": 0.004,
+    "maxY": 90
+   },
+   {
+    "block": "core:lava",
+    "in": "core:stone",
+    "chance": 0.0008,
+    "maxY": 30
+   },
+   {
+    "block": "ruby_ore",
+    "in": "core:stone",
+    "chance": 0.002,
+    "maxY": 40
+   }
+  ]
+ }
+]

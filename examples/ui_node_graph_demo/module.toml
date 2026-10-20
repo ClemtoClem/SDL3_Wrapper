@@ -1,0 +1,12 @@
+[module]
+name = "ui_node_graph_demo"
+layer = "application"
+version = "0.1.0"
+description = "Éditeur de node-graph (ui::nodegraph)"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["core", "dataio", "sdl3", "ui"]

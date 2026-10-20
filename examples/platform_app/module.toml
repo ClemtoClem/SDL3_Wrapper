@@ -1,0 +1,12 @@
+[module]
+name = "platform_app"
+layer = "application"
+version = "0.1.0"
+description = "Application minimale sur platform::Application : boucle à pas fixe, bus d'événements, diagnostics"
+type = "executable"
+
+[sources]
+dirs = ["src"]
+
+[dependencies]
+modules = ["platform", "events", "diagnostics", "sdl3"]

@@ -1,0 +1,27 @@
+[module]
+name = "diagnostics"
+layer = "foundation"
+version = "0.1.0"
+description = "Journalisation à sinks, assertions et instrumentation (chronométrage, compteurs)"
+type = "static"              # executable | static | shared | header-only
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]      # propagé aux modules dépendants
+private = ["src"]
+
+[dependencies]
+modules = []
+pkg_config = []
+system = []
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = []
+
+[tests]
+dirs = ["tests"]

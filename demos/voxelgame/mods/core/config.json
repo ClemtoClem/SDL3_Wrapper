@@ -1,0 +1,111 @@
+// Configuration du mod « core » : valeurs lues par le moteur et les scripts
+// (content.config("…") côté script). Un autre mod peut remplacer une clé de
+// premier niveau en déclarant sa propre configuration.
+{
+	"type": "config",
+	"values": {
+		"world": {
+			"generator": "core:overworld",
+			"startTime": 0.3
+		},
+		"player": {
+			"speed": 4.3,
+			"jumpSpeed": 8.4,
+			"model": "core:biped",
+			"skin": "core:entities/steve",
+			"starterKit": [
+				["core:wooden_pickaxe", 1],
+				["core:wooden_axe", 1],
+				["core:wooden_sword", 1],
+				["core:planks", 32],
+				["core:torch", 16],
+				["core:crafting_table", 1],
+				["core:bread", 6],
+				["core:apple", 4],
+				["core:wheat_seeds", 8],
+				["core:wooden_hoe", 1],
+				["core:shelf", 2],
+				["core:table", 1],
+				["core:chair", 2],
+				["core:lamp", 2]
+			]
+		},
+		// Skins proposés à l'écran de personnalisation : tout le dossier
+		// textures/skins (et quelques skins mis en avant).
+		"skins": {
+			"folder": "core:skins/",
+			"featured": [
+				"core:entities/steve", "core:entities/alex", "core:skins/skin_prince", "core:skins/skin_princess",
+				"core:skins/skin_rogue_male", "core:skins/skin_rogue_female", "core:skins/skin_farmer_male",
+				"core:skins/skin_farmer_female", "core:skins/skin_castaway_male", "core:skins/skin_castaway_female"
+			]
+		},
+		// Palettes de couleurs (herbe, feuillage, eau) selon température et humidité.
+		"colormaps": {
+			"grass": "core:colormap/grass",
+			"foliage": "core:colormap/foliage",
+			"water": "core:colormap/water"
+		},
+		"crafting": {
+			"tableStation": "core:crafting_table",
+			"cookingStation": "core:furnace",
+			"categories": [
+				{"id": "all", "name": "Tout"},
+				{"id": "tools", "name": "Outils"},
+				{"id": "combat", "name": "Combat"},
+				{"id": "building", "name": "Construction"},
+				{"id": "decoration", "name": "Décoration"},
+				{"id": "food", "name": "Nourriture"},
+				{"id": "materials", "name": "Matériaux"},
+				{"id": "dyes", "name": "Teintures"},
+				{"id": "magic", "name": "Magie"},
+				{"id": "stations", "name": "Ateliers"}
+			]
+		},
+		"sounds": {
+			"step": "core:step",
+			"place": "core:place",
+			"break": "core:break",
+			"pickup": "core:pickup",
+			"hurt": "core:hurt",
+			"hit": "core:dirt_hit",
+			"eat": "core:eat",
+			"xp": "core:xp",
+			"levelUp": "core:level_up",
+			"equip": "core:equip",
+			"trade": "core:trade",
+			"craft": "core:craft",
+			"cook": "core:cook",
+			"toolBreak": "core:tool_breaks",
+			"death": "core:death"
+		},
+		// Effets de statut : nom, couleur et sens (bénéfique ou non) pour l'interface.
+		"effects": {
+			"regeneration": {"name": "Régénération", "color": [205, 92, 171], "good": true},
+			"poison": {"name": "Poison", "color": [78, 147, 49], "good": false},
+			"speed": {"name": "Rapidité", "color": [124, 175, 198], "good": true},
+			"slowness": {"name": "Lenteur", "color": [90, 108, 129], "good": false},
+			"hunger": {"name": "Faim", "color": [88, 118, 83], "good": false},
+			"strength": {"name": "Force", "color": [147, 36, 35], "good": true},
+			"resistance": {"name": "Résistance", "color": [153, 69, 58], "good": true},
+			"jump_boost": {"name": "Saut amélioré", "color": [34, 255, 76], "good": true},
+			"night_vision": {"name": "Vision nocturne", "color": [31, 31, 161], "good": true},
+			"absorption": {"name": "Absorption", "color": [37, 82, 165], "good": true}
+		},
+		"ambience": {
+			"interval": [8, 20],
+			"musicInterval": [200, 420]
+		},
+		"physics": {
+			"fallDamageSpeed": 14
+		},
+		"items": {
+			"lifetime": 300
+		},
+		"spawning": {
+			"maxCreatures": 28,
+			"maxHostile": 12,
+			"radius": 40
+		}
+	}
+}

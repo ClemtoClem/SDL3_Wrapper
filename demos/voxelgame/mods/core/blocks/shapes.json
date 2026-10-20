@@ -1,0 +1,409 @@
+[
+	{
+		"schemaVersion": 1,
+		"id": "core:shelf",
+		"displayName": "Étagère (nodebox, collision FROM_NODEBOX)",
+		"type": "nodebox",
+		"size": {
+			"x": 1,
+			"y": 1,
+			"z": 1
+		},
+		"nodebox": {
+			"type": "FIXED",
+			"fixed": [
+				[
+					-0.5,
+					-0.6,
+					-0.5,
+					0.5,
+					-0.5,
+					0.5
+				],
+				[
+					0.45,
+					-0.5,
+					-0.5,
+					0.5,
+					0.5,
+					0.5
+				],
+				[
+					-0.5,
+					-1.5,
+					-0.5,
+					0.5,
+					-0.6,
+					-0.45
+				]
+			]
+		},
+		"graphics": {
+			"texture": "core:planks"
+		},
+		"physics": {
+			"collision": {
+				"shape": "FROM_NODEBOX"
+			}
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:shelf_fixed",
+		"displayName": "Étagère (collision FIXED)",
+		"type": "nodebox",
+		"size": {
+			"x": 1,
+			"y": 1,
+			"z": 1
+		},
+		"nodebox": {
+			"shape": "FIXED",
+			"fixed": [
+				[
+					-0.5,
+					-0.6,
+					-0.5,
+					0.5,
+					-0.5,
+					0.5
+				],
+				[
+					0.45,
+					-0.5,
+					-0.5,
+					0.5,
+					0.5,
+					0.5
+				],
+				[
+					-0.5,
+					-1.5,
+					-0.5,
+					0.5,
+					-0.6,
+					-0.45
+				]
+			]
+		},
+		"graphics": {
+			"texture": "core:oak_log"
+		},
+		"physics": {
+			"collision": {
+				"shape": "FIXED",
+				"fixed": [
+					[
+						-0.5,
+						-0.6,
+						-0.5,
+						0.5,
+						-0.5,
+						0.5
+					],
+					[
+						0.45,
+						-0.5,
+						-0.5,
+						0.5,
+						0.5,
+						0.5
+					],
+					[
+						-0.5,
+						-1.5,
+						-0.5,
+						0.5,
+						-0.6,
+						-0.45
+					]
+				]
+			}
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:slab",
+		"sounds": "core:stone",
+		"displayName": "Dalle",
+		"type": "nodebox",
+		"nodebox": [
+			[
+				-0.5,
+				-0.5,
+				-0.5,
+				0.5,
+				0,
+				0.5
+			]
+		],
+		"graphics": {
+			"texture": "core:cobble"
+		},
+		"gameplay": {
+			"hardness": 2,
+			"tool": "pickaxe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:stairs",
+		"sounds": "core:wood",
+		"displayName": "Escalier",
+		"type": "nodebox",
+		"nodebox": [
+			[
+				-0.5,
+				-0.5,
+				-0.5,
+				0.5,
+				0,
+				0.5
+			],
+			[
+				-0.5,
+				0,
+				0,
+				0.5,
+				0.5,
+				0.5
+			]
+		],
+		"graphics": {
+			"texture": "core:planks"
+		},
+		"gameplay": {
+			"hardness": 2,
+			"tool": "axe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:fence",
+		"sounds": "core:wood",
+		"displayName": "Barrière",
+		"type": "nodebox",
+		"nodebox": [
+			[
+				-0.125,
+				-0.5,
+				-0.125,
+				0.125,
+				0.5,
+				0.125
+			],
+			[
+				-0.5,
+				0.1,
+				-0.06,
+				0.5,
+				0.25,
+				0.06
+			],
+			[
+				-0.5,
+				-0.25,
+				-0.06,
+				0.5,
+				-0.1,
+				0.06
+			]
+		],
+		"physics": {
+			"collision": {
+				"shape": "FIXED",
+				"fixed": [
+					[
+						-0.5,
+						-0.5,
+						-0.125,
+						0.5,
+						1,
+						0.125
+					]
+				]
+			}
+		},
+		"graphics": {
+			"texture": "core:planks"
+		},
+		"gameplay": {
+			"hardness": 2,
+			"tool": "axe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:ladder",
+		"sounds": "core:wood",
+		"displayName": "Échelle",
+		"type": "nodebox",
+		"tags": [
+			"climbable"
+		],
+		"nodebox": [
+			[
+				-0.4,
+				-0.5,
+				0.42,
+				-0.3,
+				0.5,
+				0.5
+			],
+			[
+				0.3,
+				-0.5,
+				0.42,
+				0.4,
+				0.5,
+				0.5
+			],
+			[
+				-0.4,
+				-0.3,
+				0.44,
+				0.4,
+				-0.2,
+				0.48
+			],
+			[
+				-0.4,
+				0.2,
+				0.44,
+				0.4,
+				0.3,
+				0.48
+			]
+		],
+		"physics": {
+			"solid": false,
+			"climbable": true
+		},
+		"graphics": {
+			"texture": "core:planks"
+		},
+		"gameplay": {
+			"hardness": 0.8,
+			"tool": "axe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:torch",
+		"sounds": "core:wood",
+		"displayName": "Torche",
+		"type": "nodebox",
+		"nodebox": [
+			[
+				-0.0625,
+				-0.5,
+				-0.0625,
+				0.0625,
+				0.15,
+				0.0625
+			]
+		],
+		"physics": {
+			"solid": false
+		},
+		"graphics": {
+			"texture": "core:torch",
+			"light": 14
+		},
+		"gameplay": {
+			"hardness": 0
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:table",
+		"sounds": "core:wood",
+		"displayName": "Table (modèle .obj)",
+		"type": "obj",
+		"path": "models/table.obj",
+		"graphics": {
+			"texture": "core:table"
+		},
+		"physics": {
+			"collision": {
+				"shape": "FIXED",
+				"fixed": [
+					[
+						-0.5,
+						-0.5,
+						-0.5,
+						0.5,
+						0.375,
+						0.5
+					]
+				]
+			}
+		},
+		"gameplay": {
+			"hardness": 2,
+			"tool": "axe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:chair",
+		"sounds": "core:wood",
+		"displayName": "Chaise (modèle .b3d)",
+		"type": "b3d",
+		"path": "models/chair.b3d",
+		"graphics": {
+			"texture": "core:chair"
+		},
+		"physics": {
+			"collision": {
+				"shape": "FIXED",
+				"fixed": [
+					[
+						-0.4,
+						-0.5,
+						-0.4,
+						0.4,
+						0,
+						0.4
+					]
+				]
+			}
+		},
+		"gameplay": {
+			"hardness": 1.5,
+			"tool": "axe"
+		}
+	},
+	{
+		"schemaVersion": 1,
+		"id": "core:lamp",
+		"sounds": "core:metal",
+		"displayName": "Lampe (modèle JSON)",
+		"shape": {
+			"type": "model",
+			"model": "core:lamp_model"
+		},
+		"graphics": {
+			"texture": "core:torch",
+			"light": 12
+		},
+		"physics": {
+			"collision": {
+				"shape": "FIXED",
+				"fixed": [
+					[
+						-0.2,
+						-0.5,
+						-0.2,
+						0.2,
+						0.4,
+						0.2
+					]
+				]
+			}
+		},
+		"gameplay": {
+			"hardness": 0.5
+		}
+	}
+]
