@@ -762,6 +762,21 @@ void ScriptHost::InstallContentApi() {
 		m_game.PlaySound(Qualified(id, m_currentMod), math::FVector3{0.f, 0.f, 0.f}, volume, false);
 		return Ok(Value::Nil());
 	});
+	// Réglage d'un mod (mod.json « settings » : valeur par défaut, surchargée
+	// par l'utilisateur) : voxel.setting("nom") dans les scripts du mod.
+	vm.RegisterNamespacedNative("voxel", "setting", 1, 1, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(name, sd::ArgString(args, 0, "voxel.setting"));
+		if (NodePtr v = json::At(m_game.Options().modSettings, (m_currentMod + String(".") + name).CStr()))
+			return Ok(script::ValueFromNode(v));
+		for (const ModInfo &mod : m_game.Mods().mods)
+			if (mod.id == m_currentMod)
+				if (NodePtr list = json::At(mod.manifest, "settings"); list && list->IsArray())
+					for (size_t i = 0; i < list->GetSize(); ++i)
+						if (json::Str(list->At(i), "id") == name)
+							if (NodePtr def = json::At(list->At(i), "default"))
+								return Ok(script::ValueFromNode(def));
+		return Ok(Value::Nil());
+	});
 	vm.RegisterNamespacedNative("game", "rule", 1, 1, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
 		TRY(name, sd::ArgString(args, 0, "game.rule"));
 		return Ok(Value::Boolean(m_game.Rule(name.CStr())));

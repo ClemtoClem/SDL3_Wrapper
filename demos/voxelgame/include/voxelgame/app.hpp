@@ -1,20 +1,17 @@
 #pragma once
 /**
- * voxelgame — le jeu voxel de démonstration.
+ * voxelgame — le jeu voxel de démonstration (« Voxelia »).
  *
  * Tout le CONTENU vient des mods (demos/voxelgame/mods : JSON, images,
- * sons, modèles, scripts) ; ce programme n'ajoute à voxel::Game que :
- *  - l'affichage (WorldRenderer : chunks, entités, ciel),
- *  - l'interface : viseur, barre d'objets (icônes de l'atlas), santé,
- *    progression du minage, messages, console (T ou /), inventaire et
- *    fabrication (E), menu (Échap), informations (F3),
- *  - les commandes du joueur (souris + clavier, touches PHYSIQUES : ZQSD
- *    et WASD au même endroit),
- *  - le son (audio::AudioEngine, voix spatialisées).
+ * sons, modèles, scripts) ; ce programme ajoute à voxel::Game :
+ *  - l'affichage (WorldRenderer : chunks, entités articulées, ciel, ombres),
+ *  - l'interface complète (Shell + écrans, cf. screens.hpp) : menus, gestion
+ *    des mondes et des mods, réglages, HUD, inventaire, fabrication,
+ *    discussion, terminal, commerce…
+ *  - les commandes du joueur (touches configurables),
+ *  - le son (audio::AudioEngine, voix spatialisées, volumes par catégorie).
  *
- * Ligne de commande : --world=NOM --seed=N --generator=ID --mods=DIR (répétable)
- * --saves=DIR --view=N --creative --frames=N --screenshot=N:FICHIER
- * --exec=N:/commande (répétable) --headless --width=W --height=H.
+ * Ligne de commande : voir Usage().
  */
 #include <memory>
 #include <vector>
@@ -25,18 +22,22 @@
 namespace voxelgame {
 
 struct Options {
-	String world = "Monde";
+	String world;                                     ///< vide : menu principal (fenêtre) / « Monde » (headless)
 	Option<uint32_t> seed = NONE;
 	String generator;
 	std::vector<String> mods;
 	String saves = "data/voxelgame/saves";
+	String repository = "demos/voxelgame/repository"; ///< mods disponibles à l'installation
+	String cache = "data/voxelgame/cache";           ///< monde de fond des menus
+	String settingsPath = "data/voxelgame/settings.json";
+	String screenshots = "data/voxelgame/screenshots";
 	int view = 6;
 	bool creative = false;
 	bool headless = false;
 	long frames = 0;                                  ///< 0 : jusqu'à la fermeture
 	int width = 1280, height = 760;
-	std::vector<std::pair<long, String>> screenshots; ///< image → fichier
-	std::vector<std::pair<long, String>> commands;    ///< image → commande de console
+	std::vector<std::pair<long, String>> screenshotsAt; ///< image → fichier
+	std::vector<std::pair<long, String>> commands;      ///< image → commande (/…) ou commande d'application (!…)
 	bool help = false;
 };
 
@@ -51,9 +52,8 @@ public:
 	int Run();
 
 private:
-	int RunHeadless(voxel::Game &game);
-	int RunWindowed(voxel::Game &game);
-	void LoadGame(voxel::Game &game);
+	int RunHeadless();
+	int RunWindowed();
 
 	Options m_options;
 };

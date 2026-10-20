@@ -315,6 +315,7 @@ public:
 	WidgetBuilder &Highlighter(UiSyntaxHighlighter highlighter);
 
 	// ── Callbacks ────────────────────────────────────────────────────────────
+	// Évènements génériques
 
 	WidgetBuilder &OnClick(std::function<void()> fn);
 	WidgetBuilder &OnChange(std::function<void(float)> fn);
@@ -325,6 +326,20 @@ public:
 	/// (frappe, collage, effacement) — un filtre de recherche « en direct ».
 	WidgetBuilder &OnTextChange(std::function<void(const String &)> fn);
 	WidgetBuilder &OnSubmit(std::function<void(const String &)> fn);
+	// Tous reçoivent leur callback via UiCallbacks — donc disponibles sur
+	// N'IMPORTE QUEL widget (un simple Row, un Label, un Panel…), pas seulement
+	// sur ceux qui ont une gestion native de la souris/du clavier. La sémantique
+	// de dispatch est documentée sur chaque fonction (cf. systems.hpp).
+	WidgetBuilder &OnMouseButtonDown(std::function<void(sdl3::FPoint)> fn);
+	WidgetBuilder &OnMouseButtonUp  (std::function<void(sdl3::FPoint)> fn);
+	WidgetBuilder &OnMouseWheel     (std::function<void(float)> fn);
+	WidgetBuilder &OnMouseMove      (std::function<void(sdl3::FPoint)> fn);
+	WidgetBuilder &OnMouseEnter     (std::function<void(sdl3::FPoint)> fn);
+	WidgetBuilder &OnMouseLeave     (std::function<void(sdl3::FPoint)> fn);
+	WidgetBuilder &OnKeyDown        (std::function<void(const sdl3::Event &)> fn);
+	WidgetBuilder &OnKeyUp          (std::function<void(const sdl3::Event &)> fn);
+	WidgetBuilder &OnGamepadButtonDown(std::function<void(const sdl3::Event &)> fn);
+	WidgetBuilder &OnGamepadButtonUp  (std::function<void(const sdl3::Event &)> fn);
 
 	// ── Enfants (DSL imbriqué) ───────────────────────────────────────────────
 

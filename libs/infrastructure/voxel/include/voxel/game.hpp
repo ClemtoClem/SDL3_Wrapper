@@ -43,6 +43,8 @@ class ScriptHost;
 struct GameOptions {
 	std::vector<String> modDirectories{"mods"};
 	std::vector<String> disabledMods;
+	std::vector<String> modOrder;  ///< ordre de chargement souhaité (dépendances d'abord malgré tout)
+	NodePtr modSettings;           ///< {mod: {réglage: valeur}} : lu par voxel.setting() côté script
 	String savesDirectory = "saves";
 	int viewRadius = 6;        ///< chunks
 	int verticalRadius = 3;
@@ -94,6 +96,11 @@ public:
 	[[nodiscard]] ScriptHost &Scripts() noexcept { return *m_scripts; }
 	[[nodiscard]] const GameOptions &Options() const noexcept { return m_options; }
 	void SetCreative(bool creative) noexcept { m_options.creative = creative; }
+	/// Distance de chargement (chunks) : réglages graphiques.
+	void SetViewRadius(int radius, int vertical) noexcept {
+		m_options.viewRadius = radius;
+		m_options.verticalRadius = vertical;
+	}
 
 	// ── Monde ───────────────────────────────────────────────────────────────
 

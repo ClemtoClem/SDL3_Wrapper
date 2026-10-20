@@ -26,6 +26,18 @@
 
 namespace voxelgame {
 
+/// Réglages graphiques appliqués au rendu du monde.
+struct WorldRenderSettings {
+	int shadows = 1;            ///< 0 aucune, 1 ombres des entités, 2 + ombrage marqué des faces
+	int dynamicLights = 8;      ///< lumières ponctuelles des blocs lumineux proches (nombre fixe)
+	bool ambientOcclusion = true;
+	bool clouds = true;
+	float vegetationDensity = 1.f;
+	float entityDistance = 64.f;
+	float brightness = 0.5f;
+	int particles = 2;
+};
+
 class WorldRenderer {
 public:
 	WorldRenderer(voxel::Game &game, render3d::Canvas &canvas);
@@ -46,10 +58,21 @@ public:
 	/// Budget de reconstruction (chunks par image).
 	size_t rebuildBudget = 6;
 
+	/// Applique les réglages (l'occlusion et la végétation font remailler).
+	void Configure(const WorldRenderSettings &settings);
+	/// Éclats d'un bloc cassé (petits cubes texturés qui retombent).
+	void SpawnBreakParticles(voxel::BlockId block, const voxel::BlockPos &pos, int count);
+
 private:
 	struct ChunkView {
 		render3d::Shape *opaque = nullptr, *translucent = nullptr;
 		uint64_t revision = 0;
+		std::vector<std::pair<math::FVector3, int>> lights;
+	};
+	struct Particle {
+		render3d::Shape *shape = nullptr;
+		math::FVector3 position, velocity;
+		float life = 1.f, spin = 0.f;
 	};
 	struct EntityView {
 		render3d::Shape *shape = nullptr;   ///< forme simple (cube, nodebox, bloc)
@@ -58,6 +81,7 @@ private:
 		std::shared_ptr<const voxel::RigModel> rig;
 		std::string meshKey;
 		float walkPhase = 0.f;
+		render3d::Shape *shadow = nullptr; ///< disque sous l'entité
 	};
 	/// Skin chargé sur le GPU (une texture et son matériau par image).
 	struct Skin {
@@ -74,6 +98,10 @@ private:
 	void RebuildChunk(const voxel::ChunkPos &p, ChunkView &view);
 	void UpdateEntities(float alpha);
 	void UpdateSky();
+	void UpdateLights(const render3d::Camera &camera);
+	void UpdateClouds(const render3d::Camera &camera);
+	void UpdateParticles(float dt);
+	void UpdateShadow(EntityView &view, const math::FVector3 &feet, float width, bool visible);
 	[[nodiscard]] std::shared_ptr<render3d::Mesh> EntityMesh(const voxel::Visual &visual, const String &mod, std::string &key);
 	[[nodiscard]] static render3d::Mesh ToMesh(const voxel::MeshBuffer &buffer);
 
@@ -90,6 +118,16 @@ private:
 	std::unordered_map<uint64_t, EntityView> m_entities;
 	std::unordered_map<std::string, std::shared_ptr<render3d::Mesh>> m_meshCache;
 	std::unordered_map<std::string, std::unique_ptr<Skin>> m_skins;
+	WorldRenderSettings m_settings;
+	std::vector<Particle> m_particles;
+	render3d::Object3D *m_cloudRoot = nullptr, *m_effectRoot = nullptr;
+	std::vector<render3d::Shape *> m_cloudTiles;
+	Option<sdl3::GpuTexture> m_cloudTexture = NONE;
+	render3d::Material m_cloudMaterial, m_shadowMaterial;
+	std::shared_ptr<render3d::Mesh> m_shadowMesh;
+	float m_cloudOffset = 0.f;
+	float m_frameDt = 0.f;
+	math::FVector3 m_lastCamera{0.f, 0.f, 0.f};
 	double m_lastTime = -1.0;
 	size_t m_pending = 0, m_triangles = 0;
 };

@@ -92,6 +92,12 @@
 			"night_vision": {"name": "Vision nocturne", "color": [31, 31, 161], "good": true},
 			"absorption": {"name": "Absorption", "color": [37, 82, 165], "good": true}
 		},
+		// Ciel : carte de nuages (textures/environment/clouds.png) et leur altitude.
+		"sky": {
+			"clouds": "core:environment/clouds",
+			"cloudHeight": 128,
+			"cloudSize": 384
+		},
 		"ambience": {
 			"interval": [8, 20],
 			"musicInterval": [200, 420]

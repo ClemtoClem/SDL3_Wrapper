@@ -89,7 +89,7 @@ TerrainGenerator::Column TerrainGenerator::ColumnAt(int x, int z) const {
 	variation /= weightSum;
 	const float n = m_height.Sample(float(x), float(z));
 	const float detail = m_detail.Sample(float(x), float(z)) * (best ? best->roughness : 0.5f);
-	return {int(std::floor(base + n * variation + detail * 2.f)), best};
+	return {int(std::floor(base + n * variation * m_tuning.relief + detail * 2.f)), best};
 }
 
 int TerrainGenerator::SurfaceHeight(int x, int z) const {
@@ -176,12 +176,12 @@ void TerrainGenerator::GenerateNoise(Chunk &chunk, World &world) {
 					// Grottes : bruit 3D, jamais à fleur d'eau.
 					if (m_def.caves > 0.f && y < col.height - 1 && !(col.height <= m_def.seaLevel && y > col.height - 4)) {
 						const float c = m_caves.Sample(float(x), float(y) * 1.6f, float(z));
-						if (std::fabs(c) < m_def.caves * 0.18f)
+						if (std::fabs(c) < m_def.caves * m_tuning.caves * 0.18f)
 							id = AIR;
 					}
 					// Minerais dans le remplissage.
 					for (const Ore &ore : m_ores)
-						if (id == ore.in && y >= ore.minY && y <= ore.maxY && RandomAt(m_seed, x, y, z, 17) < ore.chance)
+						if (id == ore.in && y >= ore.minY && y <= ore.maxY && RandomAt(m_seed, x, y, z, 17) < ore.chance * m_tuning.ores)
 							id = ore.block;
 				} else if (y <= m_def.seaLevel) {
 					id = m_fluid;
@@ -208,7 +208,11 @@ void TerrainGenerator::Decorate(Chunk &chunk, World &world, int x, int z, const 
 	uint32_t salt = 1000;
 	for (const Decoration &deco : col.biome->decorations) {
 		++salt;
-		if (RandomAt(m_seed, x, 0, z, salt) >= deco.chance)
+		if (RandomAt(m_seed, x, 0, z, salt) >= deco.chance * m_tuning.vegetation)
+			continue;
+		// Structures « bâties » (sans tronc : ni arbre ni pic) désactivables.
+		if (!m_tuning.structures && !deco.structure.IsEmpty() && !deco.structure.EndsWith("_tree") && !deco.structure.Contains("_tree_") &&
+			!deco.structure.Contains("oak") && !deco.structure.Contains("spike"))
 			continue;
 		if (!deco.onBlocks.empty() &&
 			std::none_of(deco.onBlocks.begin(), deco.onBlocks.end(), [&](const String &b) { return m_content.BlockIdOf(b) == surface; }))
@@ -222,6 +226,11 @@ void TerrainGenerator::Decorate(Chunk &chunk, World &world, int x, int z, const 
 		return; // une décoration par colonne
 	}
 	(void)chunk;
+}
+
+void TerrainGenerator::SetTuning(const GenerationTuning &tuning) {
+	m_def.seaLevel += tuning.seaLevel - m_tuning.seaLevel;
+	m_tuning = tuning;
 }
 
 std::shared_ptr<TerrainGenerator> MakeGenerator(const ContentRegistry &content, const String &generatorId, uint32_t seed,

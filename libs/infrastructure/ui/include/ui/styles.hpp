@@ -455,6 +455,10 @@ public:
 	[[nodiscard]] sdl3::FColor TextColor(sdl3::FColor fallback) const noexcept { return Value<prop::TextColor>(fallback); }
 	[[nodiscard]] sdl3::FColor BorderColor(sdl3::FColor fallback) const noexcept { return Value<prop::BorderColor>(fallback); }
 	[[nodiscard]] sdl3::FColor BorderFocus(sdl3::FColor fallback) const noexcept { return Value<prop::FocusedBorderColor>(fallback); }
+	[[nodiscard]] sdl3::FColor BorderHovered(sdl3::FColor fallback) const noexcept { return Value<prop::HoveredBorderColor>(fallback); }
+	[[nodiscard]] sdl3::FColor BorderPressed(sdl3::FColor fallback) const noexcept { return Value<prop::PressedBorderColor>(fallback); }
+	[[nodiscard]] sdl3::FColor TextHovered(sdl3::FColor fallback) const noexcept { return Value<prop::HoveredTextColor>(fallback); }
+	[[nodiscard]] sdl3::FColor TextPressed(sdl3::FColor fallback) const noexcept { return Value<prop::PressedTextColor>(fallback); }
 	[[nodiscard]] math::Sides BordersWidth(math::Sides fallback) const noexcept { return Value<prop::BordersWidth>(fallback); }
 	[[nodiscard]] math::Corners BordersRadius(math::Corners fallback) const noexcept { return Value<prop::BordersRadius>(fallback); }
 	[[nodiscard]] float FontSize(float fallback) const noexcept { return Value<prop::FontSize>(fallback); }

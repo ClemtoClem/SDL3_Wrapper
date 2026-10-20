@@ -1,5 +1,6 @@
 // Définitions de voxel/meshing.hpp
 #include <voxel/meshing.hpp>
+#include <voxel/worldgen.hpp>
 #include <voxel/physics.hpp>
 
 #include <algorithm>
@@ -412,6 +413,9 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 				}
 				const BlockRender &r = *chosen;
 				const BlockDef &def = m_content.Block(id);
+				if (def.look.lightEmission > 0)
+					mesh.lights.push_back({origin.ToVector() + math::FVector3{float(x) + 0.5f, float(y) + 0.5f, float(z) + 0.5f},
+										   def.look.lightEmission});
 				MeshBuffer &out = r.translucent ? mesh.translucent : mesh.opaque;
 				const math::FVector3 offset{float(x), float(y), float(z)};
 				const uint8_t param = pad.params[size_t(Padded::Index(x, y, z))];
@@ -433,7 +437,7 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 					};
 					auto ao = [&](Face f, const math::FVector3 *corners) {
 						std::array<float, 4> levels{1.f, 1.f, 1.f, 1.f};
-						if (r.translucent)
+						if (r.translucent || !options.ambientOcclusion)
 							return levels;
 						const BlockPos n = FaceNormal(f);
 						const int axis = NormalAxis(f);
@@ -467,7 +471,10 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 						EmitBox(out, b, r, offset, cull, {});
 					}
 				} else if (r.shape == ShapeKind::CROSS) {
-					EmitCross(out, r, offset);
+					// Densité de végétation : une partie des plantes seulement.
+					if (options.crossDensity >= 1.f ||
+						float(HashPosition(0x9e37u, origin.x + x, origin.y + y, origin.z + z, 3) % 1000u) < options.crossDensity * 1000.f)
+						EmitCross(out, r, offset);
 				} else if (r.shape == ShapeKind::MODEL) {
 					EmitModel(out, def.shape.model, r, offset, param, def.mod, true);
 				}

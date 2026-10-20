@@ -598,8 +598,13 @@ sdl3::FPoint LayoutSystem::Pass::Intrinsic(ecs::Entity e) {
 	// héritée du parent) — même donnée que celle qui sert aux unités
 	// Em/Rem, pas de nouvelle résolution ici.
 	float fs = FontsOf(e).em;
-	if (auto l = world.GetComponent<UiLabel>(e); l.IsSome())
-		return sys.MeasureText(l.Unwrap()->text, fs);
+	if (auto l = world.GetComponent<UiLabel>(e); l.IsSome()) {
+		sdl3::FPoint m = sys.MeasureText(l.Unwrap()->text, fs);
+		if (TextOverflowOf(world, e) == TextOverflow::WRAP)
+			if (auto it = sys.wrapHeights.find(e.id); it != sys.wrapHeights.end())
+				m.y = sdl3::Max(m.y, it->second);
+		return m;
+	}
 	if (auto b = world.GetComponent<UiButton>(e); b.IsSome()) {
 		auto t = sys.MeasureText(b.Unwrap()->text, fs);
 		return {t.x + 24.f, t.y + 14.f};
@@ -841,8 +846,18 @@ void LayoutSystem::Pass::Place(ecs::Entity e, sdl3::FRect screen, sdl3::FRect dr
 		if (Option<sdl3::FPoint> textContent = TextContentSize(
 				e, sdl3::FRect{screen.x, screen.y, sdl3::Max(0.f, screen.w - gutter.x),
 							   sdl3::Max(0.f, screen.h - gutter.y)});
-			textContent.IsSome())
+			textContent.IsSome()) {
 			newContent[e.id] = textContent.Unwrap();
+			// Hauteur réelle d'un texte à la ligne : mémorisée pour la passe
+			// suivante (les parents à hauteur automatique s'y ajustent).
+			if (TextOverflowOf(world, e) == TextOverflow::WRAP) {
+				float &known = sys.wrapHeights[e.id];
+				if (std::fabs(known - textContent.Unwrap().y) > 0.5f) {
+					known = textContent.Unwrap().y;
+					sys.dirty = true;
+				}
+			}
+		}
 
 		if (HAS_FLOW && !flowKids.empty())
 			PlaceLinear(e, fit->second, contentBox, c.contentOrigin, c.childClip, flowKids);
@@ -1210,12 +1225,21 @@ ecs::Entity InputSystem::KeyboardFocus(ecs::ArchetypeRegistry &world) const {
 		if (d.editing && !focus.Valid())
 			focus = e;
 	});
+
+	// un widget focalisé générique compte aussi comme source de focus clavier.
+	if (!focus.Valid()) {
+		world.Query<UiInteractionState>([&](ecs::Entity e, UiInteractionState &st) {
+			if (st.focused && !focus.Valid())
+				focus = e;
+		});
+	}
 	if (focus.Valid() && IsHiddenRecursive(world, focus))
 		return ecs::Entity{};
 	return focus;
 }
 
 void InputSystem::ClearKeyboardFocus(ecs::ArchetypeRegistry &world) const {
+	world.Query<UiInteractionState>([](ecs::Entity, UiInteractionState &st) { st.focused = false; });
 	world.Query<UiInput>([](ecs::Entity, UiInput &f) { f.focused = false; });
 	world.Query<UiInputArea>([](ecs::Entity, UiInputArea &f) { f.focused = false; });
 }
@@ -1241,10 +1265,19 @@ bool InputSystem::ClaimsKey(ecs::ArchetypeRegistry &world, const sdl3::Event &ev
 	IOMode mode = IOMode::READ_WRITE_COPY_AND_PASTE;
 	if (auto f = ioModeOf(focus); f.IsSome())
 		mode = f.Unwrap();
-	if (IoCanWrite(mode))
-		return true;
-	if (ev.IsTextInput() || ev.Type() == uint32_t(sdl3::EventType::TEXT_EDITING))
-		return false;
+	
+		if (auto st = world.GetComponent<UiInteractionState>(focus);
+    st.IsSome() && st.Unwrap()->focused) {
+    auto cb = world.GetComponent<UiCallbacks>(focus);
+    if (cb.IsSome() && (cb.Unwrap()->onKeyDown || cb.Unwrap()->onKeyUp ||
+                        cb.Unwrap()->onGamepadButtonDown || cb.Unwrap()->onGamepadButtonUp))
+        return true;
+	}
+
+	if (IoCanWrite(mode)) return true;
+
+	if (ev.IsTextInput() || ev.Type() == uint32_t(sdl3::EventType::TEXT_EDITING)) return false;
+
 	const bool ctrl = (ev.raw.key.mod & SDL_KMOD_CTRL) != 0;
 	switch (ev.Keycode()) {
 		case SDLK_LEFT:
@@ -1298,6 +1331,7 @@ bool InputSystem::HandleEvent(ecs::ArchetypeRegistry &world, const sdl3::Event &
 	if (ev.IsMouseMotion()) {
 		mouseX = in.mouseX = ev.MouseMotion().x;
 		mouseY = in.mouseY = ev.MouseMotion().y;
+		in.mouseMovedThisEvent = true;
 	} else if (ev.IsMouseDown(SDL_BUTTON_LEFT)) {
 		mouseX = in.mouseX = ev.MouseButton().x;
 		mouseY = in.mouseY = ev.MouseButton().y;
@@ -1363,8 +1397,40 @@ bool InputSystem::HandleEvent(ecs::ArchetypeRegistry &world, const sdl3::Event &
 			in.selectAll = true;
 		else
 			return claimed;
+	} else if (ev.IsGamepadButtonDown()) {
+		in.gamepadDownThisEvent = true;
+	} else if (ev.IsGamepadButtonUp()) {
+		in.gamepadUpThisEvent = true;
 	} else {
 		return claimed;
+	}
+
+	in.rawEvent = &ev;
+
+	// ── Clavier générique : la cible est le widget focalisé générique ──────
+	if (ev.IsKeyDown() || ev.IsKeyUp()) {
+		ecs::Entity focus = KeyboardFocus(world);
+		if (focus.Valid() && !world.HasComponent<UiInput>(focus) &&
+			!world.HasComponent<UiInputArea>(focus)) {
+			if (auto cb = world.GetComponent<UiCallbacks>(focus); cb.IsSome()) {
+				if (ev.IsKeyDown() && cb.Unwrap()->onKeyDown)
+					cb.Unwrap()->onKeyDown(ev);
+				if (ev.IsKeyUp() && cb.Unwrap()->onKeyUp)
+					cb.Unwrap()->onKeyUp(ev);
+			}
+		}
+	}
+
+	// ── Manette : ciblage identique au clavier ─────────────────────────────
+	if (in.gamepadDownThisEvent || in.gamepadUpThisEvent) {
+		ecs::Entity focus = KeyboardFocus(world);
+		if (focus.Valid())
+			if (auto cb = world.GetComponent<UiCallbacks>(focus); cb.IsSome()) {
+				if (in.gamepadDownThisEvent && cb.Unwrap()->onGamepadButtonDown)
+					cb.Unwrap()->onGamepadButtonDown(ev);
+				if (in.gamepadUpThisEvent && cb.Unwrap()->onGamepadButtonUp)
+					cb.Unwrap()->onGamepadButtonUp(ev);
+			}
 	}
 
 	Dispatch(world, in, layout);
@@ -1725,6 +1791,22 @@ bool InputSystem::ApplyTextEdit(String &text, size_t &cursor, size_t &selectionA
 		insertAtCursor(sdl3::clipboard::GetText());
 	}
 	return changed;
+}
+
+bool InputSystem::WidgetHasNativeClick(ecs::ArchetypeRegistry &w, ecs::Entity e) {
+    // Tous les widgets qui, à l'heure actuelle, déclenchent leur propre
+    // onClick/onDoubleClick via leur branche de dispatch dédiée.
+    return w.HasComponent<UiButton>(e)      || w.HasComponent<UiColorSwatch>(e) ||
+           w.HasComponent<UiSelectable>(e)  || w.HasComponent<UiTreeNode>(e)    ||
+           w.HasComponent<UiMenuItem>(e);
+}
+
+bool InputSystem::WidgetWantsKeyboardFocus(ecs::ArchetypeRegistry &w, ecs::Entity e) {
+    auto cb = w.GetComponent<UiCallbacks>(e);
+    return cb.IsSome() && (cb.Unwrap()->onKeyDown ||
+                           cb.Unwrap()->onKeyUp   ||
+                           cb.Unwrap()->onGamepadButtonDown ||
+                           cb.Unwrap()->onGamepadButtonUp);
 }
 
 void InputSystem::Dispatch(ecs::ArchetypeRegistry &world, const Frame &in, LayoutSystem &layout) {
@@ -3304,11 +3386,88 @@ void InputSystem::Dispatch(ecs::ArchetypeRegistry &world, const Frame &in, Layou
 		}
 	}
 
+	// ── Évènements GÉNÉRIQUES ───────────────────────────────────────────────
+	// Réutilise frontMost (calculé en tête de Dispatch) et respecte les mêmes
+	// règles de blocage (modal, hidden, disabled) que les widgets natifs. Ne
+	// concerne QUE les évènements souris/roue/mouvement de la frame — le
+	// clavier/manette est traité séparément (cf. HandleEvent + Tick()).
+	{
+		ecs::Entity f = frontMost;
+		bool blocked = f.Valid() &&
+					(IsHiddenRecursive(world, f) || IsDisabledRecursive(world, f));
+		if (!modalStack.empty() && f.Valid() && !IsDescendantOrSelf(world, f, modalStack.back()))
+			blocked = true;
+
+		// ── Suivi de l'état pressed + clic générique ────────────────────────
+		// Sur MouseDown, mémorise pressedWidget ; sur MouseUp, ne déclenche
+		// onClick QUE si pressedWidget==frontMost (donc relâché sur la même
+		// cible), sauf si le widget gère son propre clic (button, selectable…)
+		// — dans ce cas, SA branche native s'en charge.
+		if (in.pressed && f.Valid() && !blocked) {
+			if (auto st = world.GetComponent<UiInteractionState>(f); st.IsSome())
+				st.Unwrap()->pressed = true;
+			pressedWidget = f;
+		}
+		if (in.released) {
+			ecs::Entity pressedE = pressedWidget;
+			pressedWidget = ecs::Entity{};
+			if (pressedE.Valid())
+				if (auto st = world.GetComponent<UiInteractionState>(pressedE); st.IsSome())
+					st.Unwrap()->pressed = false;
+			if (pressedE.Valid() && pressedE == f && !blocked &&
+				!WidgetHasNativeClick(world, pressedE))
+				if (auto cb = world.GetComponent<UiCallbacks>(pressedE); cb.IsSome() && cb.Unwrap()->onClick) {
+					auto fn = cb.Unwrap()->onClick;
+					pending.push_back([fn] { fn(); });
+				}
+		}
+
+		if (!f.Valid() || blocked)
+			return; // (ou `goto`-équivalent : on ne dispatche rien de plus)
+
+		// ── Autres évènements souris génériques ─────────────────────────────
+		// Dispatch immédiat à la cible la plus en avant. Pas de consommation
+		// (le widget est déjà seul destinataire par construction — voir
+		// IsFrontMost) : les callbacks ne peuvent pas voler l'évènement à
+		// un widget natif qui l'a déjà traité dans sa propre branche.
+		if (auto cb = world.GetComponent<UiCallbacks>(f); cb.IsSome()) {
+			if (in.pressed && cb.Unwrap()->onMouseButtonDown) {
+				auto fn = cb.Unwrap()->onMouseButtonDown;
+				pending.push_back([fn, x = MX, y = MY] { fn({x, y}); });
+			}
+			if (in.released && cb.Unwrap()->onMouseButtonUp) {
+				auto fn = cb.Unwrap()->onMouseButtonUp;
+				pending.push_back([fn, x = MX, y = MY] { fn({x, y}); });
+			}
+			if (in.wheelY != 0.f && cb.Unwrap()->onMouseWheel) {
+				auto fn = cb.Unwrap()->onMouseWheel;
+				pending.push_back([fn, d = in.wheelY] { fn(d); });
+			}
+			// MouseMove : pas d'évènement dans le Frame actuel (SDL ne le
+			// distingue pas d'un Button/Motion) — on le déclenche depuis
+			// IsMouseMotion capturé par HandleEvent (voir plus bas, variable
+			// `bool motionThisEvent` à ajouter dans Frame).
+			if (in.mouseMovedThisEvent && cb.Unwrap()->onMouseMove) {
+				auto fn = cb.Unwrap()->onMouseMove;
+				pending.push_back([fn, x = MX, y = MY] { fn({x, y}); });
+			}
+		}
+
+		// ── Focus clavier générique : au clic sur un widget qui le demande ──
+		if (in.pressed && WidgetWantsKeyboardFocus(world, f)) {
+			// Un seul widget focalisé à la fois — cohérent avec UiInput.
+			world.Query<UiInteractionState>([](ecs::Entity, UiInteractionState &st) {
+				st.focused = false;
+			});
+			if (auto st = world.GetComponent<UiInteractionState>(f); st.IsSome())
+				st.Unwrap()->focused = true;
+		}
+	}
+
 	// Callbacks applicatifs : exécutés maintenant que toutes les queries
 	// de cet évènement sont terminées — sûr même s'ils mutent l'ECS
 	// (changement de scène, despawn...).
-	for (auto &fn : pending)
-		fn();
+	for (auto &fn : pending) fn();
 }
 
 // ── RenderSystem ─────────────────────────────────────────────────────────────
@@ -3502,36 +3661,56 @@ void RenderSystem::DrawWidget(ecs::ArchetypeRegistry &world, IUiRenderBackend &r
 	const sdl3::FRect &s = c.screen;
 
 	if (world.HasComponent<UiPanel>(e)) {
-		// UiPanel est un marqueur pur ("cette entité a un fond à
-		// dessiner") — fond/dégradé/bordure/radius viennent entièrement
-		// du style résolu (classes "root-panel"/inline, cf. styles.hpp).
 		ResolvedStyle rs = GetResolved(world, e);
-		sdl3::FColor bg = rs.Bg(sdl3::FColor{});
-		Option<sdl3::FColor> grad = rs.BgGradientOpt();
-		math::Corners radius = rs.BordersRadius(math::Corners{});
-		bool hasBorder = rs.HasBorderColor();
-		sdl3::FColor border = rs.BorderColor(sdl3::FColor{});
 
-		if (grad.IsSome()) {
-			DrawVGradient(ren, s, bg, grad.Unwrap());
-		} else if (bg.a > 0) {
+		// Widgets qui dessinent leur fond eux-mêmes (button/toggle/slider/
+		// checkbox) : le panneau reste neutre. On évite ainsi de peindre
+		// hovered/pressed DEUX fois (le bouton le fait déjà, et sa palette
+		// hovered/pressed est plus riche que le panneau générique).
+		const bool nativeMouse =
+			world.HasComponent<UiButton>(e)   || world.HasComponent<UiToggle>(e)  ||
+			world.HasComponent<UiCheckbox>(e) || world.HasComponent<UiSlider>(e)  ||
+			world.HasComponent<UiComboBox>(e) || world.HasComponent<ListBox>(e);
+
+		bool hovered = false, pressed = false;
+		if (!nativeMouse)
+			if (auto st = world.GetComponent<UiInteractionState>(e); st.IsSome()) {
+				hovered = st.Unwrap()->hovered;
+				pressed = st.Unwrap()->pressed;
+			}
+
+		sdl3::FColor bg    = rs.Bg(sdl3::FColor{});
+		sdl3::FColor bcol  = rs.BorderColor(sdl3::FColor{});
+		bool         hasB  = rs.HasBorderColor();
+		sdl3::FColor grad  = rs.BgGradientOpt().UnwrapOr(bg);
+
+		// Substitutions hover/press — un style qui ne définit pas la variante
+		// correspondante garde la valeur de base (fallback = bg).
+		if (pressed) {
+			if (auto c = rs.BgPressed(sdl3::FColor{}); c.a > 0) bg = c;
+			if (auto c = rs.BorderPressed(sdl3::FColor{}); c.a > 0) { bcol = c; hasB = true; }
+		} else if (hovered) {
+			if (auto c = rs.BgHovered(sdl3::FColor{}); c.a > 0) bg = c;
+			if (auto c = rs.BorderHovered(sdl3::FColor{}); c.a > 0) { bcol = c; hasB = true; }
+		}
+
+		math::Corners radius = rs.BordersRadius(math::Corners{});
+
+		if (rs.BgGradientOpt().IsSome())
+			DrawVGradient(ren, s, bg, grad);
+		else if (bg.a > 0) {
 			ren.SetDrawColor(bg);
 			ren.FillRoundedRect(s, radius);
 		}
-		if (hasBorder) {
-			ren.SetDrawColor(border);
-			// Épaisseur : contours concentriques (1 trait par pixel).
-			// `.top` sert de représentatif uniforme — le cas courant
-			// (bordure identique sur les 4 côtés) reste exact ; un
-			// borderWidth non-uniforme n'est pas encore rendu par côté.
+		if (hasB) {
+			ren.SetDrawColor(bcol);
 			int bw = int(BorderSides(rs).top);
 			for (int i = 0; i < bw; ++i) {
 				sdl3::FRect br{s.x + float(i), s.y + float(i), s.w - 2.f * float(i), s.h - 2.f * float(i)};
-				if (br.w <= 0.f || br.h <= 0.f)
-					break;
+				if (br.w <= 0.f || br.h <= 0.f) break;
 				float fi = float(i);
 				math::Corners inset{sdl3::Max(0.f, radius.tl - fi), sdl3::Max(0.f, radius.tr - fi),
-							  sdl3::Max(0.f, radius.bl - fi), sdl3::Max(0.f, radius.br - fi)};
+									sdl3::Max(0.f, radius.bl - fi), sdl3::Max(0.f, radius.br - fi)};
 				ren.DrawRoundedRect(br, inset);
 			}
 		}

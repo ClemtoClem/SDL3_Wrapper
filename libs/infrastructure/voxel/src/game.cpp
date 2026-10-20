@@ -138,7 +138,7 @@ void Game::PlayBlockSound(BlockId block, const char *event, const BlockPos &pos)
 
 ModReport Game::LoadMods(const GameOptions &options) {
 	m_options = options;
-	m_mods = ModLoader::LoadAll(m_content, options.modDirectories, options.disabledMods);
+	m_mods = ModLoader::LoadAll(m_content, options.modDirectories, options.disabledMods, options.modOrder);
 	// Scripts : dans l'ordre des mods, après les définitions JSON de chacun
 	// (un script peut donc compléter ou modifier le contenu chargé).
 	for (const ModInfo &mod : m_mods.mods)
@@ -168,6 +168,10 @@ Result<bool, String> Game::OpenWorld(const String &name, Option<uint32_t> seed, 
 		return Err(meta.Error());
 	if (meta.Value().IsSome()) {
 		m_metadata = meta.Value().Unwrap();
+		if (m_metadata.gameTime < 0.0) // monde préparé par l'interface : heure de départ des mods
+			m_metadata.gameTime = m_content.ConfigNum("world.startTime", 0.3) * double(m_options.dayLength);
+		if (m_metadata.generator.IsEmpty())
+			m_metadata.generator = m_content.ConfigStr("world.generator");
 	} else {
 		m_metadata = WorldMetadata{};
 		m_metadata.name = name;
@@ -186,6 +190,17 @@ Result<bool, String> Game::OpenWorld(const String &name, Option<uint32_t> seed, 
 	auto terrain = MakeGenerator(m_content, m_metadata.generator, m_metadata.seed, m_scripts->Generator());
 	if (m_metadata.generator.IsEmpty())
 		m_metadata.generator = terrain->Definition().id;
+	// Réglages de génération choisis à la création du monde.
+	if (NodePtr g = json::At(m_metadata.settings, "generation"); g && g->IsObject()) {
+		GenerationTuning tuning;
+		tuning.relief = float(json::Num(g, "relief", 1.0));
+		tuning.caves = float(json::Num(g, "caves", 1.0));
+		tuning.ores = float(json::Num(g, "ores", 1.0));
+		tuning.vegetation = float(json::Num(g, "vegetation", 1.0));
+		tuning.structures = json::Bool(g, "structures", true);
+		tuning.seaLevel = json::Int(g, "seaLevel", 0);
+		terrain->SetTuning(tuning);
+	}
 	m_world->SetGenerator(terrain);
 	(void)m_world->onChunkLoaded.Connect([this](const ChunkPos &p) {
 		if (m_scripts->HasHandlers("chunk_generated"))

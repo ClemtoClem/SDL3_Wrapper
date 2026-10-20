@@ -46,6 +46,8 @@ struct MeshBuffer {
 struct ChunkMesh {
 	MeshBuffer opaque, translucent;
 	uint64_t revision = 0;
+	/// Blocs lumineux du chunk (centre, niveau 1..15) : lumières dynamiques.
+	std::vector<std::pair<math::FVector3, int>> lights;
 };
 
 class TextureAtlas {
@@ -75,6 +77,13 @@ public:
 	ChunkMesher(const ContentRegistry &content, const TextureAtlas &atlas, AssetManager *assets = nullptr);
 
 	[[nodiscard]] ChunkMesh Build(const World &world, const ChunkPos &chunk) const;
+
+	/// Options de rendu (réglages graphiques).
+	struct Options {
+		bool ambientOcclusion = true;
+		float crossDensity = 1.f; ///< part des plantes en croix affichées (0..1)
+	};
+	Options options;
 
 	/// Forme isolée, centrée en x/z, base à y = 0 (entités, objets) ; `size`
 	/// remplace celle de la forme pour un cube (collision des entités).

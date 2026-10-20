@@ -31,6 +31,16 @@ namespace voxel {
 /// Même chose dans [0, 1[.
 [[nodiscard]] float RandomAt(uint32_t seed, int x, int y, int z, uint32_t salt = 0) noexcept;
 
+/// Réglages de génération propres à un monde (écran de création).
+struct GenerationTuning {
+	float relief = 1.f;     ///< amplitude du relief
+	float caves = 1.f;      ///< densité des grottes
+	float ores = 1.f;       ///< abondance des minerais
+	float vegetation = 1.f; ///< arbres et plantes
+	bool structures = true; ///< bâtiments, ruines, rochers
+	int seaLevel = 0;       ///< décalage du niveau de la mer
+};
+
 class TerrainGenerator final : public ChunkGenerator {
 public:
 	/// Fonction de génération d'un mod ("script") : remplit le chunk.
@@ -43,6 +53,8 @@ public:
 	[[nodiscard]] const BiomeDef *BiomeAt(int x, int z) const override;
 
 	[[nodiscard]] const GeneratorDef &Definition() const noexcept { return m_def; }
+	void SetTuning(const GenerationTuning &tuning);
+	[[nodiscard]] const GenerationTuning &Tuning() const noexcept { return m_tuning; }
 
 private:
 	struct Column {
@@ -68,6 +80,7 @@ private:
 	generators::Noise m_height, m_detail, m_temperature, m_humidity, m_caves;
 	BlockId m_fluid = AIR, m_bedrock = AIR;
 	int m_bedrockLevel = -64;
+	GenerationTuning m_tuning;
 };
 
 /// Générateur du monde : le GeneratorDef demandé (ou le premier), sinon un

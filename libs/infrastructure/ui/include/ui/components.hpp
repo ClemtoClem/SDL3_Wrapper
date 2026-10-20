@@ -1061,8 +1061,11 @@ struct UiCalendar {
 
 struct UiCallbacks {
 	std::function<void()> onClick;
-	std::function<void(float)> onChange; ///< sliders / knobs
+	/// Bouton ou ligne sélectionnable : DOUBLE clic (second appui rapproché,
+	/// selon le système). Le premier appui a déjà donné son `onClick`.
+	std::function<void()> onDoubleClick;
 	std::function<void(bool)> onToggle;  ///< toggle / checkbox / radio
+	std::function<void(float)> onChange; ///< sliders / knobs
 	std::function<void(float)> onScroll; ///< scrollbars : nouvel offset
 	std::function<void(const String &)> onTextChange;
 	std::function<void(const String &)> onSubmit;       ///< input : Entrée
@@ -1071,9 +1074,6 @@ struct UiCallbacks {
 	/// compatible, avec l'identifiant transporté par la source (cf.
 	/// UiDragPayload, interaction.hpp).
 	std::function<void(int64_t)> onDrop;
-	/// Bouton ou ligne sélectionnable : DOUBLE clic (second appui rapproché,
-	/// selon le système). Le premier appui a déjà donné son `onClick`.
-	std::function<void()> onDoubleClick;
 	/// UiDragPayload (posé sur la SOURCE) : le glissé vient de commencer (seuil
 	/// de déplacement franchi) — moment d'ajuster `label`/`count` du fantôme
 	/// selon ce qui part réellement (la sélection entière, par exemple).
@@ -1084,6 +1084,48 @@ struct UiCallbacks {
 	/// plus proche porteur de la chaîne de premier plan est notifié, comme
 	/// dans tout gestionnaire de fenêtres.
 	std::function<void(float, float)> onContextMenu;
+
+	// Souris — reçus à chaque évènement sur le widget le plus en avant,
+    /// quel que soit son type (conteneur, label, panel…). `pos` = pointeur
+    /// en coordonnées fenêtre. Les widgets ayant déjà une gestion native
+    /// (UiButton, UiSlider, UiTable…) reçoivent AUSSI ces callbacks (pas de
+    /// court-circuit : onMouseButtonDown reste libre d'être posé partout),
+    /// SAUF onClick/onDoubleClick qui ne se déclenchent jamais en double
+    /// (cf. InputSystem::dispatch, section 6).
+    std::function<void(sdl3::FPoint)> onMouseButtonDown;
+    std::function<void(sdl3::FPoint)> onMouseButtonUp;
+    std::function<void(float)>        onMouseWheel;
+    std::function<void(sdl3::FPoint)> onMouseMove;
+    std::function<void(sdl3::FPoint)> onMouseEnter; ///< frontMost devient ce widget
+    std::function<void(sdl3::FPoint)> onMouseLeave; ///< frontMost n'est plus ce widget
+
+    /// Clavier — reçus quand ce widget a le FOCUS clavier générique (posé au
+    /// clic sur un widget portant un de ces callbacks — cf. Dispatch). Un
+    /// widget sans callback clavier ne prend jamais le focus générique.
+    std::function<void(const sdl3::Event &)> onKeyDown;
+    std::function<void(const sdl3::Event &)> onKeyUp;
+
+    /// Manette — même logique que le clavier : focalisés par clic.
+    std::function<void(const sdl3::Event &)> onGamepadButtonDown;
+    std::function<void(const sdl3::Event &)> onGamepadButtonUp;
+};
+
+/// État d'interaction par widget, alimenté par InputSystem::Tick()/dispatch().
+/// Ajouté automatiquement à CHAQUE entité créée par WidgetBuilder::Spawn() —
+/// deux booléens par widget, coût négligeable devant UiRect/UiComputed.
+///
+/// - `hovered` : le widget est la cible la plus en avant sous le pointeur.
+///   Le rendu l'utilise pour substituer `BgHovered`/`BorderHovered` à
+///   `Bg`/`BorderColor` (cf. RenderSystem::DrawWidget, section 7).
+/// - `pressed` : enfoncé sur CE widget et pas encore relâché — utilisé pour
+///   le rendu `BgPressed`/`BorderPressed` ET pour la détection de clic
+///   (relâchement = `pressed && hovered` ⇒ `onClick`).
+/// - `focused` : a le focus clavier générique (posé au clic si le widget a
+///   au moins un callback clavier — cf. InputSystem::dispatch).
+struct UiInteractionState {
+    bool hovered = false;
+    bool pressed = false;
+    bool focused = false;
 };
 
 // ============================================================================

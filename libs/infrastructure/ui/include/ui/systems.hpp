@@ -493,6 +493,11 @@ private:
 	bool dirty = true;
 	float lastW = -1.f, lastH = -1.f;
 	uint64_t passes = 0;
+	/// Hauteur réelle des libellés à retour à la ligne, connue seulement après
+	/// placement (largeur résolue) : réutilisée par la mesure de la passe
+	/// suivante pour que les conteneurs à hauteur automatique les contiennent
+	/// (sinon : contenu tronqué et barre de défilement parasite).
+	std::unordered_map<uint32_t, float> wrapHeights;
 
 	// ── Une passe de layout sur des instantanés des composants ──────────────
 	struct Pass {
@@ -776,14 +781,38 @@ public:
 
 private:
 	float mouseX = 0.f, mouseY = 0.f;
+
 	// Widget le plus en avant sous le pointeur, recalculé une fois par
 	// évènement (Dispatch) et par frame (Tick) — cf. HitTestIndex et
 	// IsFrontMost : c'est ce qui empêche deux widgets superposés de réagir
 	// tous les deux au même survol/clic.
 	ecs::Entity frontMost{};
+
+	/// Widget enfoncé au dernier MouseDown (pour ne déclencher onClick qu'au
+	/// relâchement sur le MÊME widget) — la sémantique d'un bouton, étendue à
+	/// tout widget portant un `onClick` générique.
+	ecs::Entity pressedWidget{};
+
+	/// Cible du survol à la frame précédente — sert à détecter les transitions
+	/// (enter/leave) dans Tick(), pas à dispatcher.
+	ecs::Entity lastHovered{};
+
+	/// Un widget gère-t-il déjà lui-même onMouseDown/onClick via une voie native
+	/// (UiButton, UiSlider, UiTable…) ? Dans ce cas InputSystem ne rejoue PAS
+	/// `onClick`/`onDoubleClick` en générique, mais laisse le widget le faire
+	/// (sinon double appel). Les AUTRES callbacks (onMouseButtonDown, onKeyDown…)
+	/// se déclenchent génériquement quel que soit le widget.
+	[[nodiscard]] static bool WidgetHasNativeClick(ecs::ArchetypeRegistry &w, ecs::Entity e);
+
+	/// Un widget accepte-t-il le focus clavier générique ? Vrai s'il porte au
+	/// moins un `onKeyDown`/`onKeyUp`/`onGamepadButtonDown`/`onGamepadButtonUp`
+	/// — un simple clic dessus le focalise (cf. dispatch).
+	[[nodiscard]] static bool WidgetWantsKeyboardFocus(ecs::ArchetypeRegistry &w, ecs::Entity e);
+
 	/// frontMost + ses ancêtres (cf. IsFrontMost) — vide quand le pointeur
 	/// n'est au-dessus d'aucun widget, ce qui vaut "aucun blocage".
 	std::vector<ecs::Entity> frontMostChain;
+
 	/// Ordre de dessin mémorisé, reconstruit seulement quand la géométrie
 	/// change (cf. HitTestIndex).
 	HitTestIndex hitIndex;
@@ -791,6 +820,7 @@ private:
 	bool rightDown = false; ///< cf. Frame::rightDown (UiPlot::boxZooming, Phase 3)
 	ecs::Entity lastTip{};
 	float hoverTime = 0.f;
+
 	/// Entrée de menu survolée et depuis combien de temps (cf. NavigateMenus).
 	ecs::Entity menuHover{};
 	float menuHoverTime = 0.f;
@@ -868,6 +898,7 @@ private:
 	/// construire lui-même par agrégation, source de corruption).
 	struct Frame {
 		float mouseX = 0.f, mouseY = 0.f;
+		float wheelX = 0.f, wheelY = 0.f;
 		bool down = false;
 		bool pressed = false;
 		bool released = false;
@@ -875,7 +906,10 @@ private:
 		bool rightDown = false;   ///< bouton DROIT — cf. UiPlot::boxZooming (Phase 3), seul consommateur
 		bool rightPressed = false;
 		bool rightReleased = false;
-		float wheelY = 0.f;
+		bool mouseMovedThisEvent = false;
+		bool gamepadDownThisEvent = false;
+		bool gamepadUpThisEvent = false;
+		const sdl3::Event *rawEvent = nullptr;
 		String textInput;
 		bool backspace = false;
 		bool del = false; ///< touche Suppr (supprime après le curseur)

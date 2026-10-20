@@ -64,6 +64,17 @@ std::vector<ModInfo> ModLoader::Discover(const std::vector<String> &directories)
 					mod.description = json::Str(m.Value(), "description");
 					mod.dependencies = json::StrList(m.Value(), "dependencies");
 					mod.optionalDependencies = json::StrList(m.Value(), "optionalDependencies");
+					mod.incompatibilities = json::StrList(m.Value(), "incompatibilities");
+					mod.author = json::Str(m.Value(), "author");
+					mod.category = json::Str(m.Value(), "category");
+					mod.homepage = json::Str(m.Value(), "homepage");
+					mod.gameVersion = json::Str(m.Value(), "gameVersion");
+					mod.tags = json::StrList(m.Value(), "tags");
+					if (const String icon = json::Str(m.Value(), "icon"); !icon.IsEmpty())
+						mod.icon = Str(fs::absolute(path / icon.CStr()));
+					for (const String &shot : json::StrList(m.Value(), "screenshots"))
+						mod.screenshots.push_back(Str(fs::absolute(path / shot.CStr())));
+					mod.manifest = m.Value();
 				} else {
 					mod.description = m.Error(); // signalé au chargement
 					mod.enabled = false;
@@ -84,7 +95,7 @@ std::vector<ModInfo> ModLoader::Discover(const std::vector<String> &directories)
 	return mods;
 }
 
-std::vector<ModInfo> ModLoader::Order(std::vector<ModInfo> mods, std::vector<String> &errors) {
+std::vector<ModInfo> ModLoader::Order(std::vector<ModInfo> mods, std::vector<String> &errors, const std::vector<String> &preferred) {
 	std::map<std::string, size_t> byId;
 	for (size_t i = 0; i < mods.size(); ++i) {
 		if (!mods[i].enabled) {
@@ -136,8 +147,12 @@ std::vector<ModInfo> ModLoader::Order(std::vector<ModInfo> mods, std::vector<Str
 		return ok;
 	};
 	std::vector<std::string> ids;
+	for (const String &id : preferred)
+		if (byId.contains(id.CStr()))
+			ids.push_back(id.CStr());
 	for (const auto &[id, index] : byId)
-		ids.push_back(id);
+		if (std::find(ids.begin(), ids.end(), id) == ids.end())
+			ids.push_back(id);
 	for (const std::string &id : ids) {
 		std::vector<std::string> chain;
 		(void)visit(id, chain);
@@ -252,11 +267,24 @@ void ModLoader::LoadDefinitions(ContentRegistry &content, ModInfo &mod, ModRepor
 	}
 }
 
-ModReport ModLoader::LoadAll(ContentRegistry &content, const std::vector<String> &directories, const std::vector<String> &disabled) {
+std::vector<std::pair<String, String>> ModLoader::Conflicts(const std::vector<ModInfo> &mods) {
+	std::vector<std::pair<String, String>> out;
+	for (const ModInfo &a : mods)
+		for (const String &other : a.incompatibilities)
+			for (const ModInfo &b : mods)
+				if (b.id == other && std::none_of(out.begin(), out.end(), [&](const auto &p) { return p.first == b.id && p.second == a.id; }))
+					out.push_back({a.id, b.id});
+	return out;
+}
+
+ModReport ModLoader::LoadAll(ContentRegistry &content, const std::vector<String> &directories, const std::vector<String> &disabled,
+							 const std::vector<String> &preferred) {
 	ModReport report;
 	std::vector<ModInfo> found = Discover(directories);
 	std::erase_if(found, [&](const ModInfo &m) { return std::find(disabled.begin(), disabled.end(), m.id) != disabled.end(); });
-	report.mods = Order(std::move(found), report.errors);
+	for (const auto &[a, b] : Conflicts(found))
+		report.warnings.push_back(String::Format("mods incompatibles : « %s » et « %s »", a.CStr(), b.CStr()));
+	report.mods = Order(std::move(found), report.errors, preferred);
 	for (ModInfo &mod : report.mods)
 		LoadDefinitions(content, mod, report);
 	return report;

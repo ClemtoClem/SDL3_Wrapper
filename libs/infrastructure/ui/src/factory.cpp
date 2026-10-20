@@ -439,40 +439,56 @@ WidgetBuilder & WidgetBuilder::Highlighter(UiSyntaxHighlighter highlighter) {
 	return *this;
 }
 
-WidgetBuilder & WidgetBuilder::OnClick(std::function<void()> fn) {
-	Callbacks().onClick = std::move(fn);
-	return *this;
-}
+WidgetBuilder & WidgetBuilder::OnClick(std::function<void()> fn)
+	{ Callbacks().onClick = std::move(fn); return *this; }
 
-WidgetBuilder & WidgetBuilder::OnChange(std::function<void(float)> fn) {
-	Callbacks().onChange = std::move(fn);
-	return *this;
-}
+WidgetBuilder & WidgetBuilder::OnChange(std::function<void(float)> fn)
+	{ Callbacks().onChange = std::move(fn); return *this; }
 
-WidgetBuilder & WidgetBuilder::OnToggle(std::function<void(bool)> fn) {
-	Callbacks().onToggle = std::move(fn);
-	return *this;
-}
+WidgetBuilder & WidgetBuilder::OnToggle(std::function<void(bool)> fn)
+	{ Callbacks().onToggle = std::move(fn); return *this; }
 
-WidgetBuilder & WidgetBuilder::onScroll(std::function<void(float)> fn) {
-	Callbacks().onScroll = std::move(fn);
-	return *this;
-}
+WidgetBuilder & WidgetBuilder::onScroll(std::function<void(float)> fn)
+	{ Callbacks().onScroll = std::move(fn); return *this; }
 
-WidgetBuilder & WidgetBuilder::onTextChange(std::function<void(const String &)> fn) {
-	Callbacks().onTextChange = std::move(fn);
-	return *this;
-}
+WidgetBuilder & WidgetBuilder::onTextChange(std::function<void(const String &)> fn)
+	{ Callbacks().onTextChange = std::move(fn); return *this; }
 
-WidgetBuilder & WidgetBuilder::OnTextChange(std::function<void(const String &)> fn) {
-	Callbacks().onTextChange = std::move(fn);
-	return *this;
-}
+WidgetBuilder & WidgetBuilder::OnTextChange(std::function<void(const String &)> fn)
+	{ Callbacks().onTextChange = std::move(fn); return *this; }
 
-WidgetBuilder & WidgetBuilder::OnSubmit(std::function<void(const String &)> fn) {
-	Callbacks().onSubmit = std::move(fn);
-	return *this;
-}
+WidgetBuilder & WidgetBuilder::OnSubmit(std::function<void(const String &)> fn)
+	{ Callbacks().onSubmit = std::move(fn); return *this; }
+
+WidgetBuilder &WidgetBuilder::OnMouseButtonDown(std::function<void(sdl3::FPoint)> fn)
+    { Callbacks().onMouseButtonDown = std::move(fn); return *this; }
+
+WidgetBuilder &WidgetBuilder::OnMouseButtonUp(std::function<void(sdl3::FPoint)> fn)
+    { Callbacks().onMouseButtonUp = std::move(fn); return *this; }
+
+WidgetBuilder &WidgetBuilder::OnMouseWheel(std::function<void(float)> fn)
+    { Callbacks().onMouseWheel = std::move(fn); return *this; }
+
+WidgetBuilder &WidgetBuilder::OnMouseMove(std::function<void(sdl3::FPoint)> fn)
+    { Callbacks().onMouseMove = std::move(fn); return *this; }
+
+WidgetBuilder &WidgetBuilder::OnMouseEnter(std::function<void(sdl3::FPoint)> fn)
+    { Callbacks().onMouseEnter = std::move(fn); return *this; }
+
+WidgetBuilder &WidgetBuilder::OnMouseLeave(std::function<void(sdl3::FPoint)> fn)
+    { Callbacks().onMouseLeave = std::move(fn); return *this; }
+
+WidgetBuilder &WidgetBuilder::OnKeyDown(std::function<void(const sdl3::Event &)> fn)
+    { Callbacks().onKeyDown = std::move(fn); return *this; }
+
+WidgetBuilder &WidgetBuilder::OnKeyUp(std::function<void(const sdl3::Event &)> fn)
+    { Callbacks().onKeyUp = std::move(fn); return *this; }
+
+WidgetBuilder &WidgetBuilder::OnGamepadButtonDown(std::function<void(const sdl3::Event &)> fn)
+    { Callbacks().onGamepadButtonDown = std::move(fn); return *this; }
+
+WidgetBuilder &WidgetBuilder::OnGamepadButtonUp(std::function<void(const sdl3::Event &)> fn)
+    { Callbacks().onGamepadButtonUp = std::move(fn); return *this; }
 
 ecs::Entity WidgetBuilder::Spawn() {
 	ecs::Entity e = world->Spawn();
@@ -607,6 +623,7 @@ ecs::Entity WidgetBuilder::Spawn() {
 	// repos ne repaie jamais ce coût.
 	world->AddComponent(e, UiStyleDirty{});
 	world->AddComponent(e, UiComputed{});
+	world->AddComponent(e, UiInteractionState{});
 
 	if (parent.IsSome())
 		SetParent(*world, e, *parent);

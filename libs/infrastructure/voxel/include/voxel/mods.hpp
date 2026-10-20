@@ -28,7 +28,10 @@ namespace voxel {
 
 struct ModInfo {
 	String id, name, version, description, path;
-	std::vector<String> dependencies, optionalDependencies;
+	String author, category, icon, homepage, gameVersion; ///< métadonnées (interface)
+	std::vector<String> tags, screenshots;                ///< images : chemins absolus
+	std::vector<String> dependencies, optionalDependencies, incompatibilities;
+	NodePtr manifest; ///< mod.json complet (journal des modifications, réglages…)
 	std::vector<String> scripts; ///< à exécuter (ordre : init.script puis scripts/ triés)
 	int definitions = 0;
 	bool enabled = true;
@@ -45,12 +48,17 @@ public:
 	[[nodiscard]] static std::vector<ModInfo> Discover(const std::vector<String> &directories);
 	/// Ordre de chargement (dépendances d'abord) ; les mods impossibles à
 	/// charger sont retirés avec une erreur.
-	[[nodiscard]] static std::vector<ModInfo> Order(std::vector<ModInfo> mods, std::vector<String> &errors);
+	/// `preferred` : ordre souhaité par l'utilisateur, respecté tant que les
+	/// dépendances le permettent (les autres mods suivent, par id).
+	[[nodiscard]] static std::vector<ModInfo> Order(std::vector<ModInfo> mods, std::vector<String> &errors,
+													const std::vector<String> &preferred = {});
 	/// Charge les définitions JSON et les ressources d'un mod.
 	static void LoadDefinitions(ContentRegistry &content, ModInfo &mod, ModReport &report);
 	/// Tout : découverte, ordre, définitions (les scripts restent à exécuter).
 	[[nodiscard]] static ModReport LoadAll(ContentRegistry &content, const std::vector<String> &directories,
-										   const std::vector<String> &disabled = {});
+										   const std::vector<String> &disabled = {}, const std::vector<String> &preferred = {});
+	/// Mods incompatibles entre eux parmi `mods` (paires d'ids, signalées une fois).
+	[[nodiscard]] static std::vector<std::pair<String, String>> Conflicts(const std::vector<ModInfo> &mods);
 };
 
 } // namespace voxel
