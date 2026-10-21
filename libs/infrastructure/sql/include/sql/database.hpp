@@ -32,7 +32,9 @@
 #include "table.hpp"
 #include "token.hpp"
 
+#include <functional>
 #include <map>
+#include <string>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -123,10 +125,41 @@ public:
 	[[nodiscard]] Result<std::vector<Row>, String> LookupByIndex(const String &tableName, const String &columnName,
 																   const dataio::NodePtr &key) const;
 
+	// ── Keyed access (tables with a Schema::primaryKey) ──────────────────
+	// Unlike CreateIndex's snapshot B+Tree, the primary-key index is LIVE:
+	// every InsertRow/Upsert/DeleteByKey/DELETE/DROP keeps it in sync, so
+	// these lookups are O(1) and never stale. Err on an unknown table or a
+	// table without a primary key.
+
+	/// Inserts `values`, or replaces in place the row holding the same key.
+	[[nodiscard]] Result<QueryResult, String> Upsert(const String &tableName, Row values);
+
+	/// The row whose primary key equals `key` (NONE if absent).
+	[[nodiscard]] Result<Option<Row>, String> FindByKey(const String &tableName, const dataio::NodePtr &key) const;
+
+	/// Removes the row whose primary key equals `key`; Ok(false) if absent.
+	[[nodiscard]] Result<bool, String> DeleteByKey(const String &tableName, const dataio::NodePtr &key);
+
+	/// Visits every live row without copying it (cheaper than SELECT *).
+	/// Err on an unknown table.
+	[[nodiscard]] Result<bool, String> ForEachRow(const String &tableName,
+												  const std::function<void(const Row &)> &fn) const;
+
+	/// Live row count of `tableName` (0 for an unknown table).
+	[[nodiscard]] size_t RowCount(const String &tableName) const;
+
 private:
 	std::unordered_map<String, Schema> m_schemas;
 	std::unordered_map<String, Table<Row>> m_tables;
 	std::map<std::pair<String, String>, BTreeIndex> m_indexes;
+	/// Live primary-key index: table -> encoded key -> row id.
+	std::unordered_map<String, std::unordered_map<std::string, size_t>> m_keys;
+
+	/// Type-tagged byte encoding of a scalar key (INT 1 and STRING "1"
+	/// stay distinct; an INT key matches a FLOAT column after coercion).
+	[[nodiscard]] static std::string EncodeKey(const dataio::NodePtr &key);
+	/// Key column position of a keyed table, Err otherwise.
+	[[nodiscard]] Result<size_t, String> KeyColumn(const String &tableName) const;
 
 	[[nodiscard]] Result<QueryResult, String> ExecuteCreateTable(const CreateTableStatement &stmt);
 

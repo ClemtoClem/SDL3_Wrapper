@@ -417,7 +417,7 @@ bool Renderer::SetViewport(const FRect &r) {
 }
 
 bool Renderer::DrawPoints(std::span<const FPoint> pts) {
-	return m_handle && SDL_RenderPoints(m_handle, (SDL_FPoint*)(pts.data()), int(pts.size()));
+	return m_handle && SDL_RenderPoints(m_handle, (const SDL_FPoint*)(pts.data()), int(pts.size()));
 }
 
 bool Renderer::DrawLine(float x1, float y1, float x2, float y2) {
@@ -425,7 +425,7 @@ bool Renderer::DrawLine(float x1, float y1, float x2, float y2) {
 }
 
 bool Renderer::DrawLines(std::span<const FPoint> pts) {
-	return m_handle && SDL_RenderLines(m_handle, (SDL_FPoint*)(pts.data()), int(pts.size()));
+	return m_handle && SDL_RenderLines(m_handle, (const SDL_FPoint*)(pts.data()), int(pts.size()));
 }
 
 bool Renderer::DrawRect(const FRect &r) {
@@ -439,15 +439,15 @@ bool Renderer::FillRect(const FRect &r) {
 }
 
 bool Renderer::DrawRects(std::span<const FRect> rects) {
-	return m_handle && SDL_RenderRects(m_handle, (SDL_FRect*)(rects.data()), int(rects.size()));
+	return m_handle && SDL_RenderRects(m_handle, (const SDL_FRect*)(rects.data()), int(rects.size()));
 }
 
 bool Renderer::FillRects(const FRect *rects, int count) {
-	return m_handle && SDL_RenderFillRects(m_handle, (SDL_FRect*)rects, count);
+	return m_handle && SDL_RenderFillRects(m_handle, (const SDL_FRect*)rects, count);
 }
 
 bool Renderer::FillRects(std::span<const FRect> rects) {
-	return m_handle && SDL_RenderFillRects(m_handle, (SDL_FRect*)(rects.data()), int(rects.size()));
+	return m_handle && SDL_RenderFillRects(m_handle, (const SDL_FRect*)(rects.data()), int(rects.size()));
 }
 
 bool Renderer::Render(const Texture &tex, float x, float y) {
@@ -475,12 +475,12 @@ bool Renderer::RenderRotated(const Texture &tex, const FRect &dst, double angleD
 }
 
 bool Renderer::RenderGeometry(std::span<const Vertex> vertices, std::span<const int> indices) {
-	return m_handle && SDL_RenderGeometry(m_handle, nullptr, (SDL_Vertex*)(vertices.data()), int(vertices.size()),
+	return m_handle && SDL_RenderGeometry(m_handle, nullptr, (const SDL_Vertex*)(vertices.data()), int(vertices.size()),
 										  indices.empty() ? nullptr : indices.data(), int(indices.size()));
 }
 
 bool Renderer::RenderGeometry(const Texture &tex, std::span<const Vertex> vertices, std::span<const int> indices) {
-	return m_handle && SDL_RenderGeometry(m_handle, tex.Get(), (SDL_Vertex*)(vertices.data()), int(vertices.size()),
+	return m_handle && SDL_RenderGeometry(m_handle, tex.Get(), (const SDL_Vertex*)(vertices.data()), int(vertices.size()),
 										  indices.empty() ? nullptr : indices.data(), int(indices.size()));
 }
 

@@ -424,7 +424,7 @@ public:
 	bool DrawPoint(float x, float y) { return (!m_handle) ? false : SDL_RenderPoint(m_handle, x, y); }
 	bool DrawPoint(FPoint p) { return DrawPoint(p.x, p.y); }
 
-	bool DrawPoints(const FPoint *pts, int count) { return m_handle && SDL_RenderPoints(m_handle, (SDL_FPoint*)pts, count); }
+	bool DrawPoints(const FPoint *pts, int count) { return m_handle && SDL_RenderPoints(m_handle, (const SDL_FPoint*)pts, count); }
 	bool DrawPoints(std::span<const FPoint> pts);
 
 	bool DrawLine(float x1, float y1, float x2, float y2);
@@ -433,13 +433,13 @@ public:
 	/// courante) : chiffres et libellés courts sans police chargée.
 	bool DrawDebugText(float x, float y, const char *text) { return m_handle && SDL_RenderDebugText(m_handle, x, y, text); }
 
-	bool DrawLines(const FPoint *pts, int count) { return m_handle && SDL_RenderLines(m_handle, (SDL_FPoint*)pts, count); }
+	bool DrawLines(const FPoint *pts, int count) { return m_handle && SDL_RenderLines(m_handle, (const SDL_FPoint*)pts, count); }
 	bool DrawLines(std::span<const FPoint> pts);
 
 	bool DrawRect(const FRect &r);
 	bool FillRect(const FRect &r);
 
-	bool DrawRects(const FRect *rects, int count) { return m_handle && SDL_RenderRects(m_handle, (SDL_FRect*)rects, count); }
+	bool DrawRects(const FRect *rects, int count) { return m_handle && SDL_RenderRects(m_handle, (const SDL_FRect*)rects, count); }
 	bool DrawRects(std::span<const FRect> rects);
 	bool FillRects(const FRect *rects, int count);
 	bool FillRects(std::span<const FRect> rects);

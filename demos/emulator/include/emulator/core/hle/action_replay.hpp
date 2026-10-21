@@ -28,10 +28,10 @@ class ActionReplay {
   public:
     std::vector<ARCheat> cheats;
 
-    ActionReplay(Core *core) : core(core) {
+    ActionReplay(Core *core_) : core(core_) {
     }
 
-    void setPath(String path);
+    void setPath(String newPath);
 
     /// Loads (replacing `cheats`) from `fromPath`, or from the path set via
     /// setPath() when `fromPath` is empty (the normal per-ROM `.cht` file).

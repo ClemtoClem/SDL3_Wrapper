@@ -26,7 +26,7 @@ uint32_t Cp15::read(int cn, int cm, int cp) {
 void Cp15::write(int cn, int cm, int cp, uint32_t value) {
     switch ((cn << 16) | (cm << 8) | (cp << 0)) {
         case 0x010000: {
-            ctrlReg          = (ctrlReg & ~0x000FF085) | (value & 0x000FF085);
+            ctrlReg          = (ctrlReg & ~0x000FF085u) | (value & 0x000FF085);
             exceptionAddr    = (ctrlReg & BIT(13)) ? 0xFFFF0000 : 0x00000000;
             dtcmReadEnabled  = (ctrlReg & BIT(16)) && !(ctrlReg & BIT(17));
             dtcmWriteEnabled = (ctrlReg & BIT(16));

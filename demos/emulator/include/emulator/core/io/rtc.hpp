@@ -32,7 +32,7 @@ class Rtc {
      * @brief Constructeur.
      * @param core Pointeur vers l'objet Core.
      */
-    Rtc(Core *core) : core(core) { }
+    Rtc(Core *core_) : core(core_) { }
 
     /**
      * @brief Active la gestion du RTC via le GPIO (mode NDS).

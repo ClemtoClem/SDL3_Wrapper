@@ -537,7 +537,7 @@ void WorldRenderer::UpdateLights(const render3d::Camera &camera) {
 		for (const auto &light : view.lights)
 			nearest.push_back({(light.first - camera.position).Length(), light});
 	}
-	std::partial_sort(nearest.begin(), nearest.begin() + std::min<size_t>(size_t(count), nearest.size()), nearest.end(),
+	std::partial_sort(nearest.begin(), nearest.begin() + static_cast<ptrdiff_t>(std::min<size_t>(size_t(count), nearest.size())), nearest.end(),
 					  [](const auto &a, const auto &b) { return a.first < b.first; });
 	// Toujours `count` lumières (une seule variante de shader à compiler).
 	std::vector<render3d::PointLight> lights(static_cast<size_t>(count));

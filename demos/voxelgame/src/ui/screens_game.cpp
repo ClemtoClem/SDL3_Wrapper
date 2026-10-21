@@ -73,7 +73,7 @@ String Describe(Game &game, const String &id) {
 
 class Pause final : public Screen {
 public:
-	explicit Pause(Shell &shell) : Screen(shell) {}
+	explicit Pause(Shell &shell_) : Screen(shell_) {}
 	String Id() const override { return "pause"; }
 	bool Overlay() const override { return true; }
 
@@ -101,8 +101,8 @@ public:
 		kit.MenuButton(card, MaterialIcons::INFO, "Informations du monde", String(), [this] { shell.Push(MakeWorldInfo(shell)); });
 		kit.MenuButton(card, MaterialIcons::TUNE, "Configuration du monde", String(), [this] { shell.Push(MakeWorldSettings(shell, String())); });
 		kit.MenuButton(card, MaterialIcons::SAVE, "Enregistrer", "F6", [this] {
-			if (Session *s = Live(shell))
-				s->Save(true);
+			if (Session *live = Live(shell))
+				live->Save(true);
 		});
 		kit.Divider().Parent(card).Spawn();
 		kit.DangerButton("Enregistrer et quitter le monde", [this] { AskQuit(); }).GrowW().Parent(card).Spawn();
@@ -132,7 +132,7 @@ private:
 
 class InventoryScreen final : public Screen {
 public:
-	explicit InventoryScreen(Shell &shell) : Screen(shell) {}
+	explicit InventoryScreen(Shell &shell_) : Screen(shell_) {}
 	String Id() const override { return "inventory"; }
 	bool Overlay() const override { return true; }
 	~InventoryScreen() override { ReturnHeld(); }
@@ -213,8 +213,8 @@ public:
 		detail.W(Dimension::Px(240.f * sc)).Parent(b);
 		const ecs::Entity d = detail.Spawn();
 		WidgetBuilder icon = f.Canvas([this](sdl3::Renderer &ren, sdl3::FRect rect) {
-			if (Session *s = Live(shell); s && !m_detail.IsEmpty())
-				s->DrawItem(ren, m_detail, rect, false);
+			if (Session *live = Live(shell); live && !m_detail.IsEmpty())
+				live->DrawItem(ren, m_detail, rect, false);
 		});
 		icon.Size(64.f * sc, 64.f * sc).Parent(d).Spawn();
 		m_detailName = kit.Label(String(), Text::H3).GrowW().TextWrap().Parent(d).Spawn();
@@ -513,7 +513,7 @@ private:
 
 class Crafting final : public Screen {
 public:
-	explicit Crafting(Shell &shell) : Screen(shell) {}
+	explicit Crafting(Shell &shell_) : Screen(shell_) {}
 	String Id() const override { return "crafting"; }
 	bool Overlay() const override { return true; }
 
@@ -638,8 +638,8 @@ private:
 				m_selected = id;
 				Refresh();
 			}).OnDoubleClick([this, id = r->id] {
-				if (Session *s = Live(shell))
-					s->Craft(id, 1);
+				if (Session *live = Live(shell))
+					live->Craft(id, 1);
 				Refresh();
 			}).Parent(m_list);
 			const ecs::Entity e = row.Spawn();
@@ -741,7 +741,7 @@ private:
 
 class Chat final : public Screen {
 public:
-	Chat(Shell &shell, String prefix) : Screen(shell), m_prefix(std::move(prefix)) {}
+	Chat(Shell &shell_, String prefix) : Screen(shell_), m_prefix(std::move(prefix)) {}
 	String Id() const override { return "chat"; }
 	bool Overlay() const override { return true; }
 
@@ -789,8 +789,8 @@ public:
 		m_suggest = kit.Muted(String(), Text::CAPTION).TextColor(p.info).Parent(pn).Spawn();
 		WidgetBuilder input = kit.Input("Message, ou / pour une commande (Tab : compléter, ↑ ↓ : historique)");
 		input.MaxLen(256).OnSubmit([this](const String &text) {
-			if (Session *s = Live(shell))
-				s->Submit(text);
+			if (Session *live = Live(shell))
+				live->Submit(text);
 			shell.Pop();
 		}).OnTextChange([this](const String &t) { Suggest(t); });
 		m_input = input.Parent(pn).Spawn();
@@ -901,7 +901,7 @@ private:
 
 class Console final : public Screen {
 public:
-	Console(Shell &shell, String prefix) : Screen(shell), m_prefix(std::move(prefix)) {}
+	Console(Shell &shell_, String prefix) : Screen(shell_), m_prefix(std::move(prefix)) {}
 	String Id() const override { return "console"; }
 	bool Overlay() const override { return true; }
 
@@ -1077,7 +1077,7 @@ private:
 
 class WorldInfo final : public Screen {
 public:
-	explicit WorldInfo(Shell &shell) : Screen(shell) {}
+	explicit WorldInfo(Shell &shell_) : Screen(shell_) {}
 	String Id() const override { return "worldinfo"; }
 	bool Overlay() const override { return true; }
 
@@ -1170,8 +1170,8 @@ public:
 		InfoRow(kit, e, "Sauvegarde auto", shell.Prefs().autosaveMinutes > 0 ? String::Format("toutes les %d min", shell.Prefs().autosaveMinutes)
 																			 : String("désactivée"));
 		kit.Button("Enregistrer maintenant", [this] {
-			if (Session *s = Live(shell))
-				s->Save(true);
+			if (Session *live = Live(shell))
+				live->Save(true);
 		}).Parent(e).Spawn();
 	}
 	bool OnKey(int code) override {
@@ -1187,7 +1187,7 @@ public:
 
 class Trade final : public Screen {
 public:
-	Trade(Shell &shell, UiRequest request) : Screen(shell), m_request(std::move(request)) {}
+	Trade(Shell &shell_, UiRequest request) : Screen(shell_), m_request(std::move(request)) {}
 	String Id() const override { return "trade"; }
 	bool Overlay() const override { return true; }
 
@@ -1227,8 +1227,8 @@ public:
 			ItemIcon(shell, ItemStack{getId, getN, 0, nullptr}, 40.f).Parent(r).Spawn();
 			kit.Label(String::Format("%d × %s", getN, s->ItemName(getId).CStr()), Text::SMALL).GrowW().Parent(r).Spawn();
 			WidgetBuilder btn = kit.PrimaryButton("Échanger", [this, giveId, giveN, getId, getN] {
-				if (Session *s = Live(shell)) {
-					Result<bool, String> res = s->Game().Trade(s->Player(), giveId, giveN, getId, getN);
+				if (Session *live = Live(shell)) {
+					Result<bool, String> res = live->Game().Trade(live->Player(), giveId, giveN, getId, getN);
 					if (res.IsError())
 						shell.Notify(Tone::WARNING, "Échange impossible", res.Error());
 				}
@@ -1246,7 +1246,7 @@ private:
 
 class Dialog final : public Screen {
 public:
-	Dialog(Shell &shell, UiRequest request) : Screen(shell), m_request(std::move(request)) {}
+	Dialog(Shell &shell_, UiRequest request) : Screen(shell_), m_request(std::move(request)) {}
 	String Id() const override { return "dialog"; }
 	bool Overlay() const override { return true; }
 

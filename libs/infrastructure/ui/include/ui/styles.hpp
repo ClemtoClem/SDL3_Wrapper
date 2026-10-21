@@ -389,7 +389,7 @@ class ResolvedStyle {
 
 public:
 	ResolvedStyle() = default;
-	explicit ResolvedStyle(const UiStyle *style) noexcept : style(style) {}
+	explicit ResolvedStyle(const UiStyle *style_) noexcept : style(style_) {}
 
 	/// Accès générique : valeur résolue de la propriété `P`, ou `fallback`
 	/// si non résolue. Les accesseurs nommés ci-dessous en sont de simples

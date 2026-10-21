@@ -36,7 +36,7 @@ static int smoke_main_test_dsp() {
         // Le bin cible doit dominer largement tous les autres bins.
         int peakBin = 0;
         for (size_t i = 1; i < magDb.size(); ++i)
-            if (magDb[i] > magDb[peakBin])
+            if (magDb[i] > magDb[static_cast<std::vector<float>::size_type>(peakBin)])
                 peakBin = int(i);
         assert(peakBin == TARGET_BIN);
         assert(magDb[TARGET_BIN] > -6.f);   // proche de 0 dBFS pour une sinusoïde pleine échelle

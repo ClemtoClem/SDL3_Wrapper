@@ -121,7 +121,7 @@ class UiFactory;
 
 class WidgetBuilder {
 public:
-	WidgetBuilder(ecs::ArchetypeRegistry &world, LayoutSystem &layout) : world(&world), layout(&layout) {}
+	WidgetBuilder(ecs::ArchetypeRegistry &world_, LayoutSystem &layout_) : world(&world_), layout(&layout_) {}
 
 	WidgetBuilder(WidgetBuilder &&) = default;
 	WidgetBuilder &operator=(WidgetBuilder &&) = default;
@@ -583,7 +583,7 @@ private:
 
 	UiTextOverflow &OverflowMut();
 
-	/// Nom de la classe de défauts thémés correspondant au type de widget
+	/// Nom de la classe de défauts thèmes correspondant au type de widget
 	/// déjà posé sur ce builder (ex: "root-button"), ou NONE si ce type n'a
 	/// pas de défauts spécifiques (image/canvas/tooltip...). Utilisé par
 	/// Spawn() pour préfixer la UiClassList — cf. UiFactory::registerRootClasses.

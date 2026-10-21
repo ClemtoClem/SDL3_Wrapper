@@ -27,7 +27,7 @@ class GbcCore;
  */
 class GbcMemory {
   public:
-    explicit GbcMemory(GbcCore *core) : core(core) {
+    explicit GbcMemory(GbcCore *core_) : core(core_) {
     }
 
     /// Parses the cartridge header (title/CGB flag/MBC type/ROM+RAM bank

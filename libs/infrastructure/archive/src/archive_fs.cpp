@@ -322,7 +322,7 @@ std::vector<VirtualFs::NodeId> VirtualFs::Glob(const String& pattern) const {
 size_t VirtualFs::FileCount() const {
 	size_t count = 0;
 	for (NodeId id : Flatten())
-		count += m_nodes[id].IsFile() ? 1 : 0;
+		count += m_nodes[id].IsFile() ? 1 : static_cast<size_t>(0);
 	return count;
 }
 

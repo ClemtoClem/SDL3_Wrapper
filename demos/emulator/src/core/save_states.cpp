@@ -11,9 +11,9 @@ namespace emulator {
 const char     *SaveStates::stateTag     = "NDSCSTAT";
 const uint32_t  SaveStates::stateVersion = 2; // 2 : registres RTC complets (Status 2, alarmes, heure écrite)
 
-void SaveStates::setPath(const String& path, RomType romType) {
-    this->path    = path;
-    this->romType = romType;
+void SaveStates::setPath(const String& newPath, RomType newRomType) {
+    this->path    = newPath;
+    this->romType = newRomType;
 }
 
 StateResult SaveStates::checkState() {

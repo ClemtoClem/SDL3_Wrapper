@@ -255,7 +255,7 @@ WidgetBuilder Kit::Scroll(float gap) {
 
 WidgetBuilder Kit::Label(String text, Text role) {
 	WidgetBuilder b = Factory().Label(std::move(text));
-	b.WAuto().HAuto().FontSize(Size(role)).TextColor(m_palette.text).TextEllipsis();
+	b.WAuto().HAuto().FontSize(Size(role)).TextColor(m_palette.text).TextMarquee(35.f, 1.2f);
 	if (role == Text::H1 || role == Text::H2 || role == Text::H3 || role == Text::DISPLAY)
 		b.Bold();
 	return b;
@@ -293,7 +293,7 @@ WidgetBuilder Kit::PixelTitle(String text, float height, sdl3::FColor color, boo
 // ── Commandes ────────────────────────────────────────────────────────────────
 
 WidgetBuilder Kit::Button(String text, std::function<void()> fn, Tone tone) {
-	const float textWidth = m_ui.Layout().measureText ? m_ui.Layout().measureText(text, Size(Text::BODY)).x : float(text.GetSize()) * 8.f;
+	const float textWidth = m_ui.Layout().MeasureText(text, Size(Text::BODY), false, false).x;
 	WidgetBuilder b = Factory().Button(std::move(text));
 	b.W(Dimension::Px(textWidth + 34.f * Scale())).H(Dimension::Px(36.f * Scale())).Pad(math::Sides(16.f * Scale(), 0.f)).FontSize(Size(Text::BODY)).Radius(6.f * Scale());
 	ui::UiStyle s;
@@ -314,7 +314,7 @@ WidgetBuilder Kit::Button(String text, std::function<void()> fn, Tone tone) {
 }
 
 WidgetBuilder Kit::GhostButton(String text, std::function<void()> fn) {
-	const float textWidth = m_ui.Layout().measureText ? m_ui.Layout().measureText(text, Size(Text::BODY)).x : float(text.GetSize()) * 8.f;
+	const float textWidth = m_ui.Layout().MeasureText(text, Size(Text::BODY), false, false).x;
 	WidgetBuilder b = Factory().Button(std::move(text));
 	b.W(Dimension::Px(textWidth + 26.f * Scale())).H(Dimension::Px(34.f * Scale())).Pad(math::Sides(12.f * Scale(), 0.f)).FontSize(Size(Text::BODY)).Radius(6.f * Scale());
 	ui::UiStyle s;
@@ -421,7 +421,7 @@ ecs::Entity Kit::Tabs(ecs::Entity parent, const std::vector<String> &tabs, int a
 	bar.GrowW().H(Dimension::Px(40.f * Scale())).Parent(parent);
 	const ecs::Entity row = bar.Spawn();
 	for (int i = 0; i < int(tabs.size()); ++i) {
-		const float tw = m_ui.Layout().measureText ? m_ui.Layout().measureText(tabs[size_t(i)], Size(Text::BODY)).x : 80.f;
+		const float tw = m_ui.Layout().MeasureText(tabs[size_t(i)], Size(Text::BODY), false, false).x;
 		WidgetBuilder tab = Factory().Button(tabs[size_t(i)]);
 		tab.W(Dimension::Px(tw + 30.f * Scale())).H(Dimension::Px(38.f * Scale())).Pad(math::Sides(14.f * Scale(), 0.f)).FontSize(Size(Text::BODY)).Radius(0.f);
 		ui::UiStyle s;

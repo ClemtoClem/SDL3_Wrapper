@@ -105,10 +105,10 @@ CodepointT DecodeNext(const uint8_t *&p, const uint8_t *end) noexcept {
 // ── CodepointIterator ────────────────────────────────────────────────────────
 
 CodepointIterator::CodepointIterator(const char *p, const char *end)
-	: curStart(reinterpret_cast<const uint8_t *>(p)), pos(reinterpret_cast<const uint8_t *>(p)),
-	  end(reinterpret_cast<const uint8_t *>(end)), current(0) {
-	if (reinterpret_cast<const uint8_t *>(pos) < reinterpret_cast<const uint8_t *>(end))
-		current = DecodeNext(pos, reinterpret_cast<const uint8_t *>(end));
+	: m_curStart(reinterpret_cast<const uint8_t *>(p)), m_pos(reinterpret_cast<const uint8_t *>(p)),
+	  m_end(reinterpret_cast<const uint8_t *>(end)), m_current(0) {
+	if (m_pos < m_end)
+		m_current = DecodeNext(m_pos, m_end);
 }
 
 std::u16string ToUtf16(StringView utf8) {

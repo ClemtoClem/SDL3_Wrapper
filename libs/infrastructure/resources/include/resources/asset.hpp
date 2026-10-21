@@ -18,6 +18,7 @@
  * résolues par `ResourceCache` (cache.hpp).
  */
 #include <cstdint>
+#include <unordered_map>
 #include <vector>
 
 #include <core/core.hpp>
@@ -128,7 +129,13 @@ public:
 	static constexpr int FORMAT_VERSION = 1;
 
 private:
+	struct IdHash {
+		size_t operator()(const AssetId &id) const noexcept;
+	};
 	std::vector<AssetRecord> m_records;
+	/// Index id → position dans m_records : Put/Find en temps constant
+	/// (un catalogue de mods compte des milliers d'entrées).
+	std::unordered_map<AssetId, size_t, IdHash> m_index;
 };
 
 } // namespace resources

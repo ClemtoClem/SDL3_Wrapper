@@ -13,7 +13,7 @@ namespace {
 
 class Confirm final : public Screen {
 public:
-	Confirm(Shell &shell, ConfirmSpec spec) : Screen(shell), m_spec(std::move(spec)) {}
+	Confirm(Shell &shell_, ConfirmSpec spec) : Screen(shell_), m_spec(std::move(spec)) {}
 	String Id() const override { return "confirm"; }
 	bool Overlay() const override { return true; }
 
@@ -90,7 +90,7 @@ private:
 
 class Loading final : public Screen {
 public:
-	Loading(Shell &shell, String folder) : Screen(shell), m_folder(std::move(folder)) {
+	Loading(Shell &shell_, String folder) : Screen(shell_), m_folder(std::move(folder)) {
 		m_entry = shell.Worlds().Find(m_folder, shell.Mods().Installed());
 		m_tip = size_t(std::chrono::steady_clock::now().time_since_epoch().count() / 1000) % Tips().size();
 	}
@@ -159,9 +159,13 @@ public:
 		String status;
 		const bool ready = session->Prepare(progress, status);
 		if (!session->Error().IsEmpty()) {
+			// LeaveWorld revient au menu et DÉTRUIT cet écran : rien de ses
+			// membres ne doit être lu après.
 			const String error = session->Error();
-			shell.LeaveWorld(false);
-			shell.ShowError("Impossible d'ouvrir le monde", String::Format("Le monde « %s » n'a pas pu être chargé.", m_folder.CStr()), error);
+			const String message = String::Format("Le monde « %s » n'a pas pu être chargé.", m_folder.CStr());
+			Shell &owner = shell;
+			owner.LeaveWorld(false);
+			owner.ShowError("Impossible d'ouvrir le monde", message, error);
 			return;
 		}
 		if (auto pr = kit.Ui().World().GetComponent<ui::UiProgress>(m_bar); pr.IsSome())
@@ -186,8 +190,8 @@ private:
 
 class ErrorScreen final : public Screen {
 public:
-	ErrorScreen(Shell &shell, String title, String message, String details)
-		: Screen(shell), m_title(std::move(title)), m_message(std::move(message)), m_details(std::move(details)) {}
+	ErrorScreen(Shell &shell_, String title, String message, String details)
+		: Screen(shell_), m_title(std::move(title)), m_message(std::move(message)), m_details(std::move(details)) {}
 	String Id() const override { return "error"; }
 	bool Overlay() const override { return true; }
 

@@ -384,7 +384,8 @@ LegacyDecryptor::LegacyDecryptor(LegacyCipher cipher, const String& password) : 
 	const auto& crc = CrcTable();
 	switch (cipher) {
 	case LegacyCipher::RAR13:
-		for (unsigned char p : pw) {
+		for (const char pChar : pw) {
+			const auto p = static_cast<unsigned char>(pChar);
 			m_key13[0] = uint8_t(m_key13[0] + p);
 			m_key13[1] ^= p;
 			m_key13[2] = uint8_t(m_key13[2] + p);
@@ -397,7 +398,8 @@ LegacyDecryptor::LegacyDecryptor(LegacyCipher cipher, const String& password) : 
 			std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(pw.data()), pw.size()));
 		m_key15[0] = uint16_t(pswCrc & 0xFFFF);
 		m_key15[1] = uint16_t(pswCrc >> 16);
-		for (unsigned char p : pw) {
+		for (const char pChar : pw) {
+			const auto p = static_cast<unsigned char>(pChar);
 			m_key15[2] = uint16_t(m_key15[2] ^ p ^ crc[p]);
 			m_key15[3] = uint16_t(m_key15[3] + uint16_t(p + (crc[p] >> 16)));
 		}

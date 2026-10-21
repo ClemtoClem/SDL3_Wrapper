@@ -13,7 +13,7 @@ FORCE_INLINE uint32_t CPU::lli(uint32_t opcode) {
 
 FORCE_INLINE uint32_t CPU::llr(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F] + (((opcode & 0x0000000F) == 0x0000000F) ? 4 : 0);
-    uint8_t  shift = *registers[(opcode & 0x00000F00) >> 8];
+    uint8_t  shift = static_cast<uint8_t>(*registers[(opcode & 0x00000F00) >> 8]);
     return (shift < 32) ? (value << shift) : 0;
 }
 
@@ -25,20 +25,20 @@ FORCE_INLINE uint32_t CPU::lri(uint32_t opcode) {
 
 FORCE_INLINE uint32_t CPU::lrr(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F] + (((opcode & 0x0000000F) == 0x0000000F) ? 4 : 0);
-    uint8_t  shift = *registers[(opcode & 0x00000F00) >> 8];
+    uint8_t  shift = static_cast<uint8_t>(*registers[(opcode & 0x00000F00) >> 8]);
     return (shift < 32) ? (value >> shift) : 0;
 }
 
 FORCE_INLINE uint32_t CPU::ari(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F];
     uint8_t  shift = (opcode & 0x00000F80) >> 7;
-    return shift ? ((int32_t)value >> shift) : ((value & BIT(31)) ? 0xFFFFFFFF : 0);
+    return shift ? static_cast<unsigned int>(((int32_t)value >> shift)) : ((value & BIT(31)) ? 0xFFFFFFFF : 0);
 }
 
 FORCE_INLINE uint32_t CPU::arr(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F] + (((opcode & 0x0000000F) == 0x0000000F) ? 4 : 0);
-    uint8_t  shift = *registers[(opcode & 0x00000F00) >> 8];
-    return (shift < 32) ? ((int32_t)value >> shift) : ((value & BIT(31)) ? 0xFFFFFFFF : 0);
+    uint8_t  shift = static_cast<uint8_t>(*registers[(opcode & 0x00000F00) >> 8]);
+    return (shift < 32) ? static_cast<unsigned int>(((int32_t)value >> shift)) : ((value & BIT(31)) ? 0xFFFFFFFF : 0);
 }
 
 FORCE_INLINE uint32_t CPU::rri(uint32_t opcode) {
@@ -52,7 +52,7 @@ FORCE_INLINE uint32_t CPU::rri(uint32_t opcode) {
 // le bon résultat par hasard).
 FORCE_INLINE uint32_t CPU::rrr(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F] + (((opcode & 0x0000000F) == 0x0000000F) ? 4 : 0);
-    uint8_t  shift = *registers[(opcode & 0x00000F00) >> 8];
+    uint8_t  shift = static_cast<uint8_t>(*registers[(opcode & 0x00000F00) >> 8]);
     return std::rotr(value, shift % 32);
 }
 
@@ -72,7 +72,7 @@ FORCE_INLINE uint32_t CPU::lliS(uint32_t opcode) {
 
 FORCE_INLINE uint32_t CPU::llrS(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F] + (((opcode & 0x0000000F) == 0x0000000F) ? 4 : 0);
-    uint8_t  shift = *registers[(opcode & 0x00000F00) >> 8];
+    uint8_t  shift = static_cast<uint8_t>(*registers[(opcode & 0x00000F00) >> 8]);
     if (shift > 0)
         cpsr = (cpsr & ~BIT(29)) | ((shift <= 32 && (value & BIT(32 - shift))) << 29);
     return (shift < 32) ? (value << shift) : 0;
@@ -87,7 +87,7 @@ FORCE_INLINE uint32_t CPU::lriS(uint32_t opcode) {
 
 FORCE_INLINE uint32_t CPU::lrrS(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F] + (((opcode & 0x0000000F) == 0x0000000F) ? 4 : 0);
-    uint8_t  shift = *registers[(opcode & 0x00000F00) >> 8];
+    uint8_t  shift = static_cast<uint8_t>(*registers[(opcode & 0x00000F00) >> 8]);
     if (shift > 0)
         cpsr = (cpsr & ~BIT(29)) | ((shift <= 32 && (value & BIT(shift - 1))) << 29);
     return (shift < 32) ? (value >> shift) : 0;
@@ -97,15 +97,15 @@ FORCE_INLINE uint32_t CPU::ariS(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F];
     uint8_t  shift = (opcode & 0x00000F80) >> 7;
     cpsr           = (cpsr & ~BIT(29)) | ((bool)(value & BIT(shift ? (shift - 1) : 31)) << 29);
-    return shift ? ((int32_t)value >> shift) : ((value & BIT(31)) ? 0xFFFFFFFF : 0);
+    return shift ? static_cast<unsigned int>(((int32_t)value >> shift)) : ((value & BIT(31)) ? 0xFFFFFFFF : 0);
 }
 
 FORCE_INLINE uint32_t CPU::arrS(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F] + (((opcode & 0x0000000F) == 0x0000000F) ? 4 : 0);
-    uint8_t  shift = *registers[(opcode & 0x00000F00) >> 8];
+    uint8_t  shift = static_cast<uint8_t>(*registers[(opcode & 0x00000F00) >> 8]);
     if (shift > 0)
         cpsr = (cpsr & ~BIT(29)) | ((bool)(value & BIT((shift <= 32) ? (shift - 1) : 31)) << 29);
-    return (shift < 32) ? ((int32_t)value >> shift) : ((value & BIT(31)) ? 0xFFFFFFFF : 0);
+    return (shift < 32) ? static_cast<unsigned int>(((int32_t)value >> shift)) : ((value & BIT(31)) ? 0xFFFFFFFF : 0);
 }
 
 FORCE_INLINE uint32_t CPU::rriS(uint32_t opcode) {
@@ -118,7 +118,7 @@ FORCE_INLINE uint32_t CPU::rriS(uint32_t opcode) {
 
 FORCE_INLINE uint32_t CPU::rrrS(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F] + (((opcode & 0x0000000F) == 0x0000000F) ? 4 : 0);
-    uint8_t  shift = *registers[(opcode & 0x00000F00) >> 8];
+    uint8_t  shift = static_cast<uint8_t>(*registers[(opcode & 0x00000F00) >> 8]);
     if (shift > 0)
         cpsr = (cpsr & ~BIT(29)) | ((bool)(value & BIT((shift - 1) % 32)) << 29);
     return std::rotr(value, shift % 32);
@@ -1454,8 +1454,8 @@ int CPU::mvnsImm(uint32_t opcode) {
 int CPU::mul(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
     uint32_t  op1 = *registers[opcode & 0x0000000F];
-    int32_t   op2 = *registers[(opcode & 0x00000F00) >> 8];
-    *op0          = op1 * op2;
+    int32_t   op2 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
+    *op0          = op1 * static_cast<uint32_t>(op2);
     if (cpu == 0)
         return 2;
     int m;
@@ -1469,9 +1469,9 @@ int CPU::mul(uint32_t opcode) {
 int CPU::mla(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
     uint32_t  op1 = *registers[opcode & 0x0000000F];
-    int32_t   op2 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op2 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
     uint32_t  op3 = *registers[(opcode & 0x0000F000) >> 12];
-    *op0          = op1 * op2 + op3;
+    *op0          = op1 * static_cast<uint32_t>(op2) + op3;
     if (cpu == 0)
         return 2;
     int m;
@@ -1484,10 +1484,10 @@ int CPU::umull(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
     uint32_t  op2 = *registers[opcode & 0x0000000F];
-    int32_t   op3 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op3 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
     uint64_t  res = (uint64_t)op2 * (uint32_t)op3;
-    *op1          = res >> 32;
-    *op0          = res;
+    *op1          = static_cast<uint32_t>(res >> 32);
+    *op0          = static_cast<uint32_t>(res);
     if (cpu == 0)
         return 3;
     int m;
@@ -1500,11 +1500,11 @@ int CPU::umlal(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
     uint32_t  op2 = *registers[opcode & 0x0000000F];
-    int32_t   op3 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op3 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
     uint64_t  res = (uint64_t)op2 * (uint32_t)op3;
     res += ((uint64_t)*op1 << 32) | *op0;
-    *op1 = res >> 32;
-    *op0 = res;
+    *op1 = static_cast<uint32_t>(res >> 32);
+    *op0 = static_cast<uint32_t>(res);
     if (cpu == 0)
         return 3;
     int m;
@@ -1516,11 +1516,11 @@ int CPU::umlal(uint32_t opcode) {
 int CPU::smull(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    int32_t   op2 = *registers[opcode & 0x0000000F];
-    int32_t   op3 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op2 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int32_t   op3 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
     int64_t   res = (int64_t)op2 * op3;
-    *op1          = res >> 32;
-    *op0          = res;
+    *op1          = static_cast<uint32_t>(res >> 32);
+    *op0          = static_cast<uint32_t>(res);
     if (cpu == 0)
         return 3;
     int m;
@@ -1532,12 +1532,12 @@ int CPU::smull(uint32_t opcode) {
 int CPU::smlal(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    int32_t   op2 = *registers[opcode & 0x0000000F];
-    int32_t   op3 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op2 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int32_t   op3 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
     int64_t   res = (int64_t)op2 * op3;
     res += ((int64_t)*op1 << 32) | *op0;
-    *op1 = res >> 32;
-    *op0 = res;
+    *op1 = static_cast<uint32_t>(res >> 32);
+    *op0 = static_cast<uint32_t>(res);
     if (cpu == 0)
         return 3;
     int m;
@@ -1549,8 +1549,8 @@ int CPU::smlal(uint32_t opcode) {
 int CPU::muls(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
     uint32_t  op1 = *registers[opcode & 0x0000000F];
-    int32_t   op2 = *registers[(opcode & 0x00000F00) >> 8];
-    *op0          = op1 * op2;
+    int32_t   op2 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
+    *op0          = op1 * static_cast<uint32_t>(op2);
     cpsr          = (cpsr & ~0xC0000000) | (*op0 & BIT(31)) | ((*op0 == 0) << 30);
     if (cpu == 0)
         return 4;
@@ -1563,9 +1563,9 @@ int CPU::muls(uint32_t opcode) {
 int CPU::mlas(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
     uint32_t  op1 = *registers[opcode & 0x0000000F];
-    int32_t   op2 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op2 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
     uint32_t  op3 = *registers[(opcode & 0x0000F000) >> 12];
-    *op0          = op1 * op2 + op3;
+    *op0          = op1 * static_cast<uint32_t>(op2) + op3;
     cpsr          = (cpsr & ~0xC0000000) | (*op0 & BIT(31)) | ((*op0 == 0) << 30);
     if (cpu == 0)
         return 4;
@@ -1579,10 +1579,10 @@ int CPU::umulls(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
     uint32_t  op2 = *registers[opcode & 0x0000000F];
-    int32_t   op3 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op3 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
     uint64_t  res = (uint64_t)op2 * (uint32_t)op3;
-    *op1          = res >> 32;
-    *op0          = res;
+    *op1          = static_cast<uint32_t>(res >> 32);
+    *op0          = static_cast<uint32_t>(res);
     cpsr          = (cpsr & ~0xC0000000) | (*op1 & BIT(31)) | ((*op1 == 0) << 30);
     if (cpu == 0)
         return 5;
@@ -1596,11 +1596,11 @@ int CPU::umlals(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
     uint32_t  op2 = *registers[opcode & 0x0000000F];
-    int32_t   op3 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op3 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
     uint64_t  res = (uint64_t)op2 * (uint32_t)op3;
     res += ((uint64_t)*op1 << 32) | *op0;
-    *op1 = res >> 32;
-    *op0 = res;
+    *op1 = static_cast<uint32_t>(res >> 32);
+    *op0 = static_cast<uint32_t>(res);
     cpsr = (cpsr & ~0xC0000000) | (*op1 & BIT(31)) | ((*op1 == 0) << 30);
     if (cpu == 0)
         return 5;
@@ -1613,11 +1613,11 @@ int CPU::umlals(uint32_t opcode) {
 int CPU::smulls(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    int32_t   op2 = *registers[opcode & 0x0000000F];
-    int32_t   op3 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op2 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int32_t   op3 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
     int64_t   res = (int64_t)op2 * op3;
-    *op1          = res >> 32;
-    *op0          = res;
+    *op1          = static_cast<uint32_t>(res >> 32);
+    *op0          = static_cast<uint32_t>(res);
     cpsr          = (cpsr & ~0xC0000000) | (*op1 & BIT(31)) | ((*op1 == 0) << 30);
     if (cpu == 0)
         return 5;
@@ -1630,12 +1630,12 @@ int CPU::smulls(uint32_t opcode) {
 int CPU::smlals(uint32_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    int32_t   op2 = *registers[opcode & 0x0000000F];
-    int32_t   op3 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op2 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int32_t   op3 = static_cast<int32_t>(*registers[(opcode & 0x00000F00) >> 8]);
     int64_t   res = (int64_t)op2 * op3;
     res += ((int64_t)*op1 << 32) | *op0;
-    *op1 = res >> 32;
-    *op0 = res;
+    *op1 = static_cast<uint32_t>(res >> 32);
+    *op0 = static_cast<uint32_t>(res);
     cpsr = (cpsr & ~0xC0000000) | (*op1 & BIT(31)) | ((*op1 == 0) << 30);
     if (cpu == 0)
         return 5;
@@ -1649,9 +1649,9 @@ int CPU::smulbb(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op1 = *registers[opcode & 0x0000000F];
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8];
-    *op0          = op1 * op2;
+    int16_t   op1 = static_cast<int16_t>(*registers[opcode & 0x0000000F]);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8]);
+    *op0          = static_cast<uint32_t>(op1 * op2);
     return 1;
 }
 
@@ -1659,9 +1659,9 @@ int CPU::smulbt(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op1 = *registers[opcode & 0x0000000F];
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8] >> 16;
-    *op0          = op1 * op2;
+    int16_t   op1 = static_cast<int16_t>(*registers[opcode & 0x0000000F]);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8] >> 16);
+    *op0          = static_cast<uint32_t>(op1 * op2);
     return 1;
 }
 
@@ -1669,9 +1669,9 @@ int CPU::smultb(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op1 = *registers[opcode & 0x0000000F] >> 16;
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8];
-    *op0          = op1 * op2;
+    int16_t   op1 = static_cast<int16_t>(*registers[opcode & 0x0000000F] >> 16);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8]);
+    *op0          = static_cast<uint32_t>(op1 * op2);
     return 1;
 }
 
@@ -1679,9 +1679,9 @@ int CPU::smultt(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op1 = *registers[opcode & 0x0000000F] >> 16;
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8] >> 16;
-    *op0          = op1 * op2;
+    int16_t   op1 = static_cast<int16_t>(*registers[opcode & 0x0000000F] >> 16);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8] >> 16);
+    *op0          = static_cast<uint32_t>(op1 * op2);
     return 1;
 }
 
@@ -1689,9 +1689,9 @@ int CPU::smulwb(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int32_t   op1 = *registers[opcode & 0x0000000F];
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8];
-    *op0          = ((int64_t)op1 * op2) >> 16;
+    int32_t   op1 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8]);
+    *op0          = static_cast<uint32_t>(((int64_t)op1 * op2) >> 16);
     return 1;
 }
 
@@ -1699,9 +1699,9 @@ int CPU::smulwt(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int32_t   op1 = *registers[opcode & 0x0000000F];
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8] >> 16;
-    *op0          = ((int64_t)op1 * op2) >> 16;
+    int32_t   op1 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8] >> 16);
+    *op0          = static_cast<uint32_t>(((int64_t)op1 * op2) >> 16);
     return 1;
 }
 
@@ -1709,10 +1709,10 @@ int CPU::smlabb(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op1 = *registers[opcode & 0x0000000F];
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8];
+    int16_t   op1 = static_cast<int16_t>(*registers[opcode & 0x0000000F]);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8]);
     uint32_t  op3 = *registers[(opcode & 0x0000F000) >> 12];
-    uint32_t  res = op1 * op2;
+    uint32_t  res = static_cast<uint32_t>(op1 * op2);
     *op0          = res + op3;
     if ((*op0 & BIT(31)) != (res & BIT(31)))
         cpsr |= BIT(27);
@@ -1723,10 +1723,10 @@ int CPU::smlabt(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op1 = *registers[opcode & 0x0000000F];
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8] >> 16;
+    int16_t   op1 = static_cast<int16_t>(*registers[opcode & 0x0000000F]);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8] >> 16);
     uint32_t  op3 = *registers[(opcode & 0x0000F000) >> 12];
-    uint32_t  res = op1 * op2;
+    uint32_t  res = static_cast<uint32_t>(op1 * op2);
     *op0          = res + op3;
     if ((*op0 & BIT(31)) != (res & BIT(31)))
         cpsr |= BIT(27);
@@ -1737,10 +1737,10 @@ int CPU::smlatb(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op1 = *registers[opcode & 0x0000000F] >> 16;
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8];
+    int16_t   op1 = static_cast<int16_t>(*registers[opcode & 0x0000000F] >> 16);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8]);
     uint32_t  op3 = *registers[(opcode & 0x0000F000) >> 12];
-    uint32_t  res = op1 * op2;
+    uint32_t  res = static_cast<uint32_t>(op1 * op2);
     *op0          = res + op3;
     if ((*op0 & BIT(31)) != (res & BIT(31)))
         cpsr |= BIT(27);
@@ -1751,10 +1751,10 @@ int CPU::smlatt(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op1 = *registers[opcode & 0x0000000F] >> 16;
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8] >> 16;
+    int16_t   op1 = static_cast<int16_t>(*registers[opcode & 0x0000000F] >> 16);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8] >> 16);
     uint32_t  op3 = *registers[(opcode & 0x0000F000) >> 12];
-    uint32_t  res = op1 * op2;
+    uint32_t  res = static_cast<uint32_t>(op1 * op2);
     *op0          = res + op3;
     if ((*op0 & BIT(31)) != (res & BIT(31)))
         cpsr |= BIT(27);
@@ -1765,10 +1765,10 @@ int CPU::smlawb(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int32_t   op1 = *registers[opcode & 0x0000000F];
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8];
+    int32_t   op1 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8]);
     uint32_t  op3 = *registers[(opcode & 0x0000F000) >> 12];
-    uint32_t  res = ((int64_t)op1 * op2) >> 16;
+    uint32_t  res = static_cast<uint32_t>(((int64_t)op1 * op2) >> 16);
     *op0          = res + op3;
     if ((*op0 & BIT(31)) != (res & BIT(31)))
         cpsr |= BIT(27);
@@ -1779,10 +1779,10 @@ int CPU::smlawt(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x000F0000) >> 16];
-    int32_t   op1 = *registers[opcode & 0x0000000F];
-    int16_t   op2 = *registers[(opcode & 0x00000F00) >> 8] >> 16;
+    int32_t   op1 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int16_t   op2 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8] >> 16);
     uint32_t  op3 = *registers[(opcode & 0x0000F000) >> 12];
-    uint32_t  res = ((int64_t)op1 * op2) >> 16;
+    uint32_t  res = static_cast<uint32_t>(((int64_t)op1 * op2) >> 16);
     *op0          = res + op3;
     if ((*op0 & BIT(31)) != (res & BIT(31)))
         cpsr |= BIT(27);
@@ -1794,12 +1794,12 @@ int CPU::smlalbb(uint32_t opcode) {
         return 1;
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op2 = *registers[opcode & 0x0000000F];
-    int16_t   op3 = *registers[(opcode & 0x00000F00) >> 8];
+    int16_t   op2 = static_cast<int16_t>(*registers[opcode & 0x0000000F]);
+    int16_t   op3 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8]);
     int64_t   res = ((int64_t)*op1 << 32) | *op0;
     res += op2 * op3;
-    *op1 = res >> 32;
-    *op0 = res;
+    *op1 = static_cast<uint32_t>(res >> 32);
+    *op0 = static_cast<uint32_t>(res);
     return 2;
 }
 
@@ -1808,12 +1808,12 @@ int CPU::smlalbt(uint32_t opcode) {
         return 1;
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op2 = *registers[opcode & 0x0000000F];
-    int16_t   op3 = *registers[(opcode & 0x00000F00) >> 8] >> 16;
+    int16_t   op2 = static_cast<int16_t>(*registers[opcode & 0x0000000F]);
+    int16_t   op3 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8] >> 16);
     int64_t   res = ((int64_t)*op1 << 32) | *op0;
     res += op2 * op3;
-    *op1 = res >> 32;
-    *op0 = res;
+    *op1 = static_cast<uint32_t>(res >> 32);
+    *op0 = static_cast<uint32_t>(res);
     return 2;
 }
 
@@ -1822,12 +1822,12 @@ int CPU::smlaltb(uint32_t opcode) {
         return 1;
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op2 = *registers[opcode & 0x0000000F] >> 16;
-    int16_t   op3 = *registers[(opcode & 0x00000F00) >> 8];
+    int16_t   op2 = static_cast<int16_t>(*registers[opcode & 0x0000000F] >> 16);
+    int16_t   op3 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8]);
     int64_t   res = ((int64_t)*op1 << 32) | *op0;
     res += op2 * op3;
-    *op1 = res >> 32;
-    *op0 = res;
+    *op1 = static_cast<uint32_t>(res >> 32);
+    *op0 = static_cast<uint32_t>(res);
     return 2;
 }
 
@@ -1836,12 +1836,12 @@ int CPU::smlaltt(uint32_t opcode) {
         return 1;
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    int16_t   op2 = *registers[opcode & 0x0000000F] >> 16;
-    int16_t   op3 = *registers[(opcode & 0x00000F00) >> 8] >> 16;
+    int16_t   op2 = static_cast<int16_t>(*registers[opcode & 0x0000000F] >> 16);
+    int16_t   op3 = static_cast<int16_t>(*registers[(opcode & 0x00000F00) >> 8] >> 16);
     int64_t   res = ((int64_t)*op1 << 32) | *op0;
     res += op2 * op3;
-    *op1 = res >> 32;
-    *op0 = res;
+    *op1 = static_cast<uint32_t>(res >> 32);
+    *op0 = static_cast<uint32_t>(res);
     return 2;
 }
 
@@ -1849,8 +1849,8 @@ int CPU::qadd(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
-    int32_t   op1 = *registers[opcode & 0x0000000F];
-    int32_t   op2 = *registers[(opcode & 0x000F0000) >> 16];
+    int32_t   op1 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int32_t   op2 = static_cast<int32_t>(*registers[(opcode & 0x000F0000) >> 16]);
     int64_t   res = (int64_t)op1 + op2;
     if (res > 0x7FFFFFFF) {
         res = 0x7FFFFFFF;
@@ -1859,7 +1859,7 @@ int CPU::qadd(uint32_t opcode) {
         res = -0x80000000;
         cpsr |= BIT(27);
     }
-    *op0 = res;
+    *op0 = static_cast<uint32_t>(res);
     return 1;
 }
 
@@ -1867,8 +1867,8 @@ int CPU::qsub(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
-    int32_t   op1 = *registers[opcode & 0x0000000F];
-    int32_t   op2 = *registers[(opcode & 0x000F0000) >> 16];
+    int32_t   op1 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int32_t   op2 = static_cast<int32_t>(*registers[(opcode & 0x000F0000) >> 16]);
     int64_t   res = (int64_t)op1 - op2;
     if (res > 0x7FFFFFFF) {
         res = 0x7FFFFFFF;
@@ -1877,7 +1877,7 @@ int CPU::qsub(uint32_t opcode) {
         res = -0x80000000;
         cpsr |= BIT(27);
     }
-    *op0 = res;
+    *op0 = static_cast<uint32_t>(res);
     return 1;
 }
 
@@ -1885,8 +1885,8 @@ int CPU::qdadd(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
-    int32_t   op1 = *registers[opcode & 0x0000000F];
-    int32_t   op2 = *registers[(opcode & 0x000F0000) >> 16];
+    int32_t   op1 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int32_t   op2 = static_cast<int32_t>(*registers[(opcode & 0x000F0000) >> 16]);
     int64_t   res = (int64_t)op2 * 2;
     if (res > 0x7FFFFFFF) {
         res = 0x7FFFFFFF;
@@ -1903,7 +1903,7 @@ int CPU::qdadd(uint32_t opcode) {
         res = -0x80000000;
         cpsr |= BIT(27);
     }
-    *op0 = res;
+    *op0 = static_cast<uint32_t>(res);
     return 1;
 }
 
@@ -1911,8 +1911,8 @@ int CPU::qdsub(uint32_t opcode) {
     if (cpu == 1)
         return 1;
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
-    int32_t   op1 = *registers[opcode & 0x0000000F];
-    int32_t   op2 = *registers[(opcode & 0x000F0000) >> 16];
+    int32_t   op1 = static_cast<int32_t>(*registers[opcode & 0x0000000F]);
+    int32_t   op2 = static_cast<int32_t>(*registers[(opcode & 0x000F0000) >> 16]);
     int64_t   res = (int64_t)op2 * 2;
     if (res > 0x7FFFFFFF) {
         res = 0x7FFFFFFF;
@@ -1929,7 +1929,7 @@ int CPU::qdsub(uint32_t opcode) {
         res = -0x80000000;
         cpsr |= BIT(27);
     }
-    *op0 = res;
+    *op0 = static_cast<uint32_t>(res);
     return 1;
 }
 
@@ -1943,7 +1943,7 @@ int CPU::clz(uint32_t opcode) {
         op1 >>= 1;
         count++;
     }
-    *op0 = 32 - count;
+    *op0 = static_cast<uint32_t>(32 - count);
     return 1;
 }
 
@@ -1998,7 +1998,7 @@ int CPU::movHT(uint16_t opcode) {
 
 int CPU::addPcT(uint16_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x0700) >> 8];
-    uint32_t  op1 = *registers[15] & ~3;
+    uint32_t  op1 = *registers[15] & ~3u;
     uint32_t  op2 = (opcode & 0x00FF) << 2;
     *op0          = op1 + op2;
     return 1;
@@ -2014,7 +2014,7 @@ int CPU::addSpT(uint16_t opcode) {
 
 int CPU::addSpImmT(uint16_t opcode) {
     uint32_t *op0 = registers[13];
-    uint32_t  op2 = ((opcode & BIT(7)) ? (0 - (opcode & 0x007F)) : (opcode & 0x007F)) << 2;
+    uint32_t  op2 = static_cast<uint32_t>(((opcode & BIT(7)) ? (0 - (opcode & 0x007F)) : (opcode & 0x007F)) << 2);
     *op0 += op2;
     return 1;
 }
@@ -2044,7 +2044,7 @@ int CPU::asrImmT(uint16_t opcode) {
     uint32_t *op0 = registers[opcode & 0x0007];
     uint32_t  op1 = *registers[(opcode & 0x0038) >> 3];
     uint8_t   op2 = (opcode & 0x07C0) >> 6;
-    *op0          = op2 ? ((int32_t)op1 >> op2) : ((op1 & BIT(31)) ? 0xFFFFFFFF : 0);
+    *op0          = op2 ? static_cast<unsigned int>(((int32_t)op1 >> op2)) : ((op1 & BIT(31)) ? 0xFFFFFFFF : 0);
     cpsr =
         (cpsr & ~0xE0000000) | (*op0 & BIT(31)) | ((*op0 == 0) << 30) | ((bool)(op1 & BIT(op2 ? (op2 - 1) : 31)) << 29);
     return 1;
@@ -2110,7 +2110,7 @@ int CPU::movImm8T(uint16_t opcode) {
 int CPU::lslDpT(uint16_t opcode) {
     uint32_t *op0 = registers[opcode & 0x0007];
     uint32_t  op1 = *registers[opcode & 0x0007];
-    uint8_t   op2 = *registers[(opcode & 0x0038) >> 3];
+    uint8_t   op2 = static_cast<uint8_t>(*registers[(opcode & 0x0038) >> 3]);
     *op0          = (op2 < 32) ? (*op0 << op2) : 0;
     cpsr          = (cpsr & ~0xC0000000) | (*op0 & BIT(31)) | ((*op0 == 0) << 30);
     if (op2 > 0)
@@ -2121,7 +2121,7 @@ int CPU::lslDpT(uint16_t opcode) {
 int CPU::lsrDpT(uint16_t opcode) {
     uint32_t *op0 = registers[opcode & 0x0007];
     uint32_t  op1 = *registers[opcode & 0x0007];
-    uint8_t   op2 = *registers[(opcode & 0x0038) >> 3];
+    uint8_t   op2 = static_cast<uint8_t>(*registers[(opcode & 0x0038) >> 3]);
     *op0          = (op2 < 32) ? (*op0 >> op2) : 0;
     cpsr          = (cpsr & ~0xC0000000) | (*op0 & BIT(31)) | ((*op0 == 0) << 30);
     if (op2 > 0)
@@ -2132,8 +2132,8 @@ int CPU::lsrDpT(uint16_t opcode) {
 int CPU::asrDpT(uint16_t opcode) {
     uint32_t *op0 = registers[opcode & 0x0007];
     uint32_t  op1 = *registers[opcode & 0x0007];
-    uint8_t   op2 = *registers[(opcode & 0x0038) >> 3];
-    *op0          = (op2 < 32) ? ((int32_t)(*op0) >> op2) : ((*op0 & BIT(31)) ? 0xFFFFFFFF : 0);
+    uint8_t   op2 = static_cast<uint8_t>(*registers[(opcode & 0x0038) >> 3]);
+    *op0          = (op2 < 32) ? static_cast<unsigned int>(((int32_t)(*op0) >> op2)) : ((*op0 & BIT(31)) ? 0xFFFFFFFF : 0);
     cpsr          = (cpsr & ~0xC0000000) | (*op0 & BIT(31)) | ((*op0 == 0) << 30);
     if (op2 > 0)
         cpsr = (cpsr & ~BIT(29)) | ((bool)(op1 & BIT((op2 <= 32) ? (op2 - 1) : 31)) << 29);
@@ -2143,7 +2143,7 @@ int CPU::asrDpT(uint16_t opcode) {
 int CPU::rorDpT(uint16_t opcode) {
     uint32_t *op0 = registers[opcode & 0x0007];
     uint32_t  op1 = *registers[opcode & 0x0007];
-    uint8_t   op2 = *registers[(opcode & 0x0038) >> 3];
+    uint8_t   op2 = static_cast<uint8_t>(*registers[(opcode & 0x0038) >> 3]);
     *op0          = (*op0 << (32 - op2 % 32)) | (*op0 >> (op2 % 32));
     cpsr          = (cpsr & ~0xC0000000) | (*op0 & BIT(31)) | ((*op0 == 0) << 30);
     if (op2 > 0)
@@ -2252,8 +2252,8 @@ int CPU::negDpT(uint16_t opcode) {
 int CPU::mulDpT(uint16_t opcode) {
     uint32_t *op0 = registers[opcode & 0x0007];
     uint32_t  op1 = *registers[(opcode & 0x0038) >> 3];
-    int32_t   op2 = *registers[opcode & 0x0007];
-    *op0          = op1 * op2;
+    int32_t   op2 = static_cast<int32_t>(*registers[opcode & 0x0007]);
+    *op0          = op1 * static_cast<uint32_t>(op2);
     cpsr          = (cpsr & ~0xC0000000) | (*op0 & BIT(31)) | ((*op0 == 0) << 30);
     if (cpu == 0)
         return 4;

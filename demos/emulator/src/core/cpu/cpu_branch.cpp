@@ -51,7 +51,7 @@ int CPU::blx(uint32_t opcode) {
     return 3;
 }
 
-int CPU::swi(uint32_t opcode) {
+int CPU::swi(uint32_t /*opcode*/) {
     *registers[15] -= 4;
     return exception(0x08);
 }
@@ -251,7 +251,7 @@ int CPU::blxOffT(uint16_t opcode) {
     return 3;
 }
 
-int CPU::swiT(uint16_t opcode) {
+int CPU::swiT(uint16_t /*opcode*/) {
     *registers[15] -= 4;
     return exception(0x08);
 }

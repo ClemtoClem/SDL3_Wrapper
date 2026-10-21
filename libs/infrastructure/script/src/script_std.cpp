@@ -8,17 +8,17 @@ namespace script {
 void InstallCoreGlobals(Interpreter& vm) {
 	// ── Général ─────────────────────────────────────────────────────────────
 
-	vm.RegisterNative("print", 0, -1, [](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
+	vm.RegisterNative("print", 0, -1, [](Interpreter& interp, std::vector<Value>& args) -> Result<Value, ScriptError> {
 		String line;
 		for (size_t i = 0; i < args.size(); ++i) {
 			if (i > 0)
 				line.Concat(" ");
-			auto text = vm.Stringify(args[i]);
+			auto text = interp.Stringify(args[i]);
 			if (text.IsError())
 				return Err(text.Error());
 			line.Concat(text.Value());
 		}
-		vm.Emit(line);
+		interp.Emit(line);
 		return Ok(Value::Nil());
 	});
 
@@ -57,15 +57,15 @@ void InstallCoreGlobals(Interpreter& vm) {
 	});
 
 	// Alias fonctionnel de `import` (forme Lua) : `require("chemin")`.
-	vm.RegisterNative("require", 1, 1, [](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
+	vm.RegisterNative("require", 1, 1, [](Interpreter& interp, std::vector<Value>& args) -> Result<Value, ScriptError> {
 		if (!args[0].IsString())
 			return Err(Interpreter::MakeError(
 				String::Format("`require` attend une chaîne, trouvé `%s`", args[0].TypeName())));
-		return vm.ImportModule(args[0].AsString(), 0, 0);
+		return interp.ImportModule(args[0].AsString(), 0, 0);
 	});
 
-	vm.RegisterNative("str", 1, 1, [](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
-		auto text = vm.Stringify(args[0]);
+	vm.RegisterNative("str", 1, 1, [](Interpreter& interp, std::vector<Value>& args) -> Result<Value, ScriptError> {
+		auto text = interp.Stringify(args[0]);
 		if (text.IsError())
 			return Err(text.Error());
 		return Ok(Value::Str(text.Unwrap()));
@@ -128,16 +128,16 @@ void InstallCoreGlobals(Interpreter& vm) {
 
 	// Met le fil courant en pause. Sur le fil principal, les appels envoyés
 	// par les fils `async` continuent d'être traités pendant la pause.
-	vm.RegisterNative("sleep", 1, 1, [](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
+	vm.RegisterNative("sleep", 1, 1, [](Interpreter& interp, std::vector<Value>& args) -> Result<Value, ScriptError> {
 		auto ms = detail::ArgNumber(args, 0, "sleep");
 		if (ms.IsError())
 			return Err(ms.Error());
 		const auto until = std::chrono::steady_clock::now() + std::chrono::microseconds(int64_t(ms.Unwrap() * 1000.0));
 		while (std::chrono::steady_clock::now() < until) {
-			if (vm.IsStopping())
+			if (interp.IsStopping())
 				return Err(Interpreter::MakeError(String("`sleep` interrompu : l'interpréteur s'arrête")));
-			if (vm.IsMainThread())
-				vm.PumpMainThread();
+			if (interp.IsMainThread())
+				interp.PumpMainThread();
 			const auto left = until - std::chrono::steady_clock::now();
 			std::this_thread::sleep_for(
 				std::min<std::chrono::steady_clock::duration>(left, std::chrono::milliseconds(2)));
@@ -162,15 +162,15 @@ void InstallCoreGlobals(Interpreter& vm) {
 									return Ok(Value::Future(std::move(future)));
 								});
 	vm.RegisterNamespacedNative(String("future"), String("all"), 1, 1,
-								[](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
+								[](Interpreter& interp, std::vector<Value>& args) -> Result<Value, ScriptError> {
 									auto list = detail::ArgList(args, 0, "future.all");
 									if (list.IsError())
 										return Err(list.Error());
 									std::vector<Value> pending = list.Value()->Snapshot();
-									return vm.SpawnTask([&vm, pending]() -> Result<Value, ScriptError> {
+									return interp.SpawnTask([&interp, pending]() -> Result<Value, ScriptError> {
 										auto results = std::make_shared<ListObject>();
 										for (const Value& item : pending) {
-											auto result = vm.AwaitValue(item);
+											auto result = interp.AwaitValue(item);
 											if (result.IsError())
 												return result;
 											results->items.push_back(result.Value());
@@ -179,25 +179,25 @@ void InstallCoreGlobals(Interpreter& vm) {
 									});
 								});
 	vm.RegisterNamespacedNative(String("future"), String("delayed"), 1, 2,
-								[](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
+								[](Interpreter& interp, std::vector<Value>& args) -> Result<Value, ScriptError> {
 									auto ms = detail::ArgNumber(args, 0, "future.delayed");
 									if (ms.IsError())
 										return Err(ms.Error());
 									const double delay = ms.Unwrap();
 									Value callback = args.size() > 1 ? args[1] : Value::Nil();
-									return vm.SpawnTask([&vm, delay, callback]() -> Result<Value, ScriptError> {
+									return interp.SpawnTask([&interp, delay, callback]() -> Result<Value, ScriptError> {
 										std::vector<Value> pause{Value::Number(delay)};
-										if (auto sleep = vm.GetGlobal(String("sleep")); sleep.IsSome()) {
-											auto slept = vm.CallValue(sleep.Value(), pause, 0, 0);
+										if (auto sleep = interp.GetGlobal(String("sleep")); sleep.IsSome()) {
+											auto slept = interp.CallValue(sleep.Value(), pause, 0, 0);
 											if (slept.IsError())
 												return slept;
 										}
 										if (!callback.IsCallable())
 											return Ok(Value::Nil());
-										auto result = vm.CallValue(callback, {}, 0, 0);
+										auto result = interp.CallValue(callback, {}, 0, 0);
 										if (result.IsError())
 											return result;
-										return vm.AwaitValue(result.Value());
+										return interp.AwaitValue(result.Value());
 									});
 								});
 
@@ -365,10 +365,10 @@ void InstallCoreGlobals(Interpreter& vm) {
 		for (const Value& arg : args)
 			integral = integral && arg.IsInteger() && numeric::Fits(numeric::ToWide(arg), NumberType::I64);
 		if (integral) {
-			const int64_t first = args.size() == 1 ? 0 : args[0].AsInt64();
+			const int64_t from = args.size() == 1 ? 0 : args[0].AsInt64();
 			const int64_t last = args[args.size() == 1 ? 0 : 1].AsInt64();
 			const int64_t by = args.size() > 2 ? args[2].AsInt64() : 1;
-			for (numeric::Wide v = first; (by > 0 ? v < last : v > last); v += by) {
+			for (numeric::Wide v = from; (by > 0 ? v < last : v > last); v += by) {
 				if (list->items.size() >= MAX_RANGE)
 					return Err(Interpreter::MakeError(String::Format("`range` : plus de %d éléments", int(MAX_RANGE))));
 				list->items.push_back(Value::Int(static_cast<int64_t>(v)));
@@ -580,7 +580,7 @@ void InstallCoreGlobals(Interpreter& vm) {
 		return Ok(Value::List(std::move(list)));
 	});
 
-	vm.RegisterNative("join", 2, 2, [](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
+	vm.RegisterNative("join", 2, 2, [](Interpreter& interp, std::vector<Value>& args) -> Result<Value, ScriptError> {
 		auto list = detail::ArgList(args, 0, "join");
 		if (list.IsError())
 			return Err(list.Error());
@@ -592,7 +592,7 @@ void InstallCoreGlobals(Interpreter& vm) {
 		for (size_t i = 0; i < items.size(); ++i) {
 			if (i > 0)
 				out.Concat(separator.Value());
-			auto text = vm.Stringify(items[i]);
+			auto text = interp.Stringify(items[i]);
 			if (text.IsError())
 				return Err(text.Error());
 			out.Concat(text.Value());
@@ -603,7 +603,7 @@ void InstallCoreGlobals(Interpreter& vm) {
 	// `format("pos {} / {}", x, total)` — marqueurs positionnels `{}`,
 	// délibérément PAS un printf : un `%d` face à une chaîne serait un
 	// comportement indéfini, alors qu'ici tout argument est affichable.
-	vm.RegisterNative("format", 1, -1, [](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
+	vm.RegisterNative("format", 1, -1, [](Interpreter& interp, std::vector<Value>& args) -> Result<Value, ScriptError> {
 		auto pattern = detail::ArgString(args, 0, "format");
 		if (pattern.IsError())
 			return Err(pattern.Error());
@@ -614,7 +614,7 @@ void InstallCoreGlobals(Interpreter& vm) {
 			char c = fmt.CharAt(i);
 			if (c == '{' && i + 1 < fmt.GetSize() && fmt.CharAt(i + 1) == '}') {
 				if (nextArg < args.size()) {
-					auto text = vm.Stringify(args[nextArg]);
+					auto text = interp.Stringify(args[nextArg]);
 					if (text.IsError())
 						return Err(text.Error());
 					out.Concat(text.Value());
@@ -1201,9 +1201,11 @@ std::vector<TextFn> TextFunctions() {
 	auto all = [](const std::string& s, int (*test)(int)) {
 		if (s.empty())
 			return false;
-		for (unsigned char c : s)
+		for (const char cChar : s) {
+			const auto c = static_cast<unsigned char>(cChar);
 			if (!test(c))
 				return false;
+		}
 		return true;
 	};
 	std::vector<TextFn> fns;
@@ -1407,8 +1409,10 @@ std::vector<TextFn> TextFunctions() {
 				   }});
 	fns.push_back({"bytes", 0, 0, [](Interpreter&, const std::string& s, Args&) -> Result<Value, ScriptError> {
 					   auto list = std::make_shared<ListObject>();
-					   for (unsigned char c : s)
+					   for (const char cChar : s) {
+						   const auto c = static_cast<unsigned char>(cChar);
 						   list->items.push_back(Value::UInt(c, NumberType::U8));
+					   }
 					   return Ok(Value::List(std::move(list)));
 				   }});
 	fns.push_back({"char_code", 0, 1, [](Interpreter&, const std::string& s, Args& args) -> Result<Value, ScriptError> {
@@ -1621,11 +1625,11 @@ void DefineString(TypeBuilder& builder) {
 		if (right.IsError())
 			return Some(Result<Value, ScriptError>(Err(right.Error())));
 		const int order = left.Value().compare(right.Value());
-		const std::shared_ptr<const HostType>& type = (a.IsHost() ? a : b).AsHost()->type;
+		const std::shared_ptr<const HostType>& hostType = (a.IsHost() ? a : b).AsHost()->type;
 		switch (op) {
 			case BinaryOp::ADD:
 			case BinaryOp::CONCAT:
-				return Some(MakeStringObject(type, left.Value() + right.Value()));
+				return Some(MakeStringObject(hostType, left.Value() + right.Value()));
 			case BinaryOp::EQUAL:
 				return Some(Result<Value, ScriptError>(Ok(Value::Boolean(order == 0))));
 			case BinaryOp::NOT_EQUAL:
@@ -2060,8 +2064,8 @@ void DefinePipe(TypeBuilder& builder) {
 			if (filter) {
 				// Garde la valeur si le prédicat est vrai.
 				transform = MakeFunction(String("std.pipe.filter"), 1, 1,
-										 [predicate = args[0]](Interpreter& vm, Args& a) -> Result<Value, ScriptError> {
-											 auto keep = vm.CallValue(predicate, {a[0]}, 0, 0);
+										 [predicate = args[0]](Interpreter& interp, Args& a) -> Result<Value, ScriptError> {
+											 auto keep = interp.CallValue(predicate, {a[0]}, 0, 0);
 											 if (keep.IsError())
 												 return keep;
 											 return Ok(keep.Value().IsTruthy() ? a[0] : Value::Nil());
@@ -2441,8 +2445,8 @@ void InstallFilesystem(Interpreter& vm) {
 	auto predicate = [&vm, ns](const char* name, bool (*test)(const fs::path&, std::error_code&)) {
 		vm.RegisterNamespacedNative(
 			ns, String(name), 1, 1,
-			[test, name](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-				auto path = ArgPath(vm, args, 0, name);
+			[test, name](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+				auto path = ArgPath(interp, args, 0, name);
 				if (path.IsError())
 					return Err(path.Error());
 				std::error_code ec;
@@ -2460,8 +2464,8 @@ void InstallFilesystem(Interpreter& vm) {
 	auto pathPart = [&vm, ns](const char* name, fs::path (*part)(const fs::path&)) {
 		vm.RegisterNamespacedNative(
 			ns, String(name), 1, 1,
-			[part, name](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-				auto path = ArgPath(vm, args, 0, name);
+			[part, name](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+				auto path = ArgPath(interp, args, 0, name);
 				if (path.IsError())
 					return Err(path.Error());
 				return Ok(Value::Str(PathText(part(path.Value()))));
@@ -2475,10 +2479,10 @@ void InstallFilesystem(Interpreter& vm) {
 	pathPart("normalize", [](const fs::path& p) { return p.lexically_normal(); });
 	vm.RegisterNamespacedNative(
 		ns, String("join"), 1, -1,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
 			fs::path out;
 			for (size_t i = 0; i < args.size(); ++i) {
-				auto part = ArgPath(vm, args, i, "std.filesystem.join");
+				auto part = ArgPath(interp, args, i, "std.filesystem.join");
 				if (part.IsError())
 					return Err(part.Error());
 				out /= part.Value();
@@ -2489,8 +2493,8 @@ void InstallFilesystem(Interpreter& vm) {
 	auto resolve = [&vm, ns](const char* name, bool canonical) {
 		vm.RegisterNamespacedNative(
 			ns, String(name), 1, 1,
-			[name, canonical](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-				auto path = ArgPath(vm, args, 0, name);
+			[name, canonical](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+				auto path = ArgPath(interp, args, 0, name);
 				if (path.IsError())
 					return Err(path.Error());
 				std::error_code ec;
@@ -2505,14 +2509,14 @@ void InstallFilesystem(Interpreter& vm) {
 	resolve("canonical", true);
 	vm.RegisterNamespacedNative(
 		ns, String("relative"), 1, 2,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-			auto path = ArgPath(vm, args, 0, "std.filesystem.relative");
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+			auto path = ArgPath(interp, args, 0, "std.filesystem.relative");
 			if (path.IsError())
 				return Err(path.Error());
 			std::error_code ec;
 			fs::path base = fs::current_path(ec);
 			if (args.size() > 1) {
-				auto b = ArgPath(vm, args, 1, "std.filesystem.relative");
+				auto b = ArgPath(interp, args, 1, "std.filesystem.relative");
 				if (b.IsError())
 					return Err(b.Error());
 				base = b.Unwrap();
@@ -2548,10 +2552,10 @@ void InstallFilesystem(Interpreter& vm) {
 	auto listing = [&vm, ns](const char* name, bool recursive) {
 		vm.RegisterNamespacedNative(
 			ns, String(name), 0, 1,
-			[name, recursive](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
+			[name, recursive](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
 				fs::path root(".");
 				if (!args.empty()) {
-					auto path = ArgPath(vm, args, 0, name);
+					auto path = ArgPath(interp, args, 0, name);
 					if (path.IsError())
 						return Err(path.Error());
 					root = path.Unwrap();
@@ -2582,8 +2586,8 @@ void InstallFilesystem(Interpreter& vm) {
 
 	vm.RegisterNamespacedNative(
 		ns, String("mkdir"), 1, 1,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-			auto path = ArgPath(vm, args, 0, "std.filesystem.mkdir");
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+			auto path = ArgPath(interp, args, 0, "std.filesystem.mkdir");
 			if (path.IsError())
 				return Err(path.Error());
 			std::error_code ec;
@@ -2595,8 +2599,8 @@ void InstallFilesystem(Interpreter& vm) {
 		ANY);
 	vm.RegisterNamespacedNative(
 		ns, String("remove"), 1, 1,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-			auto path = ArgPath(vm, args, 0, "std.filesystem.remove");
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+			auto path = ArgPath(interp, args, 0, "std.filesystem.remove");
 			if (path.IsError())
 				return Err(path.Error());
 			std::error_code ec;
@@ -2608,8 +2612,8 @@ void InstallFilesystem(Interpreter& vm) {
 		ANY);
 	vm.RegisterNamespacedNative(
 		ns, String("remove_all"), 1, 1,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-			auto path = ArgPath(vm, args, 0, "std.filesystem.remove_all");
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+			auto path = ArgPath(interp, args, 0, "std.filesystem.remove_all");
 			if (path.IsError())
 				return Err(path.Error());
 			std::error_code ec;
@@ -2622,9 +2626,9 @@ void InstallFilesystem(Interpreter& vm) {
 	auto twoPaths = [&vm, ns](const char* name, void (*op)(const fs::path&, const fs::path&, std::error_code&)) {
 		vm.RegisterNamespacedNative(
 			ns, String(name), 2, 2,
-			[name, op](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-				auto from = ArgPath(vm, args, 0, name);
-				auto to = ArgPath(vm, args, 1, name);
+			[name, op](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+				auto from = ArgPath(interp, args, 0, name);
+				auto to = ArgPath(interp, args, 1, name);
 				if (from.IsError())
 					return Err(from.Error());
 				if (to.IsError())
@@ -2643,8 +2647,8 @@ void InstallFilesystem(Interpreter& vm) {
 	});
 	vm.RegisterNamespacedNative(
 		ns, String("size"), 1, 1,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-			auto path = ArgPath(vm, args, 0, "std.filesystem.size");
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+			auto path = ArgPath(interp, args, 0, "std.filesystem.size");
 			if (path.IsError())
 				return Err(path.Error());
 			std::error_code ec;
@@ -2657,8 +2661,8 @@ void InstallFilesystem(Interpreter& vm) {
 	// Date de dernière modification : secondes depuis l'époque Unix.
 	vm.RegisterNamespacedNative(
 		ns, String("last_write_time"), 1, 1,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-			auto path = ArgPath(vm, args, 0, "std.filesystem.last_write_time");
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+			auto path = ArgPath(interp, args, 0, "std.filesystem.last_write_time");
 			if (path.IsError())
 				return Err(path.Error());
 			std::error_code ec;
@@ -2698,8 +2702,8 @@ void InstallOs(Interpreter& vm) {
 								 Value::Str(String(platform == std::string_view("windows") ? "\\" : "/")));
 	vm.RegisterNamespacedNative(
 		ns, String("env"), 1, 2,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-			auto name = TextOf(vm, args[0]);
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+			auto name = TextOf(interp, args[0]);
 			if (name.IsError())
 				return Err(name.Error());
 			const char* value = std::getenv(name.Value().c_str());
@@ -2710,9 +2714,9 @@ void InstallOs(Interpreter& vm) {
 		ANY);
 	vm.RegisterNamespacedNative(
 		ns, String("set_env"), 2, 2,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-			auto name = TextOf(vm, args[0]);
-			auto value = TextOf(vm, args[1]);
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+			auto name = TextOf(interp, args[0]);
+			auto value = TextOf(interp, args[1]);
 			if (name.IsError())
 				return Err(name.Error());
 			if (value.IsError())
@@ -2828,7 +2832,11 @@ Result<String, ScriptError> FormatTm(const std::tm& fields, const std::string& f
 	if (format.empty())
 		return Ok(String());
 	char buffer[512];
+	// Motif fourni par le script : non littéral par nature.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
 	const size_t written = std::strftime(buffer, sizeof(buffer), format.c_str(), &fields);
+#pragma GCC diagnostic pop
 	if (written == 0)
 		return Err(Fail(String::Format("`format` : le motif `%s` produit un texte vide ou trop long", format.c_str())));
 	return Ok(String(buffer, written));
@@ -3258,10 +3266,10 @@ void DefineDateTime(TypeBuilder& builder, TypeBuilder& dateBuilder, TypeBuilder&
 	// ── std.time ──
 	timeBuilder.Construct(0, 4, [weakTime](Interpreter&, Args& args, const Args&) -> Result<Value, ScriptError> {
 		if (args.empty()) {
-			const Millis now = floor<milliseconds>(system_clock::now());
-			const std::tm f = BreakDown(now, false);
+			const Millis instant = floor<milliseconds>(system_clock::now());
+			const std::tm f = BreakDown(instant, false);
 			return Ok(MakeTime(weakTime.lock(), (int64_t(f.tm_hour) * 3600 + f.tm_min * 60 + f.tm_sec) * 1000 +
-													now.time_since_epoch().count() % 1000));
+													instant.time_since_epoch().count() % 1000));
 		}
 		int64_t v[4] = {0, 0, 0, 0};
 		const int64_t limits[4] = {23, 59, 59, 999};
@@ -3277,10 +3285,10 @@ void DefineDateTime(TypeBuilder& builder, TypeBuilder& dateBuilder, TypeBuilder&
 		return Ok(MakeTime(weakTime.lock(), ((v[0] * 60 + v[1]) * 60 + v[2]) * 1000 + v[3]));
 	});
 	timeBuilder.StaticFn("now", 0, 0, [weakTime](Interpreter&, Args&) -> Result<Value, ScriptError> {
-		const Millis now = floor<milliseconds>(system_clock::now());
-		const std::tm f = BreakDown(now, false);
+		const Millis instant = floor<milliseconds>(system_clock::now());
+		const std::tm f = BreakDown(instant, false);
 		return Ok(MakeTime(weakTime.lock(), (int64_t(f.tm_hour) * 3600 + f.tm_min * 60 + f.tm_sec) * 1000 +
-												now.time_since_epoch().count() % 1000));
+												instant.time_since_epoch().count() % 1000));
 	});
 	timeBuilder.StaticFn("parse", 1, 1, [weakTime](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
 		auto text = TextOf(vm, args[0]);
@@ -3556,16 +3564,16 @@ void DefineResult(TypeBuilder& builder, std::weak_ptr<const HostType> optionType
 }
 
 void DefineFuture(Interpreter& vm, TypeBuilder& builder) {
-	builder.Construct(1, -1, [](Interpreter& vm, Args& args, const Args&) -> Result<Value, ScriptError> {
-		if (auto error = ArgCallable(vm, args, 0, "std.future"); error.IsSome())
+	builder.Construct(1, -1, [](Interpreter& interp, Args& args, const Args&) -> Result<Value, ScriptError> {
+		if (auto error = ArgCallable(interp, args, 0, "std.future"); error.IsSome())
 			return Err(error.Unwrap());
 		Value fn = args[0];
 		Args rest(args.begin() + 1, args.end());
-		return vm.SpawnTask([&vm, fn, rest]() mutable -> Result<Value, ScriptError> {
-			auto result = vm.CallValue(fn, std::move(rest), 0, 0);
+		return interp.SpawnTask([&interp, fn, rest]() mutable -> Result<Value, ScriptError> {
+			auto result = interp.CallValue(fn, std::move(rest), 0, 0);
 			if (result.IsError())
 				return result;
-			return vm.AwaitValue(result.Value());
+			return interp.AwaitValue(result.Value());
 		});
 	});
 	for (const char* name : {"value", "error", "all", "delayed"})
@@ -3746,14 +3754,14 @@ void InstallStdLibrary(Interpreter& vm) {
 	// `std.sort(liste[, comparateur])` : tri stable EN PLACE d'une liste.
 	vm.RegisterNamespacedNative(
 		String("std"), String("sort"), 1, 2,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-			auto list = detail::ArgList(args, 0, "std.sort");
-			if (list.IsError())
-				return Err(list.Error());
-			std::vector<Value> items = list.Value()->Snapshot();
-			if (auto error = SortValues(vm, items, args.size() > 1 ? args[1] : Value::Nil()); error.IsSome())
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+			auto sortedList = detail::ArgList(args, 0, "std.sort");
+			if (sortedList.IsError())
+				return Err(sortedList.Error());
+			std::vector<Value> items = sortedList.Value()->Snapshot();
+			if (auto error = SortValues(interp, items, args.size() > 1 ? args[1] : Value::Nil()); error.IsSome())
 				return Err(error.Unwrap());
-			list.Value()->Replace(std::move(items));
+			sortedList.Value()->Replace(std::move(items));
 			return Ok(args[0]);
 		},
 		Interpreter::NativeThread::ANY);

@@ -31,7 +31,7 @@ class VramMapping {
 
 class Memory {
   public:
-    Memory(Core *core) : core(core){};
+    Memory(Core *core_) : core(core_){};
     bool                       loadNdsBios9();
     bool                       loadNdsBios7();
     bool                       loadGbaBios();
@@ -186,7 +186,7 @@ template uint8_t                     Memory::read(bool cpu, uint32_t address);
 template uint16_t                    Memory::read(bool cpu, uint32_t address);
 template uint32_t                    Memory::read(bool cpu, uint32_t address);
 template <typename T> FORCE_INLINE T Memory::read(bool cpu, uint32_t address) {
-    address &= ~(sizeof(T) - 1);
+    address = static_cast<uint32_t>(address & (~(sizeof(T) - 1)));
     uint8_t **readMap = (cpu == 0) ? readMap9 : readMap7;
     if (readMap[address >> 12]) {
         uint8_t *data  = &readMap[address >> 12][address & 0xFFF];
@@ -203,12 +203,12 @@ template void Memory::write(bool cpu, uint32_t address, uint8_t value);
 template void Memory::write(bool cpu, uint32_t address, uint16_t value);
 template void Memory::write(bool cpu, uint32_t address, uint32_t value);
 template <typename T> FORCE_INLINE void Memory::write(bool cpu, uint32_t address, T value) {
-    address &= ~(sizeof(T) - 1);
+    address = static_cast<uint32_t>(address & (~(sizeof(T) - 1)));
     uint8_t **writeMap = (cpu == 0) ? writeMap9 : writeMap7;
     if (writeMap[address >> 12]) {
         uint8_t *data = &writeMap[address >> 12][address & 0xFFF];
         for (size_t i = 0; i < sizeof(T); i++)
-            data[i] = value >> (i * 8);
+            data[i] = static_cast<uint8_t>(value >> (i * 8));
         return;
     }
     return writeFallback<T>(cpu, address, value);

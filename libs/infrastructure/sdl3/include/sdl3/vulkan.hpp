@@ -12,27 +12,28 @@ namespace sdl3 {
 // ============================================================================
 
 class VkLibrary {
-	bool loaded = false;
+private:
+	bool m_loaded = false;
 
 public:
 	constexpr VkLibrary() noexcept = default;
-	explicit VkLibrary(bool loaded) noexcept : loaded(loaded) {}
+	explicit VkLibrary(bool loaded) noexcept : m_loaded(loaded) {}
 	~VkLibrary();
 
 	VkLibrary(const VkLibrary &) = delete;
 	VkLibrary &operator=(const VkLibrary &) = delete;
-	VkLibrary(VkLibrary &&o) noexcept : loaded(o.loaded) { o.loaded = false; }
+	VkLibrary(VkLibrary &&o) noexcept : m_loaded(o.m_loaded) { o.m_loaded = false; }
 	VkLibrary &operator=(VkLibrary &&o) noexcept {
 		if (this != &o) {
-			if (loaded)
+			if (m_loaded)
 				SDL_Vulkan_UnloadLibrary();
-			loaded = o.loaded;
-			o.loaded = false;
+			m_loaded = o.m_loaded;
+			o.m_loaded = false;
 		}
 		return *this;
 	}
 
-	[[nodiscard]] explicit operator bool() const noexcept { return loaded; }
+	[[nodiscard]] explicit operator bool() const noexcept { return m_loaded; }
 
 	// Load the Vulkan loader library. Pass nullptr to use the system default.
 	[[nodiscard]] static Result<VkLibrary, StringView> Load(const char *path = nullptr);

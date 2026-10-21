@@ -11,7 +11,7 @@ namespace emulator {
 #define MS_CYCLES 34418
 
 
-Wifi::Wifi(Core *core) : core(core) {
+Wifi::Wifi(Core *core_) : core(core_) {
     bbRegisters[0x00] = 0x6D;
     bbRegisters[0x5D] = 0x01;
     bbRegisters[0x64] = 0xFF;
@@ -23,24 +23,24 @@ void Wifi::scheduleInit() {
     scheduled = true;
 }
 
-void Wifi::addConnection(Core *core) {
+void Wifi::addConnection(Core *peer) {
     mutex.lock();
-    connections.push_back(&core->wifi);
+    connections.push_back(&peer->wifi);
     mutex.unlock();
-    core->wifi.mutex.lock();
-    core->wifi.connections.push_back(this);
-    core->wifi.mutex.unlock();
+    peer->wifi.mutex.lock();
+    peer->wifi.connections.push_back(this);
+    peer->wifi.mutex.unlock();
 }
 
-void Wifi::remConnection(Core *core) {
+void Wifi::remConnection(Core *peer) {
     mutex.lock();
-    auto position = std::find(connections.begin(), connections.end(), &core->wifi);
+    auto position = std::find(connections.begin(), connections.end(), &peer->wifi);
     connections.erase(position);
     mutex.unlock();
-    core->wifi.mutex.lock();
-    position = std::find(core->wifi.connections.begin(), core->wifi.connections.end(), this);
-    core->wifi.connections.erase(position);
-    core->wifi.mutex.unlock();
+    peer->wifi.mutex.lock();
+    position = std::find(peer->wifi.connections.begin(), peer->wifi.connections.end(), this);
+    peer->wifi.connections.erase(position);
+    peer->wifi.mutex.unlock();
 }
 
 void Wifi::sendInterrupt(int bit) {
@@ -78,13 +78,13 @@ void Wifi::countMs() {
 void Wifi::processPackets() {
     mutex.lock();
     for (size_t i = 0; i < packets.size(); i++) {
-        uint16_t size = (packets[i][4] + 12) / 2;
+        uint16_t size = static_cast<uint16_t>((packets[i][4] + 12) / 2);
         for (size_t j = 0; j < size; j++) {
             core->memory.write<uint16_t>(1, 0x4804000 + wRxbufWrcsr, packets[i][j]);
             wRxbufWrcsr += 2;
             if ((wRxbufBegin & 0x1FFE) != (wRxbufEnd & 0x1FFE))
-                wRxbufWrcsr = (wRxbufBegin & 0x1FFE) +
-                              (wRxbufWrcsr - (wRxbufBegin & 0x1FFE)) % ((wRxbufEnd & 0x1FFE) - (wRxbufBegin & 0x1FFE));
+                wRxbufWrcsr = static_cast<uint16_t>((wRxbufBegin & 0x1FFE) +
+                              (wRxbufWrcsr - (wRxbufBegin & 0x1FFE)) % ((wRxbufEnd & 0x1FFE) - (wRxbufBegin & 0x1FFE)));
             wRxbufWrcsr &= 0x1FFE;
         }
         delete[] packets[i];
@@ -103,7 +103,7 @@ void Wifi::transfer(int index) {
     // and for the optional network bridge below.
     std::vector<uint16_t> packet(size / 2);
     for (size_t j = 0; j < size; j += 2)
-        packet[j / 2] = core->memory.read<uint16_t>(1, 0x4804000 + address + j);
+        packet[j / 2] = core->memory.read<uint16_t>(1, static_cast<uint32_t>(0x4804000 + address + j));
     packet[4] = size - 12;
 
     mutex.lock();
@@ -120,7 +120,7 @@ void Wifi::transfer(int index) {
         onPacketSent(reinterpret_cast<const uint8_t *>(packet.data()), size);
 
     if (index != 4)
-        wTxbufLoc[index] &= ~BIT(15);
+        wTxbufLoc[index] = static_cast<uint16_t>(wTxbufLoc[index] & ~BIT(15));
     sendInterrupt(1);
 }
 
@@ -171,14 +171,14 @@ void Wifi::writeWPowerstate(uint16_t mask, uint16_t value) {
     mask &= 0x0003;
     wPowerstate = (wPowerstate & ~mask) | (value & mask);
     if (wPowerstate & BIT(1))
-        wPowerstate &= ~BIT(9);
+        wPowerstate = static_cast<uint16_t>(wPowerstate & ~BIT(9));
 }
 
 void Wifi::writeWPowerforce(uint16_t mask, uint16_t value) {
     mask &= 0x8001;
     wPowerforce = (wPowerforce & ~mask) | (value & mask);
     if (wPowerforce & BIT(15))
-        wPowerstate = (wPowerstate & ~BIT(9)) | ((wPowerforce & BIT(0)) << 9);
+        wPowerstate = static_cast<uint16_t>((wPowerstate & ~BIT(9)) | ((wPowerforce & BIT(0)) << 9));
 }
 
 void Wifi::writeWRxbufBegin(uint16_t mask, uint16_t value) {
@@ -233,7 +233,7 @@ void Wifi::writeWTxbufWrData(uint16_t mask, uint16_t value) {
     core->memory.write<uint16_t>(1, 0x4804000 + wTxbufWrAddr, value & mask);
     wTxbufWrAddr += 2;
     if (wTxbufWrAddr == wTxbufGap)
-        wTxbufWrAddr += wTxbufGapdisp << 1;
+        wTxbufWrAddr = static_cast<uint16_t>(wTxbufWrAddr + (wTxbufGapdisp << 1));
     wTxbufWrAddr &= 0x1FFF;
     if (wTxbufCount > 0 && --wTxbufCount == 0)
         sendInterrupt(8);
@@ -306,7 +306,7 @@ void Wifi::writeWPostBeacon(uint16_t mask, uint16_t value) {
     wPostBeacon = (wPostBeacon & ~mask) | (value & mask);
 }
 
-void Wifi::writeWBbCnt(uint16_t mask, uint16_t value) {
+void Wifi::writeWBbCnt(uint16_t /*mask*/, uint16_t value) {
     int index = value & 0x00FF;
     switch ((value & 0xF000) >> 12) {
         case 5: {
@@ -314,7 +314,7 @@ void Wifi::writeWBbCnt(uint16_t mask, uint16_t value) {
                 (index >= 0x1B && index <= 0x26) || (index >= 0x28 && index <= 0x4C) ||
                 (index >= 0x4E && index <= 0x5C) || (index >= 0x62 && index <= 0x63) || (index == 0x65) ||
                 (index >= 0x67 && index <= 0x68))
-                bbRegisters[index] = wBbWrite;
+                bbRegisters[index] = static_cast<uint8_t>(wBbWrite);
             break;
         }
         case 6: {
@@ -338,10 +338,10 @@ void Wifi::writeWIrfSet(uint16_t mask, uint16_t value) {
 uint16_t Wifi::readWRxbufRdData() {
     uint16_t value = core->memory.read<uint16_t>(1, 0x4804000 + wRxbufRdAddr);
     if ((wRxbufRdAddr += 2) == wRxbufGap)
-        wRxbufRdAddr += wRxbufGapdisp << 1;
+        wRxbufRdAddr = static_cast<uint16_t>(wRxbufRdAddr + (wRxbufGapdisp << 1));
     if ((wRxbufBegin & 0x1FFE) != (wRxbufEnd & 0x1FFE))
-        wRxbufRdAddr = (wRxbufBegin & 0x1FFE) +
-                       (wRxbufRdAddr - (wRxbufBegin & 0x1FFE)) % ((wRxbufEnd & 0x1FFE) - (wRxbufBegin & 0x1FFE));
+        wRxbufRdAddr = static_cast<uint16_t>((wRxbufBegin & 0x1FFE) +
+                       (wRxbufRdAddr - (wRxbufBegin & 0x1FFE)) % ((wRxbufEnd & 0x1FFE) - (wRxbufBegin & 0x1FFE)));
     wRxbufRdAddr &= 0x1FFF;
     if (wRxbufCount > 0 && --wRxbufCount == 0)
         sendInterrupt(9);

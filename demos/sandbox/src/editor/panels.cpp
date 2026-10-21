@@ -2411,9 +2411,9 @@ void EditorUi::BuildStartPage() {
 		ui::StatusBarOptions options;
 		options.icons = m_ctx.gui.RenderSystem().HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
 		options.background = kit::PaletteOf(m_ctx).header;
-		ui::StatusBarWidgets bar = ui::StatusBar(m_ctx.factory, std::move(options), m_root);
-		m_statusBar = bar.root;
-		m_statusGrip = bar.grip;
+		ui::StatusBarWidgets statusBar = ui::StatusBar(m_ctx.factory, std::move(options), m_root);
+		m_statusBar = statusBar.root;
+		m_statusGrip = statusBar.grip;
 	}
 	AttachWindowChrome();
 }

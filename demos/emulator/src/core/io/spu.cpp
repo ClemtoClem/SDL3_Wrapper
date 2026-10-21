@@ -21,7 +21,7 @@ const int16_t Spu::adpcmTable[] = {
 };
 
 
-Spu::Spu(Core *core) : core(core) {
+Spu::Spu(Core *core_) : core(core_) {
     ready.store(false);
     runGbaSampleTask = std::bind(&Spu::runGbaSample, this);
     runSampleTask    = std::bind(&Spu::runSample, this);
@@ -127,7 +127,7 @@ uint32_t *Spu::getSamples(int count) {
         for (int i = 0; i < count; i++)
             out[i] = bufferOut[count - 1];
     } else {
-        memcpy(out, bufferOut, count * sizeof(uint32_t));
+        memcpy(out, bufferOut, static_cast<size_t>(count) * sizeof(uint32_t));
     } {
         std::lock_guard<std::mutex> guard(mutex1);
         ready.store(false);
@@ -150,12 +150,12 @@ void Spu::runGbaSample() {
                 int      sweep     = frequency >> (gbaSoundCntL[i] & 0x07);
                 if (gbaSoundCntL[i] & BIT(3))
                     sweep = -sweep;
-                frequency += sweep;
+                frequency = static_cast<uint16_t>(frequency + (sweep));
                 if (frequency < 0x800) {
-                    gbaSoundCntX[i] = (gbaSoundCntX[i] & ~0x07FF) | frequency;
+                    gbaSoundCntX[i] = static_cast<uint16_t>((gbaSoundCntX[i] & ~0x07FF) | frequency);
                     gbaSweepTimer   = (gbaSoundCntL[i] & 0x70) >> 4;
                 } else {
-                    gbaMainSoundCntX &= ~BIT(i);
+                    gbaMainSoundCntX = static_cast<uint8_t>(gbaMainSoundCntX & ~BIT(i));
                     continue;
                 }
             }
@@ -179,9 +179,9 @@ void Spu::runGbaSample() {
             }
             data[i] = (gbaSoundTimers[i] < duty) ? -0x80 : 0x80;
             if (gbaFrameSequencer % 128 == 0 && (gbaSoundCntX[i] & BIT(14)) && (gbaSoundCntH[i] & 0x003F)) {
-                gbaSoundCntH[i] = (gbaSoundCntH[i] & ~0x003F) | ((gbaSoundCntH[i] & 0x003F) - 1);
+                gbaSoundCntH[i] = static_cast<uint16_t>((gbaSoundCntH[i] & ~0x003F) | ((gbaSoundCntH[i] & 0x003F) - 1));
                 if ((gbaSoundCntH[i] & 0x003F) == 0)
-                    gbaMainSoundCntX &= ~BIT(i);
+                    gbaMainSoundCntX = static_cast<uint8_t>(gbaMainSoundCntX & ~BIT(i));
             }
             if (gbaFrameSequencer == 448 && --gbaEnvTimers[i] <= 0) {
                 if (gbaEnvTimers[i] == 0) {
@@ -211,9 +211,9 @@ void Spu::runGbaSample() {
             else
                 data[2] >>= 4;
             if (gbaFrameSequencer % 128 == 0 && (gbaSoundCntX[2] & BIT(14)) && (gbaSoundCntH[2] & 0x00FF)) {
-                gbaSoundCntH[2] = (gbaSoundCntH[2] & ~0x00FF) | ((gbaSoundCntH[2] & 0x00FF) - 1);
+                gbaSoundCntH[2] = static_cast<uint16_t>((gbaSoundCntH[2] & ~0x00FF) | ((gbaSoundCntH[2] & 0x00FF) - 1));
                 if ((gbaSoundCntH[2] & 0x00FF) == 0)
-                    gbaMainSoundCntX &= ~BIT(2);
+                    gbaMainSoundCntX = static_cast<uint8_t>(gbaMainSoundCntX & ~BIT(2));
             }
             switch ((gbaSoundCntH[2] & 0xE000) >> 13) {
                 case 0:
@@ -241,17 +241,17 @@ void Spu::runGbaSample() {
                 if (divisor == 0)
                     divisor = 8;
                 gbaSoundTimers[3] += (divisor << ((gbaSoundCntX[3] & 0x00F0) >> 4));
-                gbaNoiseValue &= ~BIT(15);
+                gbaNoiseValue = static_cast<uint16_t>(gbaNoiseValue & ~BIT(15));
                 if (gbaNoiseValue & BIT(0))
-                    gbaNoiseValue = BIT(15) | ((gbaNoiseValue >> 1) ^ ((gbaSoundCntH[3] & BIT(3)) ? 0x60 : 0x6000));
+                    gbaNoiseValue = static_cast<uint16_t>(BIT(15) | ((gbaNoiseValue >> 1) ^ ((gbaSoundCntH[3] & BIT(3)) ? 0x60 : 0x6000)));
                 else
                     gbaNoiseValue >>= 1;
             }
             data[3] = (gbaNoiseValue & BIT(15)) ? 0x80 : -0x80;
             if (gbaFrameSequencer % 128 == 0 && (gbaSoundCntX[3] & BIT(14)) && (gbaSoundCntH[3] & 0x003F)) {
-                gbaSoundCntH[3] = (gbaSoundCntH[3] & ~0x003F) | ((gbaSoundCntH[3] & 0x003F) - 1);
+                gbaSoundCntH[3] = static_cast<uint16_t>((gbaSoundCntH[3] & ~0x003F) | ((gbaSoundCntH[3] & 0x003F) - 1));
                 if ((gbaSoundCntH[3] & 0x003F) == 0)
-                    gbaMainSoundCntX &= ~BIT(3);
+                    gbaMainSoundCntX = static_cast<uint8_t>(gbaMainSoundCntX & ~BIT(3));
             }
             if (gbaFrameSequencer == 448 && --gbaEnvTimers[2] <= 0) {
                 if (gbaEnvTimers[2] == 0) {
@@ -306,7 +306,7 @@ void Spu::runGbaSample() {
     sampleLeft  = (sampleLeft - 0x200) << 5;
     sampleRight = (sampleRight - 0x200) << 5;
     if (bufferSize > 0) {
-        bufferIn[bufferPointer++] = (sampleRight << 16) | (sampleLeft & 0xFFFF);
+        bufferIn[bufferPointer++] = static_cast<uint32_t>((sampleRight << 16) | (sampleLeft & 0xFFFF));
         if (bufferPointer == bufferSize)
             swapBuffers();
     }
@@ -353,7 +353,7 @@ void Spu::runSample() {
             switch (format) {
                 case 0:
                 case 1: {
-                    soundCurrent[i] += 1 + format;
+                    soundCurrent[i] += static_cast<uint32_t>(1 + format);
                     break;
                 }
                 case 2: {
@@ -393,7 +393,7 @@ void Spu::runSample() {
                     if (i >= 8 && i <= 13) {
                         dutyCycles[i - 8] = (dutyCycles[i - 8] + 1) % 8;
                     } else if (i >= 14) {
-                        noiseValues[i - 14] &= ~BIT(15);
+                        noiseValues[i - 14] = static_cast<uint16_t>(noiseValues[i - 14] & ~BIT(15));
                         if (noiseValues[i - 14] & BIT(0))
                             noiseValues[i - 14] = BIT(15) | ((noiseValues[i - 14] >> 1) ^ 0x6000);
                         else
@@ -412,7 +412,7 @@ void Spu::runSample() {
                     }
                 } else {
                     soundCnt[i] &= ~BIT(31);
-                    enabled &= ~BIT(i);
+                    enabled = static_cast<uint16_t>(enabled & ~BIT(i));
                     break;
                 }
             }
@@ -453,15 +453,15 @@ void Spu::runSample() {
             if (sample < -0x800000)
                 sample = -0x800000;
             if (sndCapCnt[i] & BIT(3)) {
-                core->memory.write<uint8_t>(1, sndCapCurrent[i], sample >> 16);
+                core->memory.write<uint8_t>(1, sndCapCurrent[i], static_cast<unsigned char>(sample >> 16));
                 sndCapCurrent[i]++;
             } else {
-                core->memory.write<uint16_t>(1, sndCapCurrent[i], sample >> 8);
+                core->memory.write<uint16_t>(1, sndCapCurrent[i], static_cast<unsigned short>(sample >> 8));
                 sndCapCurrent[i] += 2;
             }
             if (sndCapCurrent[i] >= sndCapDad[i] + sndCapLen[i] * 4) {
                 if (sndCapCnt[i] & BIT(2)) {
-                    sndCapCnt[i] &= ~BIT(7);
+                    sndCapCnt[i] = static_cast<uint8_t>(sndCapCnt[i] & ~BIT(7));
                     continue;
                 } else {
                     sndCapCurrent[i] = sndCapDad[i];
@@ -517,7 +517,7 @@ void Spu::runSample() {
     sampleLeft  = (sampleLeft - 0x200) << 5;
     sampleRight = (sampleRight - 0x200) << 5;
     if (bufferSize > 0) {
-        bufferIn[bufferPointer++] = (sampleRight << 16) | (sampleLeft & 0xFFFF);
+        bufferIn[bufferPointer++] = static_cast<uint32_t>((sampleRight << 16) | (sampleLeft & 0xFFFF));
         if (bufferPointer == bufferSize)
             swapBuffers();
     }
@@ -570,7 +570,7 @@ void Spu::startChannel(int channel) {
 
 
 void Spu::gbaFifoTimer(int timer) {
-    if (((gbaMainSoundCntH & BIT(10)) >> 10) == timer) {
+    if (((gbaMainSoundCntH & BIT(10)) >> 10) == static_cast<unsigned>(timer)) {
         if (!gbaFifoA.empty()) {
             gbaSampleA = gbaFifoA.front();
             gbaFifoA.pop();
@@ -578,7 +578,7 @@ void Spu::gbaFifoTimer(int timer) {
         if (gbaFifoA.size() <= 16)
             core->dma[1].trigger(3, 0x02);
     }
-    if (((gbaMainSoundCntH & BIT(14)) >> 14) == timer) {
+    if (((gbaMainSoundCntH & BIT(14)) >> 14) == static_cast<unsigned>(timer)) {
         if (!gbaFifoB.empty()) {
             gbaSampleB = gbaFifoB.front();
             gbaFifoB.pop();
@@ -664,7 +664,7 @@ void Spu::writeGbaMainSoundCntH(uint16_t mask, uint16_t value) {
 
 
 void Spu::writeGbaMainSoundCntX(uint8_t value) {
-    gbaMainSoundCntX = (gbaMainSoundCntX & ~0x80) | (value & 0x80);
+    gbaMainSoundCntX = static_cast<uint8_t>((gbaMainSoundCntX & ~0x80) | (value & 0x80));
     if (!(gbaMainSoundCntX & BIT(7))) {
         for (int i = 0; i < 4; i++) {
             if (i < 2)
@@ -673,7 +673,7 @@ void Spu::writeGbaMainSoundCntX(uint8_t value) {
             gbaSoundCntX[i] = 0;
         }
         gbaMainSoundCntL = 0;
-        gbaMainSoundCntX &= ~0x0F;
+        gbaMainSoundCntX = static_cast<uint8_t>(gbaMainSoundCntX & (~0x0F));
         gbaFrameSequencer = 0;
     }
 }
@@ -693,7 +693,7 @@ void Spu::writeGbaWaveRam(int index, uint8_t value) {
 void Spu::writeGbaFifoA(uint32_t mask, uint32_t value) {
     for (int i = 0; i < 32; i += 8) {
         if (gbaFifoA.size() < 32 && (mask & (0xFF << i)))
-            gbaFifoA.push(value >> i);
+            gbaFifoA.push(static_cast<std::queue<signed char>::value_type>(value >> i));
     }
 }
 
@@ -701,7 +701,7 @@ void Spu::writeGbaFifoA(uint32_t mask, uint32_t value) {
 void Spu::writeGbaFifoB(uint32_t mask, uint32_t value) {
     for (int i = 0; i < 32; i += 8) {
         if (gbaFifoB.size() < 32 && (mask & (0xFF << i)))
-            gbaFifoB.push(value >> i);
+            gbaFifoB.push(static_cast<std::queue<signed char>::value_type>(value >> i));
     }
 }
 
@@ -713,7 +713,7 @@ void Spu::writeSoundCnt(int channel, uint32_t mask, uint32_t value) {
     if (enable && (mainSoundCnt & BIT(15)) && (soundSad[channel] != 0 || ((soundCnt[channel] & 0x60000000) >> 29) == 3))
         startChannel(channel);
     else if (!(soundCnt[channel] & BIT(31)))
-        enabled &= ~BIT(channel);
+        enabled = static_cast<uint16_t>(enabled & ~BIT(channel));
 }
 
 
@@ -724,7 +724,7 @@ void Spu::writeSoundSad(int channel, uint32_t mask, uint32_t value) {
         if (soundSad[channel] != 0 && (mainSoundCnt & BIT(15)) && (soundCnt[channel] & BIT(31)))
             startChannel(channel);
         else
-            enabled &= ~BIT(channel);
+            enabled = static_cast<uint16_t>(enabled & ~BIT(channel));
     }
 }
 
@@ -794,12 +794,12 @@ uint8_t Spu::readGbaSoundCntL(int channel) {
 
 
 uint16_t Spu::readGbaSoundCntH(int channel) {
-    return gbaSoundCntH[channel] & ~((channel == 2) ? 0x00FF : 0x003F);
+    return static_cast<uint16_t>(gbaSoundCntH[channel] & ~((channel == 2) ? 0x00FF : 0x003F));
 }
 
 
 uint16_t Spu::readGbaSoundCntX(int channel) {
-    return gbaSoundCntX[channel] & ~((channel == 3) ? 0x0000 : 0x07FF);
+    return static_cast<uint16_t>(gbaSoundCntX[channel] & ~((channel == 3) ? 0x0000 : 0x07FF));
 }
 
 

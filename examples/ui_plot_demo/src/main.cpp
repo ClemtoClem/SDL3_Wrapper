@@ -154,8 +154,8 @@ int main() {
 	gradY.resize(40);
 	for (int i = 0; i < 40; ++i) {
 		float t = float(i) / 39.f;
-		gradX[i] = t * 10.f;
-		gradY[i] = std::sin(t * 6.2831853f * 1.5f) * 2.f + std::cos(t * 6.2831853f * 0.5f);
+		gradX[static_cast<std::vector<float>::size_type>(i)] = t * 10.f;
+		gradY[static_cast<std::vector<float>::size_type>(i)] = std::sin(t * 6.2831853f * 1.5f) * 2.f + std::cos(t * 6.2831853f * 0.5f);
 	}
 	auto plot7 = f.Plot("onCustomDraw (degrade)");
 	plot7.AddLineSeriesXy(gradX, gradY, "degrade");

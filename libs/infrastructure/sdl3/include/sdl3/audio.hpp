@@ -122,7 +122,7 @@ struct WavData {
     std::vector<uint8_t> samples;
 
     /// Octets par trame (un échantillon par canal).
-    [[nodiscard]] int FrameSize() const noexcept { return int(SDL_AUDIO_BYTESIZE(spec.format)) * spec.channels; }
+    [[nodiscard]] int FrameSize() const noexcept { return int(SDL_AUDIO_BYTESIZE(static_cast<unsigned>(spec.format))) * spec.channels; }
     /// Durée du son, en secondes (0 si le format est inconnu).
     [[nodiscard]] double DurationSeconds() const noexcept {
         const int frame = FrameSize();

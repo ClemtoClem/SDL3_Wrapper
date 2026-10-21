@@ -118,7 +118,7 @@ public:
 	[[nodiscard]] size_t SlotCount() const noexcept {
 		size_t n = 0;
 		for (const Entry &e : m_slots)
-			n += e.state->connected.load(std::memory_order_acquire) ? 1 : 0;
+			n = static_cast<size_t>(n + (e.state->connected.load(std::memory_order_acquire) ? 1 : 0));
 		return n;
 	}
 	[[nodiscard]] bool IsEmpty() const noexcept { return SlotCount() == 0; }

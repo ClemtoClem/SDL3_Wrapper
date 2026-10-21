@@ -13,8 +13,8 @@ void GpuBuffer::SetName(const char *name) {
 // ── GpuMappedBuffer ──────────────────────────────────────────────────────────
 
 GpuMappedBuffer::~GpuMappedBuffer() {
-    if (ptr && m_device && buf)
-        SDL_UnmapGPUTransferBuffer(m_device, buf);
+    if (m_ptr && m_device && m_buf)
+        SDL_UnmapGPUTransferBuffer(m_device, m_buf);
 }
 
 // ── GpuTransferBuffer ────────────────────────────────────────────────────────

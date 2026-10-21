@@ -780,14 +780,14 @@ Result<generators::TerrainSettings, ScriptError> ReadTerrain(Options &o) {
 void InstallFunctions(Interpreter &vm) {
 	const String ns("gen");
 	constexpr auto ANY = Interpreter::NativeThread::ANY;
-	vm.RegisterNamespacedNative(ns, String("terrain"), 0, 1, [](Interpreter &vm, Args &args) -> Result<Value, ScriptError> {
+	vm.RegisterNamespacedNative(ns, String("terrain"), 0, 1, [](Interpreter &interp, Args &args) -> Result<Value, ScriptError> {
 		Options o(args.empty() ? Value::Nil() : args[0], "gen.terrain");
 		auto settings = ReadTerrain(o);
 		if (settings.IsError())
 			return Err(settings.Error());
 		if (auto error = o.Finish(); error.IsSome())
 			return Err(error.Unwrap());
-		return Ok(MakeHeightMap(vm, generators::GenerateTerrain(settings.Value())));
+		return Ok(MakeHeightMap(interp, generators::GenerateTerrain(settings.Value())));
 	}, ANY);
 	// Biome d'un point : gen.biome(hauteur, pente[, niveau_de_la_mer]).
 	vm.RegisterNamespacedNative(ns, String("biome"), 2, 3, [](Interpreter &, Args &args) -> Result<Value, ScriptError> {
@@ -796,20 +796,20 @@ void InstallFunctions(Interpreter &vm) {
 		return Ok(index < 0 ? Value::Nil() : Value::Str(rules[size_t(index)].name));
 	}, ANY);
 	// Points de Poisson : gen.poisson(largeur, hauteur, rayon, graine[, densité(x, y)]).
-	vm.RegisterNamespacedNative(ns, String("poisson"), 4, 5, [](Interpreter &vm, Args &args) -> Result<Value, ScriptError> {
+	vm.RegisterNamespacedNative(ns, String("poisson"), 4, 5, [](Interpreter &interp, Args &args) -> Result<Value, ScriptError> {
 		for (size_t i = 0; i < 4; ++i)
 			if (!args[i].IsNumber())
 				return Err(Fail(String("`gen.poisson(largeur, hauteur, rayon, graine[, densité])` : nombres attendus")));
 		Option<ScriptError> failure = NONE;
 		std::function<float(float, float)> density;
 		if (args.size() > 4 && !args[4].IsNil()) {
-			if (!vm.IsCallableValue(args[4]))
+			if (!interp.IsCallableValue(args[4]))
 				return Err(Fail(String("`gen.poisson` : la densité doit être une fonction (x, y)")));
 			Value fn = args[4];
-			density = [&vm, fn, &failure](float x, float y) -> float {
+			density = [&interp, fn, &failure](float x, float y) -> float {
 				if (failure.IsSome())
 					return 0.f;
-				auto v = vm.CallValue(fn, {Value::Number(x), Value::Number(y)}, 0, 0);
+				auto v = interp.CallValue(fn, {Value::Number(x), Value::Number(y)}, 0, 0);
 				if (v.IsError()) {
 					failure = Some(v.Error());
 					return 0.f;
@@ -834,7 +834,7 @@ void InstallFunctions(Interpreter &vm) {
 		return Ok(Value::List(std::move(list)));
 	}, ANY);
 	// Donjons.
-	vm.RegisterNamespacedNative(ns, String("maze"), 2, 3, [](Interpreter &vm, Args &args) -> Result<Value, ScriptError> {
+	vm.RegisterNamespacedNative(ns, String("maze"), 2, 3, [](Interpreter &interp, Args &args) -> Result<Value, ScriptError> {
 		Options o(args.size() > 2 ? args[2] : Value::Nil(), "gen.maze");
 		const uint64_t seed = uint64_t(o.Number("seed", 1));
 		const float wiggle = float(o.Number("wiggle", 0.5));
@@ -847,9 +847,9 @@ void InstallFunctions(Interpreter &vm) {
 		if (algo.IsNone())
 			return Err(Fail(String("`gen.maze` : algorithme inconnu (backtracker, prim, binary_tree)")));
 		const int w = std::clamp(int(args[0].AsInt64()), 5, 2001), h = std::clamp(int(args[1].AsInt64()), 5, 2001);
-		return Ok(MakeDungeon(vm, generators::GenerateMaze(w, h, seed, algo.Unwrap(), wiggle)));
+		return Ok(MakeDungeon(interp, generators::GenerateMaze(w, h, seed, algo.Unwrap(), wiggle)));
 	}, ANY);
-	vm.RegisterNamespacedNative(ns, String("dungeon"), 0, 1, [](Interpreter &vm, Args &args) -> Result<Value, ScriptError> {
+	vm.RegisterNamespacedNative(ns, String("dungeon"), 0, 1, [](Interpreter &interp, Args &args) -> Result<Value, ScriptError> {
 		Options o(args.empty() ? Value::Nil() : args[0], "gen.dungeon");
 		generators::RoomsAndMazesConfig c;
 		c.width = std::clamp(o.Int("width", c.width), 9, 2001);
@@ -863,9 +863,9 @@ void InstallFunctions(Interpreter &vm) {
 		c.seed = uint64_t(o.Number("seed", 1));
 		if (auto error = o.Finish(); error.IsSome())
 			return Err(error.Unwrap());
-		return Ok(MakeDungeon(vm, generators::GenerateRoomsAndMazes(c)));
+		return Ok(MakeDungeon(interp, generators::GenerateRoomsAndMazes(c)));
 	}, ANY);
-	vm.RegisterNamespacedNative(ns, String("bsp"), 0, 1, [](Interpreter &vm, Args &args) -> Result<Value, ScriptError> {
+	vm.RegisterNamespacedNative(ns, String("bsp"), 0, 1, [](Interpreter &interp, Args &args) -> Result<Value, ScriptError> {
 		Options o(args.empty() ? Value::Nil() : args[0], "gen.bsp");
 		generators::BspConfig c;
 		c.width = std::clamp(o.Int("width", c.width), 8, 2000);
@@ -876,9 +876,9 @@ void InstallFunctions(Interpreter &vm) {
 		c.seed = uint64_t(o.Number("seed", 1));
 		if (auto error = o.Finish(); error.IsSome())
 			return Err(error.Unwrap());
-		return Ok(MakeDungeon(vm, generators::GenerateBsp(c)));
+		return Ok(MakeDungeon(interp, generators::GenerateBsp(c)));
 	}, ANY);
-	vm.RegisterNamespacedNative(ns, String("caves"), 0, 1, [](Interpreter &vm, Args &args) -> Result<Value, ScriptError> {
+	vm.RegisterNamespacedNative(ns, String("caves"), 0, 1, [](Interpreter &interp, Args &args) -> Result<Value, ScriptError> {
 		Options o(args.empty() ? Value::Nil() : args[0], "gen.caves");
 		generators::CaveConfig c;
 		c.width = std::clamp(o.Int("width", c.width), 8, 2000);
@@ -891,7 +891,7 @@ void InstallFunctions(Interpreter &vm) {
 		c.seed = uint64_t(o.Number("seed", 1));
 		if (auto error = o.Finish(); error.IsSome())
 			return Err(error.Unwrap());
-		return Ok(MakeDungeon(vm, generators::GenerateCaves(c)));
+		return Ok(MakeDungeon(interp, generators::GenerateCaves(c)));
 	}, ANY);
 	// L-systèmes : gen.lsystem(axiome, règles, itérations[, graine]) ; règles :
 	// {F: "FF", X: "F[+X]"} ou [["F", "F[+F]", 1], ["F", "F[-F]", 1]] (stochastiques).
@@ -1013,8 +1013,8 @@ void InstallGeneratorLibrary(Interpreter &vm) {
 	DefineNames(names);
 	// `gen.names(exemples, ordre[, graine])`
 	std::weak_ptr<const HostType> weakNames = names.type;
-	names.Construct(1, 3, [weakNames](Interpreter &vm, Args &args, const Args &) -> Result<Value, ScriptError> {
-		auto items = lib::ItemsOf(vm, args[0]);
+	names.Construct(1, 3, [weakNames](Interpreter &interp, Args &args, const Args &) -> Result<Value, ScriptError> {
+		auto items = lib::ItemsOf(interp, args[0]);
 		if (items.IsError())
 			return Err(items.Error());
 		std::vector<String> examples;

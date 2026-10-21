@@ -120,6 +120,7 @@ private:
 	ecs::Entity m_chatPanel{}, m_debugPanel{};
 	std::array<ecs::Entity, 3> m_infoLines{};
 	std::array<ecs::Entity, 8> m_chatLines{};
+	std::array<ecs::Entity, 8> m_chatRows{}; ///< fond de chaque ligne de discussion
 	std::array<ecs::Entity, 5> m_debugLines{};
 	std::array<ecs::Entity, 3> m_hintLines{};
 	Option<sdl3::Texture> m_icons = NONE;

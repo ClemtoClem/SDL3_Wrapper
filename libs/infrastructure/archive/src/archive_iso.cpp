@@ -299,7 +299,7 @@ Result<std::vector<IsoReader::Record>, ArchiveError> IsoReader::ReadDirectory(co
 		// Zone d'utilisation système (Rock Ridge / SUSP).
 		uint64_t systemUse = RECORD_BASE + nameLength + ((nameLength % 2 == 0) ? 1 : 0);
 		if (!joliet && systemUse < length) {
-			systemUse += (record.self && records.empty()) ? 0 : m_suspSkip;
+			systemUse += (record.self && records.empty()) ? 0 : static_cast<uint64_t>(m_suspSkip);
 			if (systemUse < length) {
 				Bytes area(data.Value().begin() + std::ptrdiff_t(start + systemUse),
 						   data.Value().begin() + std::ptrdiff_t(start + length));
@@ -856,7 +856,7 @@ Bytes IsoWriter::SystemUse(const Node& node, int kind) const {
 			while (at < components.size()) {
 				size_t end = at;
 				while (end < components.size() && end - at + 2 + components[end + 1] <= 250)
-					end += 2 + components[end + 1];
+					end += 2u + components[end + 1];
 				header("SL", 5 + (end - at));
 				writer.U8(end < components.size() ? 0x01 : 0x00);
 				writer.Write(components.data() + at, end - at);

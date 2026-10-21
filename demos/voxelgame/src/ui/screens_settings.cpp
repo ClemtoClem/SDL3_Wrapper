@@ -16,7 +16,7 @@ String Percent(float v) { return String::Format("%d %%", int(std::lround(v * 100
 
 class SettingsScreen final : public Screen {
 public:
-	SettingsScreen(Shell &shell, SettingsTab tab) : Screen(shell), m_tab(int(tab)), m_draft(shell.Prefs()) {}
+	SettingsScreen(Shell &shell_, SettingsTab tab) : Screen(shell_), m_tab(int(tab)), m_draft(shell_.Prefs()) {}
 	String Id() const override { return "settings"; }
 
 	void Build(ecs::Entity root) override {
@@ -452,7 +452,7 @@ private:
 
 class KeyCapture final : public Screen {
 public:
-	KeyCapture(Shell &shell, String label, std::function<void(int)> done) : Screen(shell), m_label(std::move(label)), m_done(std::move(done)) {}
+	KeyCapture(Shell &shell_, String label, std::function<void(int)> done) : Screen(shell_), m_label(std::move(label)), m_done(std::move(done)) {}
 	String Id() const override { return "keycapture"; }
 	bool Overlay() const override { return true; }
 
@@ -493,7 +493,7 @@ private:
 
 class SkinPicker final : public Screen {
 public:
-	explicit SkinPicker(Shell &shell) : Screen(shell) {
+	explicit SkinPicker(Shell &shell_) : Screen(shell_) {
 		m_selected = shell.Prefs().skin;
 		if (voxel::Game *g = ContentGame(shell)) {
 			if (m_selected.IsEmpty())

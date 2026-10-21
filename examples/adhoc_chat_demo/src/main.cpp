@@ -62,7 +62,7 @@ namespace chat = net::chat;
 /// Couleur en octets (0-255), opaque — le constructeur de FColor attend
 /// des composantes normalisées et un alpha explicite.
 static constexpr sdl3::FColor Rgb(int r, int g, int b) {
-	return {r / 255.f, g / 255.f, b / 255.f, 1.f};
+	return {static_cast<float>(r) / 255.f, static_cast<float>(g) / 255.f, static_cast<float>(b) / 255.f, 1.f};
 }
 
 static constexpr int WIN_W = 1360;

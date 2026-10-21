@@ -11,40 +11,40 @@ Matrix Matrix::operator*(Matrix &mtx) {
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
             result.data[y * 4 + x] =
-                ((int64_t)data[y * 4 + 0] * mtx.data[0 + x] + (int64_t)data[y * 4 + 1] * mtx.data[4 + x] +
+                static_cast<int32_t>(((int64_t)data[y * 4 + 0] * mtx.data[0 + x] + (int64_t)data[y * 4 + 1] * mtx.data[4 + x] +
                  (int64_t)data[y * 4 + 2] * mtx.data[8 + x] + (int64_t)data[y * 4 + 3] * mtx.data[12 + x]) >>
-                12;
+                12);
         }
     }
     return result;
 }
 
 int32_t Vector::operator*(Vector &vtr) {
-    return ((int64_t)x * vtr.x + (int64_t)y * vtr.y + (int64_t)z * vtr.z) >> 12;
+    return static_cast<int32_t>(((int64_t)x * vtr.x + (int64_t)y * vtr.y + (int64_t)z * vtr.z) >> 12);
 }
 
 Vector Vector::operator*(Matrix &mtx) {
     Vector result;
-    result.x = ((int64_t)x * mtx.data[0] + (int64_t)y * mtx.data[4] + (int64_t)z * mtx.data[8]) >> 12;
-    result.y = ((int64_t)x * mtx.data[1] + (int64_t)y * mtx.data[5] + (int64_t)z * mtx.data[9]) >> 12;
-    result.z = ((int64_t)x * mtx.data[2] + (int64_t)y * mtx.data[6] + (int64_t)z * mtx.data[10]) >> 12;
+    result.x = static_cast<int32_t>(((int64_t)x * mtx.data[0] + (int64_t)y * mtx.data[4] + (int64_t)z * mtx.data[8]) >> 12);
+    result.y = static_cast<int32_t>(((int64_t)x * mtx.data[1] + (int64_t)y * mtx.data[5] + (int64_t)z * mtx.data[9]) >> 12);
+    result.z = static_cast<int32_t>(((int64_t)x * mtx.data[2] + (int64_t)y * mtx.data[6] + (int64_t)z * mtx.data[10]) >> 12);
     return result;
 }
 
 Vertex Vertex::operator*(Matrix &mtx) {
     Vertex result = *this;
     result.x =
-        ((int64_t)x * mtx.data[0] + (int64_t)y * mtx.data[4] + (int64_t)z * mtx.data[8] + (int64_t)w * mtx.data[12]) >>
-        12;
+        static_cast<int32_t>(((int64_t)x * mtx.data[0] + (int64_t)y * mtx.data[4] + (int64_t)z * mtx.data[8] + (int64_t)w * mtx.data[12]) >>
+        12);
     result.y =
-        ((int64_t)x * mtx.data[1] + (int64_t)y * mtx.data[5] + (int64_t)z * mtx.data[9] + (int64_t)w * mtx.data[13]) >>
-        12;
+        static_cast<int32_t>(((int64_t)x * mtx.data[1] + (int64_t)y * mtx.data[5] + (int64_t)z * mtx.data[9] + (int64_t)w * mtx.data[13]) >>
+        12);
     result.z =
-        ((int64_t)x * mtx.data[2] + (int64_t)y * mtx.data[6] + (int64_t)z * mtx.data[10] + (int64_t)w * mtx.data[14]) >>
-        12;
+        static_cast<int32_t>(((int64_t)x * mtx.data[2] + (int64_t)y * mtx.data[6] + (int64_t)z * mtx.data[10] + (int64_t)w * mtx.data[14]) >>
+        12);
     result.w =
-        ((int64_t)x * mtx.data[3] + (int64_t)y * mtx.data[7] + (int64_t)z * mtx.data[11] + (int64_t)w * mtx.data[15]) >>
-        12;
+        static_cast<int32_t>(((int64_t)x * mtx.data[3] + (int64_t)y * mtx.data[7] + (int64_t)z * mtx.data[11] + (int64_t)w * mtx.data[15]) >>
+        12);
     return result;
 }
 
@@ -55,7 +55,7 @@ const uint8_t Gpu3D::paramCounts[] = {
     1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2, 1, 0, 0,  0, 0,  0,  0,  0,  0, 0, 0, 0, 0, 0,
 };
 
-Gpu3D::Gpu3D(Core *core) : core(core) {
+Gpu3D::Gpu3D(Core *core_) : core(core_) {
     runCommandTask = std::bind(&Gpu3D::runCommand, this);
 }
 
@@ -78,15 +78,15 @@ Vertex Gpu3D::intersection(Vertex *vtx1, Vertex *vtx2, int32_t val1, int32_t val
     int64_t d2 = val2 + vtx2->w;
     if (d2 == d1)
         return *vtx1;
-    vertex.x     = ((d2 * vtx1->x) - (d1 * vtx2->x)) / (d2 - d1);
-    vertex.y     = ((d2 * vtx1->y) - (d1 * vtx2->y)) / (d2 - d1);
-    vertex.z     = ((d2 * vtx1->z) - (d1 * vtx2->z)) / (d2 - d1);
-    vertex.w     = ((d2 * vtx1->w) - (d1 * vtx2->w)) / (d2 - d1);
-    vertex.s     = ((d2 * vtx1->s) - (d1 * vtx2->s)) / (d2 - d1);
-    vertex.t     = ((d2 * vtx1->t) - (d1 * vtx2->t)) / (d2 - d1);
-    uint8_t r    = ((d2 * ((vtx1->color >> 0) & 0x3F)) - (d1 * ((vtx2->color >> 0) & 0x3F))) / (d2 - d1);
-    uint8_t g    = ((d2 * ((vtx1->color >> 6) & 0x3F)) - (d1 * ((vtx2->color >> 6) & 0x3F))) / (d2 - d1);
-    uint8_t b    = ((d2 * ((vtx1->color >> 12) & 0x3F)) - (d1 * ((vtx2->color >> 12) & 0x3F))) / (d2 - d1);
+    vertex.x     = static_cast<int32_t>(((d2 * vtx1->x) - (d1 * vtx2->x)) / (d2 - d1));
+    vertex.y     = static_cast<int32_t>(((d2 * vtx1->y) - (d1 * vtx2->y)) / (d2 - d1));
+    vertex.z     = static_cast<int32_t>(((d2 * vtx1->z) - (d1 * vtx2->z)) / (d2 - d1));
+    vertex.w     = static_cast<int32_t>(((d2 * vtx1->w) - (d1 * vtx2->w)) / (d2 - d1));
+    vertex.s     = static_cast<int16_t>(((d2 * vtx1->s) - (d1 * vtx2->s)) / (d2 - d1));
+    vertex.t     = static_cast<int16_t>(((d2 * vtx1->t) - (d1 * vtx2->t)) / (d2 - d1));
+    uint8_t r    = static_cast<uint8_t>(((d2 * ((vtx1->color >> 0) & 0x3F)) - (d1 * ((vtx2->color >> 0) & 0x3F))) / (d2 - d1));
+    uint8_t g    = static_cast<uint8_t>(((d2 * ((vtx1->color >> 6) & 0x3F)) - (d1 * ((vtx2->color >> 6) & 0x3F))) / (d2 - d1));
+    uint8_t b    = static_cast<uint8_t>(((d2 * ((vtx1->color >> 12) & 0x3F)) - (d1 * ((vtx2->color >> 12) & 0x3F))) / (d2 - d1));
     vertex.color = (vtx1->color & 0xFC0000) | (b << 12) | (g << 6) | r;
     return vertex;
 }
@@ -94,7 +94,7 @@ Vertex Gpu3D::intersection(Vertex *vtx1, Vertex *vtx2, int32_t val1, int32_t val
 bool Gpu3D::clipPolygon(Vertex *unclipped, Vertex *clipped, int *size) {
     bool   clip = false;
     Vertex vertices[10];
-    memcpy(vertices, unclipped, *size * sizeof(Vertex));
+    memcpy(vertices, unclipped, static_cast<size_t>(*size) * sizeof(Vertex));
     for (int i = 0; i < 6; i++) {
         int oldSize = *size;
         *size       = 0;
@@ -139,7 +139,7 @@ bool Gpu3D::clipPolygon(Vertex *unclipped, Vertex *clipped, int *size) {
                 clip               = true;
             }
         }
-        memcpy(vertices, clipped, *size * sizeof(Vertex));
+        memcpy(vertices, clipped, static_cast<size_t>(*size) * sizeof(Vertex));
     }
     return clip;
 }
@@ -149,7 +149,7 @@ void Gpu3D::runCommand() {
     int                   count = paramCounts[entry.command];
     std::vector<uint32_t> params;
     if (count > 1) {
-        params.reserve(count);
+        params.reserve(static_cast<std::vector<unsigned int>::size_type>(count));
         for (int i = 0; i < count; i++) {
             params.push_back(fifo.front().param);
             fifo.pop();
@@ -274,10 +274,10 @@ void Gpu3D::runCommand() {
             break;
         }
     }
-    pipeSize = 4 - ((pipeSize + count) & 1);
+    pipeSize = 4 - ((pipeSize + static_cast<size_t>(count)) & 1);
     if (pipeSize > fifo.size())
         pipeSize = fifo.size();
-    gxStat = (gxStat & ~0x01FF0000) | ((fifo.size() - pipeSize) << 16);
+    gxStat = static_cast<uint32_t>((gxStat & ~0x01FF0000u) | ((fifo.size() - pipeSize) << 16));
     if (fifo.size() - pipeSize == 0)
         gxStat |= BIT(26);
     if (fifo.size() == 0)
@@ -312,21 +312,21 @@ void Gpu3D::swapBuffers() {
     uint16_t y        = viewportY << resShift;
     uint16_t w        = viewportWidth << resShift;
     uint16_t h        = viewportHeight << resShift;
-    uint16_t xMask    = (0x200 << resShift) - 1;
-    uint16_t yMask    = (0x100 << resShift) - 1;
+    uint16_t xMask    = static_cast<uint16_t>((0x200 << resShift) - 1);
+    uint16_t yMask    = static_cast<uint16_t>((0x100 << resShift) - 1);
     for (int i = 0; i < vertexCountIn; i++) {
         if (verticesIn[i].w != 0) {
-            verticesIn[i].x = (((int64_t)verticesIn[i].x + verticesIn[i].w) * w / (verticesIn[i].w * 2) + x) & xMask;
-            verticesIn[i].y = ((-(int64_t)verticesIn[i].y + verticesIn[i].w) * h / (verticesIn[i].w * 2) + y) & yMask;
-            verticesIn[i].z = (((((int64_t)verticesIn[i].z << 14) / verticesIn[i].w) + 0x3FFF) << 9);
+            verticesIn[i].x = static_cast<int32_t>((((int64_t)verticesIn[i].x + verticesIn[i].w) * w / (verticesIn[i].w * 2) + x) & xMask);
+            verticesIn[i].y = static_cast<int32_t>(((-(int64_t)verticesIn[i].y + verticesIn[i].w) * h / (verticesIn[i].w * 2) + y) & yMask);
+            verticesIn[i].z = static_cast<int32_t>((((((int64_t)verticesIn[i].z << 14) / verticesIn[i].w) + 0x3FFF) << 9));
         }
     }
     for (int i = 0; i < polygonCountIn; i++) {
         _Polygon *p     = &polygonsIn[i];
-        uint32_t  value = p->vertices[0].w;
+        uint32_t  value = static_cast<uint32_t>(p->vertices[0].w);
         for (int j = 1; j < p->size; j++) {
             if ((uint32_t)p->vertices[j].w > value)
-                value = p->vertices[j].w;
+                value = static_cast<uint32_t>(p->vertices[j].w);
         }
         while ((value >> p->wShift) > 0xFFFF)
             p->wShift += 4;
@@ -361,8 +361,8 @@ void Gpu3D::addVertex() {
         matrix.data[12]             = (int32_t)s << 12;
         matrix.data[13]             = (int32_t)t << 12;
         Vertex vertex               = verticesIn[vertexCountIn] * matrix;
-        verticesIn[vertexCountIn].s = vertex.x >> 12;
-        verticesIn[vertexCountIn].t = vertex.y >> 12;
+        verticesIn[vertexCountIn].s = static_cast<int16_t>(vertex.x >> 12);
+        verticesIn[vertexCountIn].t = static_cast<int16_t>(vertex.y >> 12);
     }
     if (clipDirty) {
         clip      = coordinate * projection;
@@ -398,7 +398,7 @@ void Gpu3D::addPolygon() {
     savedPolygon.size     = size;
     savedPolygon.vertices = &verticesIn[vertexCountIn - size];
     Vertex unclipped[4];
-    memcpy(unclipped, savedPolygon.vertices, size * sizeof(Vertex));
+    memcpy(unclipped, savedPolygon.vertices, static_cast<size_t>(size) * sizeof(Vertex));
     if (polygonType == 3)
         SWAP(unclipped[2], unclipped[3]);
     int64_t x1 = unclipped[1].x - unclipped[0].x;
@@ -424,7 +424,7 @@ void Gpu3D::addPolygon() {
     }
     Vertex clipped[10];
     bool   cull = (!renderFront && dot > 0) || (!renderBack && dot < 0);
-    bool   clip = cull ? false : clipPolygon(unclipped, clipped, &savedPolygon.size);
+    bool   wasClipped = cull ? false : clipPolygon(unclipped, clipped, &savedPolygon.size);
     if (cull || savedPolygon.size == 0) {
         switch (polygonType) {
             case 0:
@@ -459,7 +459,7 @@ void Gpu3D::addPolygon() {
             }
         }
     }
-    if (clip) {
+    if (wasClipped) {
         switch (polygonType) {
             case 0:
             case 1: {
@@ -511,7 +511,7 @@ void Gpu3D::addPolygon() {
         }
     }
     polygonsIn[polygonCountIn]         = savedPolygon;
-    polygonsIn[polygonCountIn].crossed = (polygonType == 3 && !clip);
+    polygonsIn[polygonCountIn].crossed = (polygonType == 3 && !wasClipped);
     polygonsIn[polygonCountIn].paletteAddr <<= 4 - (savedPolygon.textureFmt == 2);
     polygonCountIn++;
 }
@@ -566,11 +566,11 @@ void Gpu3D::mtxPopCmd(uint32_t param) {
         }
         case 1:
         case 2: {
-            uint8_t pointer = ((gxStat >> 8) & 0x1F) - ((int8_t)(param << 2) >> 2);
+            uint8_t pointer = static_cast<uint8_t>(((gxStat >> 8) & 0x1F) - static_cast<uint32_t>(((int8_t)(param << 2) >> 2)));
             if (pointer >= 30)
                 gxStat |= BIT(15);
             if (pointer < 31) {
-                gxStat     = (gxStat & ~0x1F00) | (pointer << 8);
+                gxStat     = (gxStat & ~0x1F00u) | (pointer << 8);
                 coordinate = coordinateStack[pointer];
                 direction  = directionStack[pointer];
                 clipDirty  = true;
@@ -686,7 +686,7 @@ void Gpu3D::mtxLoad44Cmd(std::vector<uint32_t> &params) {
 void Gpu3D::mtxLoad43Cmd(std::vector<uint32_t> &params) {
     Matrix matrix;
     for (int i = 0; i < 4; i++)
-        memcpy(&matrix.data[i * 4], &params[i * 3], 3 * sizeof(int32_t));
+        memcpy(&matrix.data[i * 4], &params[static_cast<std::vector<unsigned int>::size_type>(i * 3)], 3 * sizeof(int32_t));
     switch (matrixMode) {
         case 0: {
             projection = matrix;
@@ -740,7 +740,7 @@ void Gpu3D::mtxMult44Cmd(std::vector<uint32_t> &params) {
 void Gpu3D::mtxMult43Cmd(std::vector<uint32_t> &params) {
     Matrix matrix;
     for (int i = 0; i < 4; i++)
-        memcpy(&matrix.data[i * 4], &params[i * 3], 3 * sizeof(int32_t));
+        memcpy(&matrix.data[i * 4], &params[static_cast<std::vector<unsigned int>::size_type>(i * 3)], 3 * sizeof(int32_t));
     switch (matrixMode) {
         case 0: {
             projection = matrix * projection;
@@ -768,7 +768,7 @@ void Gpu3D::mtxMult43Cmd(std::vector<uint32_t> &params) {
 void Gpu3D::mtxMult33Cmd(std::vector<uint32_t> &params) {
     Matrix matrix;
     for (int i = 0; i < 3; i++)
-        memcpy(&matrix.data[i * 4], &params[i * 3], 3 * sizeof(int32_t));
+        memcpy(&matrix.data[i * 4], &params[static_cast<std::vector<unsigned int>::size_type>(i * 3)], 3 * sizeof(int32_t));
     switch (matrixMode) {
         case 0: {
             projection = matrix * projection;
@@ -796,7 +796,7 @@ void Gpu3D::mtxMult33Cmd(std::vector<uint32_t> &params) {
 void Gpu3D::mtxScaleCmd(std::vector<uint32_t> &params) {
     Matrix matrix;
     for (int i = 0; i < 3; i++)
-        matrix.data[i * 5] = (int32_t)params[i];
+        matrix.data[i * 5] = (int32_t)params[static_cast<std::vector<unsigned int>::size_type>(i)];
     switch (matrixMode) {
         case 0: {
             projection = matrix * projection;
@@ -844,7 +844,7 @@ void Gpu3D::mtxTransCmd(std::vector<uint32_t> &params) {
 }
 
 void Gpu3D::colorCmd(uint32_t param) {
-    savedVertex.color = rgb5ToRgb6(param);
+    savedVertex.color = rgb5ToRgb6(static_cast<uint16_t>(param));
 }
 
 void Gpu3D::normalCmd(uint32_t param) {
@@ -859,8 +859,8 @@ void Gpu3D::normalCmd(uint32_t param) {
         matrix.data[12] = s << 12;
         matrix.data[13] = t << 12;
         vertex          = vertex * matrix;
-        savedVertex.s   = vertex.x >> 12;
-        savedVertex.t   = vertex.y >> 12;
+        savedVertex.s   = static_cast<int16_t>(vertex.x >> 12);
+        savedVertex.t   = static_cast<int16_t>(vertex.y >> 12);
     }
     normalVector      = normalVector * direction;
     savedVertex.color = emissionColor;
@@ -882,15 +882,15 @@ void Gpu3D::normalCmd(uint32_t param) {
             int r = (savedVertex.color >> 0) & 0x3F;
             int g = (savedVertex.color >> 6) & 0x3F;
             int b = (savedVertex.color >> 12) & 0x3F;
-            r += (((specularColor >> 0) & 0x3F) * ((lightColor[i] >> 0) & 0x3F) * shininessLevel) >> 18;
-            g += (((specularColor >> 6) & 0x3F) * ((lightColor[i] >> 6) & 0x3F) * shininessLevel) >> 18;
-            b += (((specularColor >> 12) & 0x3F) * ((lightColor[i] >> 12) & 0x3F) * shininessLevel) >> 18;
-            r += (((diffuseColor >> 0) & 0x3F) * ((lightColor[i] >> 0) & 0x3F) * diffuseLevel) >> 18;
-            g += (((diffuseColor >> 6) & 0x3F) * ((lightColor[i] >> 6) & 0x3F) * diffuseLevel) >> 18;
-            b += (((diffuseColor >> 12) & 0x3F) * ((lightColor[i] >> 12) & 0x3F) * diffuseLevel) >> 18;
-            r += ((ambientColor >> 0) & 0x3F) * ((lightColor[i] >> 0) & 0x3F) >> 6;
-            g += ((ambientColor >> 6) & 0x3F) * ((lightColor[i] >> 6) & 0x3F) >> 6;
-            b += ((ambientColor >> 12) & 0x3F) * ((lightColor[i] >> 12) & 0x3F) >> 6;
+            r = static_cast<int>(static_cast<uint32_t>(r) + ((((specularColor >> 0) & 0x3F) * ((lightColor[i] >> 0) & 0x3F) * static_cast<uint32_t>(shininessLevel)) >> 18));
+            g = static_cast<int>(static_cast<uint32_t>(g) + ((((specularColor >> 6) & 0x3F) * ((lightColor[i] >> 6) & 0x3F) * static_cast<uint32_t>(shininessLevel)) >> 18));
+            b = static_cast<int>(static_cast<uint32_t>(b) + ((((specularColor >> 12) & 0x3F) * ((lightColor[i] >> 12) & 0x3F) * static_cast<uint32_t>(shininessLevel)) >> 18));
+            r = static_cast<int>(static_cast<uint32_t>(r) + ((((diffuseColor >> 0) & 0x3F) * ((lightColor[i] >> 0) & 0x3F) * static_cast<uint32_t>(diffuseLevel)) >> 18));
+            g = static_cast<int>(static_cast<uint32_t>(g) + ((((diffuseColor >> 6) & 0x3F) * ((lightColor[i] >> 6) & 0x3F) * static_cast<uint32_t>(diffuseLevel)) >> 18));
+            b = static_cast<int>(static_cast<uint32_t>(b) + ((((diffuseColor >> 12) & 0x3F) * ((lightColor[i] >> 12) & 0x3F) * static_cast<uint32_t>(diffuseLevel)) >> 18));
+            r = static_cast<int>(static_cast<uint32_t>(r) + (((ambientColor >> 0) & 0x3F) * ((lightColor[i] >> 0) & 0x3F) >> 6));
+            g = static_cast<int>(static_cast<uint32_t>(g) + (((ambientColor >> 6) & 0x3F) * ((lightColor[i] >> 6) & 0x3F) >> 6));
+            b = static_cast<int>(static_cast<uint32_t>(b) + (((ambientColor >> 12) & 0x3F) * ((lightColor[i] >> 12) & 0x3F) >> 6));
             if (r < 0)
                 r = 0;
             if (r > 0x3F)
@@ -903,7 +903,7 @@ void Gpu3D::normalCmd(uint32_t param) {
                 b = 0;
             if (b > 0x3F)
                 b = 0x3F;
-            savedVertex.color = (b << 12) | (g << 6) | r;
+            savedVertex.color = static_cast<uint32_t>((b << 12) | (g << 6) | r);
         }
     }
 }
@@ -918,8 +918,8 @@ void Gpu3D::texCoordCmd(uint32_t param) {
         vertex.z      = 1 << 8;
         vertex.w      = 1 << 8;
         vertex        = vertex * texture;
-        savedVertex.s = vertex.x >> 8;
-        savedVertex.t = vertex.y >> 8;
+        savedVertex.s = static_cast<int16_t>(vertex.x >> 8);
+        savedVertex.t = static_cast<int16_t>(vertex.y >> 8);
     } else {
         savedVertex.s = s;
         savedVertex.t = t;
@@ -979,7 +979,7 @@ void Gpu3D::texImageParamCmd(uint32_t param) {
     savedPolygon.flipT        = param & BIT(19);
     savedPolygon.textureFmt   = (param & 0x1C000000) >> 26;
     savedPolygon.transparent0 = param & BIT(29);
-    textureCoordMode          = (param & 0xC0000000) >> 30;
+    textureCoordMode          = static_cast<int>((param & 0xC0000000) >> 30);
 }
 
 void Gpu3D::plttBaseCmd(uint32_t param) {
@@ -987,15 +987,15 @@ void Gpu3D::plttBaseCmd(uint32_t param) {
 }
 
 void Gpu3D::difAmbCmd(uint32_t param) {
-    diffuseColor = rgb5ToRgb6(param >> 0);
-    ambientColor = rgb5ToRgb6(param >> 16);
+    diffuseColor = rgb5ToRgb6(static_cast<uint16_t>(param >> 0));
+    ambientColor = rgb5ToRgb6(static_cast<uint16_t>(param >> 16));
     if (param & BIT(15))
         savedVertex.color = diffuseColor;
 }
 
 void Gpu3D::speEmiCmd(uint32_t param) {
-    specularColor    = rgb5ToRgb6(param >> 0);
-    emissionColor    = rgb5ToRgb6(param >> 16);
+    specularColor    = rgb5ToRgb6(static_cast<uint16_t>(param >> 0));
+    emissionColor    = rgb5ToRgb6(static_cast<uint16_t>(param >> 16));
     shininessEnabled = param & BIT(15);
 }
 
@@ -1010,15 +1010,15 @@ void Gpu3D::lightVectorCmd(uint32_t param) {
 }
 
 void Gpu3D::lightColorCmd(uint32_t param) {
-    lightColor[param >> 30] = rgb5ToRgb6(param);
+    lightColor[param >> 30] = rgb5ToRgb6(static_cast<uint16_t>(param));
 }
 
 void Gpu3D::shininessCmd(std::vector<uint32_t> &params) {
     for (int i = 0; i < 32; i++) {
-        shininess[i * 4 + 0] = params[i] >> 0;
-        shininess[i * 4 + 1] = params[i] >> 8;
-        shininess[i * 4 + 2] = params[i] >> 16;
-        shininess[i * 4 + 3] = params[i] >> 24;
+        shininess[i * 4 + 0] = static_cast<uint8_t>(params[size_t(i)] >> 0);
+        shininess[i * 4 + 1] = static_cast<uint8_t>(params[size_t(i)] >> 8);
+        shininess[i * 4 + 2] = static_cast<uint8_t>(params[size_t(i)] >> 16);
+        shininess[i * 4 + 3] = static_cast<uint8_t>(params[size_t(i)] >> 24);
     }
 }
 
@@ -1127,7 +1127,7 @@ void Gpu3D::addEntry(Entry entry) {
         if (fifo.size() - pipeSize >= 256)
             core->interpreter[0].halt(1);
         fifo.push(entry);
-        gxStat = (gxStat & ~0x01FF0000) | ((fifo.size() - pipeSize) << 16);
+        gxStat = static_cast<uint32_t>((gxStat & ~0x01FF0000u) | ((fifo.size() - pipeSize) << 16));
         gxStat &= ~BIT(26);
         if (fifo.size() - pipeSize >= 128 && (gxStat & BIT(25)))
             gxStat &= ~BIT(25);
@@ -1155,7 +1155,7 @@ void Gpu3D::writeGxFifo(uint32_t mask, uint32_t value) {
     if (gxFifo == 0) {
         gxFifo = value & mask;
     } else {
-        Entry entry(gxFifo, value & mask);
+        Entry entry(static_cast<uint8_t>(gxFifo), value & mask);
         addEntry(entry);
         gxFifoCount++;
         if (gxFifoCount == paramCounts[gxFifo & 0xFF]) {
@@ -1164,7 +1164,7 @@ void Gpu3D::writeGxFifo(uint32_t mask, uint32_t value) {
         }
     }
     while (gxFifo != 0 && paramCounts[gxFifo & 0xFF] == 0) {
-        Entry entry(gxFifo, 0);
+        Entry entry(static_cast<uint8_t>(gxFifo), 0);
         addEntry(entry);
         gxFifo >>= 8;
     }
@@ -1357,13 +1357,13 @@ void Gpu3D::writeVecTest(uint32_t mask, uint32_t value) {
 
 void Gpu3D::writeGxStat(uint32_t mask, uint32_t value) {
     if (value & BIT(15))
-        gxStat &= ~0xA000;
+        gxStat &= ~0xA000u;
     mask &= 0xC0000000;
     gxStat = (gxStat & ~mask) | (value & mask);
 }
 
 uint32_t Gpu3D::readRamCount() {
-    return (vertexCountIn << 16) | polygonCountIn;
+    return static_cast<uint32_t>((vertexCountIn << 16) | polygonCountIn);
 }
 
 uint32_t Gpu3D::readClipMtxResult(int index) {
@@ -1371,11 +1371,11 @@ uint32_t Gpu3D::readClipMtxResult(int index) {
         clip      = coordinate * projection;
         clipDirty = false;
     }
-    return clip.data[index];
+    return static_cast<uint32_t>(clip.data[index]);
 }
 
 uint32_t Gpu3D::readVecMtxResult(int index) {
-    return direction.data[(index / 3) * 4 + index % 3];
+    return static_cast<uint32_t>(direction.data[(index / 3) * 4 + index % 3]);
 }
 
 /**

@@ -7,9 +7,14 @@ namespace sdl3 {
 
 inline bool SetError(StringView msg) { return SDL_SetError("%.*s", int(msg.GetSize()), msg.GetData()) == 0; }
 
+// Relais printf : le format est par nature non littéral ici.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
 template <class... Args> inline bool SetError(StringView fmt, Args &&...args) {
     return SDL_SetError(fmt.GetData(), std::forward<Args>(args)...) == 0;
 }
+#pragma GCC diagnostic pop
 
 inline StringView GetError() { return StringView(SDL_GetError()); }
 

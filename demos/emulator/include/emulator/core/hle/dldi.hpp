@@ -32,7 +32,7 @@ enum DldiFunc {
  */
 class Dldi {
   public:
-    Dldi(Core *core) : core(core) {
+    Dldi(Core *core_) : core(core_) {
     }
 
     void patchRom(uint8_t *rom, uint32_t offset, uint32_t size);

@@ -3,7 +3,7 @@
 
 namespace emulator {
 
-CPU::CPU(Core *core, bool cpu) : core(core), cpu(cpu) {
+CPU::CPU(Core *core_, bool cpu_) : core(core_), cpu(cpu_) {
     for (int i = 0; i < 16; i++)
         registers[i] = &registersUsr[i];
     interruptTask = std::bind(&CPU::interrupt, this);
@@ -44,14 +44,14 @@ void CPU::sendInterrupt(int bit) {
         if (ime && !(cpsr & BIT(7)))
             core->schedule(Task(&interruptTask, (cpu == 1 && !core->isGbaMode()) ? 2 : 1));
         else if (ime || cpu == 1)
-            halted &= ~BIT(0);
+            halted = static_cast<uint8_t>(halted & ~BIT(0));
     }
 }
 
 void CPU::interrupt() {
     if (ime && (ie & irf) && !(cpsr & BIT(7))) {
         exception(0x18);
-        halted &= ~BIT(0);
+        halted = static_cast<uint8_t>(halted & ~BIT(0));
     }
 }
 
@@ -60,7 +60,7 @@ int CPU::exception(uint8_t vector) {
         return bios->execute(vector, cpu, registers);
 
     static uint8_t modes[] = {0x13, 0x1B, 0x13, 0x17, 0x17, 0x13, 0x12, 0x11};
-    setCpsr((cpsr & ~0x3F) | BIT(7) | modes[vector >> 2], true);
+    setCpsr((cpsr & ~0x3Fu) | BIT(7) | modes[vector >> 2], true);
     *registers[14] = *registers[15] + ((*spsr & BIT(5)) ? 2 : 0);
     *registers[15] = (cpu ? 0 : core->cp15.getExceptionAddr()) + vector;
     flushPipeline();
@@ -69,11 +69,11 @@ int CPU::exception(uint8_t vector) {
 
 void CPU::flushPipeline() {
     if (cpsr & BIT(5)) {
-        *registers[15] = (*registers[15] & ~1) + 2;
+        *registers[15] = (*registers[15] & ~1u) + 2;
         pipeline[0]    = core->memory.read<uint16_t>(cpu, *registers[15] - 2);
         pipeline[1]    = core->memory.read<uint16_t>(cpu, *registers[15]);
     } else {
-        *registers[15] = (*registers[15] & ~3) + 4;
+        *registers[15] = (*registers[15] & ~3u) + 4;
         pipeline[0]    = core->memory.read<uint32_t>(cpu, *registers[15] - 4);
         pipeline[1]    = core->memory.read<uint32_t>(cpu, *registers[15]);
     }
@@ -285,7 +285,7 @@ int CPU::handleReserved(uint32_t opcode) {
 }
 
 int CPU::handleHleIrq() {
-    setCpsr((cpsr & ~0x3F) | BIT(7) | 0x12, true);
+    setCpsr((cpsr & ~0x3Fu) | BIT(7) | 0x12, true);
     *registers[14] = *registers[15] + ((*spsr & BIT(5)) ? 2 : 0);
     stmdbW((13 << 16) | BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(12) | BIT(14));
     *registers[14] = cpu ? 0x00000000 : 0xFFFF0000;
@@ -322,7 +322,7 @@ void CPU::writeIme(uint8_t value) {
 }
 
 void CPU::writeIe(uint32_t mask, uint32_t value) {
-    mask &= ((cpu == 0) ? 0x003F3F7F : (core->isGbaMode() ? 0x3FFF : 0x01FF3FFF));
+    mask &= ((cpu == 0) ? 0x003F3F7Fu : (core->isGbaMode() ? 0x3FFFu : 0x01FF3FFFu));
     ie = (ie & ~mask) | (value & mask);
     if (ime && (ie & irf) && !(cpsr & BIT(7)))
         core->schedule(Task(&interruptTask, (cpu == 1 && !core->isGbaMode()) ? 2 : 1));
@@ -335,7 +335,7 @@ void CPU::writeIrf(uint32_t mask, uint32_t value) {
 void CPU::writePostFlg(uint8_t value) {
     postFlg |= value & 0x01;
     if (cpu == 0)
-        postFlg = (postFlg & ~0x02) | (value & 0x02);
+        postFlg = static_cast<uint8_t>((postFlg & ~0x02) | (value & 0x02));
 }
 
 } // namespace emulator

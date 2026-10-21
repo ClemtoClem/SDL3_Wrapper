@@ -197,24 +197,24 @@ bool HasEvents(EventType minType, EventType maxType) noexcept {
 }
 
 std::vector<Event> PeekEvents(int max, EventType minType, EventType maxType) {
-    std::vector<SDL_Event> buf(max);
+    std::vector<SDL_Event> buf(static_cast<std::vector<SDL_Event>::size_type>(max));
     int n = SDL_PeepEvents(buf.data(), max, SDL_PEEKEVENT, uint32_t(minType), uint32_t(maxType));
     if (n <= 0)
         return {};
-    std::vector<Event> out(n);
+    std::vector<Event> out(static_cast<std::vector<sdl3::Event>::size_type>(n));
     for (int i = 0; i < n; ++i)
-        out[i].raw = buf[i];
+        out[static_cast<std::vector<sdl3::Event>::size_type>(i)].raw = buf[static_cast<std::vector<SDL_Event>::size_type>(i)];
     return out;
 }
 
 std::vector<Event> GetEvents(int max, EventType minType, EventType maxType) {
-    std::vector<SDL_Event> buf(max);
+    std::vector<SDL_Event> buf(static_cast<std::vector<SDL_Event>::size_type>(max));
     int n = SDL_PeepEvents(buf.data(), max, SDL_GETEVENT, uint32_t(minType), uint32_t(maxType));
     if (n <= 0)
         return {};
-    std::vector<Event> out(n);
+    std::vector<Event> out(static_cast<std::vector<sdl3::Event>::size_type>(n));
     for (int i = 0; i < n; ++i)
-        out[i].raw = buf[i];
+        out[static_cast<std::vector<sdl3::Event>::size_type>(i)].raw = buf[static_cast<std::vector<SDL_Event>::size_type>(i)];
     return out;
 }
 

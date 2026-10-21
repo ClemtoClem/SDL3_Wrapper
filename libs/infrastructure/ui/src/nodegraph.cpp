@@ -1052,9 +1052,9 @@ void NodeGraphSystem::RenderHeaders(ecs::ArchetypeRegistry &world, IUiRenderBack
 		if (node.disabled) {
 			hc.a = hc.a / 2.f;
 		} else if (node.draggingMove || node.draggingResize) {
-			hc.Lighten(0.215);
+			hc.Lighten(0.215f);
 		} else if (node.hovered) {
-			hc.Lighten(0.098);
+			hc.Lighten(0.098f);
 		}
 		ren.SetDrawColor(hc);
 		ren.FillRect(header);
@@ -1135,7 +1135,7 @@ void NodeGraphSystem::DrawDefaultPin(IUiRenderBackend &ren, const UiGraphPin &pi
 	float r = box.w * 0.5f;
 	sdl3::FColor col = pin.color;
 	if (pin.hovered) {
-		col.Lighten(0.176);
+		col.Lighten(0.176f);
 	}
 	ren.SetDrawColor(col);
 	switch (pin.shape) {

@@ -274,7 +274,7 @@ bool Overlaps(const DrawItem2D &x, const DrawItem2D &y, const TextMeasure &measu
 	const auto p = corners(x), q = corners(y);
 	auto separated = [](const std::array<math::FVector2, 4> &s, const std::array<math::FVector2, 4> &o) {
 		for (int i = 0; i < 2; ++i) {
-			const math::FVector2 edge{s[i + 1].x - s[i].x, s[i + 1].y - s[i].y};
+			const math::FVector2 edge{s[static_cast<std::array<math::FVector2, 4>::size_type>(i + 1)].x - s[static_cast<std::array<math::FVector2, 4>::size_type>(i)].x, s[static_cast<std::array<math::FVector2, 4>::size_type>(i + 1)].y - s[static_cast<std::array<math::FVector2, 4>::size_type>(i)].y};
 			const math::FVector2 axis{-edge.y, edge.x};
 			float minS = 1e30f, maxS = -1e30f, minO = 1e30f, maxO = -1e30f;
 			for (const math::FVector2 &v : s) {

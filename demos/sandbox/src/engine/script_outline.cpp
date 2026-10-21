@@ -271,7 +271,7 @@ String ScriptOutline::Summary() const {
 		return problem;
 	size_t own = 0;
 	for (const ScriptClassInfo& info : classes)
-		own += info.module.IsEmpty() ? 1 : 0;
+		own += info.module.IsEmpty() ? 1 : static_cast<size_t>(0);
 	if (role == ScriptRole::SCENE || role == ScriptRole::BEHAVIOUR) {
 		const ScriptClassInfo* main = Find(mainClass);
 		String text = String::Format("%s %s", ScriptRoleName(role),
@@ -285,7 +285,7 @@ String ScriptOutline::Summary() const {
 		size_t behaviours = 0;
 		for (const ScriptClassInfo& info : classes)
 			behaviours +=
-				info.module.IsEmpty() && !info.isAbstract && info.Derives("Behaviour") ? 1 : 0;
+				info.module.IsEmpty() && !info.isAbstract && info.Derives("Behaviour") ? 1 : static_cast<size_t>(0);
 		String text = String::Format("module : %d classe%s", int(own), own > 1 ? "s" : "");
 		if (behaviours > 0)
 			text.Concat(String::Format(" dont %d Behaviour", int(behaviours)));

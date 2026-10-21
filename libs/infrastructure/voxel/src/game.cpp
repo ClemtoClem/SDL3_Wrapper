@@ -227,6 +227,10 @@ Result<bool, String> Game::Save() {
 	for (ecs::Entity p : players)
 		if (Result<bool, String> r = m_save->SavePlayer(m_registry, p); r.IsError())
 			return r;
+	// Chunks, entités et joueurs partent ensemble dans world.db (écriture
+	// atomique), puis world.json qui la référence.
+	if (Result<bool, String> r = m_save->Flush(); r.IsError())
+		return r;
 	if (Result<bool, String> r = m_save->SaveMetadata(m_metadata); r.IsError())
 		return r;
 	LogLine(String::Format("Monde enregistré (%d chunk(s) modifié(s))", int(chunks)));
@@ -439,33 +443,109 @@ void Game::DispatchEvents() {
 
 // ── Joueurs et entités ───────────────────────────────────────────────────────
 
-math::FVector3 Game::SpawnPoint() {
-	if (m_metadata.spawnKnown)
-		return m_metadata.spawn;
-	int x = 0, z = 0, h = 64;
-	if (ChunkGenerator *gen = m_world->Generator()) {
-		// Première colonne au-dessus du niveau de la mer, en spirale.
-		const auto *terrain = dynamic_cast<TerrainGenerator *>(gen);
-		const int sea = terrain && terrain->Definition().kind != "flat" ? terrain->Definition().seaLevel : -1000000;
-		h = gen->SurfaceHeight(0, 0); // repli : aucune terre émergée trouvée
-		for (int r = 0; r < 512; r += 8) {
-			bool found = false;
-			for (int a = 0; a < 8 && !found; ++a) {
-				const int cx = r == 0 ? 0 : int(float(r) * std::cos(float(a) * 0.785f));
-				const int cz = r == 0 ? 0 : int(float(r) * std::sin(float(a) * 0.785f));
-				const int ch = gen->SurfaceHeight(cx, cz);
-				if (ch >= sea) {
-					x = cx;
-					z = cz;
-					h = ch;
-					found = true;
-				}
+Option<int> Game::StandableY(int x, int z, int top, int bottom) {
+	int freeAbove = 0; // blocs libres consécutifs au-dessus de y
+	for (int y = top; y >= bottom; --y) {
+		const BlockPos p{x, y, z};
+		(void)m_world->EnsureChunk(ChunkOf(p));
+		const BlockDef &def = m_world->BlockAt(p);
+		if (def.fluid) { // ni sol ni espace libre : on n'apparaît pas sous l'eau
+			freeAbove = 0;
+			continue;
+		}
+		if (!def.solid) {
+			++freeAbove;
+			continue;
+		}
+		if (freeAbove >= 2 && !def.HasTag(String("leaves")))
+			return Some(y);
+		freeAbove = 0;
+	}
+	return NONE;
+}
+
+math::FVector3 Game::FindSpawn() {
+	auto at = [](int x, int y, int z) { return math::FVector3{float(x) + 0.5f, float(y) + 1.05f, float(z) + 0.5f}; };
+	ChunkGenerator *gen = m_world->Generator();
+	// Seuls les générateurs « noise » et « flat » savent estimer la hauteur
+	// du sol ; un générateur scripté ne le sait pas.
+	const auto *terrain = dynamic_cast<TerrainGenerator *>(gen);
+	if (terrain && terrain->Definition().kind == "script")
+		terrain = nullptr;
+	if (terrain) {
+		// Hauteur estimée par le générateur : ne sert qu'à choisir et
+		// borner les candidats, chacun vérifié sur les blocs générés
+		// (arbres, grottes, eau, structures…). Spirale autour de l'origine.
+		const bool flat = terrain->Definition().kind == "flat";
+		const int sea = flat ? -1000000 : terrain->Definition().seaLevel;
+		int checks = 0;
+		for (int r = 0; r < 512 && checks < 64; r += 8)
+			for (int a = 0; a < (r == 0 ? 1 : 8) && checks < 64; ++a) {
+				const int cx = int(float(r) * std::cos(float(a) * 0.785f));
+				const int cz = int(float(r) * std::sin(float(a) * 0.785f));
+				const int estimate = terrain->SurfaceHeight(cx, cz);
+				if (estimate < sea)
+					continue; // océan : inutile de générer
+				++checks;
+				if (Option<int> y = StandableY(cx, cz, estimate + 40, estimate - 24); y.IsSome())
+					return at(cx, y.Unwrap(), cz);
 			}
-			if (found)
-				break;
+	} else if (gen) {
+		// Générateur sans estimation (script : îles flottantes…) : on
+		// génère des colonnes de chunks entières, en anneaux autour de
+		// l'origine, et l'on garde l'endroit le plus proche du centre.
+		constexpr int SCAN_TOP = 192, SCAN_BOTTOM = -64, MAX_RING = 6;
+		for (int ring = 0; ring <= MAX_RING; ++ring) {
+			Option<math::FVector3> best = NONE;
+			float bestDistance = 0.f;
+			for (int cx = -ring; cx <= ring; ++cx)
+				for (int cz = -ring; cz <= ring; ++cz) {
+					if (std::max(std::abs(cx), std::abs(cz)) != ring)
+						continue;
+					for (int lx = 0; lx < CHUNK_SIZE; lx += 2)
+						for (int lz = 0; lz < CHUNK_SIZE; lz += 2) {
+							const int x = cx * CHUNK_SIZE + lx, z = cz * CHUNK_SIZE + lz;
+							const float distance = float(x * x + z * z);
+							if (best.IsSome() && distance >= bestDistance)
+								continue;
+							if (Option<int> y = StandableY(x, z, SCAN_TOP, SCAN_BOTTOM); y.IsSome()) {
+								best = Some(at(x, y.Unwrap(), z));
+								bestDistance = distance;
+							}
+						}
+				}
+			if (best.IsSome())
+				return best.Unwrap();
 		}
 	}
-	m_metadata.spawn = {float(x) + 0.5f, float(h) + 1.05f, float(z) + 0.5f};
+	// Aucune terre trouvée : une petite plateforme, plutôt que le vide.
+	const String configured = m_content.ConfigStr("world.spawnPlatform");
+	const BlockDef *platform = configured.IsEmpty() ? nullptr : m_content.FindBlock(configured);
+	for (const BlockDef &b : m_content.Blocks())
+		if (!platform && b.numeric != AIR && b.solid && !b.fluid && b.collision == CollisionKind::FULL_CUBE)
+			platform = &b;
+	const int y = terrain ? std::max(terrain->SurfaceHeight(0, 0), 64) : 64;
+	if (platform)
+		for (int dx = -1; dx <= 1; ++dx)
+			for (int dz = -1; dz <= 1; ++dz) {
+				(void)m_world->SetBlock({dx, y, dz}, platform->numeric, 0, ChangeCause::SCRIPT);
+				for (int up = 1; up <= 2; ++up)
+					(void)m_world->SetBlock({dx, y + up, dz}, AIR, 0, ChangeCause::SCRIPT);
+			}
+	LogLine(String("[monde] aucune terre près de l'origine : plateforme d'apparition construite"));
+	return at(0, y, 0);
+}
+
+math::FVector3 Game::SpawnPoint() {
+	if (m_metadata.spawnKnown) {
+		// Point enregistré : toujours valable s'il y a un sol en dessous
+		// (un ancien point calculé par estimation pouvait être dans le vide).
+		const BlockPos p = BlockPos::FromWorld(m_metadata.spawn);
+		if (StandableY(p.x, p.z, p.y + 1, p.y - 64).IsSome())
+			return m_metadata.spawn;
+		LogLine(String("[monde] point d'apparition sans sol : recalculé"));
+	}
+	m_metadata.spawn = FindSpawn();
 	m_metadata.spawnKnown = true;
 	return m_metadata.spawn;
 }
@@ -488,6 +568,15 @@ ecs::Entity Game::JoinPlayer(const String &name) {
 				if (auto inv = m_registry.GetComponent<InventoryComponent>(e); inv.IsSome())
 					(void)inv.Unwrap()->inventory.Add(m_content, item, count);
 			}
+	} else if (auto t = m_registry.GetComponent<Transform>(e); t.IsSome()) {
+		// Joueur enregistré en pleine chute dans le vide (aucun sol sous lui) :
+		// ramené au point d'apparition plutôt que de recommencer à tomber.
+		const BlockPos p = BlockPos::FromWorld(t.Unwrap()->position);
+		if (StandableY(p.x, p.z, p.y + 1, p.y - 256).IsNone()) {
+			t.Unwrap()->position = t.Unwrap()->previous = SpawnPoint();
+			if (auto v = m_registry.GetComponent<Velocity>(e); v.IsSome())
+				v.Unwrap()->linear = {0.f, 0.f, 0.f};
+		}
 	}
 	if (auto intent = m_registry.GetComponent<MoveIntent>(e); intent.IsSome())
 		intent.Unwrap()->speed = float(m_content.ConfigNum("player.speed", 4.3));

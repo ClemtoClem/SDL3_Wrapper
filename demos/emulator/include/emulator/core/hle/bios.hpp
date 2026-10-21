@@ -11,7 +11,7 @@ namespace emulator {
 class Core;
 class Bios {
   public:
-    Bios(Core *core, int (Bios::**swiTable)(bool, uint32_t **)) : core(core), swiTable(swiTable) {
+    Bios(Core *core_, int (Bios::**swiTable_)(bool, uint32_t **)) : core(core_), swiTable(swiTable_) {
     }
     int  execute(uint8_t vector, bool cpu, uint32_t **registers);
     void checkWaitFlags(bool cpu);
@@ -53,7 +53,7 @@ class Bios {
 
 class NdsBios9 : public Bios {
   public:
-    NdsBios9(Core *core) : Bios(core, (int(Bios::**)(bool, uint32_t **))swiTable9) {
+    NdsBios9(Core *core_) : Bios(core_, (int(Bios::**)(bool, uint32_t **))swiTable9) {
     }
 
   private:
@@ -66,7 +66,7 @@ class NdsBios9 : public Bios {
 
 class NdsBios7 : public Bios {
   public:
-    NdsBios7(Core *core) : Bios(core, (int(Bios::**)(bool, uint32_t **))swiTable7) {
+    NdsBios7(Core *core_) : Bios(core_, (int(Bios::**)(bool, uint32_t **))swiTable7) {
     }
 
   private:

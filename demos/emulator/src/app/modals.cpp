@@ -183,7 +183,7 @@ ecs::Entity BuildRomBrowser(Application &app) {
 			items.push_back(String::Format("▾ %s — %d ROM(s)", RomSystemTitle(candidate.System()), int(count)));
 			rowToRom->push_back(-1);
 		}
-		archived += candidate.entry.IsEmpty() ? 0 : 1;
+		archived += candidate.entry.IsEmpty() ? 0 : static_cast<size_t>(1);
 		items.push_back(candidate.entry.IsEmpty() ? String::Format("    %s", candidate.ShortName().CStr())
 												  : String::Format("    %s  ‹ %s", candidate.ShortName().CStr(),
 																   BaseNameOf(candidate.path).CStr()));
@@ -226,8 +226,8 @@ ecs::Entity BuildRomBrowser(Application &app) {
 	textures.erase(ICON_TEXTURE_KEY);
 
 	auto show = [&app, roms, previews, keysEntity, valuesEntity, title, subtitle](int index) {
-		auto &textures = app.Gui().RenderSystem().textures;
-		textures.erase(ICON_TEXTURE_KEY);
+		auto &pool = app.Gui().RenderSystem().textures;
+		pool.erase(ICON_TEXTURE_KEY);
 		const RomCandidate &candidate = (*roms)[size_t(index)];
 		RomPreview &info = (*previews)[size_t(index)];
 		if (!info.loaded) {
@@ -301,7 +301,7 @@ ecs::Entity BuildRomBrowser(Application &app) {
 				auto texture = sdl3::Texture::CreateFromSurface(app.Renderer(), surface.Value());
 				if (texture.IsOk()) {
 					(void)texture.Value().SetScaleMode(SDL_SCALEMODE_NEAREST);
-					textures[String(ICON_TEXTURE_KEY)] = std::move(texture).Unwrap();
+					pool[String(ICON_TEXTURE_KEY)] = std::move(texture).Unwrap();
 				}
 			}
 		}

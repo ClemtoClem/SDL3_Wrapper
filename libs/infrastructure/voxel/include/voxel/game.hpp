@@ -220,6 +220,12 @@ public:
 	void LogLine(const String &line);
 
 private:
+	/// Plus haut bloc où l'on peut se tenir dans la colonne (x, z), entre
+	/// `top` et `bottom` : solide, ni fluide ni feuillage, surmonté de deux
+	/// blocs libres. Les chunks traversés sont générés au besoin.
+	[[nodiscard]] Option<int> StandableY(int x, int z, int top, int bottom);
+	/// Point d'apparition vérifié sur les blocs réellement générés.
+	[[nodiscard]] math::FVector3 FindSpawn();
 	void InstallSystems();
 	void InstallCommands();
 	void StepFallingBlocks();

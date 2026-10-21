@@ -155,7 +155,7 @@ void GbcApu::mixSample() {
         addChannel(high ? ch2.volume : 0, 1);
     }
     if (ch3Enabled && (nr30 & 0x80)) {
-        uint8_t sample = waveRam[ch3Position / 2];
+        uint8_t sample = waveRam[static_cast<std::array<unsigned char, 16>::size_type>(ch3Position / 2)];
         sample = (ch3Position & 1) ? uint8_t(sample & 0xf) : uint8_t(sample >> 4);
         uint8_t shift = (nr32 >> 5) & 3;
         int amp = shift == 0 ? 0 : (sample >> (shift - 1));

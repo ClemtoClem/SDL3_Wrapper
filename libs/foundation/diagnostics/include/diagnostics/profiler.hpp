@@ -32,10 +32,10 @@ struct TimingStats {
 	std::chrono::nanoseconds min{std::numeric_limits<std::chrono::nanoseconds::rep>::max()};
 	std::chrono::nanoseconds max{0};
 
-	[[nodiscard]] double TotalMs() const noexcept { return total.count() / 1e6; }
+	[[nodiscard]] double TotalMs() const noexcept { return static_cast<double>(total.count()) / 1e6; }
 	[[nodiscard]] double MeanMs() const noexcept { return count ? TotalMs() / double(count) : 0.0; }
-	[[nodiscard]] double MinMs() const noexcept { return count ? min.count() / 1e6 : 0.0; }
-	[[nodiscard]] double MaxMs() const noexcept { return max.count() / 1e6; }
+	[[nodiscard]] double MinMs() const noexcept { return count ? static_cast<double>(min.count()) / 1e6 : 0.0; }
+	[[nodiscard]] double MaxMs() const noexcept { return static_cast<double>(max.count()) / 1e6; }
 };
 
 class Profiler {

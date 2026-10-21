@@ -588,21 +588,21 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 		const String qualified = String::Format("ui.%s", name);
 		vm.RegisterNamespacedNative(
 			ns, String(name), minArity, maxArity,
-			[state, spec, init, qualified, minArity](Interpreter &vm, Args &args) -> Result<Value, ScriptError> {
+			[state, spec, init, qualified, minArity](Interpreter &interp, Args &args) -> Result<Value, ScriptError> {
 				const MapObject *opts = OptionsOf(args, size_t(minArity));
 				Args fixed(args.begin(), args.end() - (opts ? 1 : 0));
 				auto w = std::make_shared<WidgetObject>();
 				if (init)
-					if (auto error = init(vm, *w, fixed); error.IsSome())
+					if (auto error = init(interp, *w, fixed); error.IsSome())
 						return Err(error.Unwrap());
-				return Create(vm, state, spec, std::move(w), opts, qualified.CStr());
+				return Create(interp, state, spec, std::move(w), opts, qualified.CStr());
 			},
 			MAIN);
 	};
 	auto textArg = [](size_t index) {
-		return [index](Interpreter &vm, WidgetObject &w, Args &args) -> Option<ScriptError> {
+		return [index](Interpreter &interp, WidgetObject &w, Args &args) -> Option<ScriptError> {
 			if (index < args.size()) {
-				auto text = vm.Stringify(args[index]);
+				auto text = interp.Stringify(args[index]);
 				if (text.IsError())
 					return Some(text.Error());
 				w.text = text.Unwrap();
@@ -611,9 +611,9 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 		};
 	};
 	auto callbackArg = [](size_t index, bool click) {
-		return [index, click](Interpreter &vm, WidgetObject &w, Args &args) -> Option<ScriptError> {
+		return [index, click](Interpreter &interp, WidgetObject &w, Args &args) -> Option<ScriptError> {
 			if (index < args.size() && !args[index].IsNil()) {
-				if (!vm.IsCallableValue(args[index]))
+				if (!interp.IsCallableValue(args[index]))
 					return Some(Fail(String::Format("ui : fonction de rappel attendue, trouvé `%s`", args[index].TypeName())));
 				(click ? w.onClick : w.onChange) = args[index];
 			}
@@ -630,10 +630,10 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 		   textArg(0));
 	// `ui.button(texte[, fn(bouton)][, options])`
 	define("button", 1, 3, Spec{"button", [](ui::UiFactory &f, const WidgetObject &w) { return f.Button(w.text); }},
-		   [textArg, callbackArg](Interpreter &vm, WidgetObject &w, Args &args) -> Option<ScriptError> {
-			   if (auto error = textArg(0)(vm, w, args); error.IsSome())
+		   [textArg, callbackArg](Interpreter &interp, WidgetObject &w, Args &args) -> Option<ScriptError> {
+			   if (auto error = textArg(0)(interp, w, args); error.IsSome())
 				   return error;
-			   return callbackArg(1, true)(vm, w, args);
+			   return callbackArg(1, true)(interp, w, args);
 		   });
 	// `ui.progress(valeur[, max][, options])` (min 0)
 	define("progress", 1, 3,
@@ -651,15 +651,15 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 		   Spec{"slider", [](ui::UiFactory &f, const WidgetObject &w) {
 					return f.Slider(float(w.min), float(w.max), float(w.value));
 				}},
-		   [callbackArg](Interpreter &vm, WidgetObject &w, Args &args) -> Option<ScriptError> {
+		   [callbackArg](Interpreter &interp, WidgetObject &w, Args &args) -> Option<ScriptError> {
 			   w.min = args[0].AsNumber();
 			   w.max = args[1].AsNumber();
 			   w.value = args[2].AsNumber();
-			   return callbackArg(3, false)(vm, w, args);
+			   return callbackArg(3, false)(interp, w, args);
 		   });
-	auto checkable = [callbackArg](Interpreter &vm, WidgetObject &w, Args &args) -> Option<ScriptError> {
+	auto checkable = [callbackArg](Interpreter &interp, WidgetObject &w, Args &args) -> Option<ScriptError> {
 		w.checked = !args.empty() && args[0].IsTruthy();
-		return callbackArg(1, false)(vm, w, args);
+		return callbackArg(1, false)(interp, w, args);
 	};
 	define("checkbox", 0, 3, Spec{"checkbox", [](ui::UiFactory &f, const WidgetObject &w) { return f.Checkbox(w.checked); }},
 		   checkable);
@@ -668,10 +668,10 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 	// `ui.input(indication[, fn(widget, texte) à la validation][, options])`
 	define("input", 0, 3,
 		   Spec{"input", [](ui::UiFactory &f, const WidgetObject &w) { return f.Input(w.placeholder); }},
-		   [callbackArg](Interpreter &vm, WidgetObject &w, Args &args) -> Option<ScriptError> {
+		   [callbackArg](Interpreter &interp, WidgetObject &w, Args &args) -> Option<ScriptError> {
 			   if (!args.empty())
 				   w.placeholder = args[0].ToDisplayString(); // l'indication n'est pas le texte saisi
-			   return callbackArg(1, false)(vm, w, args);
+			   return callbackArg(1, false)(interp, w, args);
 		   });
 	define("separator", 0, 1, Spec{"separator", [](ui::UiFactory &f, const WidgetObject &) { return f.Separator(); }},
 		   nullptr);
@@ -701,17 +701,17 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 	}, MAIN);
 	// Retire tout ce que le script a mis dans sa racine.
 	vm.RegisterNamespacedNative(ns, String("clear"), 0, 0, [state](Interpreter &, Args &) -> Result<Value, ScriptError> {
-		const UiBinding &binding = *state->binding;
-		const ecs::Entity root = binding.Root();
-		if (binding.Alive(root)) {
+		const UiBinding &ui = *state->binding;
+		const ecs::Entity root = ui.Root();
+		if (ui.Alive(root)) {
 			std::vector<ecs::Entity> children;
-			if (auto list = binding.registry->GetComponent<ui::UiChildren>(root); list.IsSome())
+			if (auto list = ui.registry->GetComponent<ui::UiChildren>(root); list.IsSome())
 				children = list.Unwrap()->list;
 			for (ecs::Entity child : children)
-				ui::DespawnTree(*binding.registry, child);
-			if (auto list = binding.registry->GetComponent<ui::UiChildren>(root); list.IsSome())
+				ui::DespawnTree(*ui.registry, child);
+			if (auto list = ui.registry->GetComponent<ui::UiChildren>(root); list.IsSome())
 				list.Unwrap()->list.clear();
-			binding.Relayout();
+			ui.Relayout();
 		}
 		std::lock_guard<std::mutex> lock(state->mutex);
 		state->named.clear();

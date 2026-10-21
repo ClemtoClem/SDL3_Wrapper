@@ -44,7 +44,7 @@ class CPU {
         halted |= BIT(bit);
     }
     void unhalt(int bit) {
-        halted &= ~BIT(bit);
+        halted = static_cast<uint8_t>(halted & ~BIT(bit));
     }
     void sendInterrupt(int bit);
     bool shouldRun() {
@@ -56,8 +56,8 @@ class CPU {
     uint32_t getPC() {
         return *registers[15];
     }
-    void setBios(Bios *bios) {
-        this->bios = bios;
+    void setBios(Bios *newBios) {
+        this->bios = newBios;
     }
     int     handleHleIrq();
     uint8_t readIme() {

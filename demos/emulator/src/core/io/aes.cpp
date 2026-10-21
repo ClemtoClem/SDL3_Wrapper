@@ -21,13 +21,13 @@ inline uint32_t ROR32(uint32_t v, int n) {
 }
 } // namespace
 
-Aes::Aes(Core *core): core(core) {
+Aes::Aes(Core *core_): core(core_) {
     updateTask = std::bind(&Aes::update, this);
 
     // Generate temporary pow and log tables
     uint8_t pow[0x100], log[0x100];
     for (int i = 0, x = 1; i < 0x100; i++) {
-        pow[i] = x; log[x] = i;
+        pow[i] = static_cast<uint8_t>(x); log[x] = static_cast<uint8_t>(i);
         x ^= (x << 1) ^ ((x & 0x80) ? 0x11B : 0);
     }
 
@@ -35,7 +35,7 @@ Aes::Aes(Core *core): core(core) {
     for (int i = 0; i < 0x100; i++) {
         uint8_t x = i ? pow[0xFF - log[i]] : 0;
         x = x ^ ROL8(x, 1) ^ ROL8(x, 2) ^ ROL8(x, 3) ^ ROL8(x, 4) ^ 0x63;
-        fsBox[i] = x; rsBox[x] = i;
+        fsBox[i] = x; rsBox[x] = static_cast<uint8_t>(i);
     }
 
     // Generate the AES forward and reverse tables
@@ -163,7 +163,7 @@ void Aes::cryptBlock(uint32_t *src, uint32_t *dst) {
 void Aes::initFifo() {
     // Get the current AES mode and reload block counters
     uint8_t mode = (aesCnt >> 28) & 0x3;
-    curBlock = (aesBlkcnt >> 16);
+    curBlock = static_cast<uint16_t>((aesBlkcnt >> 16));
     curExtra = (mode < 2) ? (aesBlkcnt & 0xFFFF) : 0;
     aesCnt &= ~BIT(21); // CCM verify
     LOG("AES FIFO starting in mode %d\n", mode);
@@ -176,7 +176,7 @@ void Aes::initFifo() {
         for (int j = 3; j >= 0; j--)
             rKey[i + j] = y = (i ? (y ^ rKey[i + j - 4]) : keys[curKey][j]);
         y = scatter8(fsBox, y, y, y, y);
-        y = ROL32(y, 8) ^ (x << 24);
+        y = ROL32(y, 8) ^ static_cast<uint32_t>((x << 24));
         x = (x << 1) ^ ((x & 0x80) ? 0x11B : 0);
     }
 
@@ -232,7 +232,7 @@ void Aes::update() {
         switch (mode) {
         case 0: // CCM decrypt
             for (int i = 0, c = 1; i < 4; i++)
-                ctr[i] += c, c &= (ctr[i] == 0);
+                ctr[i] += static_cast<uint32_t>(c), c &= (ctr[i] == 0);
             cryptBlock(ctr, dst);
             for (int i = 0; i < 4; i++)
                 cbc[i] ^= (dst[i] ^= src[i]);
@@ -241,7 +241,7 @@ void Aes::update() {
 
         case 1: // CCM encrypt
             for (int i = 0, c = 1; i < 4; i++)
-                ctr[i] += c, c &= (ctr[i] == 0);
+                ctr[i] += static_cast<uint32_t>(c), c &= (ctr[i] == 0);
             cryptBlock(ctr, dst);
             for (int i = 0; i < 4; i++)
                 cbc[i] ^= src[i], dst[i] ^= src[i];
@@ -251,7 +251,7 @@ void Aes::update() {
         default: // CTR
             cryptBlock(ctr, dst);
             for (int i = 0, c = 1; i < 4; i++) {
-                ctr[i] += c;
+                ctr[i] += static_cast<uint32_t>(c);
                 c &= (ctr[i] == 0);
                 dst[i] ^= src[i];
             }
@@ -271,14 +271,14 @@ void Aes::update() {
 
         // Calculate a CCM MAC for applicable modes
         if (mode > 1) continue;
-        ctr[0] &= ~0xFFFFFF;
+        ctr[0] &= ~0xFFFFFFu;
         cryptBlock(ctr, ctr);
         for (int i = 0; i < 4; i++)
             cbc[i] ^= ctr[i];
 
         // Create a mask based on the MAC length
         uint32_t mask[4] = {};
-        uint8_t len = std::max(4U, ((aesCnt >> 15) & 0xE) + 2);
+        uint8_t len = static_cast<uint8_t>(std::max(4U, ((aesCnt >> 15) & 0xE) + 2));
         for (int i = 0; i < len; i += 2)
             mask[i / 4] |= 0xFFFF << ((i << 3) & 0x10);
 
@@ -302,7 +302,7 @@ void Aes::update() {
     }
 
     // Update the AES FIFO sizes
-    aesCnt = (aesCnt & ~0x3FF) | (std::min<uint8_t>(16, readFifo.size()) << 5) | writeFifo.size();
+    aesCnt = static_cast<uint32_t>((aesCnt & ~0x3FFu) | (std::min<uint8_t>(16, static_cast<unsigned char>(readFifo.size())) << 5) | writeFifo.size());
     scheduled = false;
 
     // NOTE: upstream sets/clears NDMA DRQs 0xA/0xB here to auto-feed the AES

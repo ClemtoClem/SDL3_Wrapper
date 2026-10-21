@@ -37,7 +37,7 @@ public:
 	using Builder = std::function<std::vector<ecs::Entity>(UiFactory &)>;
 
 	Scene() = default;
-	Scene(String name, Builder builder) : name(std::move(name)), builder(std::move(builder)) {}
+	Scene(String name_, Builder builder_) : name(std::move(name_)), builder(std::move(builder_)) {}
 
 	[[nodiscard]] const String &SceneName() const noexcept { return name; }
 	[[nodiscard]] bool Built() const noexcept { return built; }
@@ -60,7 +60,7 @@ private:
 
 class SceneManager {
 public:
-	explicit SceneManager(UiFactory &factory) : factory(&factory) {}
+	explicit SceneManager(UiFactory &factory_) : factory(&factory_) {}
 
 	/// Enregistre une scène (construction différée au premier show()).
 	Scene &Add(String name, Scene::Builder builder);

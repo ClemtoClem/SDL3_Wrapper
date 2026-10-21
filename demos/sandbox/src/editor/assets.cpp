@@ -989,7 +989,7 @@ void AssetBrowserPanel::BeginDelete() {
 	String names;
 	size_t managed = 0;
 	for (size_t i = 0; i < targets.size(); ++i) {
-		managed += targets[i].managed ? 1 : 0;
+		managed += targets[i].managed ? 1 : static_cast<size_t>(0);
 		if (i < 4)
 			names.Concat(String::Format("%s« %s »", i ? ", " : "", targets[i].name.CStr()));
 	}

@@ -42,27 +42,27 @@ LogRouter & LogRouter::Instance() {
 }
 
 size_t LogRouter::AddSink(LogSink sink) {
-    std::lock_guard<std::mutex> lock(mutex);
-    size_t id = nextId++;
-    sinks[id] = std::move(sink);
+    std::lock_guard<std::mutex> lock(m_mutex);
+    size_t id = m_nextId++;
+    m_sinks[id] = std::move(sink);
     return id;
 }
 
 void LogRouter::RemoveSink(size_t id) {
-    std::lock_guard<std::mutex> lock(mutex);
-    sinks.erase(id);
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_sinks.erase(id);
 }
 
 LogRouter::LogRouter() {
-    SDL_GetLogOutputFunction(&prevFn, &prevData);
+    SDL_GetLogOutputFunction(&m_prevFn, &m_prevData);
     SDL_SetLogOutputFunction(&LogRouter::Trampoline, this);
 }
 
 void SDLCALL LogRouter::Trampoline(void *userdata, int category, SDL_LogPriority priority, const char *message) {
     auto *self = static_cast<LogRouter *>(userdata);
     LogMessage msg{static_cast<LogCategory>(category), static_cast<LogPriority>(priority), StringView(message ? message : "")};
-    std::lock_guard<std::mutex> lock(self->mutex);
-    for (auto &[id, sink] : self->sinks)
+    std::lock_guard<std::mutex> lock(self->m_mutex);
+    for (auto &[id, sink] : self->m_sinks)
         sink(msg);
 }
 
@@ -79,14 +79,14 @@ Result<std::unique_ptr<FileLogSink>, Error> FileLogSink::Create(const String &pa
 }
 
 FileLogSink::~FileLogSink() {
-    thread.request_stop();
-    cv.notify_all();
+    m_thread.request_stop();
+    m_cv.notify_all();
     // Le jthread membre joint automatiquement à sa destruction (après ce
     // destructeur, par ordre inverse de déclaration) — mais on le fait
     // explicitement ici pour garantir que file reste vivant tant que
     // le thread peut encore y écrire.
-    if (thread.joinable())
-        thread.join();
+    if (m_thread.joinable())
+        m_thread.join();
 }
 
 void FileLogSink::Write(const LogMessage &msg) {
@@ -98,25 +98,25 @@ void FileLogSink::Write(const LogMessage &msg) {
     line += "] ";
     line += msg.text;
     {
-        std::lock_guard<std::mutex> lock(mutex);
-        queue.push_back(std::move(line));
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_queue.push_back(std::move(line));
     }
-    cv.notify_one();
+    m_cv.notify_one();
 }
 
 void FileLogSink::ThreadLoop(std::stop_token st) {
     while (true) {
         std::deque<String> batch;
         {
-            std::unique_lock<std::mutex> lock(mutex);
-            cv.wait(lock, [&] { return st.stop_requested() || !queue.empty(); });
-            batch.swap(queue);
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_cv.wait(lock, [&] { return st.stop_requested() || !m_queue.empty(); });
+            batch.swap(m_queue);
         }
         for (const String &line : batch) {
-            file << line.c_str() << '\n';
+            m_file << line.c_str() << '\n';
         }
         if (!batch.empty())
-            file.flush();
+            m_file.flush();
         if (st.stop_requested() && batch.empty())
             break;
     }

@@ -538,11 +538,11 @@ void InstallNode2D(Interpreter& vm, Runtime& runtime) {
 		const char* name = delegate.name;
 		builder.Method(
 			name, delegate.minArity, delegate.maxArity,
-			[name](Interpreter& vm, Node2DOwner& self,
+			[name](Interpreter& interp, Node2DOwner& self,
 				   std::vector<Value>& args) -> Result<Value, ScriptError> {
 				if (!self.Node())
 					return Ok(Value::Nil());
-				const Value function = Node2DFunction(vm, name);
+				const Value function = Node2DFunction(interp, name);
 				if (!function.IsCallable())
 					return Err(BaseError(self, name, String("API 2D indisponible")));
 				std::vector<Value> full;
@@ -557,7 +557,7 @@ void InstallNode2D(Interpreter& vm, Runtime& runtime) {
 								other = carrier;
 					full.push_back(other && other->Node() ? Value::Str(other->Handle()) : arg);
 				}
-				return vm.CallValue(function, std::move(full), 0, 0);
+				return interp.CallValue(function, std::move(full), 0, 0);
 			});
 	}
 	Register(vm, "Node2D", builder.Type());
@@ -799,7 +799,7 @@ void InstallGameplay(Interpreter& vm) {
 	// et rend leur nombre. La liste est copiée : un abonné peut s'abonner ou
 	// se désabonner pendant l'émission sans perturber celle-ci.
 	builder.Method("emit", 1, -1,
-				   [](Interpreter& vm, GameplayOwner& self,
+				   [](Interpreter& interp, GameplayOwner& self,
 					  std::vector<Value>& args) -> Result<Value, ScriptError> {
 					   auto event = script::detail::ArgString(args, 0, "Gameplay.emit");
 					   if (event.IsError())
@@ -810,7 +810,7 @@ void InstallGameplay(Interpreter& vm) {
 							   targets.push_back(fn);
 					   for (const Value& fn : targets) {
 						   std::vector<Value> rest(args.begin() + 1, args.end());
-						   auto called = vm.CallValue(fn, std::move(rest), 0, 0);
+						   auto called = interp.CallValue(fn, std::move(rest), 0, 0);
 						   if (called.IsError())
 							   return called;
 					   }
@@ -824,7 +824,7 @@ void InstallGameplay(Interpreter& vm) {
 					   const String wanted = args[0].ToDisplayString();
 					   size_t n = 0;
 					   for (const auto& entry : self.listeners)
-						   n += entry.first == wanted ? 1 : 0;
+						   n += entry.first == wanted ? 1 : static_cast<size_t>(0);
 					   return Ok(Value::Number(double(n)));
 				   });
 	Register(vm, "Gameplay", builder.Type());

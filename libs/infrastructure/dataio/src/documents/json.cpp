@@ -29,7 +29,8 @@ void JsonDocument::WriteIndent(String &out, int indent) {
 
 void JsonDocument::EncodeString(String &out, const String &s) {
 	out.Append('"');
-	for (unsigned char c : s) {
+	for (const char cChar : s) {
+		const auto c = static_cast<unsigned char>(cChar);
 		switch (c) {
 			case '"':
 				out.Append("\\\"");

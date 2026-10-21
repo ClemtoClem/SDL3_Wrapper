@@ -1,9 +1,15 @@
 // cpp-maker.cpp — Moteur de production unifié pour projets C et C++ (C++23)
 //
 // Compilation de l'outil :
-//   g++     -std=c++23 -O2 -pthread -Wall -Wextra cpp-maker.cpp -o cpp-maker
-//   clang++ -std=c++23 -O2 -pthread -Wall -Wextra cpp-maker.cpp -o cpp-maker
-//
+/*   g++ -std=c++23 -O2 -pthread -Wall -Wextra -Wpedantic -Wformat=2 \
+		-Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion -Wundef \
+		-Wcast-align -Wcast-qual -Woverloaded-virtual -Wnon-virtual-dtor \
+		cpp-maker.cpp -o cpp-maker
+	 clang++ -std=c++23 -O2 -pthread -Wall -Wextra -Wpedantic -Wformat=2 \
+		-Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion -Wundef \
+		-Wcast-align -Wcast-qual -Woverloaded-virtual -Wnon-virtual-dtor \
+		cpp-maker.cpp -o cpp-maker
+*/
 // Fichier unique, aucune dépendance externe obligatoire.
 //
 // ============================================================================
@@ -206,6 +212,15 @@ extern char** environ;
 
 namespace fs = std::filesystem;
 
+// -Wnull-dereference produit des faux positifs dans les en-têtes de la
+// libstdc++ (egptr()/gptr() de <streambuf> via istreambuf_iterator,
+// std::vector::size() sur conteneur vide). Aucun des avertissements
+// rapportés ne concerne du code de cpp-maker : on désactive cette option
+// (GCC uniquement) le temps de la compilation, sans toucher aux autres.
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
+
 static constexpr std::string_view CPP_MAKER_VERSION = "0.6.0";
 
 // ============================================================================
@@ -270,8 +285,11 @@ void warn(std::format_string<Args...> f, Args&&... a) {
 struct Hasher {
 	uint64_t h = 1469598103934665603ULL;
 	void feed(std::string_view s) {
-		for (unsigned char c : s) { h ^= c; h *= 1099511628211ULL; }
-		h ^= 0xff; h *= 1099511628211ULL; // séparateur : "ab","c" ≠ "a","bc"
+		for (char ch : s) {
+			h ^= static_cast<unsigned char>(ch);
+			h *= 1099511628211ULL;
+		}
+		h ^= 0xff; h *= 1099511628211ULL;
 	}
 	void feed_u64(uint64_t v) {
 		for (int i = 0; i < 8; ++i) { h ^= (v & 0xff); h *= 1099511628211ULL; v >>= 8; }
@@ -388,7 +406,8 @@ inline std::string shell_join(const std::vector<std::string>& v) {
 
 inline std::string json_escape(std::string_view s) {
 	std::string r;
-	for (unsigned char c : s) {
+	for (char ch : s) {
+		auto c = static_cast<unsigned char>(ch);
 		switch (c) {
 			case '"':  r += "\\\""; break;
 			case '\\': r += "\\\\"; break;
@@ -405,7 +424,8 @@ inline std::string json_escape(std::string_view s) {
 
 inline std::string xml_escape(std::string_view s) {
 	std::string r;
-	for (unsigned char c : s) {
+	for (char ch : s) {
+		auto c = static_cast<unsigned char>(ch);
 		switch (c) {
 			case '<': r += "&lt;"; break;
 			case '>': r += "&gt;"; break;
@@ -516,7 +536,7 @@ public:
 			if (::flock(fd, LOCK_EX) != 0) { ::close(fd); return false; }
 			outln("\033[1;32mVerrou obtenu, poursuite.\033[0m");
 		}
-		::ftruncate(fd, 0);
+		(void)!::ftruncate(fd, 0);
 		auto s = std::format("{}\n", (int)::getpid());
 		(void)!::write(fd, s.data(), s.size());
 		fd_ = fd;
@@ -1115,7 +1135,21 @@ struct Project {
 	std::vector<GenerateStep> generate_steps;                   // [generate.<nom>]
 	std::map<std::string, std::vector<std::string>> layer_forbid_pkg; // [layers.<n>] forbid_pkg_config
 	bool static_pic = true;
-	std::vector<std::string> warnings = {"-Wall", "-Wextra"};
+	std::vector<std::string> warnings = {
+		"-Wall",
+		"-Wextra",
+		"-Wpedantic",
+		"-Wformat=2",
+		"-Wshadow",
+		"-Wconversion",
+		"-Wsign-conversion",
+		"-Wdouble-promotion",
+		"-Wundef",
+		"-Wcast-align",
+		"-Wcast-qual",
+		"-Woverloaded-virtual",
+		"-Wnon-virtual-dtor"
+	};
 	std::vector<std::string> cflags, cxxflags, ldflags, defines; // globaux
 
 	bool workspace = false;
@@ -1584,13 +1618,14 @@ inline Project load(const fs::path& root_dir, const fs::path& file) {
 				if (auto lt = toml::get_table(root, "layout"))
 					if (auto d = toml::get_strs(*lt, "source_dirs")) dirs = *d;
 				auto has_source = [&](const std::string& d) {
-					std::error_code ec;
-					if (!fs::is_directory(d, ec)) return false;
-					fs::recursive_directory_iterator it(d, fs::directory_options::skip_permission_denied, ec);
-					if (ec) return false;
-					for (; it != fs::recursive_directory_iterator(); it.increment(ec)) {
-						if (ec) break;
-						if (!it->is_regular_file(ec) || ec) continue;
+					std::error_code dir_ec;
+					if (!fs::is_directory(d, dir_ec)) return false;
+					fs::recursive_directory_iterator it(d,
+						fs::directory_options::skip_permission_denied, dir_ec);
+					if (dir_ec) return false;
+					for (; it != fs::recursive_directory_iterator(); it.increment(dir_ec)) {
+						if (dir_ec) break;
+						if (!it->is_regular_file(dir_ec) || dir_ec) continue;
 						auto e = it->path().extension().string();
 						for (auto* x : {".c", ".cpp", ".cc", ".cxx", ".c++", ".C", ".S", ".s"})
 							if (e == x) return true;
@@ -2318,6 +2353,28 @@ inline std::string kind_color(const std::string& k) {
 	return "\033[1;35m";
 }
 
+// Nombre de workers de compilation à utiliser. cpp-maker occupe déjà un
+// cœur (thread principal), donc au plus ncpus - 1 workers, avec un plancher
+// de 1 (mono-cœur : impossible de ne rien lancer). Si `requested > 0`
+// dépasse ce budget, un avertissement est émis (une seule fois par
+// exécution, pour ne pas spammer en mode `check` multi-modes) et la valeur
+// est plafonnée. Un `requested` à 0 signifie « auto ».
+inline int parallel_jobs(int requested = 0) {
+	unsigned hc = std::thread::hardware_concurrency();
+	int ncpus = hc == 0 ? 1 : (int)hc; // 0 = inconnu
+	int budget = std::max(1, ncpus - 1);
+	if (requested > budget) {
+		static bool warned = false;
+		if (!warned) {
+			warned = true;
+			util::warn("parallélisme demandé ({}) supérieur au budget CPU ({} cœurs au total, "
+						"1 réservé à cpp-maker) : plafonné à {}", requested, ncpus, budget);
+		}
+		return budget;
+	}
+	return requested > 0 ? requested : budget;
+}
+
 inline ExecStats execute(const std::vector<Task>& tasks, const ExecOptions& o) {
 	ExecStats st;
 	const size_t n = tasks.size();
@@ -2341,7 +2398,7 @@ inline ExecStats execute(const std::vector<Task>& tasks, const ExecOptions& o) {
 	size_t finished = 0, counter = 0;
 	bool stop = false;
 
-	int jobs = o.jobs > 0 ? o.jobs : (int)std::max(1u, std::thread::hardware_concurrency());
+	int jobs = parallel_jobs(o.jobs);
 	jobs = std::max(1, std::min<int>(jobs, (int)n));
 
 	auto run_one = [&](const Task& t) -> bool {
@@ -3027,15 +3084,15 @@ inline uint16_t rd16(const std::string& b, size_t o, bool be) {
 inline uint32_t rd32(const std::string& b, size_t o, bool be) {
 	if (o + 4 > b.size()) return 0;
 	uint32_t r = 0;
-	for (int i = 0; i < 4; ++i)
-		r = (r << 8) | (unsigned char)b[o + (be ? i : 3 - i)];
+	for (size_t i = 0; i < 4; ++i)
+		r = (r << 8) | (unsigned char)b[o + (be ? i : size_t(3) - i)];
 	return r;
 }
 inline uint64_t rd64(const std::string& b, size_t o, bool be) {
 	if (o + 8 > b.size()) return 0;
 	uint64_t r = 0;
-	for (int i = 0; i < 8; ++i)
-		r = (r << 8) | (unsigned char)b[o + (be ? i : 7 - i)];
+	for (size_t i = 0; i < 8; ++i)
+		r = (r << 8) | (unsigned char)b[o + (be ? i : size_t(7) - i)];
 	return r;
 }
 
@@ -3562,8 +3619,12 @@ inline int run_ninja(const Ctx& c, Session& s, const Opts& o) {
 	auto file = build::write_ninja(*s.plan);
 	build::write_compdb(*s.plan, s.plan->build_dir / "compile_commands.json");
 	std::vector<std::string> cmd = {"ninja", "-f", file.string()};
-	int jobs = o.jobs > 0 ? o.jobs : c.p.jobs;
-	if (jobs > 0) { cmd.push_back("-j"); cmd.push_back(std::to_string(jobs)); }
+	// --jobs (CLI) prioritaire sur [build].jobs ; dans les deux cas le
+	// budget ncpus - 1 s'applique. 0 = auto → budget complet.
+	int requested = o.jobs > 0 ? o.jobs : c.p.jobs;
+	int jobs = build::parallel_jobs(requested);
+	cmd.push_back("-j");
+	cmd.push_back(std::to_string(jobs));
 	if (o.verbose) cmd.push_back("-v");
 	if (o.keep_going) { cmd.push_back("-k"); cmd.push_back("0"); }
 	if (o.dry_run) cmd.push_back("-n");
@@ -4831,31 +4892,192 @@ inline int cmd_config_set(const std::vector<std::string>& args) {
 	return 0;
 }
 
-inline int cmd_config(const std::vector<std::string>& args) {
-	if (args.empty()) util::die("usage : cpp-maker config <show|validate|set>");
-	if (args[0] == "show") {
-		auto c = load_ctx(false);
-		auto& p = c.p;
-		util::outln("project.name         = \"{}\"", p.name);
-		util::outln("project.version      = \"{}\"", p.version);
-		util::outln("project.standard     = \"{}\"", p.cxx_standard);
-		util::outln("project.c_standard   = \"{}\"", p.c_standard);
-		util::outln("build.default_mode   = \"{}\"", p.default_mode);
-		util::outln("build.default_toolchain = \"{}\"", p.default_toolchain);
-		util::outln("build.jobs           = {}", p.jobs);
-		util::outln("build.warnings       = [{}]", util::join(p.warnings, ", "));
-		for (auto& [n, t] : p.toolchains)
-			util::outln("toolchains.{:<10} prefix=\"{}\" cc=\"{}\" cxx=\"{}\"{}", n, t.prefix, t.cc, t.cxx,
-						t.target.empty() ? "" : " target=\"" + t.target + "\"");
-		for (auto& m : p.modes)
-			util::outln("modes.{:<14} flags=[{}] defines=[{}]{}", m.name, util::join(m.flags, " "),
-						util::join(m.defines, " "), m.runner.empty() ? "" : " runner=" + m.runner);
-		for (auto& m : p.modules)
-			util::outln("module {:<12} type={} dir={} sources=[{}] deps=[{}]", m.name, m.type,
-						m.dir.generic_string(), util::join(m.source_dirs, ", "), util::join(m.deps, ", "));
-		util::outln("package.formats      = [{}]", util::join(p.package.formats, ", "));
-		return 0;
+inline int cmd_config_show(const std::vector<std::string>& filters) {
+	auto c = load_ctx(false);
+	auto& p = c.p;
+
+	// Chaque entrée est (clé pointée, valeur formatée). Scalaires entre
+	// guillemets (comme dans cpp-maker.toml), tableaux entre crochets.
+	// Les champs optionnels vides sont omis ; les champs structurants
+	// (project.*, build.warnings…) sont toujours présents.
+	std::vector<std::pair<std::string, std::string>> entries;
+	auto add = [&](std::string k, std::string v) {
+		entries.emplace_back(std::move(k), std::move(v));
+	};
+	auto s_ = [](std::string_view x) { return std::format("\"{}\"", x); };
+	auto l_ = [](const std::vector<std::string>& v) {
+		std::string r = "[";
+		for (size_t i = 0; i < v.size(); ++i) r += (i ? ", \"" : "\"") + v[i] + "\"";
+		return r + "]";
+	};
+	auto b_ = [](bool x) { return std::string(x ? "true" : "false"); };
+
+	add("project.name", s_(p.name));
+	add("project.version", s_(p.version));
+	add("project.description", s_(p.description));
+	add("project.standard", s_(p.cxx_standard));
+	add("project.c_standard", s_(p.c_standard));
+	if (!p.min_version.empty()) add("project.minimum_cpp_maker_version", s_(p.min_version));
+
+	add("build.default_mode", s_(p.default_mode));
+	add("build.default_toolchain", s_(p.default_toolchain));
+	add("build.jobs", std::to_string(p.jobs));
+	add("build.static_pic", b_(p.static_pic));
+	add("build.warnings", l_(p.warnings));
+	if (!p.cflags.empty())   add("build.cflags", l_(p.cflags));
+	if (!p.cxxflags.empty()) add("build.cxxflags", l_(p.cxxflags));
+	if (!p.ldflags.empty())  add("build.ldflags", l_(p.ldflags));
+	if (!p.defines.empty())  add("build.defines", l_(p.defines));
+
+	for (auto& [n, t] : p.toolchains) {
+		const std::string pre = "toolchains." + n + ".";
+		if (!t.prefix.empty())     add(pre + "prefix", s_(t.prefix));
+		add(pre + "cc", s_(t.cc));
+		add(pre + "cxx", s_(t.cxx));
+		if (!t.ar.empty())         add(pre + "ar", s_(t.ar));
+		if (!t.strip.empty())      add(pre + "strip", s_(t.strip));
+		if (!t.pkg_config.empty()) add(pre + "pkg_config", s_(t.pkg_config));
+		add(pre + "family", s_(t.family));
+		if (!t.target.empty())     add(pre + "target", s_(t.target));
+		if (!t.sysroot.empty())    add(pre + "sysroot", s_(t.sysroot));
+		if (!t.os.empty())         add(pre + "os", s_(t.os));
+		if (!t.cflags.empty())     add(pre + "cflags", l_(t.cflags));
+		if (!t.cxxflags.empty())   add(pre + "cxxflags", l_(t.cxxflags));
+		if (!t.ldflags.empty())    add(pre + "ldflags", l_(t.ldflags));
+		if (t.runner_set)          add(pre + "runner", l_(t.runner));
 	}
+
+	for (auto& m : p.modes) {
+		const std::string pre = "modes." + m.name + ".";
+		add(pre + "flags", l_(m.flags));
+		if (!m.link_flags.empty())  add(pre + "link_flags", l_(m.link_flags));
+		if (!m.defines.empty())     add(pre + "defines", l_(m.defines));
+		if (!m.sanitizer.empty())   add(pre + "sanitizer", s_(m.sanitizer));
+		if (!m.runner.empty())      add(pre + "runner", s_(m.runner));
+		if (!m.runner_args.empty()) add(pre + "runner_args", l_(m.runner_args));
+	}
+
+	add("tests.timeout", std::to_string(p.test_timeout));
+	for (auto& [k, v] : p.test_env) add("tests.env." + k, s_(v));
+
+	for (auto& g : p.generate_steps) {
+		const std::string pre = "generate." + g.name + ".";
+		add(pre + "command", s_(g.command));
+		if (!g.inputs.empty())  add(pre + "inputs", l_(g.inputs));
+		if (!g.outputs.empty()) add(pre + "outputs", l_(g.outputs));
+	}
+
+	if (!p.layer_order.empty()) add("layers.order", l_(p.layer_order));
+	for (auto& [layer, forbid] : p.layer_forbid_pkg)
+		add("layers." + layer + ".forbid_pkg_config", l_(forbid));
+
+	auto& pk = p.package;
+	add("package.formats", l_(pk.formats));
+	add("package.strip", b_(pk.strip));
+	add("package.maintainer", s_(pk.maintainer));
+	if (!pk.description.empty())  add("package.description", s_(pk.description));
+	if (!pk.homepage.empty())     add("package.homepage", s_(pk.homepage));
+	if (!pk.license.empty())      add("package.license", s_(pk.license));
+	if (!pk.deb_depends.empty())  add("package.deb_depends", l_(pk.deb_depends));
+	add("package.deb_prefix", s_(pk.deb_prefix));
+	if (!pk.extra_files.empty())  add("package.extra_files", l_(pk.extra_files));
+	add("package.checksums", b_(pk.checksums));
+
+	for (auto& [n, d] : p.deploys) {
+		const std::string pre = "deploy." + n + ".";
+		add(pre + "method", s_(d.method));
+		if (!d.host.empty())        add(pre + "host", s_(d.host));
+		if (!d.user.empty())        add(pre + "user", s_(d.user));
+		if (!d.path.empty())        add(pre + "path", s_(d.path));
+		if (d.port)                 add(pre + "port", std::to_string(d.port));
+		if (!d.toolchain.empty())   add(pre + "toolchain", s_(d.toolchain));
+		add(pre + "mode", s_(d.mode));
+		add(pre + "artifact", s_(d.artifact));
+		if (!d.modules.empty())     add(pre + "modules", l_(d.modules));
+		if (!d.ssh_options.empty()) add(pre + "ssh_options", l_(d.ssh_options));
+		if (!d.before.empty())      add(pre + "before", l_(d.before));
+		if (!d.after.empty())       add(pre + "after", l_(d.after));
+		if (!d.after_local.empty()) add(pre + "after_local", l_(d.after_local));
+		if (!d.script.empty())      add(pre + "script", s_(d.script));
+		if (d.delete_extra)         add(pre + "delete", "true");
+	}
+
+	if (p.workspace) add("workspace.modules", l_(p.module_paths));
+
+	for (auto& m : p.modules) {
+		const std::string pre = "module." + m.name + ".";
+		add(pre + "type", s_(m.type));
+		if (!m.version.empty()) add(pre + "version", s_(m.version));
+		add(pre + "dir", s_(m.dir.generic_string()));
+		add(pre + "source_dirs", l_(m.source_dirs));
+		if (!m.source_files.empty()) add(pre + "source_files", l_(m.source_files));
+		if (!m.exclude.empty())      add(pre + "exclude", l_(m.exclude));
+		if (!m.main.empty())         add(pre + "main", s_(m.main));
+		if (!m.layer.empty())        add(pre + "layer", s_(m.layer));
+		add(pre + "public_includes", l_(m.public_includes));
+		if (m.private_includes != m.source_dirs)
+			add(pre + "private_includes", l_(m.private_includes));
+		if (!m.deps.empty())         add(pre + "dependencies.modules", l_(m.deps));
+		if (!m.pkg_config.empty())   add(pre + "dependencies.pkg_config", l_(m.pkg_config));
+		if (!m.system_libs.empty())  add(pre + "dependencies.system", l_(m.system_libs));
+		if (!m.defines.empty())         add(pre + "flags.defines", l_(m.defines));
+		if (!m.public_defines.empty())  add(pre + "flags.public_defines", l_(m.public_defines));
+		if (!m.cflags.empty())          add(pre + "flags.cflags", l_(m.cflags));
+		if (!m.cxxflags.empty())        add(pre + "flags.cxxflags", l_(m.cxxflags));
+		if (!m.ldflags.empty())         add(pre + "flags.ldflags", l_(m.ldflags));
+		add(pre + "install", b_(m.install));
+	}
+
+	// Sélection : chaque filtre matche la clé exacte et/ou son préfixe
+	// suivi de '.' (build.warnings, toolchains.host, modes.release…).
+	std::vector<std::pair<std::string, std::string>> selected;
+	std::vector<std::string> unknown;
+	if (filters.empty()) {
+		selected = entries;
+	} else {
+		std::set<std::pair<std::string, std::string>> seen;
+		for (auto& f : filters) {
+			std::string prefix = f.empty() ? f : f + ".";
+			bool any = false;
+			for (auto& e : entries) {
+				if (e.first == f || e.first.starts_with(prefix)) {
+					if (seen.insert(e).second) selected.push_back(e);
+					any = true;
+				}
+			}
+			if (!any) unknown.push_back(f);
+		}
+		if (filters.size() > 1)
+			std::sort(selected.begin(), selected.end(),
+					  [](auto& a, auto& b) { return a.first < b.first; });
+	}
+
+	// Suggestion pour les clés inconnues (« nam » → « project.name »).
+	for (auto& f : unknown) {
+		std::vector<std::string> sugg;
+		for (auto& e : entries)
+			if (e.first.size() > f.size() && e.first.ends_with("." + f))
+				sugg.push_back(e.first);
+		util::errln("\033[1;33mwarning:\033[0m clé inconnue : '{}'{}", f,
+					sugg.empty() ? "" : " (essayez : " + util::join(sugg, ", ") + ")");
+	}
+
+	if (selected.empty()) {
+		if (filters.empty()) util::outln("(configuration vide)");
+		return filters.empty() ? 0 : 1;
+	}
+
+	size_t w = 0;
+	for (auto& [k, v] : selected) w = std::max(w, k.size());
+	for (auto& [k, v] : selected) util::outln("{:<{}} = {}", k, w, v);
+
+	return unknown.empty() ? 0 : 1;
+}
+
+inline int cmd_config(const std::vector<std::string>& args) {
+	if (args.empty()) util::die("usage : cpp-maker config <show [clé…]|validate|set>");
+	if (args[0] == "show")
+		return cmd_config_show({args.begin() + 1, args.end()});
 	if (args[0] == "validate") {
 		auto c = load_ctx(false);
 		auto e = cfg::validate_errors(c.p);
@@ -5456,8 +5678,22 @@ inline std::string common_toml_tail() {
 [build]
 default_mode = "debug"
 default_toolchain = "host"
-jobs = 0                       # 0 = nombre de cœurs
-warnings = ["-Wall", "-Wextra"]
+jobs = 0  # 0 = cœurs - 1 (cpp-maker en réserve un)
+warnings = [
+	"-Wall",
+	"-Wextra",
+	"-Wpedantic",
+	"-Wformat=2",
+	"-Wshadow",
+	"-Wconversion",
+	"-Wsign-conversion",
+	"-Wdouble-promotion",
+	"-Wundef",
+	"-Wcast-align",
+	"-Wcast-qual",
+	"-Woverloaded-virtual",
+	"-Wnon-virtual-dtor"
+]
 
 # Modes : release, debug, relwithdebinfo, minsize, asan, tsan, ubsan, valgrind
 # sont prédéfinis ; on peut les redéfinir ou en ajouter (base = "<mode>").
@@ -6139,118 +6375,123 @@ inline int cmd_module(const std::vector<std::string>& args) {
 // main
 // ============================================================================
 static void print_help() {
-	util::outln(R"(cpp-maker {} — moteur de production unifié pour C et C++
+    util::outln(R"(cpp-maker {} — moteur de production unifié pour C et C++
 
 USAGE
-	cpp-maker <commande> [options]
+    cpp-maker <commande> [options]
 
 PROJET
-	new <nom> [--lang c|c++] [--type normal|static|shared|header-only|modular]
-			  [--workspace] [--standard c++NN] [--c-standard cNN] [--compiler cxx]
-							Crée un projet.
-							  --type normal        exécutable mono-module (défaut)
-							  --type static        bibliothèque statique
-							  --type shared        bibliothèque partagée
-							  --type header-only   bibliothèque d'en-têtes seuls
-							  --type modular       workspace modulaire : un
-												   module `core` par défaut
-												   dans libs/core, et une
-												   application dans apps/<nom>
-												   (équivaut à --workspace)
-	add <nom|chemin> [--type T] [--lang c|c++] [--deps a,b]
-					 [--dir libs|apps|<chemin>] [--no-scaffold]
-							Ajoute un module au workspace. Un nom simple est
-							placé dans libs/<nom> (ou apps/<nom> avec
-							--dir apps) ; un chemin explicite (libs/x,
-							apps/y, /abs/path) est utilisé tel quel.
-	module deps <list|add|remove> <module> [<nom>]
-					 [--pkg-config|--system|--module]
-							Configure les bibliothèques d'un module :
-							liste, ajoute ou retire une dépendance.
-							Sans option, le type est déduit (module connu,
-							pkg-config si disponible, sinon bibliothèque
-							système).
-	module rename <ancien> <nouveau>
-							Renomme un module (module.toml, deps des autres,
-							répertoire si conventionnel) avec validation
-	module remove <nom> [--force] [--purge]
-							Retire un module du workspace (--force : retire
-							aussi les deps des dépendants ; --purge : supprime
-							les sources)
-	info | modules | graph [--dot]
-							Projet, liste des modules, graphe de dépendances
-	size    [mode] [-m a,b] [-t tc]
-							Contenu détaillé des binaires construits :
-							text/data/bss/dec/hex (Berkeley), en-tête ELF
-							(classe, machine, ABI, type, entrée), archives .a
-							sommées ; -v : plus grandes sections
-	config show|validate|set <clé> <valeur>
-	doctor [--no-fix|--check-deps]
-							Diagnostic : outils, dépendances, toolchains, sanitizers
-							Enregistre automatiquement dans [dependencies].modules
-							les dépendances implicites détectées à partir
-							des #include (--no-fix / --check-deps pour
-							seulement les lister).
+    new <nom> [--lang c|c++] [--type normal|static|shared|header-only|modular]
+              [--workspace] [--standard c++NN] [--c-standard cNN] [--compiler cxx]
+                            Crée un projet.
+                              --type normal        exécutable mono-module (défaut)
+                              --type static        bibliothèque statique
+                              --type shared        bibliothèque partagée
+                              --type header-only   bibliothèque d'en-têtes seuls
+                              --type modular       workspace modulaire : un
+                                                   module `core` par défaut
+                                                   dans libs/core, et une
+                                                   application dans apps/<nom>
+                                                   (équivaut à --workspace)
+    add <nom|chemin> [--type T] [--lang c|c++] [--deps a,b]
+                     [--dir libs|apps|<chemin>] [--no-scaffold]
+                            Ajoute un module au workspace. Un nom simple est
+                            placé dans libs/<nom> (ou apps/<nom> avec
+                            --dir apps) ; un chemin explicite (libs/x,
+                            apps/y, /abs/path) est utilisé tel quel.
+    module deps <list|add|remove> <module> [<nom>]
+                     [--pkg-config|--system|--module]
+                            Configure les bibliothèques d'un module :
+                            liste, ajoute ou retire une dépendance.
+                            Sans option, le type est déduit (module connu,
+                            pkg-config si disponible, sinon bibliothèque
+                            système).
+    module rename <ancien> <nouveau>
+                            Renomme un module (module.toml, deps des autres,
+                            répertoire si conventionnel) avec validation
+    module remove <nom> [--force] [--purge]
+                            Retire un module du workspace (--force : retire
+                            aussi les deps des dépendants ; --purge : supprime
+                            les sources)
+    info | modules | graph [--dot]
+                            Projet, liste des modules, graphe de dépendances
+    size    [mode] [-m a,b] [-t tc]
+                            Contenu détaillé des binaires construits :
+                            text/data/bss/dec/hex (Berkeley), en-tête ELF
+                            (classe, machine, ABI, type, entrée), archives .a
+                            sommées ; -v : plus grandes sections
+    config show [clé…] | validate | set <clé> <valeur>
+                            show : toute la configuration, ou seulement
+                            les clés demandées (exactes ou par préfixe :
+                            build.warnings, toolchains.host, modes.release…)
+                            set : validation avant remplacement atomique
+    doctor [--no-fix|--check-deps]
+                            Diagnostic : outils, dépendances, toolchains, sanitizers
+                            Enregistre automatiquement dans [dependencies].modules
+                            les dépendances implicites détectées à partir
+                            des #include (--no-fix / --check-deps pour
+                            seulement les lister).
 
 CYCLE DE VIE
-	build   [mode]          Compile (incrémental, parallèle) ; --tests inclut les tests
-	run     [mode] [--args arg…] [-- arg…]
+    build   [mode]          Compile (incrémental, parallèle) ; --tests inclut les tests
+    run     [mode] [--args arg…] [-- arg…]
                             Compile et exécute ; tout ce qui suit --args (ou --)
                             est passé tel quel au programme
-	test    [mode] [--filter X] [--junit rapport.xml] [--timeout s]
+    test    [mode] [--filter X] [--junit rapport.xml] [--timeout s]
             [--args arg…]   arguments transmis à chaque exécutable de test
-	check   [--modes debug,asan,tsan] [--args arg…]
-							Tests dans plusieurs modes
-	package [mode] [--format tar.gz,tar.xz,zip,deb] [--no-strip]
-							Archives dans dist/ (défaut : release)
-	install [mode] [--prefix /usr/local] [--destdir D]
-	deploy  <cible> | --list
-							Build + package + transfert ([deploy.<cible>])
-	generate ninja|compdb   build.ninja / compile_commands.json
-	clean   [mode] [-t tc] [--all]
-							Supprime build/ (et dist/ avec --all)
+    check   [--modes debug,asan,tsan] [--args arg…]
+                            Tests dans plusieurs modes
+    package [mode] [--format tar.gz,tar.xz,zip,deb] [--no-strip]
+                            Archives dans dist/ (défaut : release)
+    install [mode] [--prefix /usr/local] [--destdir D]
+    deploy  <cible> | --list
+                            Build + package + transfert ([deploy.<cible>])
+    generate ninja|compdb   build.ninja / compile_commands.json
+    clean   [mode] [-t tc] [--all]
+                            Supprime build/ (et dist/ avec --all)
 
 TOOLCHAINS
-	toolchain list          Profils, compilateurs croisés détectés, versions gcc
-	toolchain show [nom]    Détail d'une toolchain (triplet, émulateur…)
-	toolchain install <N|triplet>
-							Installe gcc-N ou un compilateur croisé (apt)
-	toolchain use <N> | remove <N>
+    toolchain list          Profils, compilateurs croisés détectés, versions gcc
+    toolchain show [nom]    Détail d'une toolchain (triplet, émulateur…)
+    toolchain install <N|triplet>
+                            Installe gcc-N ou un compilateur croisé (apt)
+    toolchain use <N> | remove <N>
 
 OPTIONS COMMUNES
-	-m, --module a,b        Modules à traiter (et leurs dépendances)
-	-a, --all               Tout le workspace (même depuis le dossier d'un module)
-	-t, --toolchain a,b     Toolchain(s) : host, gcc, clang, profil [toolchains.x],
-							triplet du PATH (arm-linux-gnueabihf), ou 'all'
-	--cc X / --cxx Y        Compilateurs ad hoc (ex. --cxx clang++-18)
-	--mode M                Mode (aussi en premier argument)
-	-j, --jobs N            Parallélisme (0 = nombre de cœurs)
-	-k, --keep-going        Continue après une erreur
-	-n, --dry-run           Affiche ce qui serait fait
-	-v, --verbose           Affiche les commandes
-	--clean                 Repart d'un dossier de build vide
-	--backend ninja         (build) délègue l'exécution à ninja
+    -m, --module a,b        Modules à traiter (et leurs dépendances)
+    -a, --all               Tout le workspace (même depuis le dossier d'un module)
+    -t, --toolchain a,b     Toolchain(s) : host, gcc, clang, profil [toolchains.x],
+                            triplet du PATH (arm-linux-gnueabihf), ou 'all'
+    --cc X / --cxx Y        Compilateurs ad hoc (ex. --cxx clang++-18)
+    --mode M                Mode (aussi en premier argument)
+    -j, --jobs N            Parallélisme (0 = auto : ncpus - 1 workers,
+                            un cœur restant dédié à cpp-maker)
+    -k, --keep-going        Continue après une erreur
+    -n, --dry-run           Affiche ce qui serait fait
+    -v, --verbose           Affiche les commandes
+    --clean                 Repart d'un dossier de build vide
+    --backend ninja         (build) délègue l'exécution à ninja
 
 MODES
-	release  debug (défaut)  relwithdebinfo  minsize  asan  tsan  ubsan  valgrind
+    release  debug (défaut)  relwithdebinfo  minsize  asan  tsan  ubsan  valgrind
 
 EXEMPLES
-	cpp-maker new hello --workspace
-	cd hello
-	cpp-maker add core                         # crée libs/core/
-	cpp-maker add gui --dir apps --deps core   # crée apps/gui/
-	cpp-maker build && cpp-maker run
-	cpp-maker build release -t host,armhf
-	cpp-maker test -t arm-linux-gnueabihf          # exécution via qemu-arm
-	cpp-maker build -m core                        # un module seul
-	cpp-maker package --format tar.gz,deb -t armhf
-	cpp-maker deploy rpi
-	cpp-maker module deps list core
-	cpp-maker module deps add core zlib              # pkg-config
-	cpp-maker module deps add core m --system        # -lm
-	cpp-maker module deps add app1 core --module     # dépendance de module
-	cpp-maker doctor                                 # + auto-fix deps
-	cpp-maker run release -m voxelgame --args --world=iles --generator=core:islands
+    cpp-maker new hello --workspace
+    cd hello
+    cpp-maker add core                         # crée libs/core/
+    cpp-maker add gui --dir apps --deps core   # crée apps/gui/
+    cpp-maker build && cpp-maker run
+    cpp-maker build release -t host,armhf
+    cpp-maker test -t arm-linux-gnueabihf          # exécution via qemu-arm
+    cpp-maker build -m core                        # un module seul
+    cpp-maker package --format tar.gz,deb -t armhf
+    cpp-maker deploy rpi
+    cpp-maker module deps list core
+    cpp-maker module deps add core zlib              # pkg-config
+    cpp-maker module deps add core m --system        # -lm
+    cpp-maker module deps add app1 core --module     # dépendance de module
+    cpp-maker doctor                                 # + auto-fix deps
+    cpp-maker run release -m voxelgame --args --world=iles --generator=core:islands
                         # cpp-maker parse "release" et "-m voxelgame",
                         # le jeu reçoit "--world=iles" et "--generator=core:islands"
 )", CPP_MAKER_VERSION);

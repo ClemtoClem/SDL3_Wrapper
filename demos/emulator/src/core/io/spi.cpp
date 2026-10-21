@@ -22,7 +22,7 @@ uint16_t Spi::crc16(uint32_t value, uint8_t *data, size_t size) {
         for (size_t j = 0; j < 8; j++)
             value = (value >> 1) ^ ((value & 1) ? (table[j] << (7 - j)) : 0);
     }
-    return value;
+    return static_cast<uint16_t>(value);
 }
 
 bool Spi::loadFirmware() {
@@ -30,14 +30,14 @@ bool Spi::loadFirmware() {
         delete[] firmware;
     if (auto res = sdl3::IOStream::FromFile(Settings::getFirmwarePath(), "rb"); res) {
         sdl3::IOStream file = std::move(res).Unwrap();
-        firmSize = int(file.GetSize());
+        firmSize = static_cast<size_t>(int(file.GetSize()));
         firmware = new uint8_t[firmSize];
         (void)file.Read(firmware, size_t(firmSize));
         if (core->getId() > 0) {
-            firmware[0x36] += core->getId();
+            firmware[0x36] = static_cast<uint8_t>(firmware[0x36] + core->getId());
             uint16_t crc   = crc16(0, &firmware[0x2C], 0x138);
-            firmware[0x2A] = crc >> 0;
-            firmware[0x2B] = crc >> 8;
+            firmware[0x2A] = static_cast<uint8_t>(crc >> 0);
+            firmware[0x2B] = static_cast<uint8_t>(crc >> 8);
         }
         return (firmSize > 0x20000);
     }
@@ -48,7 +48,7 @@ bool Spi::loadFirmware() {
     firmware[0x21] = 0x3F;
     firmware[0x2C] = 0x38;
     firmware[0x2D] = 0x01;
-    firmware[0x36] = core->getId();
+    firmware[0x36] = static_cast<uint8_t>(core->getId());
     firmware[0x37] = 0x09;
     firmware[0x38] = 0xBF;
     firmware[0x39] = 0x12;
@@ -57,14 +57,14 @@ bool Spi::loadFirmware() {
     firmware[0x3C] = 0xFE;
     firmware[0x3D] = 0x3F;
     uint16_t crc   = crc16(0, &firmware[0x2C], 0x138);
-    firmware[0x2A] = crc >> 0;
-    firmware[0x2B] = crc >> 8;
+    firmware[0x2A] = static_cast<uint8_t>(crc >> 0);
+    firmware[0x2B] = static_cast<uint8_t>(crc >> 8);
     for (uint32_t addr = 0x1FA00; addr <= 0x1FC00; addr += 0x100) {
         firmware[addr + 0xE7] = 0xFF;
         firmware[addr + 0xF5] = 0x28;
         crc                   = crc16(0, &firmware[addr], 0xFE);
-        firmware[addr + 0xFE] = crc >> 0;
-        firmware[addr + 0xFF] = crc >> 8;
+        firmware[addr + 0xFE] = static_cast<uint8_t>(crc >> 0);
+        firmware[addr + 0xFF] = static_cast<uint8_t>(crc >> 8);
     }
     for (uint32_t addr = 0x1FE00; addr <= 0x1FF00; addr += 0x100) {
         firmware[addr + 0x00] = 5;
@@ -84,8 +84,8 @@ bool Spi::loadFirmware() {
         firmware[addr + 0x62] = 0xFF;
         firmware[addr + 0x63] = 0xBF;
         crc                   = crc16(0xFFFF, &firmware[addr], 0x70);
-        firmware[addr + 0x72] = crc >> 0;
-        firmware[addr + 0x73] = crc >> 8;
+        firmware[addr + 0x72] = static_cast<uint8_t>(crc >> 0);
+        firmware[addr + 0x73] = static_cast<uint8_t>(crc >> 8);
     }
     return false;
 }
@@ -115,9 +115,9 @@ void Spi::setTouch(int x, int y) {
     else if (y > 190)
         y = 190;
     if (scrX2 - scrX1 != 0)
-        touchX = (x - (scrX1 - 1)) * (adcX2 - adcX1) / (scrX2 - scrX1) + adcX1;
+        touchX = static_cast<uint16_t>((x - (scrX1 - 1)) * (adcX2 - adcX1) / (scrX2 - scrX1) + adcX1);
     if (scrY2 - scrY1 != 0)
-        touchY = (y - (scrY1 - 1)) * (adcY2 - adcY1) / (scrY2 - scrY1) + adcY1;
+        touchY = static_cast<uint16_t>((y - (scrY1 - 1)) * (adcY2 - adcY1) / (scrY2 - scrY1) + adcY1);
 }
 
 void Spi::clearTouch() {
@@ -133,7 +133,7 @@ void Spi::sendMicData(const int16_t *samples, size_t count, size_t rate) {
     memcpy(micBuffer, samples, count * sizeof(int16_t));
     micBufSize = count;
     micCycles  = core->getGlobalCycles();
-    micStep    = (60 * 263 * 355 * 6) / rate;
+    micStep    = static_cast<uint32_t>((60 * 263 * 355 * 6) / rate);
     mutex.unlock();
 }
 
@@ -158,7 +158,7 @@ void Spi::writeSpiData(uint8_t value) {
                     firmStatus |= BIT(1);
                     break;
                 case 0x04: // WRDI
-                    firmStatus &= ~BIT(1);
+                    firmStatus = static_cast<uint8_t>(firmStatus & ~BIT(1));
                     break;
                 case 0x05: // RDSR : l'état est renvoyé dès le premier octet lu
                     spiData = firmStatus;
@@ -218,22 +218,22 @@ void Spi::writeSpiData(uint8_t value) {
             case 2: {
                 switch ((command & 0x70) >> 4) {
                     case 1:
-                        spiData = (writeCount & 1) ? (touchY >> 5) : (touchY << 3);
+                        spiData = static_cast<uint8_t>((writeCount & 1) ? (touchY >> 5) : (touchY << 3));
                         break;
                     case 5:
-                        spiData = (writeCount & 1) ? (touchX >> 5) : (touchX << 3);
+                        spiData = static_cast<uint8_t>((writeCount & 1) ? (touchX >> 5) : (touchX << 3));
                         break;
                     case 6:
                         if (writeCount & 1 && micStep) {
                             mutex.lock();
                             size_t index =
                                 std::min<size_t>((core->getGlobalCycles() - micCycles) / micStep, micBufSize);
-                            micSample = (micBufSize > 0) ? ((micBuffer[index] >> 4) + 0x800) : 0;
+                            micSample = static_cast<uint16_t>((micBufSize > 0) ? ((micBuffer[index] >> 4) + 0x800) : 0);
                             mutex.unlock();
-                            spiData = micSample >> 5;
+                            spiData = static_cast<uint8_t>(micSample >> 5);
                             break;
                         }
-                        spiData = micSample << 3;
+                        spiData = static_cast<uint8_t>(micSample << 3);
                         break;
                     default:
                         LOG_VERBOSE("Write to SPI with unknown touchscreen channel: %d\n", (command & 0x70) >> 4);
@@ -261,7 +261,7 @@ void Spi::writeSpiData(uint8_t value) {
                     firmware[a] = 0xFF;
             }
             if (command == 0x0A || command == 0x02 || command == 0xDB || command == 0xD8)
-                firmStatus &= ~BIT(1);
+                firmStatus = static_cast<uint8_t>(firmStatus & ~BIT(1));
         }
         writeCount = 0;
     }

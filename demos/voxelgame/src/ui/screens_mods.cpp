@@ -39,7 +39,7 @@ std::vector<String> WorldsUsing(Shell &shell, const String &id) {
 
 class ModBrowser final : public Screen {
 public:
-	explicit ModBrowser(Shell &shell) : Screen(shell) {}
+	explicit ModBrowser(Shell &shell_) : Screen(shell_) {}
 	String Id() const override { return "mods"; }
 
 	void Build(ecs::Entity root) override {
@@ -258,7 +258,7 @@ private:
 
 class ModDetails final : public Screen {
 public:
-	ModDetails(Shell &shell, String id) : Screen(shell), m_id(std::move(id)) {}
+	ModDetails(Shell &shell_, String id) : Screen(shell_), m_id(std::move(id)) {}
 	String Id() const override { return "moddetails"; }
 
 	void Build(ecs::Entity root) override {
@@ -398,7 +398,7 @@ private:
 
 class WorldMods final : public Screen {
 public:
-	WorldMods(Shell &shell, String folder) : Screen(shell), m_folder(std::move(folder)) {
+	WorldMods(Shell &shell_, String folder) : Screen(shell_), m_folder(std::move(folder)) {
 		shell.Mods().Refresh();
 		m_entry = shell.Worlds().Find(m_folder, shell.Mods().Installed());
 		if (m_entry.IsSome()) {
@@ -671,7 +671,7 @@ private:
 
 class ModConfig final : public Screen {
 public:
-	ModConfig(Shell &shell, String id, String folder) : Screen(shell), m_id(std::move(id)), m_folder(std::move(folder)) {
+	ModConfig(Shell &shell_, String id, String folder) : Screen(shell_), m_id(std::move(id)), m_folder(std::move(folder)) {
 		if (!m_folder.IsEmpty())
 			if (Option<WorldEntry> w = shell.Worlds().Find(m_folder, {}); w.IsSome()) {
 				m_worldName = w.Value().name;
@@ -830,7 +830,7 @@ private:
 
 class ModOrganize final : public Screen {
 public:
-	explicit ModOrganize(Shell &shell) : Screen(shell) {
+	explicit ModOrganize(Shell &shell_) : Screen(shell_) {
 		shell.Mods().Refresh();
 		m_order = shell.Prefs().modOrder;
 		for (const voxel::ModInfo &m : shell.Mods().Installed())
@@ -966,8 +966,8 @@ private:
 
 class ModChangesScreen final : public Screen {
 public:
-	ModChangesScreen(Shell &shell, ModChanges changes, std::function<void(bool)> apply)
-		: Screen(shell), m_changes(std::move(changes)), m_apply(std::move(apply)) {}
+	ModChangesScreen(Shell &shell_, ModChanges changes, std::function<void(bool)> apply)
+		: Screen(shell_), m_changes(std::move(changes)), m_apply(std::move(apply)) {}
 	String Id() const override { return "modchanges"; }
 	bool Overlay() const override { return true; }
 

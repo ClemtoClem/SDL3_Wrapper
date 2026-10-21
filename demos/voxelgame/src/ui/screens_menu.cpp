@@ -15,7 +15,7 @@ namespace {
 
 class MainMenu final : public Screen {
 public:
-	explicit MainMenu(Shell &shell) : Screen(shell) {}
+	explicit MainMenu(Shell &shell_) : Screen(shell_) {}
 	String Id() const override { return "mainmenu"; }
 
 	void Build(ecs::Entity root) override {
@@ -125,7 +125,7 @@ public:
 
 class WorldSelect final : public Screen {
 public:
-	explicit WorldSelect(Shell &shell) : Screen(shell) {}
+	explicit WorldSelect(Shell &shell_) : Screen(shell_) {}
 	String Id() const override { return "worlds"; }
 
 	void Build(ecs::Entity root) override {
@@ -425,7 +425,7 @@ const std::vector<std::tuple<const char *, const char *, const char *>> &RuleTex
 
 class CreateWorld final : public Screen {
 public:
-	explicit CreateWorld(Shell &shell) : Screen(shell) {
+	explicit CreateWorld(Shell &shell_) : Screen(shell_) {
 		m_form.name = "Nouveau monde";
 		for (const auto &[rule, value] : voxel::Game::DefaultRules())
 			m_form.rules[rule] = value;
@@ -611,7 +611,7 @@ private:
 
 class WorldSettingsScreen final : public Screen {
 public:
-	WorldSettingsScreen(Shell &shell, String folder) : Screen(shell), m_folder(std::move(folder)) {
+	WorldSettingsScreen(Shell &shell_, String folder) : Screen(shell_), m_folder(std::move(folder)) {
 		if (m_folder.IsEmpty() && shell.Game())
 			m_folder = shell.Game()->Folder();
 		Load();
@@ -880,7 +880,7 @@ private:
 
 class RenameWorld final : public Screen {
 public:
-	RenameWorld(Shell &shell, String folder) : Screen(shell), m_folder(std::move(folder)) {
+	RenameWorld(Shell &shell_, String folder) : Screen(shell_), m_folder(std::move(folder)) {
 		if (Option<WorldEntry> e = shell.Worlds().Find(m_folder, {}); e.IsSome())
 			m_current = m_value = e.Value().name;
 	}

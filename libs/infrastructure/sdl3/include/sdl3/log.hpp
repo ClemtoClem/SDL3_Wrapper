@@ -101,8 +101,8 @@ public:
     /// (cf. Application::buildLogging, activé seulement si l'utilisateur
     /// active l'écho console dans les réglages : l'écriture console
     /// synchrone est justement ce qui ralentit l'exécution par défaut).
-    [[nodiscard]] SDL_LogOutputFunction PreviousHandler() const noexcept { return prevFn; }
-    [[nodiscard]] void *PreviousHandlerData() const noexcept { return prevData; }
+    [[nodiscard]] SDL_LogOutputFunction PreviousHandler() const noexcept { return m_prevFn; }
+    [[nodiscard]] void *PreviousHandlerData() const noexcept { return m_prevData; }
 
 private:
     LogRouter();
@@ -116,11 +116,11 @@ private:
 
     static void SDLCALL Trampoline(void *userdata, int category, SDL_LogPriority priority, const char *message);
 
-    std::mutex mutex;
-    std::unordered_map<size_t, LogSink> sinks;
-    size_t nextId = 1;
-    SDL_LogOutputFunction prevFn = nullptr;
-    void *prevData = nullptr;
+    std::mutex m_mutex;
+    std::unordered_map<size_t, LogSink> m_sinks;
+    size_t m_nextId = 1;
+    SDL_LogOutputFunction m_prevFn = nullptr;
+    void *m_prevData = nullptr;
 };
 
 // ============================================================================
@@ -151,20 +151,20 @@ public:
     /// Non-bloquant : copie le message formaté dans la file et revient.
     void Write(const LogMessage &msg);
 
-    [[nodiscard]] const String &Path() const noexcept { return path; }
+    [[nodiscard]] const String &Path() const noexcept { return m_path; }
 
 private:
-    FileLogSink(String path, std::ofstream file)
-        : path(std::move(path)), file(std::move(file)), thread([this](std::stop_token st) { ThreadLoop(st); }) {}
+    FileLogSink(String path_, std::ofstream file_)
+        : m_path(std::move(path_)), m_file(std::move(file_)), m_thread([this](std::stop_token st) { ThreadLoop(st); }) {}
 
     void ThreadLoop(std::stop_token st);
 
-    String path;
-    std::ofstream file;
-    std::mutex mutex;
-    std::condition_variable cv;
-    std::deque<String> queue;
-    std::jthread thread; // déclaré en dernier : démarre après le reste, s'arrête/joint avant
+    String m_path;
+    std::ofstream m_file;
+    std::mutex m_mutex;
+    std::condition_variable m_cv;
+    std::deque<String> m_queue;
+    std::jthread m_thread; // déclaré en dernier : démarre après le reste, s'arrête/joint avant
 };
 
 } // namespace sdl3

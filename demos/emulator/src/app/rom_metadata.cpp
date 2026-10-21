@@ -270,14 +270,14 @@ RomIcon decodeNdsIcon(const std::vector<uint8_t>& d, size_t bannerOffset) {
         size_t tileOff = bmpOff + static_cast<size_t>(tileIndex) * 32;
         for (int row = 0; row < 8; ++row) {
             for (int col4 = 0; col4 < 4; ++col4) {
-                uint8_t byte = d[tileOff + static_cast<size_t>(row) * 4 + col4];
+                uint8_t byte = d[tileOff + static_cast<size_t>(row) * 4 + static_cast<size_t>(col4)];
                 uint8_t leftIdx = byte & 0x0F;         // low nibble = left pixel
                 uint8_t rightIdx = (byte >> 4) & 0x0F; // high nibble = right pixel
                 int px0 = tx * 8 + col4 * 2;
                 int px1 = px0 + 1;
                 int py = ty * 8 + row;
-                icon.rgba[static_cast<size_t>(py) * RomIcon::SIZE + px0] = colors[leftIdx];
-                icon.rgba[static_cast<size_t>(py) * RomIcon::SIZE + px1] = colors[rightIdx];
+                icon.rgba[static_cast<size_t>(py) * RomIcon::SIZE + static_cast<size_t>(px0)] = colors[leftIdx];
+                icon.rgba[static_cast<size_t>(py) * RomIcon::SIZE + static_cast<size_t>(px1)] = colors[rightIdx];
             }
         }
     }

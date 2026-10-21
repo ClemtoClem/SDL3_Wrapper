@@ -173,7 +173,15 @@ public:
 	}
 
 	/// Nécessaire pour que le moindre texte soit dessiné.
-	void SetTextEngine(sdl3::TextEngine &engine, sdl3::Font &font) { render.SetTextEngine(&engine, &font); }
+	/// Branche aussi la mesure du layout sur les polices de dessin : chaque
+	/// texte est mesuré dans la police (normale, grasse, italique) et à la
+	/// taille où il sera dessiné.
+	void SetTextEngine(sdl3::TextEngine &engine, sdl3::Font &font) {
+		render.SetTextEngine(&engine, &font);
+		layout.measureStyledText = [this](const String &line, float fontSize, bool bold, bool italic) {
+			return render.MeasureLine(line, fontSize, bold, italic);
+		};
+	}
 
 	/// Ouvre un popup ancré (non modal, cf. UiFactory::Popup()) — `trigger`
 	/// sert à la fermeture au clic extérieur.

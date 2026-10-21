@@ -69,33 +69,33 @@ Option<String> ParseOptions(int argc, char **argv, Options &o) {
 			o.creative = true;
 		else if (arg == "--headless")
 			o.headless = true;
-		else if (auto v = value("--world"); v.IsSome())
-			o.world = v.Unwrap();
-		else if (auto v = value("--seed"); v.IsSome())
-			o.seed = Some(uint32_t(std::strtoul(v.Unwrap().CStr(), nullptr, 10)));
-		else if (auto v = value("--generator"); v.IsSome())
-			o.generator = v.Unwrap();
-		else if (auto v = value("--mods"); v.IsSome())
-			o.mods.push_back(v.Unwrap());
-		else if (auto v = value("--repository"); v.IsSome())
-			o.repository = v.Unwrap();
-		else if (auto v = value("--saves"); v.IsSome())
-			o.saves = v.Unwrap();
-		else if (auto v = value("--settings"); v.IsSome())
-			o.settingsPath = v.Unwrap();
-		else if (auto v = value("--view"); v.IsSome())
-			o.view = std::clamp(std::atoi(v.Unwrap().CStr()), 2, 16);
-		else if (auto v = value("--frames"); v.IsSome())
-			o.frames = std::atol(v.Unwrap().CStr());
-		else if (auto v = value("--width"); v.IsSome())
-			o.width = std::max(640, std::atoi(v.Unwrap().CStr()));
-		else if (auto v = value("--height"); v.IsSome())
-			o.height = std::max(400, std::atoi(v.Unwrap().CStr()));
-		else if (auto v = value("--screenshot"); v.IsSome()) {
-			if (!framed(v.Unwrap(), o.screenshotsAt))
+		else if (auto worldArg = value("--world"); worldArg.IsSome())
+			o.world = worldArg.Unwrap();
+		else if (auto seedArg = value("--seed"); seedArg.IsSome())
+			o.seed = Some(uint32_t(std::strtoul(seedArg.Unwrap().CStr(), nullptr, 10)));
+		else if (auto generatorArg = value("--generator"); generatorArg.IsSome())
+			o.generator = generatorArg.Unwrap();
+		else if (auto modsArg = value("--mods"); modsArg.IsSome())
+			o.mods.push_back(modsArg.Unwrap());
+		else if (auto repositoryArg = value("--repository"); repositoryArg.IsSome())
+			o.repository = repositoryArg.Unwrap();
+		else if (auto savesArg = value("--saves"); savesArg.IsSome())
+			o.saves = savesArg.Unwrap();
+		else if (auto settingsArg = value("--settings"); settingsArg.IsSome())
+			o.settingsPath = settingsArg.Unwrap();
+		else if (auto viewArg = value("--view"); viewArg.IsSome())
+			o.view = std::clamp(std::atoi(viewArg.Unwrap().CStr()), 2, 16);
+		else if (auto framesArg = value("--frames"); framesArg.IsSome())
+			o.frames = std::atol(framesArg.Unwrap().CStr());
+		else if (auto widthArg = value("--width"); widthArg.IsSome())
+			o.width = std::max(640, std::atoi(widthArg.Unwrap().CStr()));
+		else if (auto heightArg = value("--height"); heightArg.IsSome())
+			o.height = std::max(400, std::atoi(heightArg.Unwrap().CStr()));
+		else if (auto screenshotArg = value("--screenshot"); screenshotArg.IsSome()) {
+			if (!framed(screenshotArg.Unwrap(), o.screenshotsAt))
 				return Some(String("--screenshot=N:FICHIER attendu"));
-		} else if (auto v = value("--exec"); v.IsSome()) {
-			if (!framed(v.Unwrap(), o.commands))
+		} else if (auto execArg = value("--exec"); execArg.IsSome()) {
+			if (!framed(execArg.Unwrap(), o.commands))
 				return Some(String("--exec=N:/commande attendu"));
 		} else
 			return Some(String::Format("option inconnue « %s »", arg.CStr()));
@@ -263,10 +263,10 @@ int App::RunWindowed() {
 		gui.RenderSystem().RegisterBoldFont(boldResult.Value());
 	if (iconResult)
 		gui.RegisterFont(ui::Glyphs::FontFamily<ui::MaterialIcons>(), iconResult.Value());
-	gui.Layout().measureText = [&font](const String &text, float fontSize) -> sdl3::FPoint {
-		if (auto size = font.Measure(text); size.IsSome())
-			return {float(size.Unwrap().x) * (fontSize / FONT_SIZE) * 1.07f + 2.f, fontSize * 1.35f}; // marge : texte gras
-		return {float(text.GetSize()) * fontSize * 0.55f, fontSize * 1.3f};
+	// Mesure exacte : la police de dessin, à la taille du texte (les textes
+	// gras ou italiques passent par measureStyledText, cf. Ui::SetTextEngine).
+	gui.Layout().measureText = [&gui](const String &text, float fontSize) -> sdl3::FPoint {
+		return gui.RenderSystem().MeasureLine(text, fontSize, false, false);
 	};
 
 	Shell shell(m_options, window, renderer, canvas, gui);
@@ -300,7 +300,7 @@ int App::RunWindowed() {
 		const float dt = std::min(0.1f, float(double(now - previous) / double(sdl3::GetPerformanceFrequency())));
 		previous = now;
 		++frame;
-		totalSeconds += dt;
+		totalSeconds += double(dt);
 		while (auto event = sdl3::PollEvent())
 			shell.HandleEvent(event.Value());
 		for (const auto &[at, command] : m_options.commands)

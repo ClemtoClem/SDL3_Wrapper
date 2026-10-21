@@ -11,8 +11,8 @@ double UiFrameTimings::TotalMs() const noexcept {
 
 // ── Ui ───────────────────────────────────────────────────────────────────────
 
-Ui::Ui(ecs::ArchetypeRegistry &world, sdl3::Window &window, sdl3::Renderer &renderer, UiTheme theme)
-	: world(&world), window(&window), factory(world, layout, std::move(theme)) {
+Ui::Ui(ecs::ArchetypeRegistry &world_, sdl3::Window &window_, sdl3::Renderer &renderer, UiTheme theme)
+	: world(&world_), window(&window_), factory(world_, layout, std::move(theme)) {
 	this->window->StartTextInput();
 	style.sheet = &factory.sheet;
 	Initialize(renderer);
@@ -33,8 +33,8 @@ void Ui::SetTheme(UiTheme theme) {
 	factory.SetTheme(std::move(theme));
 }
 
-void Ui::CreateStyleClass(String name, UiStyle style) {
-	factory.sheet.Define(name, std::move(style));
+void Ui::CreateStyleClass(String name, UiStyle classStyle) {
+	factory.sheet.Define(name, std::move(classStyle));
 	factory.sheet.DirtyClassUsers(*world, name);
 }
 

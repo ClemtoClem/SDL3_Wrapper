@@ -23,9 +23,9 @@ enum NdsCmdMode {
 
 class Cartridge {
 public:
-	Cartridge(Core *core) : core(core) {}
+	Cartridge(Core *core_) : core(core_) {}
 	
-	~Cartridge();
+	virtual ~Cartridge();
 
 	virtual bool loadRom(const String& path);
 
@@ -130,7 +130,7 @@ private:
 
 class CartridgeGba : public Cartridge {
 public:
-	CartridgeGba(Core *core) : Cartridge(core) {}
+	CartridgeGba(Core *core_) : Cartridge(core_) {}
 	bool loadRom(const String& path);
 	uint8_t *getRom(uint32_t address);
 	bool isEeprom(uint32_t address);

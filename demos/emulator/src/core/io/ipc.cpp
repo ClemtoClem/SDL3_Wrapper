@@ -29,9 +29,9 @@ void Ipc::writeIpcFifoCnt(bool cpu, uint16_t mask, uint16_t value) {
             fifos[cpu].pop();
         ipcFifoRecv[!cpu] = 0;
         ipcFifoCnt[cpu] |= BIT(0);
-        ipcFifoCnt[cpu] &= ~BIT(1);
+        ipcFifoCnt[cpu] = static_cast<uint16_t>(ipcFifoCnt[cpu] & ~BIT(1));
         ipcFifoCnt[!cpu] |= BIT(8);
-        ipcFifoCnt[!cpu] &= ~BIT(9);
+        ipcFifoCnt[!cpu] = static_cast<uint16_t>(ipcFifoCnt[!cpu] & ~BIT(9));
         if (ipcFifoCnt[cpu] & BIT(2))
             core->interpreter[cpu].sendInterrupt(17);
     }
@@ -40,7 +40,7 @@ void Ipc::writeIpcFifoCnt(bool cpu, uint16_t mask, uint16_t value) {
     if (!(ipcFifoCnt[cpu] & BIT(8)) && !(ipcFifoCnt[cpu] & BIT(10)) && (value & BIT(10)))
         core->interpreter[cpu].sendInterrupt(18);
     if (value & BIT(14))
-        ipcFifoCnt[cpu] &= ~BIT(14);
+        ipcFifoCnt[cpu] = static_cast<uint16_t>(ipcFifoCnt[cpu] & ~BIT(14));
     mask &= 0x8404;
     ipcFifoCnt[cpu] = (ipcFifoCnt[cpu] & ~mask) | (value & mask);
 }
@@ -55,8 +55,8 @@ void Ipc::writeIpcFifoSend(bool cpu, uint32_t mask, uint32_t value) {
             }
             fifos[cpu].push(value & mask);
             if (fifos[cpu].size() == 1) {
-                ipcFifoCnt[cpu] &= ~BIT(0);
-                ipcFifoCnt[!cpu] &= ~BIT(8);
+                ipcFifoCnt[cpu] = static_cast<uint16_t>(ipcFifoCnt[cpu] & ~BIT(0));
+                ipcFifoCnt[!cpu] = static_cast<uint16_t>(ipcFifoCnt[!cpu] & ~BIT(8));
                 if (ipcFifoCnt[!cpu] & BIT(10))
                     core->interpreter[!cpu].sendInterrupt(18);
             } else if (fifos[cpu].size() == 16) {
@@ -80,8 +80,8 @@ uint32_t Ipc::readIpcFifoRecv(bool cpu) {
                 if (ipcFifoCnt[!cpu] & BIT(2))
                     core->interpreter[!cpu].sendInterrupt(17);
             } else if (fifos[!cpu].size() == 15) {
-                ipcFifoCnt[cpu] &= ~BIT(9);
-                ipcFifoCnt[!cpu] &= ~BIT(1);
+                ipcFifoCnt[cpu] = static_cast<uint16_t>(ipcFifoCnt[cpu] & ~BIT(9));
+                ipcFifoCnt[!cpu] = static_cast<uint16_t>(ipcFifoCnt[!cpu] & ~BIT(1));
             }
         }
     } else {

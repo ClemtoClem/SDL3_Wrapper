@@ -107,8 +107,22 @@ prefix = "arm-linux-gnueabihf-"
 [build]
 default_mode = "debug"
 default_toolchain = "host"
-jobs = 0                       # 0 = nombre de cœurs
-warnings = ["-Wall", "-Wextra"]
+jobs = 0 # 0 = nombre de cœurs
+warnings = [
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Wformat=2",
+    "-Wshadow",
+    "-Wconversion",
+    "-Wsign-conversion",
+    "-Wdouble-promotion",
+    "-Wundef",
+    "-Wcast-align",
+    "-Wcast-qual",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor"
+]
 
 # Modes : release, debug, relwithdebinfo, minsize, asan, tsan, ubsan, valgrind
 # sont prédéfinis ; on peut les redéfinir ou en ajouter (base = "<mode>").

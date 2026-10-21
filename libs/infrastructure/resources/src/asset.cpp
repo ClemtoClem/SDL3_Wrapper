@@ -63,30 +63,33 @@ Option<AssetId> AssetId::Parse(StringView text) noexcept {
 
 // ── AssetCatalog ─────────────────────────────────────────────────────────────
 
+size_t AssetCatalog::IdHash::operator()(const AssetId &id) const noexcept { return std::hash<Uuid>{}(id.uuid); }
+
 const AssetRecord &AssetCatalog::Put(AssetRecord record) {
-	for (AssetRecord &existing : m_records)
-		if (existing.id == record.id) {
-			existing = std::move(record);
-			return existing;
-		}
+	if (auto it = m_index.find(record.id); it != m_index.end()) {
+		AssetRecord &existing = m_records[it->second];
+		existing = std::move(record);
+		return existing;
+	}
+	m_index.emplace(record.id, m_records.size());
 	m_records.push_back(std::move(record));
 	return m_records.back();
 }
 
 bool AssetCatalog::Remove(AssetId id) {
-	for (auto it = m_records.begin(); it != m_records.end(); ++it)
-		if (it->id == id) {
-			m_records.erase(it);
-			return true;
-		}
-	return false;
+	auto it = m_index.find(id);
+	if (it == m_index.end())
+		return false;
+	m_records.erase(m_records.begin() + std::ptrdiff_t(it->second));
+	m_index.clear();
+	for (size_t i = 0; i < m_records.size(); ++i)
+		m_index.emplace(m_records[i].id, i);
+	return true;
 }
 
 const AssetRecord *AssetCatalog::Find(AssetId id) const noexcept {
-	for (const AssetRecord &record : m_records)
-		if (record.id == id)
-			return &record;
-	return nullptr;
+	auto it = m_index.find(id);
+	return it == m_index.end() ? nullptr : &m_records[it->second];
 }
 
 const AssetRecord *AssetCatalog::FindByPath(StringView path) const noexcept {

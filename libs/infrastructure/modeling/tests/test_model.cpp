@@ -110,7 +110,7 @@ TEST(PushPull_HalfOfATopFaceMakesAStepWithMergedSides) {
 	CHECK_EQ(m.FaceCount(), 8u);
 	size_t lShaped = 0;
 	for (const Face &f : m.Faces())
-		lShaped += f.alive && f.outer.size() == 6 ? 1 : 0;
+		lShaped += f.alive && f.outer.size() == 6 ? 1 : static_cast<size_t>(0);
 	CHECK_EQ(lShaped, 2u);
 }
 

@@ -288,7 +288,7 @@ size_t ResourceCache::ResidentCount(AssetType type) const {
 		return m_resident.size();
 	size_t count = 0;
 	for (const auto &[id, resource] : m_resident)
-		count += resource->Type() == type ? 1 : 0;
+		count += resource->Type() == type ? 1 : static_cast<size_t>(0);
 	return count;
 }
 

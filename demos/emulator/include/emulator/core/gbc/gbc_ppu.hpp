@@ -22,7 +22,7 @@ class GbcCore;
  */
 class GbcPpu {
   public:
-    explicit GbcPpu(GbcCore *core) : core(core) {
+    explicit GbcPpu(GbcCore *core_) : core(core_) {
     }
 
     /// Advances the PPU state machine by `cycles` CPU cycles (the cost of

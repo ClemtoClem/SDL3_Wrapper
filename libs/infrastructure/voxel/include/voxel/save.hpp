@@ -3,27 +3,35 @@
  * Sauvegardes de mondes : un DOSSIER par monde.
  *
  *   <saves>/<monde>/
- *     world.json            métadonnées et paramètres (nom, graine,
- *                           générateur, mods utilisés, temps de jeu,
- *                           point d'apparition, réglages libres…)
- *     chunks/x_y_z.chunk    chunks MODIFIÉS (binaire compact : palette
- *                           d'identifiants TEXTUELS puis plages répétées —
- *                           un mod ajouté ou retiré ne décale aucun bloc)
- *     entities.json         état des entités persistantes (créatures,
- *                           objets au sol…) : position, vitesse, santé,
- *                           propriétés libres, inventaire
- *     players/<nom>.json    joueurs : position, regard, santé, inventaire
+ *     world.json      métadonnées et paramètres (nom, graine, générateur,
+ *                     mods utilisés, temps de jeu, point d'apparition,
+ *                     réglages libres…) — lisible, lu par les menus
+ *     world.db        base sql:: (format binaire SQLB, somme de contrôle) :
+ *       chunks    (pos PK « x,y,z », x, y, z, data) chunks MODIFIÉS
+ *                 (palette d'identifiants TEXTUELS puis plages répétées —
+ *                 un mod ajouté ou retiré ne décale aucun bloc)
+ *       entities  (uuid PK, kind, x, y, z, data JSON) entités persistantes
+ *       players   (name PK, data JSON, saved) joueurs
+ *       info      (key PK, value) format et version de la base
+ *     world.db.bak    base précédente (repli si world.db est illisible)
+ *
+ * Écriture : les changements (chunks déchargés, entités, joueurs) restent
+ * en mémoire jusqu'à Flush(), qui écrit TOUTE la base d'un coup, de façon
+ * atomique (fichier temporaire puis renommage) : un arrêt brutal laisse la
+ * sauvegarde précédente intacte, jamais un mélange d'états.
  *
  * Versions : SAVE_VERSION est la version écrite ; une sauvegarde plus
  * ancienne est MIGRÉE à l'ouverture, étape par étape (RegisterMigration),
- * avant toute lecture — puis réécrite au format courant à la sauvegarde
- * suivante. Un bloc inconnu (mod retiré) devient de l'air, signalé.
+ * avant toute lecture. La version 2 (un fichier par chunk, entities.json,
+ * players/<nom>.json) est importée dans world.db puis ses fichiers supprimés.
+ * Un bloc inconnu (mod retiré) devient de l'air, signalé.
  */
 #include <functional>
 #include <map>
 #include <vector>
 
 #include <ecs/ecs.hpp>
+#include <sql/database.hpp>
 
 #include "components.hpp"
 #include "inventory.hpp"
@@ -31,7 +39,7 @@
 
 namespace voxel {
 
-inline constexpr int SAVE_VERSION = 2;
+inline constexpr int SAVE_VERSION = 3;
 inline constexpr const char *SAVE_FORMAT = "voxel.world";
 
 struct WorldMetadata {
@@ -51,13 +59,27 @@ struct WorldMetadata {
 class WorldSave final : public ChunkStorage {
 public:
 	WorldSave(const ContentRegistry &content, String directory);
+	/// Écrit les changements encore en mémoire (filet de sécurité : le jeu
+	/// appelle Flush() lui-même à chaque sauvegarde).
+	~WorldSave() override;
+	WorldSave(const WorldSave &) = delete;
+	WorldSave &operator=(const WorldSave &) = delete;
 
 	[[nodiscard]] const String &Directory() const noexcept { return m_dir; }
 	[[nodiscard]] bool Exists() const;
 
-	/// Lit world.json (migré si besoin) ; NONE : nouveau monde.
+	/// Lit world.json (migré si besoin) et ouvre world.db ; NONE : nouveau
+	/// monde.
 	Result<Option<WorldMetadata>, String> LoadMetadata();
 	Result<bool, String> SaveMetadata(const WorldMetadata &metadata);
+
+	/// Écrit world.db si quelque chose a changé depuis la dernière écriture.
+	Result<bool, String> Flush();
+	[[nodiscard]] bool HasUnsavedChanges() const noexcept { return m_dirty; }
+	/// Nombre de chunks modifiés enregistrés.
+	[[nodiscard]] size_t StoredChunkCount();
+	/// Base sous-jacente (outils, diagnostics) ; ouverte au besoin.
+	[[nodiscard]] sql::Database &Database();
 
 	// ChunkStorage
 	bool LoadChunk(Chunk &chunk) override;
@@ -87,10 +109,18 @@ public:
 	[[nodiscard]] static std::vector<String> ListWorlds(const String &savesDirectory);
 
 private:
-	[[nodiscard]] String ChunkPath(const ChunkPos &p) const;
+	[[nodiscard]] String DatabasePath() const;
+	/// Charge world.db (ou world.db.bak, ou une base neuve) une seule fois.
+	Result<bool, String> OpenDatabase();
+	void CreateSchema(sql::Database &db) const;
+	/// Version 2 → 3 : chunks/, entities.json et players/ → world.db.
+	Option<String> ImportLegacyFiles();
 
 	const ContentRegistry &m_content;
 	String m_dir;
+	sql::Database m_db;
+	bool m_dbOpen = false;
+	bool m_dirty = false;
 	std::map<int, Migration> m_migrations;
 	std::vector<String> m_warnings;
 	std::map<std::string, bool> m_reportedUnknown;

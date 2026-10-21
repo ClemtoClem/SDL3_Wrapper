@@ -57,7 +57,7 @@ struct Corners {
 
 	constexpr Corners() = default;
 	constexpr explicit Corners(float radius) : tl(radius), tr(radius), bl(radius), br(radius) {}
-	constexpr Corners(float tl, float tr, float bl, float br) : tl(tl), tr(tr), bl(bl), br(br) {}
+	constexpr Corners(float tl_, float tr_, float bl_, float br_) : tl(tl_), tr(tr_), bl(bl_), br(br_) {}
 	constexpr bool operator==(const Corners &) const = default;
 };
 
@@ -68,8 +68,8 @@ struct Sides {
 	constexpr explicit Sides(float width) : left(width), top(width), right(width), bottom(width) {}
 	constexpr Sides(float horizontal, float vertical)
 		: left(horizontal), top(vertical), right(horizontal), bottom(vertical) {}
-	constexpr Sides(float left, float top, float right, float bottom)
-		: left(left), top(top), right(right), bottom(bottom) {}
+	constexpr Sides(float left_, float top_, float right_, float bottom_)
+		: left(left_), top(top_), right(right_), bottom(bottom_) {}
 
 	/// Étendue horizontale totale (left + right).
 	[[nodiscard]] constexpr float H() const noexcept { return left + right; }
@@ -88,7 +88,7 @@ struct FVector2 {
 
 	// ── Constructors ──────────────────────────────────────────────────────
 	constexpr FVector2() noexcept = default;
-	constexpr FVector2(float x, float y) noexcept : x(x), y(y) {}
+	constexpr FVector2(float x_, float y_) noexcept : x(x_), y(y_) {}
 	explicit constexpr FVector2(float s) noexcept : x(s), y(s) {}
 
 	// ── Arithmetic ────────────────────────────────────────────────────────
@@ -145,9 +145,9 @@ struct FVector3 {
 
 	// ── Constructors ──────────────────────────────────────────────────────
 	constexpr FVector3() noexcept = default;
-	constexpr FVector3(float x, float y, float z) noexcept : x{x}, y{y}, z{z} {}
+	constexpr FVector3(float x_, float y_, float z_) noexcept : x{x_}, y{y_}, z{z_} {}
 	explicit constexpr FVector3(float s) noexcept : x{s}, y{s}, z{s} {}
-	constexpr FVector3(const FVector2 &v, float z = 0.f) noexcept : x{v.x}, y{v.y}, z{z} {}
+	constexpr FVector3(const FVector2 &v, float z_ = 0.f) noexcept : x{v.x}, y{v.y}, z{z_} {}
 
 	// ── Arithmetic ────────────────────────────────────────────────────────
 	[[nodiscard]] constexpr FVector3 operator+(const FVector3 &o) const noexcept { return {x + o.x, y + o.y, z + o.z}; }
@@ -250,10 +250,10 @@ struct FVector4 {
 
 	// ── Constructors ──────────────────────────────────────────────────────
 	constexpr FVector4() noexcept = default;
-	constexpr FVector4(float x, float y, float z, float w = 0.f) noexcept : x{x}, y{y}, z{z}, w{w} {}
+	constexpr FVector4(float x_, float y_, float z_, float w_ = 0.f) noexcept : x{x_}, y{y_}, z{z_}, w{w_} {}
 	explicit constexpr FVector4(float s) noexcept : x{s}, y{s}, z{s}, w{s} {}
-	constexpr FVector4(const FVector3 &v, float w = 0.f) noexcept : x{v.x}, y{v.y}, z{v.z}, w{w} {}
-	constexpr FVector4(const FVector2 &v, float z = 0.f, float w = 0.f) noexcept : x{v.x}, y{v.y}, z{z}, w{w} {}
+	constexpr FVector4(const FVector3 &v, float w_ = 0.f) noexcept : x{v.x}, y{v.y}, z{v.z}, w{w_} {}
+	constexpr FVector4(const FVector2 &v, float z_ = 0.f, float w_ = 0.f) noexcept : x{v.x}, y{v.y}, z{z_}, w{w_} {}
 
 	// ── Arithmetic ────────────────────────────────────────────────────────
 	[[nodiscard]] constexpr FVector4 operator+(const FVector4 &o) const noexcept {
@@ -552,7 +552,7 @@ struct FQuaternion {
 
 	// ── Constructors ──────────────────────────────────────────────────────
 	constexpr FQuaternion() noexcept = default;
-	constexpr FQuaternion(float x, float y, float z, float w) noexcept : x{x}, y{y}, z{z}, w{w} {}
+	constexpr FQuaternion(float x_, float y_, float z_, float w_) noexcept : x{x_}, y{y_}, z{z_}, w{w_} {}
 
 	// ── Factory methods ───────────────────────────────────────────────────
 
@@ -773,7 +773,7 @@ struct FAABB {
 	constexpr FAABB() noexcept = default;
 
 	/// Construct from explicit min and max corners.
-	constexpr FAABB(const FVector3 &min, const FVector3 &max) noexcept : min{min}, max{max} {}
+	constexpr FAABB(const FVector3 &min_, const FVector3 &max_) noexcept : min{min_}, max{max_} {}
 
 	// ── Queries ───────────────────────────────────────────────────────────
 
@@ -870,7 +870,7 @@ struct FPlane {
 	constexpr FPlane() noexcept = default;
 
 	/// Construct from a unit normal and the plane constant `d`.
-	constexpr FPlane(const FVector3 &normal, float d) noexcept : normal{normal}, d{d} {}
+	constexpr FPlane(const FVector3 &normal_, float d_) noexcept : normal{normal_}, d{d_} {}
 
 	/// Construct from a unit normal and a point on the plane.
 	FPlane(const FVector3 &n, const FVector3 &point) noexcept;
@@ -897,8 +897,8 @@ struct FRay {
 	constexpr FRay() noexcept = default;
 
 	/// Construct from an origin and a direction (automatically normalised).
-	FRay(const FVector3 &origin, const FVector3 &direction) noexcept
-		: origin{origin}, direction{direction.Normalize()} {}
+	FRay(const FVector3 &origin_, const FVector3 &direction_) noexcept
+		: origin{origin_}, direction{direction_.Normalize()} {}
 
 	/// Point on the ray At parameter `t`: `origin + direction * t`.
 	[[nodiscard]] constexpr FVector3 At(float t) const noexcept {

@@ -28,7 +28,7 @@ class SpinLockGuard {
 	const SpinLock *lock = nullptr;
 
 public:
-	explicit SpinLockGuard(const SpinLock &lock) : lock(&lock) { this->lock->Lock(); }
+	explicit SpinLockGuard(const SpinLock &lock_) : lock(&lock_) { this->lock->Lock(); }
 	~SpinLockGuard();
 
 	SpinLockGuard(const SpinLockGuard &) = delete;
@@ -299,7 +299,7 @@ class Thread {
 
 public:
 	Thread() noexcept = default;
-	explicit Thread(SDL_Thread *m_handle) noexcept : m_handle(m_handle) {}
+	explicit Thread(SDL_Thread *handle) noexcept : m_handle(handle) {}
 
 	Thread(const Thread &) = delete;
 	Thread &operator=(const Thread &) = delete;

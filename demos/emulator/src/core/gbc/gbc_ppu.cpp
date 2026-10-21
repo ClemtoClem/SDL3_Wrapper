@@ -98,7 +98,7 @@ uint32_t GbcPpu::cgbColor(const uint8_t *palData, uint8_t palIndex, uint8_t colo
     uint8_t r = raw & 0x1f, g = (raw >> 5) & 0x1f, b = (raw >> 10) & 0x1f;
     // 5-bit-per-channel -> 8-bit, same *255/31 scaling the NDS core's own
     // rgb5ToRgb8 conversion uses for the same 15-bit color format.
-    uint32_t r8 = r * 255 / 31, g8 = g * 255 / 31, b8 = b * 255 / 31;
+    uint32_t r8 = static_cast<uint32_t>(r * 255 / 31), g8 = static_cast<uint32_t>(g * 255 / 31), b8 = static_cast<uint32_t>(b * 255 / 31);
     return 0xff000000u | (b8 << 16) | (g8 << 8) | r8;
 }
 
@@ -167,7 +167,7 @@ void GbcPpu::renderLine() {
             uint8_t b1 = tileData[dataOff], b2 = tileData[dataOff + 1];
             uint8_t colIdx = uint8_t(((b1 >> shift) & 1) | (((b2 >> shift) & 1) << 1));
 
-            bgColorIndex[x] = colIdx;
+            bgColorIndex[static_cast<std::array<unsigned char, 160>::size_type>(x)] = colIdx;
             line[x] = useColor ? cgbColor(bgpd.data(), attr & 7, colIdx) : dmgShade((bgp >> (colIdx * 2)) & 3);
         }
     } else {
@@ -195,7 +195,7 @@ void GbcPpu::renderLine() {
             uint8_t b1 = tileData[dataOff], b2 = tileData[dataOff + 1];
             uint8_t colIdx = uint8_t(((b1 >> shift) & 1) | (((b2 >> shift) & 1) << 1));
 
-            bgColorIndex[x] = colIdx;
+            bgColorIndex[static_cast<std::array<unsigned char, 160>::size_type>(x)] = colIdx;
             line[x] = useColor ? cgbColor(bgpd.data(), attr & 7, colIdx) : dmgShade((bgp >> (colIdx * 2)) & 3);
         }
     }
@@ -231,7 +231,7 @@ void GbcPpu::renderLine() {
                 if (colIdx == 0) continue;
 
                 // OBJ-behind-BG (flag bit 7): hidden behind any non-zero BG/window pixel.
-                if ((objs[i].flags & (1 << 7)) && bgEnable && bgColorIndex[x] != 0) continue;
+                if ((objs[i].flags & (1 << 7)) && bgEnable && bgColorIndex[static_cast<std::array<unsigned char, 160>::size_type>(x)] != 0) continue;
 
                 if (useColor) {
                     line[x] = cgbColor(obpd.data(), objs[i].flags & 7, colIdx);

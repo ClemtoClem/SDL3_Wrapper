@@ -17,7 +17,7 @@ bool GbcMemory::loadRom(const std::vector<uint8_t> &romData) {
 
     char titleBuf[17] = {};
     for (int i = 0; i < 16 && size_t(gbc::kRomHdrTitle + i) < romData.size(); i++) {
-        uint8_t c = romData[gbc::kRomHdrTitle + i];
+        uint8_t c = romData[static_cast<std::vector<unsigned char>::size_type>(gbc::kRomHdrTitle + i)];
         titleBuf[i] = (c >= 0x20 && c < 0x7f) ? char(c) : '\0';
     }
     title_ = String(titleBuf);
@@ -312,7 +312,7 @@ uint8_t GbcMemory::readIo(uint16_t address) {
 void GbcMemory::writeIo(uint16_t address, uint8_t value) {
     if (address == 0xff46) { // OAM DMA
         uint16_t src = uint16_t(value) << 8;
-        for (int i = 0; i < 0xa0; i++) oam[i] = read(uint16_t(src + i));
+        for (int i = 0; i < 0xa0; i++) oam[static_cast<std::array<unsigned char, 160>::size_type>(i)] = read(uint16_t(src + i));
         return;
     }
     if (address == 0xff4f && isCgb_) {

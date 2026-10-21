@@ -18,7 +18,7 @@ class Core;
  */
 class HleArm7 {
   public:
-    HleArm7(Core *core) : core(core) {
+    HleArm7(Core *core_) : core(core_) {
     }
 
     /// Halts the ARM7 permanently and sets the initial IPC handshake state —

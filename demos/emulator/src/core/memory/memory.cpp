@@ -4,6 +4,7 @@
 #include <emulator/core/settings.hpp>
 #include <sdl3/iostream.hpp>
 
+#include <algorithm>
 #include <cstring>
 
 namespace emulator {
@@ -30,8 +31,16 @@ namespace emulator {
         size = 4;                                                                                                      \
         func;                                                                                                          \
         break;
-#define IOWR_PARAMS8 data << (base * 8)
-#define IOWR_PARAMS  mask << (base * 8), data << (base * 8)
+// Valeur d'écriture d'un registre : chaque gestionnaire la reçoit dans sa
+// propre largeur (8, 16 ou 32 bits) — troncature explicite.
+namespace {
+struct IoWriteValue {
+    uint32_t bits;
+    template <typename T> operator T() const noexcept { return static_cast<T>(bits); }
+};
+} // namespace
+#define IOWR_PARAMS8 IoWriteValue{data << (base * 8)}
+#define IOWR_PARAMS  IoWriteValue{mask << (base * 8)}, IoWriteValue{data << (base * 8)}
 
 
 void VramMapping::add(uint8_t *mapping) {
@@ -50,7 +59,7 @@ template <typename T> T VramMapping::read(uint32_t address) {
 template <typename T> void VramMapping::write(uint32_t address, T value) {
     for (int m = 0; m < count; m++) {
         for (unsigned int i = 0; i < sizeof(T); i++)
-            mappings[m][address + i] = value >> (i * 8);
+            mappings[m][address + i] = static_cast<uint8_t>(value >> (i * 8));
     }
 }
 
@@ -133,7 +142,7 @@ void Memory::updateMap9(uint32_t start, uint32_t end) {
                 }
                 case 0x08000000:
                 case 0x09000000:
-                    data = core->cartridgeGba.getRom(address);
+                    data = core->cartridgeGba.getRom(static_cast<uint32_t>(address));
                     break;
                 case 0xFF000000:
                     if ((address & 0xFFFF8000) == 0xFFFF0000)
@@ -216,7 +225,7 @@ void Memory::updateMap7(uint32_t start, uint32_t end) {
                 case 0x0B000000:
                 case 0x0C000000:
                     if (address > 0x8000000 || !core->rtc.readGpControl())
-                        data = core->cartridgeGba.getRom(address);
+                        data = core->cartridgeGba.getRom(static_cast<uint32_t>(address));
                     break;
             }
         } else {
@@ -247,7 +256,7 @@ void Memory::updateMap7(uint32_t start, uint32_t end) {
                     break;
                 case 0x04000000:
                     if (address & 0x00800000) {
-                        uint32_t addr = address & ~0x00008000;
+                        uint32_t addr = static_cast<uint32_t>(address & ~0x00008000u);
                         if (addr >= 0x04804000 && addr < 0x04806000)
                             data = &wifiRam[addr & 0x1FFF];
                     }
@@ -260,7 +269,7 @@ void Memory::updateMap7(uint32_t start, uint32_t end) {
                 }
                 case 0x08000000:
                 case 0x09000000:
-                    data = core->cartridgeGba.getRom(address);
+                    data = core->cartridgeGba.getRom(static_cast<uint32_t>(address));
                     break;
             }
         }
@@ -307,7 +316,7 @@ void Memory::updateMap7(uint32_t start, uint32_t end) {
                     break;
                 case 0x04000000:
                     if (address & 0x00800000) {
-                        uint32_t addr = address & ~0x00008000;
+                        uint32_t addr = static_cast<uint32_t>(address & ~0x00008000u);
                         if (addr >= 0x04804000 && addr < 0x04806000)
                             data = &wifiRam[addr & 0x1FFF];
                     }
@@ -473,7 +482,7 @@ template <typename T> void Memory::writeFallback(bool cpu, uint32_t address, T v
                 data = &oam[address & 0x7FF];
                 break;
             case 0x0A000000:
-                core->cartridgeGba.sramWrite(address + 0x4000000, value);
+                core->cartridgeGba.sramWrite(address + 0x4000000, static_cast<uint8_t>(value));
                 return;
         }
     } else if (core->isGbaMode()) {
@@ -493,10 +502,10 @@ template <typename T> void Memory::writeFallback(bool cpu, uint32_t address, T v
                 break;
             case 0x0D000000:
                 if (core->cartridgeGba.isEeprom(address))
-                    return core->cartridgeGba.eepromWrite(value);
+                    return core->cartridgeGba.eepromWrite(static_cast<uint8_t>(value));
                 break;
             case 0x0E000000:
-                core->cartridgeGba.sramWrite(address, value);
+                core->cartridgeGba.sramWrite(address, static_cast<uint8_t>(value));
                 return;
         }
     } else {
@@ -512,13 +521,13 @@ template <typename T> void Memory::writeFallback(bool cpu, uint32_t address, T v
                 return;
             }
             case 0x0A000000:
-                core->cartridgeGba.sramWrite(address + 0x4000000, value);
+                core->cartridgeGba.sramWrite(address + 0x4000000, static_cast<uint8_t>(value));
                 return;
         }
     }
     if (data) {
         for (size_t i = 0; i < sizeof(T); i++)
-            data[i] = value >> (i * 8);
+            data[i] = static_cast<uint8_t>(value >> (i * 8));
         return;
     }
     if (!core->isGbaMode())
@@ -531,7 +540,7 @@ template <typename T> T Memory::ioRead9(uint32_t address) {
     T      value = 0;
     size_t i     = 0;
     while (i < sizeof(T)) {
-        uint32_t base = address + i;
+        uint32_t base = static_cast<uint32_t>(address + i);
         size_t   size;
         uint32_t data;
         switch (base) {
@@ -661,7 +670,7 @@ template <typename T> T Memory::ioRead9(uint32_t address) {
                 i++;
                 continue;
         }
-        value |= (data >> (base * 8)) << (i * 8);
+        value = static_cast<T>(value | ((data >> (base * 8)) << (i * 8)));
         i += size - base;
     }
     return value;
@@ -669,11 +678,11 @@ template <typename T> T Memory::ioRead9(uint32_t address) {
 
 template <typename T> T Memory::ioRead7(uint32_t address) {
     if (address >= 0x04808000 && address < 0x04810000)
-        address &= ~0x00008000;
+        address &= ~0x00008000u;
     T      value = 0;
     size_t i     = 0;
     while (i < sizeof(T)) {
-        uint32_t base = address + i;
+        uint32_t base = static_cast<uint32_t>(address + i);
         size_t   size;
         uint32_t data;
         switch (base) {
@@ -804,7 +813,7 @@ template <typename T> T Memory::ioRead7(uint32_t address) {
                 i++;
                 continue;
         }
-        value |= (data >> (base * 8)) << (i * 8);
+        value = static_cast<T>(value | ((data >> (base * 8)) << (i * 8)));
         i += size - base;
     }
     return value;
@@ -814,7 +823,7 @@ template <typename T> T Memory::ioReadGba(uint32_t address) {
     T      value = 0;
     size_t i     = 0;
     while (i < sizeof(T)) {
-        uint32_t base = address + i;
+        uint32_t base = static_cast<uint32_t>(address + i);
         size_t   size;
         uint32_t data;
         switch (base) {
@@ -887,7 +896,7 @@ template <typename T> T Memory::ioReadGba(uint32_t address) {
                 i++;
                 continue;
         }
-        value |= (data >> (base * 8)) << (i * 8);
+        value = static_cast<T>(value | ((data >> (base * 8)) << (i * 8)));
         i += size - base;
     }
     return value;
@@ -896,9 +905,9 @@ template <typename T> T Memory::ioReadGba(uint32_t address) {
 template <typename T> void Memory::ioWrite9(uint32_t address, T value) {
     size_t i = 0;
     while (i < sizeof(T)) {
-        uint32_t base = address + i;
+        uint32_t base = static_cast<uint32_t>(address + i);
         size_t   size;
-        uint32_t mask = ((uint64_t)1 << ((sizeof(T) - i) * 8)) - 1;
+        uint32_t mask = static_cast<uint32_t>(((uint64_t)1 << ((sizeof(T) - i) * 8)) - 1);
         uint32_t data = value >> (i * 8);
         switch (base) {
             DEF_IO32(0x4000000, core->gpu2D[0].writeDispCnt(IOWR_PARAMS))
@@ -1175,12 +1184,12 @@ template <typename T> void Memory::ioWrite9(uint32_t address, T value) {
 
 template <typename T> void Memory::ioWrite7(uint32_t address, T value) {
     if (address >= 0x04808000 && address < 0x04810000)
-        address &= ~0x00008000;
+        address &= ~0x00008000u;
     size_t i = 0;
     while (i < sizeof(T)) {
-        uint32_t base = address + i;
+        uint32_t base = static_cast<uint32_t>(address + i);
         size_t   size;
-        uint32_t mask = ((uint64_t)1 << ((sizeof(T) - i) * 8)) - 1;
+        uint32_t mask = static_cast<uint32_t>(((uint64_t)1 << ((sizeof(T) - i) * 8)) - 1);
         uint32_t data = value >> (i * 8);
         switch (base) {
             DEF_IO16(0x4000004, core->gpu.writeDispStat(1, IOWR_PARAMS))
@@ -1380,9 +1389,9 @@ template <typename T> void Memory::ioWrite7(uint32_t address, T value) {
 template <typename T> void Memory::ioWriteGba(uint32_t address, T value) {
     size_t i = 0;
     while (i < sizeof(T)) {
-        uint32_t base = address + i;
+        uint32_t base = static_cast<uint32_t>(address + i);
         size_t   size;
-        uint32_t mask = ((uint64_t)1 << ((sizeof(T) - i) * 8)) - 1;
+        uint32_t mask = static_cast<uint32_t>(((uint64_t)1 << ((sizeof(T) - i) * 8)) - 1);
         uint32_t data = value >> (i * 8);
         switch (base) {
             DEF_IO16(0x4000000, core->gpu2D[0].writeDispCnt(IOWR_PARAMS))
@@ -1506,12 +1515,12 @@ void Memory::writeVramCnt(int index, uint8_t value) {
 }
 
 void Memory::rebuildVram() {
-    memset(engABg, 0, sizeof(engABg));
-    memset(engBBg, 0, sizeof(engBBg));
-    memset(engAObj, 0, sizeof(engAObj));
-    memset(engBObj, 0, sizeof(engBObj));
-    memset(lcdc, 0, sizeof(lcdc));
-    memset(vram7, 0, sizeof(vram7));
+    std::fill(std::begin(engABg), std::end(engABg), VramMapping{});
+    std::fill(std::begin(engBBg), std::end(engBBg), VramMapping{});
+    std::fill(std::begin(engAObj), std::end(engAObj), VramMapping{});
+    std::fill(std::begin(engBObj), std::end(engBObj), VramMapping{});
+    std::fill(std::begin(lcdc), std::end(lcdc), VramMapping{});
+    std::fill(std::begin(vram7), std::end(vram7), VramMapping{});
     memset(engAExtPal, 0, sizeof(engAExtPal));
     memset(engBExtPal, 0, sizeof(engBExtPal));
     memset(tex3D, 0, sizeof(tex3D));

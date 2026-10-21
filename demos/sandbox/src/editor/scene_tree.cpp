@@ -444,7 +444,6 @@ void SceneTreePanel::RefreshSceneStrip() {
 	kit::ClearChildren(m_ctx, m_sceneStrip);
 	const ui::UiTheme &theme = m_ctx.Theme();
 	const Project &project = m_ctx.runtime.GetProject();
-	const SceneDesc *active = m_ctx.runtime.ActiveDocument();
 
 	ui::WidgetBuilder head = m_ctx.factory.Row();
 	head.Pad(math::Sides{2.f, 1.f}).Gap(2.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(m_sceneStrip);

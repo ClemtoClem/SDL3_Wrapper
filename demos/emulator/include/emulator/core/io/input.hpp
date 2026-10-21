@@ -25,7 +25,7 @@ class Input {
      *
      * @param core Pointeur vers le cœur principal de l’émulateur.
      */
-    Input(Core *core) : core(core) {}
+    Input(Core *core_) : core(core_) {}
 
     /**
      * @brief Simule l’appui sur une touche.

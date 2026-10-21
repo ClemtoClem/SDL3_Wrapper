@@ -308,8 +308,8 @@ void InstallFunctions(Interpreter& vm) {
 	auto fold = [&vm, ns](const char* name, numeric::Op op, int64_t start) {
 		vm.RegisterNamespacedNative(
 			ns, String(name), 1, 1,
-			[name, op, start](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-				auto items = lib::ItemsOf(vm, args[0]);
+			[name, op, start](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+				auto items = lib::ItemsOf(interp, args[0]);
 				if (items.IsError())
 					return Err(items.Error());
 				Value total = Value::Int(start);
@@ -329,8 +329,8 @@ void InstallFunctions(Interpreter& vm) {
 	fold("product", numeric::Op::MULTIPLY, 1);
 	vm.RegisterNamespacedNative(
 		ns, String("mean"), 1, 1,
-		[](Interpreter& vm, Args& args) -> Result<Value, ScriptError> {
-			auto items = lib::ItemsOf(vm, args[0]);
+		[](Interpreter& interp, Args& args) -> Result<Value, ScriptError> {
+			auto items = lib::ItemsOf(interp, args[0]);
 			if (items.IsError())
 				return Err(items.Error());
 			if (items.Value().empty())
@@ -677,7 +677,7 @@ void DefineVector(TypeBuilder& builder, int size) {
 					   float out[4] = {0, 0, 0, 0};
 					   if (len > 1e-8)
 						   for (int i = 0; i < size; ++i)
-							   out[i] = float(c[i] / len);
+							   out[i] = float(double(c[i]) / len);
 					   return Ok(MakeVec(vm, size, out));
 				   });
 	builder.Method("distance", 1, 1, withOther("distance", [](Interpreter&, const float* a, const float* b, int n) {
@@ -720,7 +720,7 @@ void DefineVector(TypeBuilder& builder, int size) {
 					   float c[4], out[4] = {0, 0, 0, 0};
 					   As<VecObject>(self).Get(c);
 					   for (int i = 0; i < size; ++i)
-						   out[i] = float(c[i] + (other.Value()[size_t(i)] - c[i]) * t.Value());
+						   out[i] = float(double(c[i]) + double(other.Value()[size_t(i)] - c[i]) * t.Value());
 					   return Ok(MakeVec(vm, size, out));
 				   });
 	builder.Method("abs", 0, 0, [size](Interpreter& vm, const HostRef& self, Args&) -> Result<Value, ScriptError> {
@@ -2019,13 +2019,13 @@ void InstallMathLibrary(Interpreter& vm) {
 								});
 
 	vm.RegisterNamespacedNative(String("math"), String("random"), 0, 0,
-								[](Interpreter& vm, std::vector<Value>&) -> Result<Value, ScriptError> {
-									return Ok(Value::Number(vm.NextRandom()));
+								[](Interpreter& interp, std::vector<Value>&) -> Result<Value, ScriptError> {
+									return Ok(Value::Number(interp.NextRandom()));
 								});
 
 	vm.RegisterNamespacedNative(
 		String("math"), String("random_int"), 2, 2,
-		[](Interpreter& vm, std::vector<Value>& args) -> Result<Value, ScriptError> {
+		[](Interpreter& interp, std::vector<Value>& args) -> Result<Value, ScriptError> {
 			auto low = detail::ArgNumber(args, 0, "math.random_int");
 			if (low.IsError())
 				return Err(low.Error());
@@ -2037,7 +2037,7 @@ void InstallMathLibrary(Interpreter& vm) {
 				return Err(
 					Interpreter::MakeError(String("`math.random_int` : borne haute inférieure à la borne basse")));
 			double span = hi - lo + 1.0;
-			return Ok(Value::Int(static_cast<int64_t>(lo + std::floor(vm.NextRandom() * span))));
+			return Ok(Value::Int(static_cast<int64_t>(lo + std::floor(interp.NextRandom() * span))));
 		});
 
 	mathlib::InstallFunctions(vm);

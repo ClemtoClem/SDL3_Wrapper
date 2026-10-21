@@ -331,8 +331,8 @@ struct LetStmt : Stmt {
 	ExprPtr initializer; ///< nullptr => `nil` (interdit pour `const`), ou la valeur par défaut du type
 	DeclKind declKind = DeclKind::LET;
 	TypeRef type;        ///< `let x:i32` — nullptr si non annoncé
-	LetStmt(String n, ExprPtr init, int lineNo, int columnNo, DeclKind kind = DeclKind::LET)
-		: Stmt(StmtKind::LET, lineNo, columnNo), name(std::move(n)), initializer(std::move(init)), declKind(kind) {}
+	LetStmt(String n, ExprPtr init, int lineNo, int columnNo, DeclKind kind_ = DeclKind::LET)
+		: Stmt(StmtKind::LET, lineNo, columnNo), name(std::move(n)), initializer(std::move(init)), declKind(kind_) {}
 };
 
 /// Affectation à une cible assignable : identifiant, `a[i]` ou `a.b`.

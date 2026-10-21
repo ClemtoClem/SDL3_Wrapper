@@ -429,7 +429,7 @@ void Ppmd7Model::UpdateModel() {
 			}
 			SetSummFreq(c,
 						SummFreq(c) + (2 * ns1 < ns ? 1 : 0) +
-							2 * ((4 * ns1 <= ns ? 1 : 0) & (SummFreq(c) <= 8 * ns1 ? 1 : 0)));
+							static_cast<uint32_t>(2 * ((4 * ns1 <= ns ? 1 : 0) & (SummFreq(c) <= 8 * ns1 ? 1 : 0))));
 		} else {
 			const uint32_t s = AllocUnits(0);
 			if (s == 0) {
@@ -447,10 +447,10 @@ void Ppmd7Model::UpdateModel() {
 		uint32_t cf = 2 * Freq(m_foundState) * (SummFreq(c) + 6);
 		const uint32_t sf = s0 + SummFreq(c);
 		if (cf < 6 * sf) {
-			cf = 1 + (cf > sf ? 1 : 0) + (cf >= 4 * sf ? 1 : 0);
+			cf = static_cast<uint32_t>(1 + (cf > sf ? 1 : 0) + (cf >= 4 * sf ? 1 : 0));
 			SetSummFreq(c, SummFreq(c) + 3);
 		} else {
-			cf = 4 + (cf >= 9 * sf ? 1 : 0) + (cf >= 12 * sf ? 1 : 0) + (cf >= 15 * sf ? 1 : 0);
+			cf = static_cast<uint32_t>(4 + (cf >= 9 * sf ? 1 : 0) + (cf >= 12 * sf ? 1 : 0) + (cf >= 15 * sf ? 1 : 0));
 			SetSummFreq(c, SummFreq(c) + cf);
 		}
 		const uint32_t s = Stats(c) + ns1 * 6;
@@ -533,10 +533,10 @@ detail::ppmd::See* Ppmd7Model::MakeEscFreq(unsigned numMasked, uint32_t& escFreq
 	if (NumStats(m_minContext) != 256) {
 		detail::ppmd::See* see =
 			&m_see[m_ns2Index[nonMasked - 1]]
-				  [(nonMasked < NumStats(Suffix(m_minContext)) - NumStats(m_minContext) ? 1
+				  [static_cast<unsigned int>((nonMasked < NumStats(Suffix(m_minContext)) - NumStats(m_minContext) ? 1
 																						: 0) +
 				   2 * (SummFreq(m_minContext) < 11 * NumStats(m_minContext) ? 1 : 0) +
-				   4 * (numMasked > nonMasked ? 1 : 0) + m_hiBitsFlag];
+				   4 * (numMasked > nonMasked ? 1 : 0)) + m_hiBitsFlag];
 		const unsigned r = see->summ >> see->shift;
 		see->summ = uint16_t(see->summ - r);
 		escFreq = r + (r == 0 ? 1 : 0);
@@ -1424,7 +1424,7 @@ void Ppmd8Model::Refresh(uint32_t ctx, unsigned oldNu, unsigned scale) {
 		escFreq -= Freq(s);
 		SetFreq(s, (Freq(s) + scale) >> scale);
 		sumFreq += Freq(s);
-		flags |= 0x08 * (Symbol(s) >= 0x40 ? 1 : 0);
+		flags |= 0x08u * (Symbol(s) >= 0x40 ? 1u : 0u);
 	} while (--i);
 	SetSummFreq(ctx, sumFreq + ((escFreq + scale) >> scale));
 	SetFlags(ctx, flags);
@@ -1561,7 +1561,7 @@ uint32_t Ppmd8Model::CreateSuccessors(bool skip, uint32_t s1, uint32_t c) {
 	const uint8_t upSymbol = m_mem.U8(upBranch);
 	const uint32_t upSuccessor = upBranch + 1;
 	const unsigned flags =
-		0x10 * (Symbol(m_foundState) >= 0x40 ? 1 : 0) + 0x08 * (upSymbol >= 0x40 ? 1 : 0);
+		static_cast<unsigned int>(0x10 * (Symbol(m_foundState) >= 0x40 ? 1 : 0) + 0x08 * (upSymbol >= 0x40 ? 1 : 0));
 	uint32_t upFreq;
 	if (NumStats(c) == 0) {
 		upFreq = Freq(OneState(c));
@@ -1751,10 +1751,10 @@ void Ppmd8Model::UpdateModel() {
 		uint32_t cf = 2 * fFreq * (SummFreq(c) + 6);
 		const uint32_t sf = s0 + SummFreq(c);
 		if (cf < 6 * sf) {
-			cf = 1 + (cf > sf ? 1 : 0) + (cf >= 4 * sf ? 1 : 0);
+			cf = static_cast<uint32_t>(1 + (cf > sf ? 1 : 0) + (cf >= 4 * sf ? 1 : 0));
 			SetSummFreq(c, SummFreq(c) + 4);
 		} else {
-			cf = 4 + (cf > 9 * sf ? 1 : 0) + (cf > 12 * sf ? 1 : 0) + (cf > 15 * sf ? 1 : 0);
+			cf = static_cast<uint32_t>(4 + (cf > 9 * sf ? 1 : 0) + (cf > 12 * sf ? 1 : 0) + (cf > 15 * sf ? 1 : 0));
 			SetSummFreq(c, SummFreq(c) + cf);
 		}
 		const uint32_t s2 = Stats(c) + (ns1 + 1) * 6;
@@ -1847,10 +1847,10 @@ detail::ppmd::See* Ppmd8Model::MakeEscFreq(unsigned numMasked1, uint32_t& escFre
 	if (NumStats(m_minContext) != 0xFF) {
 		detail::ppmd::See* see =
 			&m_see[m_ns2Index[NumStats(m_minContext) + 2] - 3]
-				  [(SummFreq(m_minContext) > 11 * (NumStats(m_minContext) + 1) ? 1 : 0) +
+				  [static_cast<unsigned int>((SummFreq(m_minContext) > 11 * (NumStats(m_minContext) + 1) ? 1 : 0) +
 				   2 * (2 * NumStats(m_minContext) < NumStats(Suffix(m_minContext)) + numMasked1
 							? 1
-							: 0) +
+							: 0)) +
 				   Flags(m_minContext)];
 		const unsigned r = see->summ >> see->shift;
 		see->summ = uint16_t(see->summ - r);

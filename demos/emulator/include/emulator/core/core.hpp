@@ -49,12 +49,12 @@ enum CoreError {
 };
 
 struct Task {
-    Task(std::function<void()> *task, uint32_t cycles) : task(task), cycles(cycles) {
+    Task(std::function<void()> *task_, uint32_t cycles_) : task(task_), cycles(cycles_) {
     }
     std::function<void()> *task;
     uint32_t cycles;
-    bool operator<(const Task &task) const {
-        return cycles < task.cycles;
+    bool operator<(const Task &other) const {
+        return cycles < other.cycles;
     }
 };
 

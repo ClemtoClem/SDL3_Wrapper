@@ -6,7 +6,7 @@
 namespace emulator {
 
 
-Gpu2D::Gpu2D(Core *core, bool engine) : core(core), engine(engine) {
+Gpu2D::Gpu2D(Core *core_, bool engine_) : core(core_), engine(engine_) {
     if (engine == 0) {
         bgVramAddr  = 0x6000000;
         objVramAddr = 0x6400000;
@@ -36,7 +36,7 @@ void Gpu2D::drawGbaScanline(int line) {
         internalY[0] = bgY[0];
         internalY[1] = bgY[1];
     }
-    uint16_t backdrop = U8TO16(palette, 0) & ~BIT(15);
+    uint16_t backdrop = static_cast<uint16_t>(U8TO16(palette, 0) & ~BIT(15));
     for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 240; j++)
             layers[i][j] = backdrop;
@@ -98,50 +98,50 @@ void Gpu2D::drawGbaScanline(int line) {
             uint8_t enabled;
             if ((dispCnt & BIT(13)) && (i >= winX1[0] && i < winX2[0]) != winHFlip[0] &&
                 (line >= winY1[0] && line < winY2[0]) != winVFlip[0])
-                enabled = winIn >> 0;
+                enabled = static_cast<uint8_t>(winIn >> 0);
             else if ((dispCnt & BIT(14)) && (i >= winX1[1] && i < winX2[1]) != winHFlip[1] &&
                      (line >= winY1[1] && line < winY2[1]) != winVFlip[1])
-                enabled = winIn >> 8;
+                enabled = static_cast<uint8_t>(winIn >> 8);
             else if ((dispCnt & BIT(15)) && (framebuffer[line * 256 + i] & BIT(24)))
-                enabled = winOut >> 8;
+                enabled = static_cast<uint8_t>(winOut >> 8);
             else
-                enabled = winOut >> 0;
+                enabled = static_cast<uint8_t>(winOut >> 0);
             if (!(enabled & BIT(5)))
                 continue;
         }
         switch (mode) {
             case 1:
             alpha : {
-                uint8_t eva = std::min((bldAlpha >> 0) & 0x1F, 16);
-                uint8_t evb = std::min((bldAlpha >> 8) & 0x1F, 16);
+                uint8_t eva = static_cast<uint8_t>(std::min((bldAlpha >> 0) & 0x1F, 16));
+                uint8_t evb = static_cast<uint8_t>(std::min((bldAlpha >> 8) & 0x1F, 16));
                 uint8_t r =
-                    std::min((((layers[0][i] >> 0) & 0x1F) * eva + ((layers[1][i] >> 0) & 0x1F) * evb) / 16, 31U);
+                    static_cast<uint8_t>(std::min((((layers[0][i] >> 0) & 0x1F) * eva + ((layers[1][i] >> 0) & 0x1F) * evb) / 16, 31U));
                 uint8_t g =
-                    std::min((((layers[0][i] >> 5) & 0x1F) * eva + ((layers[1][i] >> 5) & 0x1F) * evb) / 16, 31U);
+                    static_cast<uint8_t>(std::min((((layers[0][i] >> 5) & 0x1F) * eva + ((layers[1][i] >> 5) & 0x1F) * evb) / 16, 31U));
                 uint8_t b =
-                    std::min((((layers[0][i] >> 10) & 0x1F) * eva + ((layers[1][i] >> 10) & 0x1F) * evb) / 16, 31U);
+                    static_cast<uint8_t>(std::min((((layers[0][i] >> 10) & 0x1F) * eva + ((layers[1][i] >> 10) & 0x1F) * evb) / 16, 31U));
                 layers[0][i] = (b << 10) | (g << 5) | r;
                 continue;
             }
             case 2:
                 if (bldY) {
                     uint8_t r = (layers[0][i] >> 0) & 0x1F;
-                    r += (31 - r) * bldY / 16;
+                    r = static_cast<uint8_t>(r + ((31 - r) * bldY / 16));
                     uint8_t g = (layers[0][i] >> 5) & 0x1F;
-                    g += (31 - g) * bldY / 16;
+                    g = static_cast<uint8_t>(g + ((31 - g) * bldY / 16));
                     uint8_t b = (layers[0][i] >> 10) & 0x1F;
-                    b += (31 - b) * bldY / 16;
+                    b = static_cast<uint8_t>(b + ((31 - b) * bldY / 16));
                     layers[0][i] = (b << 10) | (g << 5) | r;
                 }
                 continue;
             case 3:
                 if (bldY) {
                     uint8_t r = (layers[0][i] >> 0) & 0x1F;
-                    r -= r * bldY / 16;
+                    r = static_cast<uint8_t>(r - (r * bldY / 16));
                     uint8_t g = (layers[0][i] >> 5) & 0x1F;
-                    g -= g * bldY / 16;
+                    g = static_cast<uint8_t>(g - (g * bldY / 16));
                     uint8_t b = (layers[0][i] >> 10) & 0x1F;
-                    b -= b * bldY / 16;
+                    b = static_cast<uint8_t>(b - (b * bldY / 16));
                     layers[0][i] = (b << 10) | (g << 5) | r;
                 }
                 continue;
@@ -157,7 +157,7 @@ void Gpu2D::drawScanline(int line) {
         internalY[0] = bgY[0];
         internalY[1] = bgY[1];
     }
-    uint16_t backdrop = U8TO16(palette, 0) & ~BIT(15);
+    uint16_t backdrop = static_cast<uint16_t>(U8TO16(palette, 0) & ~BIT(15));
     for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 256; j++)
             layers[i][j] = backdrop;
@@ -247,9 +247,9 @@ void Gpu2D::drawScanline(int line) {
                     continue;
                 uint32_t blend = rgb5ToRgb6(layers[1][i]);
                 uint8_t  evb   = 64 - eva;
-                uint8_t  r     = std::min((((layers[0][i] >> 0) & 0x3F) * eva + ((blend >> 0) & 0x3F) * evb) / 64, 63U);
-                uint8_t  g     = std::min((((layers[0][i] >> 6) & 0x3F) * eva + ((blend >> 6) & 0x3F) * evb) / 64, 63U);
-                uint8_t  b   = std::min((((layers[0][i] >> 12) & 0x3F) * eva + ((blend >> 12) & 0x3F) * evb) / 64, 63U);
+                uint8_t  r     = static_cast<uint8_t>(std::min((((layers[0][i] >> 0) & 0x3F) * eva + ((blend >> 0) & 0x3F) * evb) / 64, 63U));
+                uint8_t  g     = static_cast<uint8_t>(std::min((((layers[0][i] >> 6) & 0x3F) * eva + ((blend >> 6) & 0x3F) * evb) / 64, 63U));
+                uint8_t  b   = static_cast<uint8_t>(std::min((((layers[0][i] >> 12) & 0x3F) * eva + ((blend >> 12) & 0x3F) * evb) / 64, 63U));
                 layers[0][i] = (b << 12) | (g << 6) | r;
                 continue;
             } else if (mode < 2 || !(bldCnt & BIT(blendBits[0][i]))) {
@@ -271,14 +271,14 @@ void Gpu2D::drawScanline(int line) {
             uint8_t enabled;
             if ((dispCnt & BIT(13)) && (i >= winX1[0] && i < winX2[0]) != winHFlip[0] &&
                 (line >= winY1[0] && line < winY2[0]) != winVFlip[0])
-                enabled = winIn >> 0;
+                enabled = static_cast<uint8_t>(winIn >> 0);
             else if ((dispCnt & BIT(14)) && (i >= winX1[1] && i < winX2[1]) != winHFlip[1] &&
                      (line >= winY1[1] && line < winY2[1]) != winVFlip[1])
-                enabled = winIn >> 8;
+                enabled = static_cast<uint8_t>(winIn >> 8);
             else if ((dispCnt & BIT(15)) && (framebuffer[line * 256 + i] & BIT(24)))
-                enabled = winOut >> 8;
+                enabled = static_cast<uint8_t>(winOut >> 8);
             else
-                enabled = winOut >> 0;
+                enabled = static_cast<uint8_t>(winOut >> 0);
             if (!(enabled & BIT(5)))
                 continue;
         }
@@ -286,33 +286,33 @@ void Gpu2D::drawScanline(int line) {
             case 1:
             alpha : {
                 uint32_t blend = (layers[1][i] & BIT(26)) ? layers[1][i] : rgb5ToRgb6(layers[1][i]);
-                uint8_t  eva   = std::min((bldAlpha >> 0) & 0x1F, 16);
-                uint8_t  evb   = std::min((bldAlpha >> 8) & 0x1F, 16);
-                uint8_t  r     = std::min((((layers[0][i] >> 0) & 0x3F) * eva + ((blend >> 0) & 0x3F) * evb) / 16, 63U);
-                uint8_t  g     = std::min((((layers[0][i] >> 6) & 0x3F) * eva + ((blend >> 6) & 0x3F) * evb) / 16, 63U);
-                uint8_t  b   = std::min((((layers[0][i] >> 12) & 0x3F) * eva + ((blend >> 12) & 0x3F) * evb) / 16, 63U);
+                uint8_t  eva   = static_cast<uint8_t>(std::min((bldAlpha >> 0) & 0x1F, 16));
+                uint8_t  evb   = static_cast<uint8_t>(std::min((bldAlpha >> 8) & 0x1F, 16));
+                uint8_t  r     = static_cast<uint8_t>(std::min((((layers[0][i] >> 0) & 0x3F) * eva + ((blend >> 0) & 0x3F) * evb) / 16, 63U));
+                uint8_t  g     = static_cast<uint8_t>(std::min((((layers[0][i] >> 6) & 0x3F) * eva + ((blend >> 6) & 0x3F) * evb) / 16, 63U));
+                uint8_t  b   = static_cast<uint8_t>(std::min((((layers[0][i] >> 12) & 0x3F) * eva + ((blend >> 12) & 0x3F) * evb) / 16, 63U));
                 layers[0][i] = (b << 12) | (g << 6) | r;
                 continue;
             }
             case 2:
                 if (bldY) {
                     uint8_t r = (layers[0][i] >> 0) & 0x3F;
-                    r += (63 - r) * bldY / 16;
+                    r = static_cast<uint8_t>(r + ((63 - r) * bldY / 16));
                     uint8_t g = (layers[0][i] >> 6) & 0x3F;
-                    g += (63 - g) * bldY / 16;
+                    g = static_cast<uint8_t>(g + ((63 - g) * bldY / 16));
                     uint8_t b = (layers[0][i] >> 12) & 0x3F;
-                    b += (63 - b) * bldY / 16;
+                    b = static_cast<uint8_t>(b + ((63 - b) * bldY / 16));
                     layers[0][i] = (b << 12) | (g << 6) | r;
                 }
                 continue;
             case 3:
                 if (bldY) {
                     uint8_t r = (layers[0][i] >> 0) & 0x3F;
-                    r -= r * bldY / 16;
+                    r = static_cast<uint8_t>(r - (r * bldY / 16));
                     uint8_t g = (layers[0][i] >> 6) & 0x3F;
-                    g -= g * bldY / 16;
+                    g = static_cast<uint8_t>(g - (g * bldY / 16));
                     uint8_t b = (layers[0][i] >> 12) & 0x3F;
-                    b -= b * bldY / 16;
+                    b = static_cast<uint8_t>(b - (b * bldY / 16));
                     layers[0][i] = (b << 12) | (g << 6) | r;
                 }
                 continue;
@@ -328,9 +328,9 @@ void Gpu2D::drawScanline(int line) {
             break;
         }
         case 2: {
-            uint32_t address = 0x6800000 + ((dispCnt & 0x000C0000) >> 18) * 0x20000 + line * 256 * 2;
+            uint32_t address = 0x6800000 + ((dispCnt & 0x000C0000) >> 18) * 0x20000 + static_cast<uint32_t>(line * 256 * 2);
             for (int i = 0; i < 256; i++)
-                framebuffer[line * 256 + i] = rgb5ToRgb6(core->memory.read<uint16_t>(0, address + i * 2));
+                framebuffer[line * 256 + i] = rgb5ToRgb6(core->memory.read<uint16_t>(0, address + static_cast<uint32_t>(i * 2)));
             break;
         }
         case 3: {
@@ -340,29 +340,29 @@ void Gpu2D::drawScanline(int line) {
     }
     switch ((masterBright >> 14) & 0x3) {
         case 1:
-            if (uint8_t factor = std::min(masterBright & 0x1F, 16)) {
+            if (uint8_t factor = static_cast<uint8_t>(std::min(masterBright & 0x1F, 16))) {
                 for (int i = 0; i < 256; i++) {
                     uint32_t *pixel = &framebuffer[line * 256 + i];
                     uint8_t   r     = (*pixel >> 0) & 0x3F;
-                    r += (63 - r) * factor / 16;
+                    r = static_cast<uint8_t>(r + ((63 - r) * factor / 16));
                     uint8_t g = (*pixel >> 6) & 0x3F;
-                    g += (63 - g) * factor / 16;
+                    g = static_cast<uint8_t>(g + ((63 - g) * factor / 16));
                     uint8_t b = (*pixel >> 12) & 0x3F;
-                    b += (63 - b) * factor / 16;
+                    b = static_cast<uint8_t>(b + ((63 - b) * factor / 16));
                     *pixel = (b << 12) | (g << 6) | r;
                 }
             }
             break;
         case 2:
-            if (uint8_t factor = std::min(masterBright & 0x1F, 16)) {
+            if (uint8_t factor = static_cast<uint8_t>(std::min(masterBright & 0x1F, 16))) {
                 for (int i = 0; i < 256; i++) {
                     uint32_t *pixel = &framebuffer[line * 256 + i];
                     uint8_t   r     = (*pixel >> 0) & 0x3F;
-                    r -= r * factor / 16;
+                    r = static_cast<uint8_t>(r - (r * factor / 16));
                     uint8_t g = (*pixel >> 6) & 0x3F;
-                    g -= g * factor / 16;
+                    g = static_cast<uint8_t>(g - (g * factor / 16));
                     uint8_t b = (*pixel >> 12) & 0x3F;
-                    b -= b * factor / 16;
+                    b = static_cast<uint8_t>(b - (b * factor / 16));
                     *pixel = (b << 12) | (g << 6) | r;
                 }
             }
@@ -375,14 +375,14 @@ void Gpu2D::drawBgPixel(int bg, int line, int x, uint32_t pixel) {
         uint8_t enabled;
         if ((dispCnt & BIT(13)) && (x >= winX1[0] && x < winX2[0]) != winHFlip[0] &&
             (line >= winY1[0] && line < winY2[0]) != winVFlip[0])
-            enabled = winIn >> 0;
+            enabled = static_cast<uint8_t>(winIn >> 0);
         else if ((dispCnt & BIT(14)) && (x >= winX1[1] && x < winX2[1]) != winHFlip[1] &&
                  (line >= winY1[1] && line < winY2[1]) != winVFlip[1])
-            enabled = winIn >> 8;
+            enabled = static_cast<uint8_t>(winIn >> 8);
         else if ((dispCnt & BIT(15)) && (framebuffer[line * 256 + x] & BIT(24)))
-            enabled = winOut >> 8;
+            enabled = static_cast<uint8_t>(winOut >> 8);
         else
-            enabled = winOut >> 0;
+            enabled = static_cast<uint8_t>(winOut >> 0);
         if (!(enabled & BIT(bg)))
             return;
     }
@@ -392,11 +392,11 @@ void Gpu2D::drawBgPixel(int bg, int line, int x, uint32_t pixel) {
         blendBits[1][x]  = blendBits[0][x];
         layers[0][x]     = pixel;
         priorities[0][x] = bgCnt[bg] & 0x3;
-        blendBits[0][x]  = bg;
+        blendBits[0][x]  = static_cast<int8_t>(bg);
     } else if ((bgCnt[bg] & 0x3) <= priorities[1][x]) {
         layers[1][x]     = pixel;
         priorities[1][x] = bgCnt[bg] & 0x3;
-        blendBits[1][x]  = bg;
+        blendBits[1][x]  = static_cast<int8_t>(bg);
     }
 }
 
@@ -405,14 +405,14 @@ void Gpu2D::drawObjPixel(int line, int x, uint32_t pixel, int8_t priority) {
         uint8_t enabled;
         if ((dispCnt & BIT(13)) && (x >= winX1[0] && x < winX2[0]) != winHFlip[0] &&
             (line >= winY1[0] && line < winY2[0]) != winVFlip[0])
-            enabled = winIn >> 0;
+            enabled = static_cast<uint8_t>(winIn >> 0);
         else if ((dispCnt & BIT(14)) && (x >= winX1[1] && x < winX2[1]) != winHFlip[1] &&
                  (line >= winY1[1] && line < winY2[1]) != winVFlip[1])
-            enabled = winIn >> 8;
+            enabled = static_cast<uint8_t>(winIn >> 8);
         else if ((dispCnt & BIT(15)) && (framebuffer[line * 256 + x] & BIT(24)))
-            enabled = winOut >> 8;
+            enabled = static_cast<uint8_t>(winOut >> 8);
         else
-            enabled = winOut >> 0;
+            enabled = static_cast<uint8_t>(winOut >> 0);
         if (!(enabled & BIT(4)))
             return;
     }
@@ -500,7 +500,7 @@ template <bool gbaMode> void Gpu2D::drawAffine(int bg, int line) {
         } else if (x < 0 || x >= size || y < 0 || y >= size) {
             continue;
         }
-        uint32_t tileAddr  = tileBase + (y / 8) * (size / 8) + (x / 8);
+        uint32_t tileAddr  = tileBase + static_cast<uint32_t>((y / 8) * (size / 8)) + static_cast<uint32_t>((x / 8));
         uint8_t  tile      = core->memory.read<uint8_t>(gbaMode, tileAddr);
         uint32_t indexAddr = indexBase + tile * 64 + (y & 7) * 8 + (x & 7);
         uint8_t  index     = core->memory.read<uint8_t>(gbaMode, indexAddr);
@@ -545,7 +545,7 @@ void Gpu2D::drawExtended(int bg, int line) {
                 } else if (x < 0 || x >= sizeX || y < 0 || y >= sizeY) {
                     continue;
                 }
-                uint16_t pixel = core->memory.read<uint16_t>(0, dataBase + (y * sizeX + x) * 2);
+                uint16_t pixel = core->memory.read<uint16_t>(0, dataBase + static_cast<uint32_t>((y * sizeX + x) * 2));
                 if (pixel & BIT(15))
                     drawBgPixel(bg, line, i, pixel);
             }
@@ -559,7 +559,7 @@ void Gpu2D::drawExtended(int bg, int line) {
                 } else if (x < 0 || x >= sizeX || y < 0 || y >= sizeY) {
                     continue;
                 }
-                uint8_t index = core->memory.read<uint8_t>(0, dataBase + y * sizeX + x);
+                uint8_t index = core->memory.read<uint8_t>(0, dataBase + static_cast<uint32_t>(y * sizeX) + static_cast<uint32_t>(x));
                 if (index)
                     drawBgPixel(bg, line, i, U8TO16(palette, index * 2) | BIT(15));
             }
@@ -573,12 +573,12 @@ void Gpu2D::drawExtended(int bg, int line) {
             int x = (rotscaleX += bgPA[bg - 2]) >> 8;
             int y = (rotscaleY += bgPC[bg - 2]) >> 8;
             if (bgCnt[bg] & BIT(13)) {
-                x &= size - 1;
-                y &= size - 1;
+                x = static_cast<int>(static_cast<size_t>(x) & (size - 1));
+                y = static_cast<int>(static_cast<size_t>(y) & (size - 1));
             } else if (x < 0 || size_t(x) >= size || y < 0 || size_t(y) >= size) {
                 continue;
             }
-            uint32_t tileAddr = tileBase + ((y / 8) * (size / 8) + (x / 8)) * 2;
+            uint32_t tileAddr = static_cast<uint32_t>(tileBase + (static_cast<size_t>((y / 8)) * (size / 8) + static_cast<size_t>((x / 8))) * 2);
             uint16_t tile     = core->memory.read<uint16_t>(0, tileAddr);
             if (dispCnt & BIT(30)) {
                 if (!extPalettes[bg])
@@ -609,7 +609,7 @@ void Gpu2D::drawExtendedGba(int bg, int line) {
             int y = (rotscaleY += bgPC[bg - 2]) >> 8;
             if (x < 0 || x >= sizeX || y < 0 || y >= sizeY)
                 continue;
-            uint8_t index = core->memory.read<uint8_t>(1, dataBase + y * sizeX + x);
+            uint8_t index = core->memory.read<uint8_t>(1, dataBase + static_cast<uint32_t>(y * sizeX) + static_cast<uint32_t>(x));
             if (index)
                 drawBgPixel(bg, line, i, U8TO16(palette, index * 2) | BIT(15));
         }
@@ -619,7 +619,7 @@ void Gpu2D::drawExtendedGba(int bg, int line) {
             int y = (rotscaleY += bgPC[bg - 2]) >> 8;
             if (x < 0 || x >= sizeX || y < 0 || y >= sizeY)
                 continue;
-            uint16_t pixel = core->memory.read<uint16_t>(1, dataBase + (y * sizeX + x) * 2);
+            uint16_t pixel = core->memory.read<uint16_t>(1, dataBase + static_cast<uint32_t>((y * sizeX + x) * 2));
             drawBgPixel(bg, line, i, pixel | BIT(15));
         }
     }
@@ -643,7 +643,7 @@ void Gpu2D::drawLarge(int bg, int line) {
         }
         if (engine == 1)
             y &= (sizeY / 4) - 1;
-        uint8_t index = core->memory.read<uint8_t>(0, bgVramAddr + y * sizeX + x);
+        uint8_t index = core->memory.read<uint8_t>(0, bgVramAddr + static_cast<uint32_t>(y * sizeX) + static_cast<uint32_t>(x));
         if (index)
             drawBgPixel(bg, line, i, U8TO16(palette, index * 2) | BIT(15));
     }
@@ -732,11 +732,11 @@ template <bool gbaMode> void Gpu2D::drawObjects(int line, bool window) {
             uint32_t dataBase;
             int      bitmapWidth;
             if (dispCnt & BIT(6)) {
-                dataBase    = objVramAddr + (object[2] & 0x3FF) * ((dispCnt & BIT(22)) ? 256 : 128);
+                dataBase    = objVramAddr + static_cast<uint32_t>((object[2] & 0x3FF) * ((dispCnt & BIT(22)) ? 256 : 128));
                 bitmapWidth = width;
             } else {
                 uint8_t xMask = (dispCnt & BIT(5)) ? 0x1F : 0x0F;
-                dataBase      = objVramAddr + (object[2] & xMask) * 0x10 + (object[2] & 0x3FF & ~xMask) * 0x80;
+                dataBase      = objVramAddr + static_cast<uint32_t>((object[2] & xMask) * 0x10) + static_cast<uint32_t>((object[2] & 0x3FF & ~xMask) * 0x80);
                 bitmapWidth   = (dispCnt & BIT(5)) ? 256 : 128;
             }
             if (object[0] & BIT(8)) {
@@ -757,17 +757,17 @@ template <bool gbaMode> void Gpu2D::drawObjects(int line, bool window) {
                     if (rotscaleY < 0 || rotscaleY >= height)
                         continue;
                     uint16_t pixel =
-                        core->memory.read<uint16_t>(0, dataBase + (rotscaleY * bitmapWidth + rotscaleX) * 2);
+                        core->memory.read<uint16_t>(0, dataBase + static_cast<uint32_t>((rotscaleY * bitmapWidth + rotscaleX) * 2));
                     if (pixel & BIT(15))
                         drawObjPixel(line, offset, pixel, priority);
                 }
             } else {
-                dataBase += ((object[1] & BIT(13)) ? (height - spriteY - 1) : spriteY) * bitmapWidth * 2;
+                dataBase += static_cast<uint32_t>(((object[1] & BIT(13)) ? (height - spriteY - 1) : spriteY) * bitmapWidth * 2);
                 for (int j = 0; j < width; j++) {
                     int offset = (object[1] & BIT(12)) ? (x + width - j - 1) : (x + j);
                     if (offset < 0 || offset >= (gbaMode ? 240 : 256))
                         continue;
-                    uint16_t pixel = core->memory.read<uint16_t>(0, dataBase + j * 2);
+                    uint16_t pixel = core->memory.read<uint16_t>(0, dataBase + static_cast<uint32_t>(j * 2));
                     if (pixel & BIT(15))
                         drawObjPixel(line, offset, pixel, priority);
                 }
@@ -776,7 +776,7 @@ template <bool gbaMode> void Gpu2D::drawObjects(int line, bool window) {
         }
         uint32_t tileBase;
         if (gbaMode) {
-            tileBase = 0x6010000 + (object[2] & 0x3FF) * 32;
+            tileBase = static_cast<uint32_t>(0x6010000 + (object[2] & 0x3FF) * 32);
         } else {
             uint16_t bound = (dispCnt & BIT(4)) ? (32 << ((dispCnt >> 20) & 0x3)) : 32;
             tileBase       = objVramAddr + (object[2] & 0x3FF) * bound;
@@ -809,8 +809,8 @@ template <bool gbaMode> void Gpu2D::drawObjects(int line, bool window) {
                     if (rotscaleY < 0 || rotscaleY >= height)
                         continue;
                     uint8_t index = core->memory.read<uint8_t>(
-                        gbaMode, tileBase + ((rotscaleY / 8) * mapWidth + rotscaleY % 8) * 8 + (rotscaleX / 8) * 64 +
-                                     rotscaleX % 8);
+                        gbaMode, tileBase + static_cast<uint32_t>(((rotscaleY / 8) * mapWidth + rotscaleY % 8) * 8) + static_cast<uint32_t>((rotscaleX / 8) * 64) +
+                                     static_cast<uint32_t>(rotscaleX % 8));
                     if (index && type == 2) {
                         framebuffer[line * 256 + offset] |= BIT(24);
                     } else {
@@ -837,8 +837,8 @@ template <bool gbaMode> void Gpu2D::drawObjects(int line, bool window) {
                     if (rotscaleY < 0 || rotscaleY >= height)
                         continue;
                     uint8_t index = core->memory.read<uint8_t>(
-                        gbaMode, tileBase + ((rotscaleY / 8) * mapWidth + rotscaleY % 8) * 4 + (rotscaleX / 8) * 32 +
-                                     (rotscaleX % 8) / 2);
+                        gbaMode, tileBase + static_cast<uint32_t>(((rotscaleY / 8) * mapWidth + rotscaleY % 8) * 4) + static_cast<uint32_t>((rotscaleX / 8) * 32) +
+                                     static_cast<uint32_t>((rotscaleX % 8) / 2));
                     index = (rotscaleX & 1) ? ((index & 0xF0) >> 4) : (index & 0x0F);
                     if (index && type == 2) {
                         framebuffer[line * 256 + offset] |= BIT(24);
@@ -854,9 +854,9 @@ template <bool gbaMode> void Gpu2D::drawObjects(int line, bool window) {
         } else if (object[0] & BIT(13)) {
             int mapWidth = (dispCnt & BIT(gbaMode ? 6 : 4)) ? width : 128;
             if (object[1] & BIT(13))
-                tileBase += (7 - (spriteY % 8) + ((height - 1 - spriteY) / 8) * mapWidth) * 8;
+                tileBase += static_cast<uint32_t>((7 - (spriteY % 8) + ((height - 1 - spriteY) / 8) * mapWidth) * 8);
             else
-                tileBase += ((spriteY % 8) + (spriteY / 8) * mapWidth) * 8;
+                tileBase += static_cast<uint32_t>(((spriteY % 8) + (spriteY / 8) * mapWidth) * 8);
             uint8_t *pal;
             if (dispCnt & BIT(31)) {
                 if (!extPalettes[4])
@@ -869,7 +869,7 @@ template <bool gbaMode> void Gpu2D::drawObjects(int line, bool window) {
                 int offset = (object[1] & BIT(12)) ? (x + width - j - 1) : (x + j);
                 if (offset < 0 || offset >= (gbaMode ? 240 : 256))
                     continue;
-                uint8_t index = core->memory.read<uint8_t>(gbaMode, tileBase + (j / 8) * 64 + j % 8);
+                uint8_t index = core->memory.read<uint8_t>(gbaMode, tileBase + static_cast<uint32_t>((j / 8) * 64) + static_cast<uint32_t>(j % 8));
                 if (index && type == 2) {
                     framebuffer[line * 256 + offset] |= BIT(24);
                 } else {
@@ -882,15 +882,15 @@ template <bool gbaMode> void Gpu2D::drawObjects(int line, bool window) {
         } else {
             int mapWidth = (dispCnt & BIT(gbaMode ? 6 : 4)) ? width : 256;
             if (object[1] & BIT(13))
-                tileBase += (7 - (spriteY % 8) + ((height - 1 - spriteY) / 8) * mapWidth) * 4;
+                tileBase += static_cast<uint32_t>((7 - (spriteY % 8) + ((height - 1 - spriteY) / 8) * mapWidth) * 4);
             else
-                tileBase += ((spriteY % 8) + (spriteY / 8) * mapWidth) * 4;
+                tileBase += static_cast<uint32_t>(((spriteY % 8) + (spriteY / 8) * mapWidth) * 4);
             uint8_t *pal = &palette[0x200 + ((object[2] & 0xF000) >> 12) * 32];
             for (int j = 0; j < width; j++) {
                 int offset = (object[1] & BIT(12)) ? (x + width - j - 1) : (x + j);
                 if (offset < 0 || offset >= (gbaMode ? 240 : 256))
                     continue;
-                uint8_t index = core->memory.read<uint8_t>(gbaMode, tileBase + (j / 8) * 32 + (j % 8) / 2);
+                uint8_t index = core->memory.read<uint8_t>(gbaMode, tileBase + static_cast<uint32_t>((j / 8) * 32) + static_cast<uint32_t>((j % 8) / 2));
                 index         = (j & 1) ? ((index & 0xF0) >> 4) : (index & 0x0F);
                 if (index && type == 2) {
                     framebuffer[line * 256 + offset] |= BIT(24);
@@ -929,38 +929,34 @@ void Gpu2D::writeBgVOfs(int bg, uint16_t mask, uint16_t value) {
 }
 
 void Gpu2D::writeBgPA(int bg, uint16_t mask, uint16_t value) {
-    bgPA[bg - 2] = (bgPA[bg - 2] & ~mask) | (value & mask);
+    bgPA[bg - 2] = static_cast<int16_t>((bgPA[bg - 2] & ~mask) | (value & mask));
 }
 
 void Gpu2D::writeBgPB(int bg, uint16_t mask, uint16_t value) {
-    bgPB[bg - 2] = (bgPB[bg - 2] & ~mask) | (value & mask);
+    bgPB[bg - 2] = static_cast<int16_t>((bgPB[bg - 2] & ~mask) | (value & mask));
 }
 
 void Gpu2D::writeBgPC(int bg, uint16_t mask, uint16_t value) {
-    bgPC[bg - 2] = (bgPC[bg - 2] & ~mask) | (value & mask);
+    bgPC[bg - 2] = static_cast<int16_t>((bgPC[bg - 2] & ~mask) | (value & mask));
 }
 
 void Gpu2D::writeBgPD(int bg, uint16_t mask, uint16_t value) {
-    bgPD[bg - 2] = (bgPD[bg - 2] & ~mask) | (value & mask);
+    bgPD[bg - 2] = static_cast<int16_t>((bgPD[bg - 2] & ~mask) | (value & mask));
 }
 
 void Gpu2D::writeBgX(int bg, uint32_t mask, uint32_t value) {
     mask &= 0x0FFFFFFF;
-    bgX[bg - 2] = (bgX[bg - 2] & ~mask) | (value & mask);
-    if (bgX[bg - 2] & BIT(27))
-        bgX[bg - 2] |= 0xF0000000;
-    else
-        bgX[bg - 2] &= ~0xF0000000;
+    const uint32_t bits = (static_cast<uint32_t>(bgX[bg - 2]) & ~mask) | (value & mask);
+    // Extension du signe sur 28 bits.
+    bgX[bg - 2] = static_cast<int32_t>((bits & BIT(27)) ? (bits | 0xF0000000u) : (bits & ~0xF0000000u));
     internalX[bg - 2] = bgX[bg - 2];
 }
 
 void Gpu2D::writeBgY(int bg, uint32_t mask, uint32_t value) {
     mask &= 0x0FFFFFFF;
-    bgY[bg - 2] = (bgY[bg - 2] & ~mask) | (value & mask);
-    if (bgY[bg - 2] & BIT(27))
-        bgY[bg - 2] |= 0xF0000000;
-    else
-        bgY[bg - 2] &= ~0xF0000000;
+    const uint32_t bits = (static_cast<uint32_t>(bgY[bg - 2]) & ~mask) | (value & mask);
+    // Extension du signe sur 28 bits.
+    bgY[bg - 2] = static_cast<int32_t>((bits & BIT(27)) ? (bits | 0xF0000000u) : (bits & ~0xF0000000u));
     internalY[bg - 2] = bgY[bg - 2];
 }
 

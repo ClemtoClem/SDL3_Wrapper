@@ -481,8 +481,8 @@ String String::Join(std::initializer_list<String> parts, StringView sep) {
 }
 
 bool String::IsAscii() const noexcept {
-	for (uint8_t c : *this)
-		if (c > 127)
+	for (char c : *this)
+		if (static_cast<unsigned char>(c) > 127)
 			return false;
 	return true;
 }

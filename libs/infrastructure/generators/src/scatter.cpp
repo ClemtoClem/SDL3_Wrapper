@@ -44,7 +44,7 @@ std::vector<Point2> PoissonDisk(float width, float height, float radius, uint64_
 		bool found = false;
 		for (int k = 0; k < attempts; ++k) {
 			const float angle = float(rng.Range(0.0, 6.283185307179586));
-			const float dist = float(rng.Range(radius, 2.0 * radius));
+			const float dist = float(rng.Range(double(radius), 2.0 * double(radius)));
 			const float x = base.x + std::cos(angle) * dist, y = base.y + std::sin(angle) * dist;
 			if (fits(x, y)) {
 				add(x, y);

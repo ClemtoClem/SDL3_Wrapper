@@ -20,7 +20,7 @@ namespace emulator {
 #define LOG_VERBOSE(fmt, ...) \
     do { if (Settings::getVerboseLog()) LOG(fmt, ##__VA_ARGS__); } while (0)
 #define FORCE_INLINE inline __attribute__((always_inline))
-#define BIT(i) (1 << (i))
+#define BIT(i) (1u << (i))
 #define SWAP(a, b) {  \
         auto c = a;   \
         a = b;        \

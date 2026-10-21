@@ -23,6 +23,10 @@ struct ColumnDef {
 
 struct Schema {
 	std::vector<ColumnDef> columns;
+	/// Optional PRIMARY KEY column name (empty = none). A keyed table rejects
+	/// duplicate keys on InsertRow and supports Database::Upsert /
+	/// FindByKey / DeleteByKey in O(1) through a live hash index.
+	String primaryKey;
 
 	/// Index of the column named `name`, or NONE if no such column exists.
 	[[nodiscard]] Option<size_t> ColumnIndex(StringView name) const;

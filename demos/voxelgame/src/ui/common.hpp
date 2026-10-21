@@ -22,7 +22,8 @@ inline ecs::Entity Page(Kit &k, ecs::Entity root, float maxWidth = 1100.f, float
 	veil.Bg(WithAlpha(k.Colors().bg0, 0.45f)).Pad(math::Sides(24.f, 22.f)).Parent(root);
 	const ecs::Entity v = veil.Spawn();
 	WidgetBuilder page = k.Surface(alpha);
-	page.W(Dimension::Px(maxWidth * k.Scale())).GrowH().MaxSize(maxWidth * k.Scale(), 100000.f).Parent(v);
+	// Toute la largeur disponible, plafonnée : jamais plus large que la fenêtre.
+	page.GrowW().GrowH().MaxSize(maxWidth * k.Scale(), 100000.f).Parent(v);
 	return page.Spawn();
 }
 
@@ -33,7 +34,8 @@ inline ecs::Entity ModalCard(Kit &k, ecs::Entity root, float width) {
 	center.Justify(ui::Justify::Center).Align(ui::CrossAlign::Center).Parent(root);
 	const ecs::Entity c = center.Spawn();
 	WidgetBuilder card = k.Surface(0.98f);
-	card.W(Dimension::Px(width * k.Scale())).HAuto().Gap(14.f * k.Scale()).Parent(c);
+	// Largeur voulue si la fenêtre le permet, sinon celle de la fenêtre.
+	card.W(Dimension::Pct(100.f)).MaxSize(width * k.Scale(), 100000.f).HAuto().Gap(14.f * k.Scale()).Parent(c);
 	return card.Spawn();
 }
 

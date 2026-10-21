@@ -1282,7 +1282,7 @@ std::vector<String> Project::ObjectNames() const {
 size_t Project::SceneCount() const noexcept {
 	size_t count = 0;
 	for (const SceneDesc &scene : documents)
-		count += scene.IsObject() ? 0 : 1;
+		count += scene.IsObject() ? 0 : static_cast<size_t>(1);
 	return count;
 }
 

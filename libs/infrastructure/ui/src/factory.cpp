@@ -95,7 +95,7 @@ UiTheme UiTheme::Light() {
 
 UiTheme UiTheme::Studio() {
 	UiTheme t;
-	auto grey = [](int v, int a = 255) { return sdl3::FColor{v / 255.f, v / 255.f, v / 255.f, a / 255.f}; };
+	auto grey = [](int v, int a = 255) { return sdl3::FColor{static_cast<float>(v) / 255.f, static_cast<float>(v) / 255.f, static_cast<float>(v) / 255.f, static_cast<float>(a) / 255.f}; };
 	t.fontSize = 14.f;
 	t.panelBg = grey(40);
 	t.text = grey(214);
@@ -635,11 +635,11 @@ ecs::Entity WidgetBuilder::Spawn() {
 
 	if (COLLAPSE_KIDS || TAB_ACTIVE >= 0) {
 		if (auto ch = world->GetComponent<UiChildren>(e); ch.IsSome()) {
-			std::vector<ecs::Entity> kids = ch.Unwrap()->list;
-			for (size_t i = 0; i < kids.size(); ++i) {
+			std::vector<ecs::Entity> children = ch.Unwrap()->list;
+			for (size_t i = 0; i < children.size(); ++i) {
 				bool hide = COLLAPSE_KIDS || int(i) != TAB_ACTIVE;
-				if (hide && !world->HasComponent<UiHidden>(kids[i]))
-					world->AddComponent(kids[i], UiHidden{});
+				if (hide && !world->HasComponent<UiHidden>(children[i]))
+					world->AddComponent(children[i], UiHidden{});
 			}
 		}
 	}
@@ -653,8 +653,8 @@ WidgetBuilder & WidgetBuilder::Style(UiStyle s) {
 	return *this;
 }
 
-WidgetBuilder & WidgetBuilder::ClassName(String name) {
-	classNames.push_back(std::move(name));
+WidgetBuilder & WidgetBuilder::ClassName(String className) {
+	classNames.push_back(std::move(className));
 	return *this;
 }
 
@@ -668,11 +668,11 @@ WidgetBuilder & WidgetBuilder::SelectionRoot(bool multiSelect) {
 	return *this;
 }
 
-WidgetBuilder & WidgetBuilder::DragPayload(String kind, int64_t id, String label) {
+WidgetBuilder & WidgetBuilder::DragPayload(String kind, int64_t id, String caption) {
 	UiDragPayload payload;
 	payload.kind = std::move(kind);
 	payload.id = id;
-	payload.label = std::move(label);
+	payload.label = std::move(caption);
 	dragPayload = Some(std::move(payload));
 	return *this;
 }
@@ -716,24 +716,24 @@ WidgetBuilder & WidgetBuilder::OnReorder(std::function<void(int, int)> fn) {
 }
 
 WidgetBuilder & WidgetBuilder::AddSeries(PlotSeriesKind kind, std::span<const float> x, std::span<const float> y,
-		String label, Option<sdl3::FColor> color) {
+		String caption, Option<sdl3::FColor> color) {
 	if (plot.IsNone())
 		plot = Some(UiPlot{});
 	PlotSeries s;
 	s.kind = kind;
 	s.SetXy(x, y);
-	s.label = std::move(label);
+	s.label = std::move(caption);
 	s.color = color.IsSome() ? color.Unwrap() : PlotPaletteColor(plot->series.size());
 	plot->series.push_back(std::move(s));
 	return *this;
 }
 
-WidgetBuilder & WidgetBuilder::AddPieSlice(float value, String label, Option<sdl3::FColor> color) {
+WidgetBuilder & WidgetBuilder::AddPieSlice(float value, String caption, Option<sdl3::FColor> color) {
 	if (plot.IsNone())
 		plot = Some(UiPlot{});
 	PieSlice sl;
 	sl.value = value;
-	sl.label = std::move(label);
+	sl.label = std::move(caption);
 	sl.color = color.IsSome() ? color.Unwrap() : PlotPaletteColor(plot->pieSlices.size());
 	plot->pieSlices.push_back(std::move(sl));
 	return *this;
@@ -776,57 +776,57 @@ WidgetBuilder & WidgetBuilder::SetOnCustomDraw(std::function<void(sdl3::Renderer
 	return *this;
 }
 
-WidgetBuilder & WidgetBuilder::AddLineSeries(std::span<const float> y, String label, Option<sdl3::FColor> color) {
+WidgetBuilder & WidgetBuilder::AddLineSeries(std::span<const float> y, String caption, Option<sdl3::FColor> color) {
 	std::vector<float> x(y.size());
 	for (size_t i = 0; i < x.size(); ++i)
 		x[i] = float(i);
-	return AddSeries(PlotSeriesKind::LINE, x, y, std::move(label), color);
+	return AddSeries(PlotSeriesKind::LINE, x, y, std::move(caption), color);
 }
 
-WidgetBuilder & WidgetBuilder::AddLineSeriesXy(std::span<const float> x, std::span<const float> y, String label,
+WidgetBuilder & WidgetBuilder::AddLineSeriesXy(std::span<const float> x, std::span<const float> y, String caption,
 		Option<sdl3::FColor> color) {
-	return AddSeries(PlotSeriesKind::LINE, x, y, std::move(label), color);
+	return AddSeries(PlotSeriesKind::LINE, x, y, std::move(caption), color);
 }
 
-WidgetBuilder & WidgetBuilder::AddScatterSeries(std::span<const float> x, std::span<const float> y, String label,
+WidgetBuilder & WidgetBuilder::AddScatterSeries(std::span<const float> x, std::span<const float> y, String caption,
 		Option<sdl3::FColor> color) {
-	return AddSeries(PlotSeriesKind::SCATTER, x, y, std::move(label), color);
+	return AddSeries(PlotSeriesKind::SCATTER, x, y, std::move(caption), color);
 }
 
-WidgetBuilder & WidgetBuilder::AddStepSeries(std::span<const float> x, std::span<const float> y, String label,
+WidgetBuilder & WidgetBuilder::AddStepSeries(std::span<const float> x, std::span<const float> y, String caption,
 		Option<sdl3::FColor> color) {
-	return AddSeries(PlotSeriesKind::STEP, x, y, std::move(label), color);
+	return AddSeries(PlotSeriesKind::STEP, x, y, std::move(caption), color);
 }
 
-WidgetBuilder & WidgetBuilder::AddAreaSeries(std::span<const float> x, std::span<const float> y, String label,
+WidgetBuilder & WidgetBuilder::AddAreaSeries(std::span<const float> x, std::span<const float> y, String caption,
 		Option<sdl3::FColor> color, float fillOpacity) {
-	AddSeries(PlotSeriesKind::AREA, x, y, std::move(label), color);
+	AddSeries(PlotSeriesKind::AREA, x, y, std::move(caption), color);
 	plot->series.back().fillOpacity = fillOpacity;
 	return *this;
 }
 
-WidgetBuilder & WidgetBuilder::AddStemSeries(std::span<const float> x, std::span<const float> y, String label,
+WidgetBuilder & WidgetBuilder::AddStemSeries(std::span<const float> x, std::span<const float> y, String caption,
 		Option<sdl3::FColor> color) {
-	return AddSeries(PlotSeriesKind::STEM, x, y, std::move(label), color);
+	return AddSeries(PlotSeriesKind::STEM, x, y, std::move(caption), color);
 }
 
-WidgetBuilder & WidgetBuilder::AddBarSeries(std::span<const float> x, std::span<const float> y, String label,
+WidgetBuilder & WidgetBuilder::AddBarSeries(std::span<const float> x, std::span<const float> y, String caption,
 		Option<sdl3::FColor> color, float barWidth) {
-	AddSeries(PlotSeriesKind::BAR, x, y, std::move(label), color);
+	AddSeries(PlotSeriesKind::BAR, x, y, std::move(caption), color);
 	plot->series.back().barWidth = barWidth;
 	return *this;
 }
 
-WidgetBuilder & WidgetBuilder::AddBarHSeries(std::span<const float> x, std::span<const float> y, String label,
+WidgetBuilder & WidgetBuilder::AddBarHSeries(std::span<const float> x, std::span<const float> y, String caption,
 		Option<sdl3::FColor> color, float barWidth) {
-	AddSeries(PlotSeriesKind::BAR_H, x, y, std::move(label), color);
+	AddSeries(PlotSeriesKind::BAR_H, x, y, std::move(caption), color);
 	plot->series.back().barWidth = barWidth;
 	return *this;
 }
 
-WidgetBuilder & WidgetBuilder::AddHistogramSeries(std::span<const float> x, std::span<const float> y, String label,
+WidgetBuilder & WidgetBuilder::AddHistogramSeries(std::span<const float> x, std::span<const float> y, String caption,
 		Option<sdl3::FColor> color, float barWidth) {
-	AddSeries(PlotSeriesKind::HISTOGRAM, x, y, std::move(label), color);
+	AddSeries(PlotSeriesKind::HISTOGRAM, x, y, std::move(caption), color);
 	plot->series.back().barWidth = barWidth;
 	return *this;
 }
@@ -1012,8 +1012,8 @@ Option<String> WidgetBuilder::KindClass() const {
 
 // ── UiFactory ────────────────────────────────────────────────────────────────
 
-UiFactory::UiFactory(ecs::ArchetypeRegistry &world, LayoutSystem &layout, UiTheme t)
-	: theme(std::move(t)), world(&world), layout(&layout) {
+UiFactory::UiFactory(ecs::ArchetypeRegistry &world_, LayoutSystem &layout_, UiTheme t)
+	: theme(std::move(t)), world(&world_), layout(&layout_) {
 	// Base de DimUnit::Rem et police héritée par défaut = police du thème.
 	this->layout->rootFontSize = theme.fontSize;
 	RegisterRootClasses();
@@ -1145,13 +1145,13 @@ WidgetBuilder UiFactory::InputNumber(float min, float max, float value, float st
 		std::function<void(float)> onChange) {
 	static uint32_t sCounter = 0;
 	String fieldName = String::Format("__ui_inputNumber_%u", ++sCounter);
-	ecs::ArchetypeRegistry *world = this->world;
+	ecs::ArchetypeRegistry *registry = this->world;
 
-	auto applyDelta = [world, fieldName, min, max, decimals, onChange](float delta) {
-		auto e = FindByName(*world, fieldName);
+	auto applyDelta = [registry, fieldName, min, max, decimals, onChange](float delta) {
+		auto e = FindByName(*registry, fieldName);
 		if (e.IsNone())
 			return;
-		auto in = world->GetComponent<UiInput>(e.Unwrap());
+		auto in = registry->GetComponent<UiInput>(e.Unwrap());
 		if (in.IsNone())
 			return;
 		float v = sdl3::Clamp(in.Unwrap()->text.ToFloat() + delta, min, max);
@@ -1171,10 +1171,10 @@ WidgetBuilder UiFactory::InputNumber(float min, float max, float value, float st
 	field.Name(fieldName).GrowW();
 	field.input->text = String::From(sdl3::Clamp(value, min, max), decimals);
 	if (onChange) {
-		field.OnSubmit([world, fieldName, min, max, decimals, onChange](const String &text) {
+		field.OnSubmit([registry, fieldName, min, max, decimals, onChange](const String &text) {
 			float v = sdl3::Clamp(text.ToFloat(), min, max);
-			if (auto e = FindByName(*world, fieldName); e.IsSome())
-				if (auto in = world->GetComponent<UiInput>(e.Unwrap()); in.IsSome()) {
+			if (auto e = FindByName(*registry, fieldName); e.IsSome())
+				if (auto in = registry->GetComponent<UiInput>(e.Unwrap()); in.IsSome()) {
 					in.Unwrap()->text = String::From(v, decimals);
 					in.Unwrap()->cursor = in.Unwrap()->selectionAnchor = in.Unwrap()->text.size();
 				}
@@ -1219,7 +1219,7 @@ WidgetBuilder UiFactory::ColorPicker(sdl3::FColor initial, std::function<void(sd
 		   hexName = prefix + "hex", swatchName = prefix + "swatch";
 
 	HSV hsv = ColorToHsv(initial);
-	ecs::ArchetypeRegistry *world = this->world;
+	ecs::ArchetypeRegistry *registry = this->world;
 
 	// Relit l'état des 3 sous-widgets, recompose la sdl3::FColor pleine (le
 	// slider de teinte est la source de vérité pour `h` — le carré SV
@@ -1228,32 +1228,32 @@ WidgetBuilder UiFactory::ColorPicker(sdl3::FColor initial, std::function<void(sd
 	// ajustement (cf. les callbacks "ping" de UiSVSquare/UiHueSlider/
 	// UiAlphaSlider dans systems.hpp dispatch()) — pas de système dédié :
 	// la resynchronisation reste ponctuelle, pilotée par l'évènement.
-	auto resync = [world, svName, hueName, alphaName, hexName, swatchName, onChange] {
+	auto resync = [registry, svName, hueName, alphaName, hexName, swatchName, onChange] {
 		float h = 0.f, s = 1.f, v = 1.f, a = 1.f;
-		if (auto e = FindByName(*world, svName); e.IsSome())
-			if (auto c = world->GetComponent<UiSVSquare>(e.Unwrap()); c.IsSome()) {
+		if (auto e = FindByName(*registry, svName); e.IsSome())
+			if (auto c = registry->GetComponent<UiSVSquare>(e.Unwrap()); c.IsSome()) {
 				h = c.Unwrap()->h;
 				s = c.Unwrap()->s;
 				v = c.Unwrap()->v;
 			}
-		if (auto e = FindByName(*world, hueName); e.IsSome())
-			if (auto c = world->GetComponent<UiHueSlider>(e.Unwrap()); c.IsSome())
+		if (auto e = FindByName(*registry, hueName); e.IsSome())
+			if (auto c = registry->GetComponent<UiHueSlider>(e.Unwrap()); c.IsSome())
 				h = c.Unwrap()->hue;
-		if (auto e = FindByName(*world, alphaName); e.IsSome())
-			if (auto c = world->GetComponent<UiAlphaSlider>(e.Unwrap()); c.IsSome())
+		if (auto e = FindByName(*registry, alphaName); e.IsSome())
+			if (auto c = registry->GetComponent<UiAlphaSlider>(e.Unwrap()); c.IsSome())
 				a = c.Unwrap()->alpha;
 		sdl3::FColor rgb = HsvToColor(h, s, v, a);
-		if (auto e = FindByName(*world, svName); e.IsSome())
-			if (auto c = world->GetComponent<UiSVSquare>(e.Unwrap()); c.IsSome())
+		if (auto e = FindByName(*registry, svName); e.IsSome())
+			if (auto c = registry->GetComponent<UiSVSquare>(e.Unwrap()); c.IsSome())
 				c.Unwrap()->h = h;
-		if (auto e = FindByName(*world, alphaName); e.IsSome())
-			if (auto c = world->GetComponent<UiAlphaSlider>(e.Unwrap()); c.IsSome())
+		if (auto e = FindByName(*registry, alphaName); e.IsSome())
+			if (auto c = registry->GetComponent<UiAlphaSlider>(e.Unwrap()); c.IsSome())
 				c.Unwrap()->baseColor = sdl3::FColor{rgb.r, rgb.g, rgb.b, 1.f};
-		if (auto e = FindByName(*world, hexName); e.IsSome())
-			if (auto c = world->GetComponent<UiInput>(e.Unwrap()); c.IsSome())
+		if (auto e = FindByName(*registry, hexName); e.IsSome())
+			if (auto c = registry->GetComponent<UiInput>(e.Unwrap()); c.IsSome())
 				c.Unwrap()->text = ColorToHex(rgb);
-		if (auto e = FindByName(*world, swatchName); e.IsSome())
-			if (auto c = world->GetComponent<UiColorSwatch>(e.Unwrap()); c.IsSome())
+		if (auto e = FindByName(*registry, swatchName); e.IsSome())
+			if (auto c = registry->GetComponent<UiColorSwatch>(e.Unwrap()); c.IsSome())
 				c.Unwrap()->color = rgb;
 		if (onChange)
 			onChange(rgb);
@@ -1274,20 +1274,20 @@ WidgetBuilder UiFactory::ColorPicker(sdl3::FColor initial, std::function<void(sd
 	WidgetBuilder hex = Input();
 	hex.Name(hexName).GrowW();
 	hex.input->text = ColorToHex(initial);
-	hex.OnSubmit([world, svName, hueName, alphaName, resync](const String &text) {
+	hex.OnSubmit([registry, svName, hueName, alphaName, resync](const String &text) {
 		sdl3::FColor c = HexToColor(text);
 		HSV parsed = ColorToHsv(c);
-		if (auto e = FindByName(*world, svName); e.IsSome())
-			if (auto comp = world->GetComponent<UiSVSquare>(e.Unwrap()); comp.IsSome()) {
+		if (auto e = FindByName(*registry, svName); e.IsSome())
+			if (auto comp = registry->GetComponent<UiSVSquare>(e.Unwrap()); comp.IsSome()) {
 				comp.Unwrap()->h = parsed.h;
 				comp.Unwrap()->s = parsed.s;
 				comp.Unwrap()->v = parsed.v;
 			}
-		if (auto e = FindByName(*world, hueName); e.IsSome())
-			if (auto comp = world->GetComponent<UiHueSlider>(e.Unwrap()); comp.IsSome())
+		if (auto e = FindByName(*registry, hueName); e.IsSome())
+			if (auto comp = registry->GetComponent<UiHueSlider>(e.Unwrap()); comp.IsSome())
 				comp.Unwrap()->hue = parsed.h;
-		if (auto e = FindByName(*world, alphaName); e.IsSome())
-			if (auto comp = world->GetComponent<UiAlphaSlider>(e.Unwrap()); comp.IsSome())
+		if (auto e = FindByName(*registry, alphaName); e.IsSome())
+			if (auto comp = registry->GetComponent<UiAlphaSlider>(e.Unwrap()); comp.IsSome())
 				comp.Unwrap()->alpha = c.a; // FColor : déjà en [0, 1]
 		resync();
 	});
@@ -1438,14 +1438,14 @@ ecs::Entity UiFactory::Splitter(WidgetBuilder before, WidgetBuilder after,
 	h.orient = orient;
 	h.minBefore = minBefore;
 	h.maxBefore = 1.0e9f;
-	ecs::ArchetypeRegistry *world = this->world;
-	h.getBefore = [world, beforeE, HORIZ]() -> float {
-		if (auto it = world->GetComponent<UiItem>(beforeE); it.IsSome())
+	ecs::ArchetypeRegistry *registry = this->world;
+	h.getBefore = [registry, beforeE, HORIZ]() -> float {
+		if (auto it = registry->GetComponent<UiItem>(beforeE); it.IsSome())
 			return HORIZ ? it.Unwrap()->width.value : it.Unwrap()->height.value;
 		return 0.f;
 	};
-	h.setBefore = [world, beforeE, HORIZ](float v) {
-		if (auto it = world->GetComponent<UiItem>(beforeE); it.IsSome()) {
+	h.setBefore = [registry, beforeE, HORIZ](float v) {
+		if (auto it = registry->GetComponent<UiItem>(beforeE); it.IsSome()) {
 			if (HORIZ)
 				it.Unwrap()->width = Dimension::Px(v);
 			else

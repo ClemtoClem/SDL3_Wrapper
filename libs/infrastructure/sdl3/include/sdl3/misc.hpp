@@ -26,90 +26,92 @@ enum class PropertyType {
 // ============================================================================
 
 class PropertyProxy {
-    SDL_PropertiesID id;
-    const char *name;
+private:
+    SDL_PropertiesID m_id;
+    const char *m_name;
 
 public:
-    constexpr PropertyProxy(SDL_PropertiesID id, const char *name) noexcept : id(id), name(name) {}
+    constexpr PropertyProxy(SDL_PropertiesID id, const char *name) noexcept : m_id(id), m_name(name) {}
 
     // ── Setters ──────────────────────────────────────────────────────────────
 
     PropertyProxy &operator=(const char *v) {
-        SDL_SetStringProperty(id, name, v);
+        SDL_SetStringProperty(m_id, m_name, v);
         return *this;
     }
     PropertyProxy &operator=(const String &v) {
-        SDL_SetStringProperty(id, name, v.CStr());
+        SDL_SetStringProperty(m_id, m_name, v.CStr());
         return *this;
     }
     PropertyProxy &operator=(Sint64 v) {
-        SDL_SetNumberProperty(id, name, v);
+        SDL_SetNumberProperty(m_id, m_name, v);
         return *this;
     }
     PropertyProxy &operator=(int v) {
-        SDL_SetNumberProperty(id, name, Sint64(v));
+        SDL_SetNumberProperty(m_id, m_name, Sint64(v));
         return *this;
     }
     PropertyProxy &operator=(float v) {
-        SDL_SetFloatProperty(id, name, v);
+        SDL_SetFloatProperty(m_id, m_name, v);
         return *this;
     }
     PropertyProxy &operator=(double v) {
-        SDL_SetFloatProperty(id, name, float(v));
+        SDL_SetFloatProperty(m_id, m_name, float(v));
         return *this;
     }
     PropertyProxy &operator=(bool v) {
-        SDL_SetBooleanProperty(id, name, v);
+        SDL_SetBooleanProperty(m_id, m_name, v);
         return *this;
     }
     PropertyProxy &operator=(void *v) {
-        SDL_SetPointerProperty(id, name, v);
+        SDL_SetPointerProperty(m_id, m_name, v);
         return *this;
     }
 
     /// Remove the property.
-    void Clear() { SDL_ClearProperty(id, name); }
+    void Clear() { SDL_ClearProperty(m_id, m_name); }
 
     // ── Type query ────────────────────────────────────────────────────────────
 
-    [[nodiscard]] PropertyType Type() const noexcept { return PropertyType(SDL_GetPropertyType(id, name)); }
-    [[nodiscard]] bool Exists() const noexcept { return SDL_HasProperty(id, name); }
+    [[nodiscard]] PropertyType Type() const noexcept { return PropertyType(SDL_GetPropertyType(m_id, m_name)); }
+    [[nodiscard]] bool Exists() const noexcept { return SDL_HasProperty(m_id, m_name); }
 
     // ── Typed getters ─────────────────────────────────────────────────────────
 
     template <typename T> [[nodiscard]] T Get(T def = T{}) const;
 
     // Explicit conversion operators for ergonomic use
-    [[nodiscard]] explicit operator const char *() const { return SDL_GetStringProperty(id, name, ""); }
-    [[nodiscard]] explicit operator String() const { return String(SDL_GetStringProperty(id, name, "")); }
-    [[nodiscard]] explicit operator Sint64() const { return SDL_GetNumberProperty(id, name, 0); }
-    [[nodiscard]] explicit operator int() const { return int(SDL_GetNumberProperty(id, name, 0)); }
-    [[nodiscard]] explicit operator float() const { return SDL_GetFloatProperty(id, name, 0.f); }
-    [[nodiscard]] explicit operator bool() const { return SDL_GetBooleanProperty(id, name, false); }
-    [[nodiscard]] explicit operator void *() const { return SDL_GetPointerProperty(id, name, nullptr); }
+    [[nodiscard]] explicit operator const char *() const { return SDL_GetStringProperty(m_id, m_name, ""); }
+    [[nodiscard]] explicit operator String() const { return String(SDL_GetStringProperty(m_id, m_name, "")); }
+    [[nodiscard]] explicit operator Sint64() const { return SDL_GetNumberProperty(m_id, m_name, 0); }
+    [[nodiscard]] explicit operator int() const { return int(SDL_GetNumberProperty(m_id, m_name, 0)); }
+    [[nodiscard]] explicit operator float() const { return SDL_GetFloatProperty(m_id, m_name, 0.f); }
+    [[nodiscard]] explicit operator bool() const { return SDL_GetBooleanProperty(m_id, m_name, false); }
+    [[nodiscard]] explicit operator void *() const { return SDL_GetPointerProperty(m_id, m_name, nullptr); }
 };
 
 // Template specialisations for PropertyProxy::get<T>
 template <> inline const char *PropertyProxy::Get(const char *def) const {
-    return SDL_GetStringProperty(id, name, def);
+    return SDL_GetStringProperty(m_id, m_name, def);
 }
 template <> inline String PropertyProxy::Get(String def) const {
-    return String(SDL_GetStringProperty(id, name, def.CStr()));
+    return String(SDL_GetStringProperty(m_id, m_name, def.CStr()));
 }
-template <> inline Sint64 PropertyProxy::Get(Sint64 def) const { return SDL_GetNumberProperty(id, name, def); }
+template <> inline Sint64 PropertyProxy::Get(Sint64 def) const { return SDL_GetNumberProperty(m_id, m_name, def); }
 template <> inline int PropertyProxy::Get(int def) const {
-    return int(SDL_GetNumberProperty(id, name, Sint64(def)));
+    return int(SDL_GetNumberProperty(m_id, m_name, Sint64(def)));
 }
-template <> inline float PropertyProxy::Get(float def) const { return SDL_GetFloatProperty(id, name, def); }
-template <> inline bool PropertyProxy::Get(bool def) const { return SDL_GetBooleanProperty(id, name, def); }
-template <> inline void *PropertyProxy::Get(void *def) const { return SDL_GetPointerProperty(id, name, def); }
+template <> inline float PropertyProxy::Get(float def) const { return SDL_GetFloatProperty(m_id, m_name, def); }
+template <> inline bool PropertyProxy::Get(bool def) const { return SDL_GetBooleanProperty(m_id, m_name, def); }
+template <> inline void *PropertyProxy::Get(void *def) const { return SDL_GetPointerProperty(m_id, m_name, def); }
 
 // ============================================================================
 // PropertiesLock — RAII lock for thread-safe multi-property operations
 // ============================================================================
 
 class PropertiesLock {
-    SDL_PropertiesID id = 0;
+private:
+    SDL_PropertiesID m_id = 0;
 
 public:
     explicit PropertiesLock(SDL_PropertiesID id);
@@ -117,7 +119,7 @@ public:
 
     PropertiesLock(const PropertiesLock &) = delete;
     PropertiesLock &operator=(const PropertiesLock &) = delete;
-    PropertiesLock(PropertiesLock &&o) noexcept : id(o.id) { o.id = 0; }
+    PropertiesLock(PropertiesLock &&o) noexcept : m_id(o.m_id) { o.m_id = 0; }
 };
 
 // ============================================================================
@@ -129,30 +131,29 @@ class PropertiesRef;
 
 class PropertiesBase {
 protected:
-    SDL_PropertiesID id = 0;
+    SDL_PropertiesID m_id = 0;
 
 public:
     constexpr PropertiesBase() noexcept = default;
-    explicit constexpr PropertiesBase(SDL_PropertiesID id) noexcept : id(id) {}
+    explicit constexpr PropertiesBase(SDL_PropertiesID id) noexcept : m_id(id) {}
 
-    [[nodiscard]] SDL_PropertiesID GetId() const noexcept { return id; }
-    [[nodiscard]] explicit operator bool() const noexcept { return id != 0; }
+    [[nodiscard]] SDL_PropertiesID GetId() const noexcept { return m_id; }
+    [[nodiscard]] explicit operator bool() const noexcept { return m_id != 0; }
 
     // ── Operator[] — ergonomic typed access ──────────────────────────────────
 
-    [[nodiscard]] PropertyProxy operator[](const char *name) const noexcept { return {id, name}; }
-    [[nodiscard]] PropertyProxy operator[](const String &name) const noexcept { return {id, name.CStr()}; }
+    [[nodiscard]] PropertyProxy operator[](const char *name) const noexcept { return {m_id, name}; }
+    [[nodiscard]] PropertyProxy operator[](const String &name) const noexcept { return {m_id, name.CStr()}; }
 
     // ── Explicit setters ─────────────────────────────────────────────────────
 
-    bool SetString(const char *name, const char *val) { return SDL_SetStringProperty(id, name, val); }
-    bool SetNumber(const char *name, Sint64 val) { return SDL_SetNumberProperty(id, name, val); }
-    bool SetFloat(const char *name, float val) { return SDL_SetFloatProperty(id, name, val); }
-    bool SetBool(const char *name, bool val) { return SDL_SetBooleanProperty(id, name, val); }
-    bool SetPointer(const char *name, void *val) { return SDL_SetPointerProperty(id, name, val); }
+    bool SetString(const char *name, const char *val) { return SDL_SetStringProperty(m_id, name, val); }
+    bool SetNumber(const char *name, Sint64 val) { return SDL_SetNumberProperty(m_id, name, val); }
+    bool SetFloat(const char *name, float val) { return SDL_SetFloatProperty(m_id, name, val); }
+    bool SetBool(const char *name, bool val) { return SDL_SetBooleanProperty(m_id, name, val); }
+    bool SetPointer(const char *name, void *val) { return SDL_SetPointerProperty(m_id, name, val); }
 
-    bool SetPointerWithCleanup(const char *name, void *val, SDL_CleanupPropertyCallback cleanup,
-                               void *userdata = nullptr);
+    bool SetPointerWithCleanup(const char *name, void *val, SDL_CleanupPropertyCallback cleanup, void *userdata = nullptr);
 
     /// Cleanup via std::function — captures et gère la durée de vie.
     bool SetPointerWithCleanup(const char *name, void *val, std::function<void(void *)> cleanup);
@@ -163,19 +164,19 @@ public:
     [[nodiscard]] Sint64 GetNumber(const char *name, Sint64 def = 0) const;
     [[nodiscard]] float GetFloat(const char *name, float def = 0.f) const;
     [[nodiscard]] bool GetBool(const char *name, bool def = false) const {
-        return SDL_GetBooleanProperty(id, name, def);
+        return SDL_GetBooleanProperty(m_id, name, def);
     }
     [[nodiscard]] void *GetPointer(const char *name, void *def = nullptr) const;
 
     template <typename T> [[nodiscard]] T *GetTypedPointer(const char *name) const noexcept {
-        return static_cast<T *>(SDL_GetPointerProperty(id, name, nullptr));
+        return static_cast<T *>(SDL_GetPointerProperty(m_id, name, nullptr));
     }
 
     // ── Inspection ────────────────────────────────────────────────────────────
 
-    [[nodiscard]] bool HasProperty(const char *name) const noexcept { return SDL_HasProperty(id, name); }
+    [[nodiscard]] bool HasProperty(const char *name) const noexcept { return SDL_HasProperty(m_id, name); }
     [[nodiscard]] sdl3::PropertyType PropertyType(const char *name) const noexcept;
-    bool ClearProperty(const char *name) { return SDL_ClearProperty(id, name); }
+    bool ClearProperty(const char *name) { return SDL_ClearProperty(m_id, name); }
 
     // ── Enumeration ──────────────────────────────────────────────────────────
 
@@ -188,12 +189,12 @@ public:
     // ── Thread safety ─────────────────────────────────────────────────────────
 
     /// Acquire un verrou scopé ; relâché automatiquement à la destruction du retour.
-    [[nodiscard]] PropertiesLock Lock() const { return PropertiesLock(id); }
+    [[nodiscard]] PropertiesLock Lock() const { return PropertiesLock(m_id); }
 
     // ── Copy ─────────────────────────────────────────────────────────────────
 
     /// Copie toutes les propriétés vers `dst`.
-    bool CopyTo(const PropertiesBase &dst) const { return SDL_CopyProperties(id, dst.id); }
+    bool CopyTo(const PropertiesBase &dst) const { return SDL_CopyProperties(m_id, dst.m_id); }
 };
 
 // ============================================================================
@@ -220,13 +221,13 @@ public:
 
     Properties(const Properties &) = delete;
     Properties &operator=(const Properties &) = delete;
-    Properties(Properties &&o) noexcept : PropertiesBase(o.id) { o.id = 0; }
+    Properties(Properties &&o) noexcept : PropertiesBase(o.m_id) { o.m_id = 0; }
     Properties &operator=(Properties &&o) noexcept {
         if (this != &o) {
-            if (id)
-                SDL_DestroyProperties(id);
-            id = o.id;
-            o.id = 0;
+            if (m_id)
+                SDL_DestroyProperties(m_id);
+            m_id = o.m_id;
+            o.m_id = 0;
         }
         return *this;
     }
@@ -236,7 +237,7 @@ public:
     [[nodiscard]] static Properties Create() { return Properties(SDL_CreateProperties()); }
 
     /// Vue non-possédante sur ce groupe de propriétés.
-    [[nodiscard]] PropertiesRef Ref() const noexcept { return PropertiesRef(id); }
+    [[nodiscard]] PropertiesRef Ref() const noexcept { return PropertiesRef(m_id); }
 
     /// Retourne un nouveau Properties contenant une copie de toutes les entrées
     /// (les propriétés "pointer" avec cleanup ne sont PAS copiées — cf. doc SDL).

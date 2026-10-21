@@ -14,11 +14,11 @@ Uint64 GetPerformanceFrequency() {
 }
 
 void Delay(std::chrono::nanoseconds duration) {
-	SDL_DelayNS(duration.count());
+	SDL_DelayNS(static_cast<Uint64>(duration.count()));
 }
 
 void DelayPrecise(std::chrono::nanoseconds duration) {
-	SDL_DelayPrecise(duration.count());
+	SDL_DelayPrecise(static_cast<Uint64>(duration.count()));
 }
 
 int GetDayOfWeek(int year, int month, int day) noexcept {

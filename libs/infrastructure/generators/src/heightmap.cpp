@@ -336,7 +336,7 @@ float HeightMap::Band(float v, float lo, float hi, float feather) noexcept {
 float HeightMap::Mean() const noexcept {
 	double sum = 0.0;
 	for (float v : m_data)
-		sum += v;
+		sum += double(v);
 	return m_data.empty() ? 0.f : float(sum / double(m_data.size()));
 }
 

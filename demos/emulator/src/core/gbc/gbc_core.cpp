@@ -13,14 +13,14 @@ GbcCore::GbcCore(const std::vector<uint8_t> &rom)
 void GbcCore::pressKey(gbc::GbcButton button) {
     uint8_t before = joypadSelect;
     switch (button) {
-        case gbc::GBC_BTN_A: buttonsButtons_ &= ~1; break;
-        case gbc::GBC_BTN_B: buttonsButtons_ &= ~2; break;
-        case gbc::GBC_BTN_SELECT: buttonsButtons_ &= ~4; break;
-        case gbc::GBC_BTN_START: buttonsButtons_ &= ~8; break;
-        case gbc::GBC_BTN_RIGHT: buttonsDirs_ &= ~1; break;
-        case gbc::GBC_BTN_LEFT: buttonsDirs_ &= ~2; break;
-        case gbc::GBC_BTN_UP: buttonsDirs_ &= ~4; break;
-        case gbc::GBC_BTN_DOWN: buttonsDirs_ &= ~8; break;
+        case gbc::GBC_BTN_A: buttonsButtons_ = static_cast<uint8_t>(buttonsButtons_ & (~1)); break;
+        case gbc::GBC_BTN_B: buttonsButtons_ = static_cast<uint8_t>(buttonsButtons_ & (~2)); break;
+        case gbc::GBC_BTN_SELECT: buttonsButtons_ = static_cast<uint8_t>(buttonsButtons_ & (~4)); break;
+        case gbc::GBC_BTN_START: buttonsButtons_ = static_cast<uint8_t>(buttonsButtons_ & (~8)); break;
+        case gbc::GBC_BTN_RIGHT: buttonsDirs_ = static_cast<uint8_t>(buttonsDirs_ & (~1)); break;
+        case gbc::GBC_BTN_LEFT: buttonsDirs_ = static_cast<uint8_t>(buttonsDirs_ & (~2)); break;
+        case gbc::GBC_BTN_UP: buttonsDirs_ = static_cast<uint8_t>(buttonsDirs_ & (~4)); break;
+        case gbc::GBC_BTN_DOWN: buttonsDirs_ = static_cast<uint8_t>(buttonsDirs_ & (~8)); break;
         default: break;
     }
     updateJoypadInterrupt(before);

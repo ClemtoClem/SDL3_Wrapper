@@ -1163,8 +1163,8 @@ Result<bool, ArchiveError> SevenZipWriter::WriteSeekable(const VirtualFs& fs, sd
 			auto stream = CreateMemoryWriter();
 			if (stream.IsError())
 				return Bytes();
-			BinaryWriter writer(stream.Value());
-			fill(writer);
+			BinaryWriter memoryWriter(stream.Value());
+			fill(memoryWriter);
 			return stream.Value().DynamicMemoryBytes();
 		};
 		if (std::find(emptyStream.begin(), emptyStream.end(), true) != emptyStream.end()) {

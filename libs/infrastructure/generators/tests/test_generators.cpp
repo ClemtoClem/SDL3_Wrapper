@@ -105,7 +105,7 @@ TEST(Generators, HeightmapFiltersMasksAndErosion) {
 	reference.Scale(20.f);
 	double moved = 0.0;
 	for (size_t i = 0; i < eroded.Size(); ++i)
-		moved += std::fabs(eroded.Data()[i] - reference.Data()[i]);
+		moved += double(std::fabs(eroded.Data()[i] - reference.Data()[i]));
 	EXPECT_TRUE(moved > 1.0);
 	EXPECT_TRUE(eroded.Mean() <= reference.Mean() + 1e-3f);
 	HeightMap slid = map;
@@ -114,8 +114,8 @@ TEST(Generators, HeightmapFiltersMasksAndErosion) {
 	slid.Scale(10.f).ErodeThermal(thermal);
 	double before = 0.0, after = 0.0;
 	for (size_t i = 0; i < map.Size(); ++i) {
-		before += map.Data()[i] * 10.f;
-		after += slid.Data()[i];
+		before += double(map.Data()[i] * 10.f);
+		after += double(slid.Data()[i]);
 	}
 	EXPECT_TRUE(std::fabs(before - after) < 1e-2 * before); // conservation de la matière
 }
@@ -179,7 +179,7 @@ TEST(Generators, DungeonsAreConnected) {
 	// Labyrinthe parfait : (cases) - 1 passages, donc aucune boucle.
 	size_t walkable = 0;
 	for (Tile t : maze.tiles.Cells())
-		walkable += IsWalkable(t) ? 1 : 0;
+		walkable += IsWalkable(t) ? 1 : static_cast<size_t>(0);
 	EXPECT_EQ(walkable, size_t(15 * 10 * 2 - 1));
 	for (MazeAlgorithm algo : {MazeAlgorithm::PRIM, MazeAlgorithm::BINARY_TREE})
 		EXPECT_TRUE(EveryWalkableReachable(GenerateMaze(25, 25, 8, algo)));

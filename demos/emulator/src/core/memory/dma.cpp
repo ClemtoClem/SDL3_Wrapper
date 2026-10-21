@@ -5,7 +5,7 @@
 namespace emulator {
 
 
-Dma::Dma(Core *core, bool cpu) : core(core), cpu(cpu) {
+Dma::Dma(Core *core_, bool cpu_) : core(core_), cpu(cpu_) {
     for (int i = 0; i < 4; i++)
         transferTask[i] = std::bind(&Dma::transfer, this, i);
 }
@@ -53,7 +53,7 @@ void Dma::transfer(int channel) {
         }
     }
     if (mode == 7) {
-        wordCounts[channel] -= gxFifoCount;
+        wordCounts[channel] -= static_cast<uint32_t>(gxFifoCount);
         if (wordCounts[channel] > 0) {
             if (core->gpu3D.readGxStat() & BIT(25))
                 core->schedule(Task(&transferTask[channel], 1));
@@ -109,7 +109,7 @@ void Dma::writeDmaCnt(int channel, uint32_t mask, uint32_t value) {
 }
 
 uint32_t Dma::readDmaCnt(int channel) {
-    return dmaCnt[channel] & ~(core->isGbaMode() ? 0x0000FFFF : 0x00000000);
+    return dmaCnt[channel] & ~(core->isGbaMode() ? 0x0000FFFFu : 0x00000000u);
 }
 
 void Dma::rearm() {

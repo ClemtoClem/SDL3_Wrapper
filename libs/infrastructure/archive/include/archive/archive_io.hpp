@@ -203,7 +203,7 @@ private:
 	year -= month <= 2 ? 1 : 0;
 	const int64_t era = (year >= 0 ? year : year - 399) / 400;
 	const unsigned yearOfEra = unsigned(year - era * 400);
-	const unsigned dayOfYear = (153 * (month + (month > 2 ? -3 : 9)) + 2) / 5 + day - 1;
+	const unsigned dayOfYear = (153 * (month + static_cast<unsigned int>((month > 2 ? -3 : 9))) + 2) / 5 + day - 1;
 	const unsigned dayOfEra = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear;
 	return era * 146097 + int64_t(dayOfEra) - 719468;
 }

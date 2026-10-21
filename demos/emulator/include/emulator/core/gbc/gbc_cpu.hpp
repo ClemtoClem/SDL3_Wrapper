@@ -18,7 +18,7 @@ class GbcCore;
  */
 class GbcCpu {
   public:
-    explicit GbcCpu(GbcCore *core) : core(core) {
+    explicit GbcCpu(GbcCore *core_) : core(core_) {
     }
 
     void reset(bool cgb);

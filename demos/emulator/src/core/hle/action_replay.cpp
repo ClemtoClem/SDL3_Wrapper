@@ -6,8 +6,8 @@
 
 namespace emulator {
 
-void ActionReplay::setPath(String path) {
-    this->path = path;
+void ActionReplay::setPath(String newPath) {
+    this->path = newPath;
 }
 
 Result<sdl3::IOStream, StringView> ActionReplay::openFile(const String &forPath, const char *mode) {

@@ -55,10 +55,10 @@ void Bios::checkWaitFlags(bool cpu) {
     }
     core->interpreter[cpu].halt(0);
 }
-int Bios::swiWaitByLoop(bool cpu, uint32_t **registers) {
+int Bios::swiWaitByLoop(bool /*cpu*/, uint32_t **registers) {
     uint32_t loops = *registers[0];
     *registers[0]  = 0;
-    return loops * 4 + 3;
+    return static_cast<int>(loops * 4 + 3);
 }
 int Bios::swiInterruptWait(bool cpu, uint32_t **registers) {
     waitFlags = *registers[1];
@@ -77,17 +77,17 @@ int Bios::swiVBlankIntrWait(bool cpu, uint32_t **registers) {
     *registers[1] = 1;
     return swiInterruptWait(cpu, registers);
 }
-int Bios::swiHalt(bool cpu, uint32_t **registers) {
+int Bios::swiHalt(bool cpu, uint32_t **/*registers*/) {
     core->interpreter[cpu].halt(0);
     return 3;
 }
-int Bios::swiDivide(bool cpu, uint32_t **registers) {
+int Bios::swiDivide(bool /*cpu*/, uint32_t **registers) {
     if (*registers[1]) {
         int32_t div   = (int32_t)(*registers[0]) / (int32_t)(*registers[1]);
         int32_t mod   = (int32_t)(*registers[0]) % (int32_t)(*registers[1]);
-        *registers[0] = div;
-        *registers[1] = mod;
-        *registers[3] = abs(div);
+        *registers[0] = static_cast<uint32_t>(div);
+        *registers[1] = static_cast<uint32_t>(mod);
+        *registers[3] = static_cast<uint32_t>(abs(div));
     }
     return 3;
 }
@@ -120,20 +120,20 @@ int Bios::swiCpuFastSet(bool cpu, uint32_t **registers) {
     }
     return 3;
 }
-int Bios::swiSquareRoot(bool cpu, uint32_t **registers) {
-    *registers[0] = sqrt(*registers[0]);
+int Bios::swiSquareRoot(bool /*cpu*/, uint32_t **registers) {
+    *registers[0] = static_cast<uint32_t>(sqrt(*registers[0]));
     return 3;
 }
 int Bios::swiGetCrc16(bool cpu, uint32_t **registers) {
     static const uint16_t table[] = {0xC0C1, 0xC181, 0xC301, 0xC601, 0xCC01, 0xD801, 0xF001, 0xA001};
     for (size_t i = 0; i < *registers[2]; i++) {
-        *registers[0] ^= core->memory.read<uint8_t>(cpu, *registers[1] + i);
+        *registers[0] ^= core->memory.read<uint8_t>(cpu, static_cast<uint32_t>(*registers[1] + i));
         for (size_t j = 0; j < 8; j++)
             *registers[0] = (*registers[0] >> 1) ^ ((*registers[0] & 1) ? (table[j] << (7 - j)) : 0);
     }
     return 3;
 }
-int Bios::swiIsDebugger(bool cpu, uint32_t **registers) {
+int Bios::swiIsDebugger(bool /*cpu*/, uint32_t **registers) {
     *registers[0] = 0;
     return 3;
 }
@@ -149,7 +149,7 @@ int Bios::swiBitUnpack(bool cpu, uint32_t **registers) {
         uint8_t srcValue = core->memory.read<uint8_t>(cpu, *registers[0] + src);
         for (uint8_t srcBits = 0; srcBits < 8; srcBits += srcWidth) {
             uint32_t value = srcValue << (dstWidth - srcWidth);
-            uint32_t mask  = (1 << dstWidth) - 1;
+            uint32_t mask  = static_cast<uint32_t>((1 << dstWidth) - 1);
             value &= mask;
             if (value || (offset & BIT(31)))
                 value = (value + offset) & mask;
@@ -178,9 +178,9 @@ int Bios::swiLz77Uncomp(bool cpu, uint32_t **registers) {
             if ((flags <<= 1) & BIT(8)) {
                 uint8_t  val1   = core->memory.read<uint8_t>(cpu, *registers[0] + src++);
                 uint8_t  val2   = core->memory.read<uint8_t>(cpu, *registers[0] + src++);
-                uint8_t  size   = 3 + ((val1 >> 4) & 0xF);
-                uint16_t offset = 1 + ((val1 & 0xF) << 8) + val2;
-                for (uint32_t j = 0; j < size; j++) {
+                uint8_t  length = 3 + ((val1 >> 4) & 0xF);
+                uint16_t offset = static_cast<uint16_t>(1 + ((val1 & 0xF) << 8) + val2);
+                for (uint32_t j = 0; j < length; j++) {
                     uint8_t value = core->memory.read<uint8_t>(cpu, *registers[1] + dst - offset);
                     core->memory.write<uint8_t>(cpu, *registers[1] + dst++, value);
                 }
@@ -216,15 +216,15 @@ int Bios::swiUnknown(bool cpu, uint32_t **registers) {
     LOG_VERBOSE("Unknown ARM%d BIOS SWI: 0x%02X\n", (cpu ? 7 : 9), comment);
     return 3;
 }
-int NdsBios7::swiSleep(bool cpu, uint32_t **registers) {
+int NdsBios7::swiSleep(bool /*cpu*/, uint32_t **/*registers*/) {
     core->memory.write<uint8_t>(1, 0x4000301, 0xC0);
     return 3;
 }
-int NdsBios7::swiSoundBias(bool cpu, uint32_t **registers) {
+int NdsBios7::swiSoundBias(bool /*cpu*/, uint32_t **registers) {
     core->memory.write<uint16_t>(1, 0x4000504, *registers[0] ? 0x200 : 0);
     return 3;
 }
-int NdsBios7::swiGetSineTable(bool cpu, uint32_t **registers) {
+int NdsBios7::swiGetSineTable(bool /*cpu*/, uint32_t **registers) {
     static const uint16_t sineTable[] = {
         0x0000, 0x0324, 0x0648, 0x096A, 0x0C8C, 0x0FAB, 0x12C8, 0x15E2, 0x18F9, 0x1C0B, 0x1F1A, 0x2223, 0x2528,
         0x2826, 0x2B1F, 0x2E11, 0x30FB, 0x33DF, 0x36BA, 0x398C, 0x3C56, 0x3F17, 0x41CE, 0x447A, 0x471C, 0x49B4,
@@ -234,7 +234,7 @@ int NdsBios7::swiGetSineTable(bool cpu, uint32_t **registers) {
     *registers[0] = sineTable[std::min(*registers[0], 0x40U)];
     return 3;
 }
-int NdsBios7::swiGetPitchTable(bool cpu, uint32_t **registers) {
+int NdsBios7::swiGetPitchTable(bool /*cpu*/, uint32_t **registers) {
     static const uint16_t pitchTable[] = {
         0x0000, 0x003B, 0x0076, 0x00B2, 0x00ED, 0x0128, 0x0164, 0x019F, 0x01DB, 0x0217, 0x0252, 0x028E, 0x02CA, 0x0305,
         0x0341, 0x037D, 0x03B9, 0x03F5, 0x0431, 0x046E, 0x04AA, 0x04E6, 0x0522, 0x055F, 0x059B, 0x05D8, 0x0614, 0x0651,
@@ -294,7 +294,7 @@ int NdsBios7::swiGetPitchTable(bool cpu, uint32_t **registers) {
     *registers[0] = pitchTable[std::min(*registers[0], 0x300U)];
     return 3;
 }
-int NdsBios7::swiGetVolumeTable(bool cpu, uint32_t **registers) {
+int NdsBios7::swiGetVolumeTable(bool /*cpu*/, uint32_t **registers) {
     static const uint8_t volumeTable[] = {
         0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
         0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
@@ -340,7 +340,7 @@ int NdsBios7::swiGetVolumeTable(bool cpu, uint32_t **registers) {
     *registers[0] = volumeTable[std::min(*registers[0], 0x2D4U)];
     return 3;
 }
-int NdsBios9::swiDiffUnfilt8(bool cpu, uint32_t **registers) {
+int NdsBios9::swiDiffUnfilt8(bool /*cpu*/, uint32_t **registers) {
     uint32_t size  = core->memory.read<uint32_t>(0, *registers[0]) >> 8;
     uint8_t  value = 0;
     for (uint32_t i = 0; i < size; i++) {
@@ -350,7 +350,7 @@ int NdsBios9::swiDiffUnfilt8(bool cpu, uint32_t **registers) {
     }
     return 3;
 }
-int NdsBios9::swiDiffUnfilt16(bool cpu, uint32_t **registers) {
+int NdsBios9::swiDiffUnfilt16(bool /*cpu*/, uint32_t **registers) {
     uint32_t size  = core->memory.read<uint32_t>(0, *registers[0]) >> 8;
     uint16_t value = 0;
     for (uint32_t i = 0; i < size; i += 2) {

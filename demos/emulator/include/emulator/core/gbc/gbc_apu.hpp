@@ -27,7 +27,7 @@ class GbcCore;
  */
 class GbcApu {
   public:
-    explicit GbcApu(GbcCore *core) : core(core) {
+    explicit GbcApu(GbcCore *core_) : core(core_) {
     }
     ~GbcApu();
 

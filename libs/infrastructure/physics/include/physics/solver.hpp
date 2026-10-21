@@ -42,10 +42,10 @@ struct ContactKey {
 struct ContactKeyHash {
 	size_t operator()(const ContactKey &k) const noexcept {
 		size_t h = k.idA;
-		h ^= static_cast<size_t>(k.genA) + 0x9e3779b9ull + (h << 6) + (h >> 2);
-		h ^= static_cast<size_t>(k.idB) + 0x9e3779b9ull + (h << 6) + (h >> 2);
-		h ^= static_cast<size_t>(k.genB) + 0x9e3779b9ull + (h << 6) + (h >> 2);
-		h ^= static_cast<size_t>(k.pointIndex) + 0x9e3779b9ull + (h << 6) + (h >> 2);
+		h ^= static_cast<size_t>(k.genA) + size_t{0x9e3779b9u} + (h << 6) + (h >> 2);
+		h ^= static_cast<size_t>(k.idB) + size_t{0x9e3779b9u} + (h << 6) + (h >> 2);
+		h ^= static_cast<size_t>(k.genB) + size_t{0x9e3779b9u} + (h << 6) + (h >> 2);
+		h ^= static_cast<size_t>(k.pointIndex) + size_t{0x9e3779b9u} + (h << 6) + (h >> 2);
 		return h;
 	}
 };
@@ -62,8 +62,8 @@ struct ContactConstraint {
 	RefMut<RigidBody> a;
 	RefMut<RigidBody> b;
 
-	ContactConstraint(ecs::Entity entA, ecs::Entity entB, RefMut<RigidBody> a, RefMut<RigidBody> b) noexcept
-		: entA(entA), entB(entB), a(a), b(b) {}
+	ContactConstraint(ecs::Entity entA_, ecs::Entity entB_, RefMut<RigidBody> a_, RefMut<RigidBody> b_) noexcept
+		: entA(entA_), entB(entB_), a(a_), b(b_) {}
 
 	math::FVector3 rA, rB; // contact point relative to each body's centre of mass
 	math::FVector3 normal; // A -> B

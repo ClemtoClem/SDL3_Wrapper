@@ -12,34 +12,34 @@ namespace emulator {
 class Core;
 class DivSqrt {
   public:
-    DivSqrt(Core *core) : core(core) {
+    DivSqrt(Core *core_) : core(core_) {
     }
     uint16_t readDivCnt() {
         return divCnt;
     }
     uint32_t readDivNumerL() {
-        return divNumer;
+        return static_cast<uint32_t>(divNumer);
     }
     uint32_t readDivNumerH() {
-        return divNumer >> 32;
+        return static_cast<uint32_t>(divNumer >> 32);
     }
     uint32_t readDivDenomL() {
-        return divDenom;
+        return static_cast<uint32_t>(divDenom);
     }
     uint32_t readDivDenomH() {
-        return divDenom >> 32;
+        return static_cast<uint32_t>(divDenom >> 32);
     }
     uint32_t readDivResultL() {
-        return divResult;
+        return static_cast<uint32_t>(divResult);
     }
     uint32_t readDivResultH() {
-        return divResult >> 32;
+        return static_cast<uint32_t>(divResult >> 32);
     }
     uint32_t readDivRemResultL() {
-        return divRemResult;
+        return static_cast<uint32_t>(divRemResult);
     }
     uint32_t readDivRemResultH() {
-        return divRemResult >> 32;
+        return static_cast<uint32_t>(divRemResult >> 32);
     }
     uint16_t readSqrtCnt() {
         return sqrtCnt;
@@ -48,10 +48,10 @@ class DivSqrt {
         return sqrtResult;
     }
     uint32_t readSqrtParamL() {
-        return sqrtParam;
+        return static_cast<uint32_t>(sqrtParam);
     }
     uint32_t readSqrtParamH() {
-        return sqrtParam >> 32;
+        return static_cast<uint32_t>(sqrtParam >> 32);
     }
     void writeDivCnt(uint16_t mask, uint16_t value);
     void writeDivNumerL(uint32_t mask, uint32_t value);

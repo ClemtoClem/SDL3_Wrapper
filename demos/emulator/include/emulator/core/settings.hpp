@@ -9,7 +9,7 @@ namespace emulator {
 
 
 struct Setting {
-    Setting(String name, void *value, bool isString) : name(name), value(value), isString(isString) {
+    Setting(String name_, void *value_, bool isString_) : name(name_), value(value_), isString(isString_) {
     }
     String name;
     void       *value;

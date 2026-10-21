@@ -21,7 +21,7 @@ class Cp15 {
     uint32_t itcmSize = 0;
 
   public:
-    Cp15(Core *core) : core(core) {}
+    Cp15(Core *core_) : core(core_) {}
 
     uint32_t read(int cn, int cm, int cp);
     void     write(int cn, int cm, int cp, uint32_t value);

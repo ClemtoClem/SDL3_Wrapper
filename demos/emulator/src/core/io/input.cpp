@@ -7,9 +7,9 @@ namespace emulator {
 
 void Input::pressKey(int key) {
     if (key < 10)
-        keyInput &= ~BIT(key);
+        keyInput = static_cast<uint16_t>(keyInput & ~BIT(key));
     else if (key < 12)
-        extKeyIn &= ~BIT(key - 10);
+        extKeyIn = static_cast<uint16_t>(extKeyIn & ~BIT(key - 10));
 }
 
 
@@ -22,7 +22,7 @@ void Input::releaseKey(int key) {
 
 
 void Input::pressScreen() {
-    extKeyIn &= ~BIT(6); // bit tactile enfoncé
+    extKeyIn = static_cast<uint16_t>(extKeyIn & ~BIT(6)); // bit tactile enfoncé
 }
 
 

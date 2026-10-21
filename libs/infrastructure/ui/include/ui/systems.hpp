@@ -450,6 +450,12 @@ public:
 		return {float(DisplayCells(s)) * CharWidthApprox(fs), LineHeightApprox(fs)};
 	};
 
+	/// Mesure d'UNE ligne dans la police réellement dessinée (gras,
+	/// italique) — branchée par Ui::SetTextEngine sur RenderSystem::
+	/// MeasureLine. Vide : `measureText` sert pour tous les styles (un texte
+	/// gras, plus large, serait alors sous-estimé et rogné).
+	std::function<sdl3::FPoint(const String &, float fontSize, bool bold, bool italic)> measureStyledText;
+
 	/// Taille de police racine — base de DimUnit::Rem, et police héritée par
 	/// les widgets sans fontSize propre (UiFactory l'aligne sur son thème).
 	float rootFontSize = 14.f;
@@ -468,6 +474,10 @@ public:
 	 * (cf. MeasureTextBlock).
 	 */
 	[[nodiscard]] sdl3::FPoint MeasureText(const String &text, float fontSize) const;
+	/// Idem, dans la police du style donné (cf. measureStyledText).
+	[[nodiscard]] sdl3::FPoint MeasureText(const String &text, float fontSize, bool bold, bool italic) const;
+	/// Mesure d'une ligne selon le style (pour les découpes en lignes).
+	[[nodiscard]] std::function<sdl3::FPoint(const String &, float)> LineMeasure(bool bold, bool italic) const;
 
 	/// Même mesure pour un texte UTF-16 (paires de substitution comprises).
 	[[nodiscard]] sdl3::FPoint MeasureText(std::u16string_view text, float fontSize) const;
@@ -1122,6 +1132,10 @@ public:
 	 * en page tous les textes déjà créés avec elle.
 	 */
 	[[nodiscard]] sdl3::Font *FontAt(sdl3::Font *base, float size);
+
+	/// Mesure d'une ligne dans la police exactement utilisée au dessin
+	/// (normale, grasse ou italique, à la taille demandée).
+	[[nodiscard]] sdl3::FPoint MeasureLine(const String &line, float fontSize, bool bold, bool italic);
 
 private:
 	/// Police de dessin effective : `font` (ou la police normale) à la taille

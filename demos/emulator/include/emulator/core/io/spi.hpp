@@ -33,7 +33,7 @@ class Spi {
      * @brief Constructeur.
      * @param core Pointeur vers le cœur principal de l'émulateur.
      */
-    Spi(Core *core) : core(core) {}
+    Spi(Core *core_) : core(core_) {}
 
     /**
      * @brief Destructeur : libère la mémoire du firmware et du buffer micro.

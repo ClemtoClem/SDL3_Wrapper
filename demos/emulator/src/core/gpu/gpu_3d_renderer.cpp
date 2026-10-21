@@ -7,7 +7,7 @@
 namespace emulator {
 
 
-Gpu3DRenderer::Gpu3DRenderer(Core *core) : core(core) {
+Gpu3DRenderer::Gpu3DRenderer(Core *core_) : core(core_) {
     for (int i = 0; i < 192 * 2; i++)
         ready[i].store(3);
 }
@@ -205,7 +205,7 @@ void Gpu3DRenderer::finishScanline(int line) {
                     if ((attribBuffer[0][i] & 0x3F) != id[j] && depthBuffer[0][i] < depth[j]) {
                         framebuffer[0][i] =
                             BIT(26) | rgba5ToRgba6((0x1F << 15) | edgeColor[(attribBuffer[0][i] & 0x3F) >> 3]);
-                        attribBuffer[0][i] = (attribBuffer[0][i] & ~(0x3F << 15)) | (0x20 << 15);
+                        attribBuffer[0][i] = (attribBuffer[0][i] & ~(0x3Fu << 15)) | (0x20 << 15);
                         break;
                     }
                 }
@@ -229,25 +229,25 @@ void Gpu3DRenderer::finishScanline(int line) {
                     } else {
                         int m = offset % fogStep;
                         density =
-                            ((m >= 0) ? ((fogTable[n + 1] * m + fogTable[n] * (fogStep - m)) / fogStep) : fogTable[0]);
+                            static_cast<uint8_t>(((m >= 0) ? ((fogTable[n + 1] * m + fogTable[n] * (fogStep - m)) / fogStep) : fogTable[0]));
                     }
                     if (density == 127)
                         density++;
                     uint8_t a =
-                        (((fog >> 18) & 0x3F) * density + ((framebuffer[layer][i] >> 18) & 0x3F) * (128 - density)) /
-                        128;
+                        static_cast<uint8_t>((((fog >> 18) & 0x3F) * density + ((framebuffer[layer][i] >> 18) & 0x3F) * (128 - density)) /
+                        128);
                     if (disp3DCnt & BIT(6)) {
-                        framebuffer[layer][i] = (framebuffer[layer][i] & ~(0x3F << 18)) | (a << 18);
+                        framebuffer[layer][i] = (framebuffer[layer][i] & ~(0x3Fu << 18)) | (a << 18);
                     } else {
                         uint8_t r =
-                            (((fog >> 0) & 0x3F) * density + ((framebuffer[layer][i] >> 0) & 0x3F) * (128 - density)) /
-                            128;
+                            static_cast<uint8_t>((((fog >> 0) & 0x3F) * density + ((framebuffer[layer][i] >> 0) & 0x3F) * (128 - density)) /
+                            128);
                         uint8_t g =
-                            (((fog >> 6) & 0x3F) * density + ((framebuffer[layer][i] >> 6) & 0x3F) * (128 - density)) /
-                            128;
-                        uint8_t b = (((fog >> 12) & 0x3F) * density +
+                            static_cast<uint8_t>((((fog >> 6) & 0x3F) * density + ((framebuffer[layer][i] >> 6) & 0x3F) * (128 - density)) /
+                            128);
+                        uint8_t b = static_cast<uint8_t>((((fog >> 12) & 0x3F) * density +
                                      ((framebuffer[layer][i] >> 12) & 0x3F) * (128 - density)) /
-                                    128;
+                                    128);
                         framebuffer[layer][i] = BIT(26) | (a << 18) | (b << 12) | (g << 6) | r;
                     }
                 }
@@ -262,7 +262,7 @@ void Gpu3DRenderer::finishScanline(int line) {
                     framebuffer[0][i] = BIT(26) | interpolateColor(framebuffer[1][i], framebuffer[0][i], 0,
                                                                    ((attribBuffer[0][i] >> 15) & 0x3F), 0x3F);
                 else
-                    framebuffer[0][i] = (framebuffer[0][i] & ~0xFC0000) | ((attribBuffer[0][i] & 0x1F8000) << 3);
+                    framebuffer[0][i] = (framebuffer[0][i] & ~0xFC0000u) | ((attribBuffer[0][i] & 0x1F8000) << 3);
             }
         }
     }
@@ -336,7 +336,7 @@ uint32_t Gpu3DRenderer::readTexture(_Polygon *polygon, int s, int t) {
     }
     switch (polygon->textureFmt) {
         case 1: {
-            uint32_t address = polygon->textureAddr + (t * polygon->sizeS + s);
+            uint32_t address = polygon->textureAddr + static_cast<uint32_t>((t * polygon->sizeS + s));
             uint8_t *data    = getTexture(address);
             if (!data)
                 return 0;
@@ -344,12 +344,12 @@ uint32_t Gpu3DRenderer::readTexture(_Polygon *polygon, int s, int t) {
             uint8_t *palette = getPalette(polygon->paletteAddr);
             if (!palette)
                 return 0;
-            uint16_t color = U8TO16(palette, (index & 0x1F) * 2) & ~BIT(15);
-            uint8_t  alpha = (index >> 5) * 4 + (index >> 5) / 2;
+            uint16_t color = static_cast<uint16_t>(U8TO16(palette, (index & 0x1F) * 2) & ~BIT(15));
+            uint8_t  alpha = static_cast<uint8_t>((index >> 5) * 4 + (index >> 5) / 2);
             return rgba5ToRgba6((alpha << 15) | color);
         }
         case 2: {
-            uint32_t address = polygon->textureAddr + (t * polygon->sizeS + s) / 4;
+            uint32_t address = polygon->textureAddr + static_cast<uint32_t>((t * polygon->sizeS + s) / 4);
             uint8_t *data    = getTexture(address);
             if (!data)
                 return 0;
@@ -362,7 +362,7 @@ uint32_t Gpu3DRenderer::readTexture(_Polygon *polygon, int s, int t) {
             return rgba5ToRgba6((0x1F << 15) | U8TO16(palette, index * 2));
         }
         case 3: {
-            uint32_t address = polygon->textureAddr + (t * polygon->sizeS + s) / 2;
+            uint32_t address = polygon->textureAddr + static_cast<uint32_t>((t * polygon->sizeS + s) / 2);
             uint8_t *data    = getTexture(address);
             if (!data)
                 return 0;
@@ -375,7 +375,7 @@ uint32_t Gpu3DRenderer::readTexture(_Polygon *polygon, int s, int t) {
             return rgba5ToRgba6((0x1F << 15) | U8TO16(palette, index * 2));
         }
         case 4: {
-            uint32_t address = polygon->textureAddr + (t * polygon->sizeS + s);
+            uint32_t address = polygon->textureAddr + static_cast<uint32_t>((t * polygon->sizeS + s));
             uint8_t *data    = getTexture(address);
             if (!data)
                 return 0;
@@ -389,7 +389,7 @@ uint32_t Gpu3DRenderer::readTexture(_Polygon *polygon, int s, int t) {
         }
         case 5: {
             int      tile    = (t / 4) * (polygon->sizeS / 4) + (s / 4);
-            uint32_t address = polygon->textureAddr + (tile * 4 + t % 4);
+            uint32_t address = polygon->textureAddr + static_cast<uint32_t>((tile * 4 + t % 4));
             uint8_t *data    = getTexture(address);
             if (!data)
                 return 0;
@@ -447,7 +447,7 @@ uint32_t Gpu3DRenderer::readTexture(_Polygon *polygon, int s, int t) {
             return 0; // inaccessible : (palBase & 0xC000) >> 14 ne vaut que 0..3
         }
         case 6: {
-            uint32_t address = polygon->textureAddr + (t * polygon->sizeS + s);
+            uint32_t address = polygon->textureAddr + static_cast<uint32_t>((t * polygon->sizeS + s));
             uint8_t *data    = getTexture(address);
             if (!data)
                 return 0;
@@ -455,7 +455,7 @@ uint32_t Gpu3DRenderer::readTexture(_Polygon *polygon, int s, int t) {
             uint8_t *palette = getPalette(polygon->paletteAddr);
             if (!palette)
                 return 0;
-            uint16_t color = U8TO16(palette, (index & 0x07) * 2) & ~BIT(15);
+            uint16_t color = static_cast<uint16_t>(U8TO16(palette, (index & 0x07) * 2) & ~BIT(15));
             uint8_t  alpha = index >> 3;
             return rgba5ToRgba6((alpha << 15) | color);
         }
@@ -506,18 +506,18 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
     uint32_t x1, x2, x3, x4;
     uint32_t x1a = 0x3F, x2a = 0x3F, x3a = 0x3F, x4a = 0x3F;
     if (vertices[v[0]]->y == vertices[v[1]]->y) {
-        x1 = vertices[v[0]]->x;
-        x2 = vertices[v[1]]->x;
+        x1 = static_cast<uint32_t>(vertices[v[0]]->x);
+        x2 = static_cast<uint32_t>(vertices[v[1]]->x);
         if (vertices[v[0]]->x > vertices[v[1]]->x) {
             SWAP(v[0], v[1]);
             SWAP(x1, x2);
         }
     } else if (abs(vertices[v[1]]->x - vertices[v[0]]->x) > vertices[v[1]]->y - vertices[v[0]]->y) {
-        x1 = interpolateLinear(vertices[v[0]]->x << 1, vertices[v[1]]->x << 1, vertices[v[0]]->y, line,
-                               vertices[v[1]]->y) +
+        x1 = interpolateLinear(static_cast<uint32_t>(vertices[v[0]]->x << 1), static_cast<uint32_t>(vertices[v[1]]->x << 1), static_cast<uint32_t>(vertices[v[0]]->y), static_cast<uint32_t>(line),
+                               static_cast<uint32_t>(vertices[v[1]]->y)) +
              1;
-        x2 = interpolateLinear(vertices[v[0]]->x << 1, vertices[v[1]]->x << 1, vertices[v[0]]->y, line + 1,
-                               vertices[v[1]]->y) +
+        x2 = interpolateLinear(static_cast<uint32_t>(vertices[v[0]]->x << 1), static_cast<uint32_t>(vertices[v[1]]->x << 1), static_cast<uint32_t>(vertices[v[0]]->y), static_cast<uint32_t>(line + 1),
+                               static_cast<uint32_t>(vertices[v[1]]->y)) +
              1;
         bool negative = (vertices[v[0]]->x > vertices[v[1]]->x);
         if (negative) {
@@ -525,11 +525,11 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
             SWAP(x1, x2);
         }
         if (disp3DCnt & BIT(4)) {
-            x1a = interpolateLinear(vertices[v[0]]->y << 6, vertices[v[1]]->y << 6, vertices[v[0]]->x << 1, x1,
-                                    vertices[v[1]]->x << 1) &
+            x1a = interpolateLinear(static_cast<uint32_t>(vertices[v[0]]->y << 6), static_cast<uint32_t>(vertices[v[1]]->y << 6), static_cast<uint32_t>(vertices[v[0]]->x << 1), x1,
+                                    static_cast<uint32_t>(vertices[v[1]]->x << 1)) &
                   0x3F;
-            x2a = interpolateLinear(vertices[v[0]]->y << 6, vertices[v[1]]->y << 6, vertices[v[0]]->x << 1, x2 - 2,
-                                    vertices[v[1]]->x << 1) &
+            x2a = interpolateLinear(static_cast<uint32_t>(vertices[v[0]]->y << 6), static_cast<uint32_t>(vertices[v[1]]->y << 6), static_cast<uint32_t>(vertices[v[0]]->x << 1), x2 - 2,
+                                    static_cast<uint32_t>(vertices[v[1]]->x << 1)) &
                   0x3F;
             if (negative) {
                 x1a = 0x3F - x1a;
@@ -540,12 +540,12 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
         x2 >>= 1;
     } else {
         if (vertices[v[0]]->x > vertices[v[1]]->x)
-            x1 = interpolateLinRev(vertices[v[0]]->x << 6, vertices[v[1]]->x << 6, vertices[v[0]]->y, line,
-                                   vertices[v[1]]->y) -
+            x1 = interpolateLinRev(static_cast<uint32_t>(vertices[v[0]]->x << 6), static_cast<uint32_t>(vertices[v[1]]->x << 6), static_cast<uint32_t>(vertices[v[0]]->y), static_cast<uint32_t>(line),
+                                   static_cast<uint32_t>(vertices[v[1]]->y)) -
                  1;
         else
-            x1 = interpolateLinear(vertices[v[0]]->x << 6, vertices[v[1]]->x << 6, vertices[v[0]]->y, line,
-                                   vertices[v[1]]->y);
+            x1 = interpolateLinear(static_cast<uint32_t>(vertices[v[0]]->x << 6), static_cast<uint32_t>(vertices[v[1]]->x << 6), static_cast<uint32_t>(vertices[v[0]]->y), static_cast<uint32_t>(line),
+                                   static_cast<uint32_t>(vertices[v[1]]->y));
         if (disp3DCnt & BIT(4)) {
             if (abs(vertices[v[1]]->x - vertices[v[0]]->x) == vertices[v[1]]->y - vertices[v[0]]->y)
                 x2a = x1a = 0x20;
@@ -555,23 +555,23 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
         x2 = x1 >>= 6;
     }
     if (vertices[v[2]]->y == vertices[v[3]]->y) {
-        x3 = vertices[v[2]]->x;
-        x4 = vertices[v[3]]->x;
+        x3 = static_cast<uint32_t>(vertices[v[2]]->x);
+        x4 = static_cast<uint32_t>(vertices[v[3]]->x);
         if (vertices[v[2]]->x > vertices[v[3]]->x) {
             SWAP(v[2], v[3]);
             SWAP(x3, x4);
         }
     } else if (vertices[v[2]]->x == vertices[v[3]]->x) {
-        x3 = vertices[v[2]]->x;
+        x3 = static_cast<uint32_t>(vertices[v[2]]->x);
         if ((vertices[v[0]]->x != vertices[v[1]]->x || vertices[v[0]]->x != vertices[v[2]]->x) && x3 > 0)
             x3--;
         x4 = x3;
     } else if (abs(vertices[v[3]]->x - vertices[v[2]]->x) > vertices[v[3]]->y - vertices[v[2]]->y) {
-        x3 = interpolateLinear(vertices[v[2]]->x << 1, vertices[v[3]]->x << 1, vertices[v[2]]->y, line,
-                               vertices[v[3]]->y) +
+        x3 = interpolateLinear(static_cast<uint32_t>(vertices[v[2]]->x << 1), static_cast<uint32_t>(vertices[v[3]]->x << 1), static_cast<uint32_t>(vertices[v[2]]->y), static_cast<uint32_t>(line),
+                               static_cast<uint32_t>(vertices[v[3]]->y)) +
              1;
-        x4 = interpolateLinear(vertices[v[2]]->x << 1, vertices[v[3]]->x << 1, vertices[v[2]]->y, line + 1,
-                               vertices[v[3]]->y) +
+        x4 = interpolateLinear(static_cast<uint32_t>(vertices[v[2]]->x << 1), static_cast<uint32_t>(vertices[v[3]]->x << 1), static_cast<uint32_t>(vertices[v[2]]->y), static_cast<uint32_t>(line + 1),
+                               static_cast<uint32_t>(vertices[v[3]]->y)) +
              1;
         bool negative = (vertices[v[2]]->x > vertices[v[3]]->x);
         if (negative) {
@@ -579,11 +579,11 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
             SWAP(x3, x4);
         }
         if (disp3DCnt & BIT(4)) {
-            x3a = interpolateLinear(vertices[v[2]]->y << 6, vertices[v[3]]->y << 6, vertices[v[2]]->x << 1, x3,
-                                    vertices[v[3]]->x << 1) &
+            x3a = interpolateLinear(static_cast<uint32_t>(vertices[v[2]]->y << 6), static_cast<uint32_t>(vertices[v[3]]->y << 6), static_cast<uint32_t>(vertices[v[2]]->x << 1), x3,
+                                    static_cast<uint32_t>(vertices[v[3]]->x << 1)) &
                   0x3F;
-            x4a = interpolateLinear(vertices[v[2]]->y << 6, vertices[v[3]]->y << 6, vertices[v[2]]->x << 1, x4 - 2,
-                                    vertices[v[3]]->x << 1) &
+            x4a = interpolateLinear(static_cast<uint32_t>(vertices[v[2]]->y << 6), static_cast<uint32_t>(vertices[v[3]]->y << 6), static_cast<uint32_t>(vertices[v[2]]->x << 1), x4 - 2,
+                                    static_cast<uint32_t>(vertices[v[3]]->x << 1)) &
                   0x3F;
             if (!negative) {
                 x3a = 0x3F - x3a;
@@ -594,12 +594,12 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
         x4 >>= 1;
     } else {
         if (vertices[v[2]]->x > vertices[v[3]]->x)
-            x3 = interpolateLinRev(vertices[v[2]]->x << 6, vertices[v[3]]->x << 6, vertices[v[2]]->y, line,
-                                   vertices[v[3]]->y) -
+            x3 = interpolateLinRev(static_cast<uint32_t>(vertices[v[2]]->x << 6), static_cast<uint32_t>(vertices[v[3]]->x << 6), static_cast<uint32_t>(vertices[v[2]]->y), static_cast<uint32_t>(line),
+                                   static_cast<uint32_t>(vertices[v[3]]->y)) -
                  1;
         else
-            x3 = interpolateLinear(vertices[v[2]]->x << 6, vertices[v[3]]->x << 6, vertices[v[2]]->y, line,
-                                   vertices[v[3]]->y);
+            x3 = interpolateLinear(static_cast<uint32_t>(vertices[v[2]]->x << 6), static_cast<uint32_t>(vertices[v[3]]->x << 6), static_cast<uint32_t>(vertices[v[2]]->y), static_cast<uint32_t>(line),
+                                   static_cast<uint32_t>(vertices[v[3]]->y));
         if (disp3DCnt & BIT(4)) {
             if (abs(vertices[v[3]]->x - vertices[v[2]]->x) == vertices[v[3]]->y - vertices[v[2]]->y)
                 x4a = x3a = 0x20;
@@ -639,41 +639,41 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
     uint32_t xe1[2], xe[2], xe2[2];
     bool     hideLeft, hideRight;
     if (abs(vertices[v[1]]->x - vertices[v[0]]->x) > abs(vertices[v[1]]->y - vertices[v[0]]->y)) {
-        xe1[0]   = vertices[v[0]]->x;
+        xe1[0]   = static_cast<uint32_t>(vertices[v[0]]->x);
         xe[0]    = x1;
-        xe2[0]   = vertices[v[1]]->x;
+        xe2[0]   = static_cast<uint32_t>(vertices[v[1]]->x);
         hideLeft = (vertices[v[0]]->y < vertices[v[1]]->y);
     } else {
-        xe1[0]   = vertices[v[0]]->y;
-        xe[0]    = line;
-        xe2[0]   = vertices[v[1]]->y;
+        xe1[0]   = static_cast<uint32_t>(vertices[v[0]]->y);
+        xe[0]    = static_cast<uint32_t>(line);
+        xe2[0]   = static_cast<uint32_t>(vertices[v[1]]->y);
         hideLeft = false;
     }
     if (abs(vertices[v[3]]->x - vertices[v[2]]->x) > abs(vertices[v[3]]->y - vertices[v[2]]->y)) {
-        xe1[1]    = vertices[v[2]]->x;
+        xe1[1]    = static_cast<uint32_t>(vertices[v[2]]->x);
         xe[1]     = x4;
-        xe2[1]    = vertices[v[3]]->x;
+        xe2[1]    = static_cast<uint32_t>(vertices[v[3]]->x);
         hideRight = (vertices[v[2]]->y > vertices[v[3]]->y);
     } else {
-        xe1[1]    = vertices[v[2]]->y;
-        xe[1]     = line;
-        xe2[1]    = vertices[v[3]]->y;
+        xe1[1]    = static_cast<uint32_t>(vertices[v[2]]->y);
+        xe[1]     = static_cast<uint32_t>(line);
+        xe2[1]    = static_cast<uint32_t>(vertices[v[3]]->y);
         hideRight = (vertices[v[2]]->x != vertices[v[3]]->x);
     }
     uint32_t ws[4];
     if (polygon->wShift >= 0) {
         for (int i = 0; i < 4; i++)
-            ws[i] = vertices[v[i]]->w >> polygon->wShift;
+            ws[i] = static_cast<uint32_t>(vertices[v[i]]->w >> polygon->wShift);
     } else {
         for (int i = 0; i < 4; i++)
-            ws[i] = vertices[v[i]]->w << -polygon->wShift;
+            ws[i] = static_cast<uint32_t>(vertices[v[i]]->w << -polygon->wShift);
     }
     uint32_t ze[2], we[2];
     uint32_t re[2], ge[2], be[2];
     uint32_t se[2], te[2];
     for (int i = 0; i < 2; i++) {
         int i2 = i * 2;
-        ze[i]  = interpolateLinear(vertices[v[i2]]->z, vertices[v[i2 + 1]]->z, xe1[i], xe[i], xe2[i]);
+        ze[i]  = interpolateLinear(static_cast<uint32_t>(vertices[v[i2]]->z), static_cast<uint32_t>(vertices[v[i2 + 1]]->z), xe1[i], xe[i], xe2[i]);
         if (ws[i2] == ws[i2 + 1] && !(ws[i2] & 0x00FE)) {
             we[i] = interpolateLinear(ws[i2], ws[i2 + 1], xe1[i], xe[i], xe2[i]);
             re[i] = interpolateLinear(((vertices[v[i2]]->color >> 0) & 0x3F) << 3,
@@ -682,10 +682,10 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
                                       ((vertices[v[i2 + 1]]->color >> 6) & 0x3F) << 3, xe1[i], xe[i], xe2[i]);
             be[i] = interpolateLinear(((vertices[v[i2]]->color >> 12) & 0x3F) << 3,
                                       ((vertices[v[i2 + 1]]->color >> 12) & 0x3F) << 3, xe1[i], xe[i], xe2[i]);
-            se[i] = interpolateLinear((int32_t)vertices[v[i2]]->s + 0xFFFF, (int32_t)vertices[v[i2 + 1]]->s + 0xFFFF,
+            se[i] = interpolateLinear(static_cast<uint32_t>((int32_t)vertices[v[i2]]->s + 0xFFFF), static_cast<uint32_t>((int32_t)vertices[v[i2 + 1]]->s + 0xFFFF),
                                       xe1[i], xe[i], xe2[i]) -
                     0xFFFF;
-            te[i] = interpolateLinear((int32_t)vertices[v[i2]]->t + 0xFFFF, (int32_t)vertices[v[i2 + 1]]->t + 0xFFFF,
+            te[i] = interpolateLinear(static_cast<uint32_t>((int32_t)vertices[v[i2]]->t + 0xFFFF), static_cast<uint32_t>((int32_t)vertices[v[i2 + 1]]->t + 0xFFFF),
                                       xe1[i], xe[i], xe2[i]) -
                     0xFFFF;
         } else {
@@ -708,11 +708,11 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
                                       ((vertices[v[i2 + 1]]->color >> 6) & 0x3F) << 3);
             be[i] = interpolateFactor(factor, 9, ((vertices[v[i2]]->color >> 12) & 0x3F) << 3,
                                       ((vertices[v[i2 + 1]]->color >> 12) & 0x3F) << 3);
-            se[i] = interpolateFactor(factor, 9, (int32_t)vertices[v[i2]]->s + 0xFFFF,
-                                      (int32_t)vertices[v[i2 + 1]]->s + 0xFFFF) -
+            se[i] = interpolateFactor(factor, 9, static_cast<uint32_t>((int32_t)vertices[v[i2]]->s + 0xFFFF),
+                                      static_cast<uint32_t>((int32_t)vertices[v[i2 + 1]]->s + 0xFFFF)) -
                     0xFFFF;
-            te[i] = interpolateFactor(factor, 9, (int32_t)vertices[v[i2]]->t + 0xFFFF,
-                                      (int32_t)vertices[v[i2 + 1]]->t + 0xFFFF) -
+            te[i] = interpolateFactor(factor, 9, static_cast<uint32_t>((int32_t)vertices[v[i2]]->t + 0xFFFF),
+                                      static_cast<uint32_t>((int32_t)vertices[v[i2 + 1]]->t + 0xFFFF)) -
                     0xFFFF;
         }
     }
@@ -742,10 +742,10 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
         if (x >= uint32_t(256 << resShift))
             break;
         bool     layer = 0;
-        int      i     = line * 256 * 2 + x;
+        int      i     = static_cast<int>(static_cast<uint32_t>(line * 256 * 2) + x);
         uint32_t factor;
         if (we[0] == we[1] && !(we[0] & 0x007F)) {
-            factor = -1;
+            factor = UINT32_MAX;
         } else if (x <= x1) {
             factor = 0;
         } else if (x >= x4) {
@@ -756,21 +756,21 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
         }
         int32_t depth;
         if (polygon->wBuffer) {
-            depth = (factor == uint32_t(-1)) ? interpolateLinear(we[0], we[1], x1, x, x4)
-                                   : interpolateFactor(factor, 8, we[0], we[1]);
+            depth = static_cast<int32_t>((factor == uint32_t(-1)) ? interpolateLinear(we[0], we[1], x1, x, x4)
+                                   : interpolateFactor(factor, 8, we[0], we[1]));
             if (polygon->wShift > 0)
                 depth <<= polygon->wShift;
             else if (polygon->wShift < 0)
                 depth >>= -polygon->wShift;
         } else {
-            depth = interpolateLinear(ze[0], ze[1], x1, x, x4);
+            depth = static_cast<int32_t>(interpolateLinear(ze[0], ze[1], x1, x, x4));
         }
         bool depthPass[2];
         if (polygon->depthTestEqual) {
             uint32_t margin = (polygon->wBuffer ? 0xFF : 0x200);
-            depthPass[0]    = (uint32_t(depthBuffer[0][i]) >= depth - margin && uint32_t(depthBuffer[0][i]) <= depth + margin);
+            depthPass[0]    = (uint32_t(depthBuffer[0][i]) >= static_cast<uint32_t>(depth) - margin && uint32_t(depthBuffer[0][i]) <= static_cast<uint32_t>(depth) + margin);
             depthPass[1]    = (disp3DCnt & BIT(4)) && (attribBuffer[0][i] & BIT(14)) &&
-                           (uint32_t(depthBuffer[1][i]) >= depth - margin && uint32_t(depthBuffer[1][i]) <= depth + margin);
+                           (uint32_t(depthBuffer[1][i]) >= static_cast<uint32_t>(depth) - margin && uint32_t(depthBuffer[1][i]) <= static_cast<uint32_t>(depth) + margin);
         } else {
             depthPass[0] = (depthBuffer[0][i] > depth);
             depthPass[1] = (disp3DCnt & BIT(4)) && (attribBuffer[0][i] & BIT(14)) && (depthBuffer[1][i] > depth);
@@ -819,19 +819,19 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
             }
             switch (polygon->mode) {
                 case 0: {
-                    uint8_t r = ((((texel >> 0) & 0x3F) + 1) * (((color >> 0) & 0x3F) + 1) - 1) / 64;
-                    uint8_t g = ((((texel >> 6) & 0x3F) + 1) * (((color >> 6) & 0x3F) + 1) - 1) / 64;
-                    uint8_t b = ((((texel >> 12) & 0x3F) + 1) * (((color >> 12) & 0x3F) + 1) - 1) / 64;
-                    uint8_t a = ((((texel >> 18) & 0x3F) + 1) * (((color >> 18) & 0x3F) + 1) - 1) / 64;
+                    uint8_t r = static_cast<uint8_t>(((((texel >> 0) & 0x3F) + 1) * (((color >> 0) & 0x3F) + 1) - 1) / 64);
+                    uint8_t g = static_cast<uint8_t>(((((texel >> 6) & 0x3F) + 1) * (((color >> 6) & 0x3F) + 1) - 1) / 64);
+                    uint8_t b = static_cast<uint8_t>(((((texel >> 12) & 0x3F) + 1) * (((color >> 12) & 0x3F) + 1) - 1) / 64);
+                    uint8_t a = static_cast<uint8_t>(((((texel >> 18) & 0x3F) + 1) * (((color >> 18) & 0x3F) + 1) - 1) / 64);
                     color     = (a << 18) | (b << 12) | (g << 6) | r;
                     break;
                 }
                 case 1:
                 case 3: {
                     uint8_t at = ((texel >> 18) & 0x3F);
-                    uint8_t r  = (((texel >> 0) & 0x3F) * at + ((color >> 0) & 0x3F) * (63 - at)) / 64;
-                    uint8_t g  = (((texel >> 6) & 0x3F) * at + ((color >> 6) & 0x3F) * (63 - at)) / 64;
-                    uint8_t b  = (((texel >> 12) & 0x3F) * at + ((color >> 12) & 0x3F) * (63 - at)) / 64;
+                    uint8_t r  = static_cast<uint8_t>((((texel >> 0) & 0x3F) * at + ((color >> 0) & 0x3F) * (63 - at)) / 64);
+                    uint8_t g  = static_cast<uint8_t>((((texel >> 6) & 0x3F) * at + ((color >> 6) & 0x3F) * (63 - at)) / 64);
+                    uint8_t b  = static_cast<uint8_t>((((texel >> 12) & 0x3F) * at + ((color >> 12) & 0x3F) * (63 - at)) / 64);
                     uint8_t a  = ((color >> 18) & 0x3F);
                     color      = (a << 18) | (b << 12) | (g << 6) | r;
                     break;
@@ -840,9 +840,9 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
                     uint32_t toon = rgba5ToRgba6(toonTable[(color & 0x3F) / 2]);
                     uint8_t  r, g, b;
                     if (disp3DCnt & BIT(1)) {
-                        r = ((((texel >> 0) & 0x3F) + 1) * (((color >> 0) & 0x3F) + 1) - 1) / 64;
-                        g = ((((texel >> 6) & 0x3F) + 1) * (((color >> 6) & 0x3F) + 1) - 1) / 64;
-                        b = ((((texel >> 12) & 0x3F) + 1) * (((color >> 12) & 0x3F) + 1) - 1) / 64;
+                        r = static_cast<uint8_t>(((((texel >> 0) & 0x3F) + 1) * (((color >> 0) & 0x3F) + 1) - 1) / 64);
+                        g = static_cast<uint8_t>(((((texel >> 6) & 0x3F) + 1) * (((color >> 6) & 0x3F) + 1) - 1) / 64);
+                        b = static_cast<uint8_t>(((((texel >> 12) & 0x3F) + 1) * (((color >> 12) & 0x3F) + 1) - 1) / 64);
                         r += ((toon >> 0) & 0x3F);
                         if (r > 63)
                             r = 63;
@@ -853,11 +853,11 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
                         if (b > 63)
                             b = 63;
                     } else {
-                        r = ((((texel >> 0) & 0x3F) + 1) * (((toon >> 0) & 0x3F) + 1) - 1) / 64;
-                        g = ((((texel >> 6) & 0x3F) + 1) * (((toon >> 6) & 0x3F) + 1) - 1) / 64;
-                        b = ((((texel >> 12) & 0x3F) + 1) * (((toon >> 12) & 0x3F) + 1) - 1) / 64;
+                        r = static_cast<uint8_t>(((((texel >> 0) & 0x3F) + 1) * (((toon >> 0) & 0x3F) + 1) - 1) / 64);
+                        g = static_cast<uint8_t>(((((texel >> 6) & 0x3F) + 1) * (((toon >> 6) & 0x3F) + 1) - 1) / 64);
+                        b = static_cast<uint8_t>(((((texel >> 12) & 0x3F) + 1) * (((toon >> 12) & 0x3F) + 1) - 1) / 64);
                     }
-                    uint8_t a = ((((texel >> 18) & 0x3F) + 1) * (((color >> 18) & 0x3F) + 1) - 1) / 64;
+                    uint8_t a = static_cast<uint8_t>(((((texel >> 18) & 0x3F) + 1) * (((color >> 18) & 0x3F) + 1) - 1) / 64);
                     color     = (a << 18) | (b << 12) | (g << 6) | r;
                     break;
                 }
@@ -892,14 +892,14 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
                 depthBuffer[1][i]  = depthBuffer[0][i];
                 attribBuffer[1][i] = attribBuffer[0][i];
                 if (x <= x2)
-                    edgeAlpha = interpolateLinear(x1a, x2a, x1, x, x2);
+                    edgeAlpha = static_cast<uint8_t>(interpolateLinear(x1a, x2a, x1, x, x2));
                 else if (x >= x3)
-                    edgeAlpha = interpolateLinear(x3a, x4a, x3, x, x4);
+                    edgeAlpha = static_cast<uint8_t>(interpolateLinear(x3a, x4a, x3, x, x4));
             }
             framebuffer[layer][i]  = BIT(26) | color;
             depthBuffer[layer][i]  = depth;
             attribBuffer[layer][i] = (attribBuffer[layer][i] & 0x0FC0) | (edgeAlpha << 15) | (edge << 14) |
-                                     (polygon->fog << 13) | polygon->id;
+                                     (polygon->fog << 13) | static_cast<uint32_t>(polygon->id);
         } else if (!(attribBuffer[layer][i] & BIT(12)) || ((attribBuffer[layer][i] >> 6) & 0x3F) != uint32_t(polygon->id)) {
             framebuffer[layer][i] = BIT(26) | (((disp3DCnt & BIT(3)) && (framebuffer[layer][i] & 0xFC0000))
                                                    ? interpolateColor(framebuffer[layer][i], color, 0, color >> 18, 63)
@@ -907,7 +907,7 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
             if (polygon->transNewDepth)
                 depthBuffer[layer][i] = depth;
             attribBuffer[layer][i] =
-                (attribBuffer[layer][i] & (0x1FC03F | (polygon->fog << 13))) | BIT(12) | (polygon->id << 6);
+                (attribBuffer[layer][i] & (0x1FC03F | (polygon->fog << 13))) | BIT(12) | static_cast<uint32_t>((polygon->id << 6));
             if ((disp3DCnt & BIT(4)) && layer == 0 && (attribBuffer[0][i] & BIT(14))) {
                 framebuffer[1][i] = BIT(26) | (((disp3DCnt & BIT(3)) && (framebuffer[1][i] & 0xFC0000))
                                                    ? interpolateColor(framebuffer[1][i], color, 0, color >> 18, 63)
@@ -915,7 +915,7 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
                 if (polygon->transNewDepth)
                     depthBuffer[1][i] = depth;
                 attribBuffer[1][i] =
-                    (attribBuffer[1][i] & (0x1FC03F | (polygon->fog << 13))) | BIT(12) | (polygon->id << 6);
+                    (attribBuffer[1][i] & (0x1FC03F | (polygon->fog << 13))) | BIT(12) | static_cast<uint32_t>((polygon->id << 6));
             }
         }
     }
@@ -923,9 +923,9 @@ void Gpu3DRenderer::drawPolygon(int line, int polygonIndex) {
 
 void Gpu3DRenderer::writeDisp3DCnt(uint16_t mask, uint16_t value) {
     if (value & BIT(12))
-        disp3DCnt &= ~BIT(12);
+        disp3DCnt = static_cast<uint16_t>(disp3DCnt & ~BIT(12));
     if (value & BIT(13))
-        disp3DCnt &= ~BIT(13);
+        disp3DCnt = static_cast<uint16_t>(disp3DCnt & ~BIT(13));
     mask &= 0x4FFF;
     if ((value & mask) == (disp3DCnt & mask))
         return;

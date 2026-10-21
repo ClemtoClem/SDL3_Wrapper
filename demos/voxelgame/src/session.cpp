@@ -204,7 +204,7 @@ void Session::BuildHud(ecs::Entity layer) {
 				parent = e;
 		});
 	WidgetBuilder hud = k.Factory().Column();
-	hud.Absolute().Anchor(ui::Anchor::TopLeft).W(Dimension::Rpct(100.f)).H(Dimension::Rpct(100.f)).PointerThrough();
+	hud.Absolute().Anchor(ui::Anchor::TopLeft).W(Dimension::Rpct(100.f)).H(Dimension::Rpct(100.f)).Pad(0.f).PointerThrough();
 	if (parent.Valid())
 		hud.Parent(parent);
 	else
@@ -216,9 +216,9 @@ void Session::BuildHud(ecs::Entity layer) {
 	WidgetBuilder canvas = k.Factory().Canvas([this](sdl3::Renderer &ren, sdl3::FRect r) { DrawHud(ren, r); });
 	canvas.Absolute().Anchor(ui::Anchor::TopLeft).W(Dimension::Rpct(100.f)).H(Dimension::Rpct(100.f)).PointerThrough().Parent(m_hud);
 	m_hudCanvas = canvas.Spawn();
-	auto line = [&](ecs::Entity parent, Text role, sdl3::FColor color) {
+	auto line = [&](ecs::Entity into, Text role, sdl3::FColor color) {
 		WidgetBuilder l = k.Label(String(), role);
-		l.TextColor(color).PointerThrough().Parent(parent);
+		l.TextColor(color).PointerThrough().Parent(into);
 		return l.Spawn();
 	};
 	// Haut gauche : heure, biome, coordonnées.
@@ -247,10 +247,16 @@ void Session::BuildHud(ecs::Entity layer) {
 	chat.Absolute().Anchor(ui::Anchor::BottomLeft).Offset(14.f, -96.f * s.hudScale).W(Dimension::Px(520.f)).HAuto().PointerThrough();
 	chat.Parent(m_hud);
 	m_chatPanel = chat.Spawn();
-	for (ecs::Entity &l : m_chatLines) {
-		WidgetBuilder lb = k.Label(String(), Text::SMALL);
-		lb.Pad(math::Sides(6.f, 2.f)).Radius(4.f).Bg(WithAlpha(Rgb(8, 10, 14), s.chatOpacity * 0.8f)).PointerThrough().Parent(m_chatPanel);
-		l = lb.Spawn();
+	for (size_t i = 0; i < m_chatLines.size(); ++i) {
+		// Rangée (fond, padding) puis texte à la ligne : un message long se
+		// replie dans la largeur du panneau au lieu d'être rogné.
+		WidgetBuilder row = k.Row(0.f);
+		row.GrowW().HAuto().Pad(math::Sides(6.f, 2.f)).Radius(4.f).Bg(WithAlpha(Rgb(8, 10, 14), s.chatOpacity * 0.8f)).PointerThrough();
+		row.Parent(m_chatPanel);
+		m_chatRows[i] = row.Spawn();
+		WidgetBuilder lb = k.Paragraph(String(), Text::SMALL);
+		lb.PointerThrough().Parent(m_chatRows[i]);
+		m_chatLines[i] = lb.Spawn();
 	}
 	// Informations techniques (F3), sous le panneau d'informations.
 	WidgetBuilder debug = k.Column(1.f);
@@ -629,8 +635,8 @@ void Session::UpdateHudLabels() {
 	std::vector<String> hints;
 	if (s.showHints) {
 		auto key = [&](const char *action) {
-			const KeyBinding *b = s.Binding(action);
-			return b ? InputName(b->keys[0]) : String("?");
+			const KeyBinding *binding = s.Binding(action);
+			return binding ? InputName(binding->keys[0]) : String("?");
 		};
 		if (!name.IsEmpty() && detail.Contains("interagir"))
 			hints.push_back(key("use") + String("  Parler / échanger"));
@@ -704,15 +710,20 @@ void Session::UpdateMessages(float dt) {
 			const String text = l.author.IsEmpty() ? l.text : String::Format("<%s> %s", l.author.CStr(), l.text.CStr());
 			k.SetText(e, text);
 			const sdl3::FColor c = l.channel == "event" ? p.accent : l.channel == "error" ? p.danger : l.channel == "system" ? p.info : p.text;
+			const float fade = std::clamp(l.shown, 0.f, 1.f);
 			if (auto st = k.Ui().World().GetComponent<ui::UiStyle>(e); st.IsSome()) {
 				ui::UiStyle style = *st.Unwrap();
-				style.SetTextColor(WithAlpha(c, std::clamp(l.shown, 0.f, 1.f)));
-				style.SetBg(WithAlpha(Rgb(8, 10, 14), s.chatOpacity * 0.8f * std::clamp(l.shown, 0.f, 1.f)));
+				style.SetTextColor(WithAlpha(c, fade));
 				ui::SetInlineStyle(k.Ui().World(), e, std::move(style));
 			}
-			k.SetHidden(e, false);
+			if (auto st = k.Ui().World().GetComponent<ui::UiStyle>(m_chatRows[i]); st.IsSome()) {
+				ui::UiStyle style = *st.Unwrap();
+				style.SetBg(WithAlpha(Rgb(8, 10, 14), s.chatOpacity * 0.8f * fade));
+				ui::SetInlineStyle(k.Ui().World(), m_chatRows[i], std::move(style));
+			}
+			k.SetHidden(m_chatRows[i], false);
 		} else {
-			k.SetHidden(e, true);
+			k.SetHidden(m_chatRows[i], true);
 		}
 	}
 }

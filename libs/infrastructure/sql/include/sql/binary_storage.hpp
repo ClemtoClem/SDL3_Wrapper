@@ -46,11 +46,21 @@
 
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <vector>
 
 namespace sql {
 
+/// Version written by SaveDatabaseBinary. Version 2 adds, per table, the
+/// primary-key column name (u32-prefixed string after the columns, empty =
+/// none) and a trailing CRC-32 (u32) of all preceding bytes. Version 1
+/// files still load.
+inline constexpr uint8_t BINARY_FORMAT_VERSION = 2;
+
 namespace detail {
+
+/// CRC-32 (IEEE 802.3, the zlib/PNG polynomial).
+[[nodiscard]] uint32_t Crc32(const uint8_t *data, size_t size) noexcept;
 
 // ============================================================================
 // Pack helpers — append to a growing byte buffer.
@@ -98,7 +108,8 @@ struct Reader {
 /// Serializes every table in `db` (schema + all live rows, via db.Execute's
 /// public "SELECT * FROM <table>" — no need for new raw-iteration access)
 /// into the binary format above and writes it to `path`. Returns false on
-/// any I/O failure.
+/// any I/O failure. The write is atomic (temp file + rename): on failure the
+/// previous file at `path`, if any, is left untouched.
 [[nodiscard]] bool SaveDatabaseBinary(const String &path, Database &db);
 
 /// Reads `path` and reconstructs a fresh Database from the binary format

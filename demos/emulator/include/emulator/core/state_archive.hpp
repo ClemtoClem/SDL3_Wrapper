@@ -25,7 +25,7 @@ class StateArchive {
   public:
     bool saving; ///< true = écriture (save), false = lecture (load).
 
-    explicit StateArchive(bool saving) : saving(saving) {
+    explicit StateArchive(bool saving_) : saving(saving_) {
     }
 
     /**

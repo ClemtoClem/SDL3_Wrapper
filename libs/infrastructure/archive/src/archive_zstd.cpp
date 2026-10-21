@@ -233,19 +233,18 @@ Result<size_t, String> Decoder::Decode(uint8_t* out, size_t max) {
 		}
 		m_ready.clear();
 		m_readyAt = 0;
-		Option<String> error = NONE;
 		switch (m_mode) {
 		case Mode::DONE:
 			return Ok(size_t(0));
 		case Mode::FRAME:
-			error = ReadFrameHeader();
+			if (Option<String> error = ReadFrameHeader(); error.IsSome())
+				return Err(error.Unwrap());
 			break;
 		case Mode::BLOCK:
-			error = ReadBlock();
+			if (Option<String> error = ReadBlock(); error.IsSome())
+				return Err(error.Unwrap());
 			break;
 		}
-		if (error.IsSome())
-			return Err(error.Unwrap());
 	}
 }
 

@@ -75,13 +75,13 @@ int Huffman::Build(const uint8_t* lengths, int symbolCount) {
 	int left = 1;
 	for (int length = 1; length <= MAX_BITS; ++length) {
 		left <<= 1;
-		left -= m_count[length];
+		left -= m_count[static_cast<std::array<short unsigned int, 16>::size_type>(length)];
 		if (left < 0)
 			return left;
 	}
 	std::array<uint16_t, MAX_BITS + 1> offsets{};
 	for (int length = 1; length < MAX_BITS; ++length)
-		offsets[length + 1] = uint16_t(offsets[length] + m_count[length]);
+		offsets[static_cast<std::array<short unsigned int, 16>::size_type>(length + 1)] = uint16_t(offsets[static_cast<std::array<short unsigned int, 16>::size_type>(length)] + m_count[static_cast<std::array<short unsigned int, 16>::size_type>(length)]);
 	for (int symbol = 0; symbol < symbolCount; ++symbol)
 		if (lengths[symbol] != 0)
 			m_symbols[offsets[lengths[symbol]]++] = uint16_t(symbol);
@@ -92,7 +92,7 @@ int Huffman::Build(const uint8_t* lengths, int symbolCount) {
 	int code = 0;
 	int index = 0;
 	for (int length = 1; length <= MAX_BITS; ++length) {
-		for (int n = 0; n < m_count[length]; ++n, ++code, ++index) {
+		for (int n = 0; n < m_count[static_cast<std::array<short unsigned int, 16>::size_type>(length)]; ++n, ++code, ++index) {
 			if (length > FAST_BITS)
 				continue;
 			int reversed = 0;
@@ -122,7 +122,7 @@ int Huffman::Decode(BitReader& reader) const noexcept {
 	uint64_t bits = reader.Buffer();
 	for (length = 1; length <= MAX_BITS && length <= reader.BitCount(); ++length) {
 		code |= int((bits >> (length - 1)) & 1u);
-		int count = m_count[length];
+		int count = m_count[static_cast<std::array<short unsigned int, 16>::size_type>(length)];
 		if (code - count < first) {
 			reader.Consume(length);
 			return m_symbols[size_t(index + (code - first))];
@@ -837,10 +837,10 @@ void Compressor::FlushBlock(size_t start, size_t end, bool final) {
 	// Coût de chaque variante, en bits.
 	uint64_t dynamicBits = 3 + 14 + 3 * uint64_t(codeLengthCount) + extraBits;
 	for (const Rle& item : rle)
-		dynamicBits += codeLengthLengths[item.symbol] + (item.symbol == 16	 ? 2
-														 : item.symbol == 17 ? 3
-														 : item.symbol == 18 ? 7
-																			 : 0);
+		dynamicBits += codeLengthLengths[item.symbol] + (item.symbol == 16	 ? 2u
+														 : item.symbol == 17 ? 3u
+														 : item.symbol == 18 ? 7u
+																			 : 0u);
 	uint64_t fixedBits = 3 + extraBits;
 	for (size_t s = 0; s < 286; ++s) {
 		dynamicBits += uint64_t(literalFrequency[s]) * literalLengths[s];

@@ -307,7 +307,7 @@ float WrappedHeight(const String &text, float fontSize, float maxWidth,
 std::vector<TextLine> WrapText(const String &text, float fontSize, float maxWidth) {
 	std::vector<TextLine> lines;
 	float cw = CharWidthApprox(fontSize);
-	size_t maxChars = cw > 0.f ? sdl3::Max(1, int(maxWidth / cw)) : text.size() + 1;
+	size_t maxChars = cw > 0.f ? static_cast<size_t>(sdl3::Max(1, int(maxWidth / cw))) : text.size() + 1;
 	size_t start = 0, n = text.size();
 	while (start < n) {
 		size_t remaining = n - start;
@@ -458,6 +458,17 @@ sdl3::FPoint LayoutSystem::MeasureText(std::u32string_view text, float fontSize)
 	return MeasureText(String::FromUtf32(text), fontSize);
 }
 
+std::function<sdl3::FPoint(const String &, float)> LayoutSystem::LineMeasure(bool bold, bool italic) const {
+	if (!measureStyledText)
+		return measureText;
+	return [this, bold, italic](const String &line, float fs) { return measureStyledText(line, fs, bold, italic); };
+}
+
+sdl3::FPoint LayoutSystem::MeasureText(const String &text, float fontSize, bool bold, bool italic) const {
+	const TextMetrics metrics = MeasureTextBlock(text, fontSize, LineMeasure(bold, italic), tabStop);
+	return {metrics.width, metrics.height};
+}
+
 TextMetrics LayoutSystem::MeasureTextMetrics(const String &text, float fontSize) const {
 	return MeasureTextBlock(text, fontSize, measureText, tabStop);
 }
@@ -599,14 +610,16 @@ sdl3::FPoint LayoutSystem::Pass::Intrinsic(ecs::Entity e) {
 	// Em/Rem, pas de nouvelle résolution ici.
 	float fs = FontsOf(e).em;
 	if (auto l = world.GetComponent<UiLabel>(e); l.IsSome()) {
-		sdl3::FPoint m = sys.MeasureText(l.Unwrap()->text, fs);
+		const ResolvedStyle rs = GetResolved(world, e);
+		sdl3::FPoint m = sys.MeasureText(l.Unwrap()->text, fs, rs.Bold(false), rs.Italic(false));
 		if (TextOverflowOf(world, e) == TextOverflow::WRAP)
 			if (auto it = sys.wrapHeights.find(e.id); it != sys.wrapHeights.end())
 				m.y = sdl3::Max(m.y, it->second);
 		return m;
 	}
 	if (auto b = world.GetComponent<UiButton>(e); b.IsSome()) {
-		auto t = sys.MeasureText(b.Unwrap()->text, fs);
+		const ResolvedStyle rs = GetResolved(world, e);
+		auto t = sys.MeasureText(b.Unwrap()->text, fs, rs.Bold(false), rs.Italic(false));
 		return {t.x + 24.f, t.y + 14.f};
 	}
 	if (world.HasComponent<UiToggle>(e))
@@ -679,8 +692,10 @@ sdl3::FPoint LayoutSystem::Pass::Intrinsic(ecs::Entity e) {
 float LayoutSystem::Pass::AutoSize(ecs::Entity e, bool isW) {
 	auto fit = flows.find(e.id);
 	if (fit == flows.end()) {
+		// Modèle de boîte : la bordure entoure le contenu (cf. Place).
 		auto s = Intrinsic(e);
-		return isW ? s.x : s.y;
+		const math::Sides BORDER = BorderOf(e);
+		return isW ? s.x + BORDER.H() : s.y + BORDER.V();
 	}
 	const UiFlow &flow = fit->second;
 	// gap/margin/padding : mêmes float/math::Sides bruts qu'ailleurs, mis à
@@ -707,6 +722,13 @@ float LayoutSystem::Pass::AutoSize(ecs::Entity e, bool isW) {
 	}
 	if (n > 1)
 		main += flow.gap * SCALE * float(n - 1);
+	// Widget de texte doté d'un flow (padding posé sur un libellé, un
+	// bouton…) sans enfant : son contenu est son texte.
+	if (n == 0 && TextOf(e)) {
+		const sdl3::FPoint text = Intrinsic(e);
+		main = flow.dir == LayoutDir::Column ? text.y : text.x;
+		cross = flow.dir == LayoutDir::Column ? text.x : text.y;
+	}
 	float w = (flow.dir == LayoutDir::Column) ? cross : main;
 	float h = (flow.dir == LayoutDir::Column) ? main : cross;
 	// La bordure s'ajoute au contenu (modèle border-box) : sans elle,
@@ -729,7 +751,20 @@ Option<float> LayoutSystem::Pass::WrappedHeightOf(ecs::Entity e, float available
 	const String *text = TextOf(e);
 	if (!text || text->IsEmpty())
 		return NONE;
-	return Some(WrappedHeight(*text, FontsOf(e).em, availableWidth, sys.measureText, sys.tabStop));
+	// Hauteur de la BOÎTE : le texte se replie dans la zone de contenu
+	// (même largeur utile que TextContentSize), padding et bordure en plus.
+	math::Sides pad = BorderOf(e);
+	if (auto fit = flows.find(e.id); fit != flows.end()) {
+		const float scale = FontsOf(e).scale;
+		pad.left += fit->second.padding.left * scale;
+		pad.right += fit->second.padding.right * scale;
+		pad.top += fit->second.padding.top * scale;
+		pad.bottom += fit->second.padding.bottom * scale;
+	}
+	const float textWidth = sdl3::Max(1.f, availableWidth - pad.H() - 2.f * TEXT_INSET);
+	const ResolvedStyle rs = GetResolved(world, e);
+	return Some(WrappedHeight(*text, FontsOf(e).em, textWidth, sys.LineMeasure(rs.Bold(false), rs.Italic(false)), sys.tabStop) +
+				pad.V());
 }
 
 Option<sdl3::FPoint> LayoutSystem::Pass::TextContentSize(ecs::Entity e, const sdl3::FRect &screen) {
@@ -740,12 +775,14 @@ Option<sdl3::FPoint> LayoutSystem::Pass::TextContentSize(ecs::Entity e, const sd
 	if (!text || text->IsEmpty())
 		return NONE;
 	const float fs = FontsOf(e).em;
+	const ResolvedStyle rs = GetResolved(world, e);
+	const bool bold = rs.Bold(false), italic = rs.Italic(false);
 	if (mode == TextOverflow::SCROLL) {
-		const float width = sys.MeasureText(*text, fs).x + 2.f * TEXT_INSET;
+		const float width = sys.MeasureText(*text, fs, bold, italic).x + 2.f * TEXT_INSET;
 		return Some(sdl3::FPoint{width, screen.h});
 	}
-	const float height = WrappedHeight(*text, fs, sdl3::Max(1.f, screen.w - 2.f * TEXT_INSET),
-									   sys.measureText, sys.tabStop);
+	const float height = WrappedHeight(*text, fs, sdl3::Max(1.f, screen.w - 2.f * TEXT_INSET), sys.LineMeasure(bold, italic),
+									   sys.tabStop);
 	return Some(sdl3::FPoint{screen.w, height});
 }
 
@@ -794,8 +831,10 @@ void LayoutSystem::Pass::Place(ecs::Entity e, sdl3::FRect screen, sdl3::FRect dr
 	// mesure du texte (cf. UiTextOverflow::textWidth).
 	if (auto overflow = world.GetComponent<UiTextOverflow>(e);
 		overflow.IsSome() && overflow.Unwrap()->mode == TextOverflow::MARQUEE)
-		if (const String *text = TextOf(e))
-			overflow.Unwrap()->textWidth = sys.MeasureText(*text, FontsOf(e).em).x;
+		if (const String *text = TextOf(e)) {
+			const ResolvedStyle rs = GetResolved(world, e);
+			overflow.Unwrap()->textWidth = sys.MeasureText(*text, FontsOf(e).em, rs.Bold(false), rs.Italic(false)).x;
+		}
 
 	auto fit = flows.find(e.id);
 	const bool HAS_FLOW = fit != flows.end();
@@ -831,6 +870,7 @@ void LayoutSystem::Pass::Place(ecs::Entity e, sdl3::FRect screen, sdl3::FRect dr
 						 sdl3::Max(0.f, screen.w - PAD.H() - gutter.x),
 						 sdl3::Max(0.f, screen.h - PAD.V() - gutter.y)};
 		c.contentOrigin = {contentBox.x - r.scroll.x, contentBox.y - r.scroll.y};
+		c.content = contentBox;
 		// Toujours borné à sa propre boîte (bordure et barres exclues) :
 		// le contenu d'un widget ne doit jamais s'afficher hors de sa
 		// zone, ni sous sa bordure ou ses barres de défilement. Les
@@ -843,11 +883,10 @@ void LayoutSystem::Pass::Place(ecs::Entity e, sdl3::FRect screen, sdl3::FRect dr
 
 		// Débordement textuel : le contenu logique dépasse la boîte,
 		// d'où la barre de défilement (cf. TextContentSize).
-		if (Option<sdl3::FPoint> textContent = TextContentSize(
-				e, sdl3::FRect{screen.x, screen.y, sdl3::Max(0.f, screen.w - gutter.x),
-							   sdl3::Max(0.f, screen.h - gutter.y)});
-			textContent.IsSome()) {
-			newContent[e.id] = textContent.Unwrap();
+		if (Option<sdl3::FPoint> textContent = TextContentSize(e, contentBox); textContent.IsSome()) {
+			// Contenu exprimé à l'échelle de la boîte (padding et bordure
+			// compris), comme pour un conteneur.
+			newContent[e.id] = {textContent.Unwrap().x + PAD.H(), textContent.Unwrap().y + PAD.V()};
 			// Hauteur réelle d'un texte à la ligne : mémorisée pour la passe
 			// suivante (les parents à hauteur automatique s'y ajustent).
 			if (TextOverflowOf(world, e) == TextOverflow::WRAP) {
@@ -885,8 +924,16 @@ void LayoutSystem::Pass::Place(ecs::Entity e, sdl3::FRect screen, sdl3::FRect dr
 		}
 		// Sans contenu calculé ici, celui posé ailleurs (InputSystem
 		// pour les zones de saisie) fait foi.
-		const sdl3::FPoint next = UiRect::GutterFor(
+		sdl3::FPoint next = UiRect::GutterFor(
 			content == newContent.end() ? PREVIOUS_CONTENT : content->second, {screen.w, screen.h});
+		// Un conteneur de mise en page non défilant (sans .Scrollable()) ne
+		// montre jamais de barres : son contenu est simplement rogné.
+		if (HAS_FLOW && !r.clipContent)
+			next = {0.f, 0.f};
+		// Idem pour un texte à la ligne : sa hauteur s'ajuste à la passe
+		// suivante (wrapHeights), une barre n'y serait que transitoire.
+		if (!r.clipContent && TextOverflowOf(world, e) == TextOverflow::WRAP)
+			next = {0.f, 0.f};
 		if (next.x == gutter.x && next.y == gutter.y)
 			break;
 		gutter = next;
@@ -1265,13 +1312,12 @@ bool InputSystem::ClaimsKey(ecs::ArchetypeRegistry &world, const sdl3::Event &ev
 	IOMode mode = IOMode::READ_WRITE_COPY_AND_PASTE;
 	if (auto f = ioModeOf(focus); f.IsSome())
 		mode = f.Unwrap();
-	
-		if (auto st = world.GetComponent<UiInteractionState>(focus);
-    st.IsSome() && st.Unwrap()->focused) {
-    auto cb = world.GetComponent<UiCallbacks>(focus);
-    if (cb.IsSome() && (cb.Unwrap()->onKeyDown || cb.Unwrap()->onKeyUp ||
-                        cb.Unwrap()->onGamepadButtonDown || cb.Unwrap()->onGamepadButtonUp))
-        return true;
+
+	if (auto st = world.GetComponent<UiInteractionState>(focus); st.IsSome() && st.Unwrap()->focused) {
+		auto cb = world.GetComponent<UiCallbacks>(focus);
+		if (cb.IsSome() && (cb.Unwrap()->onKeyDown || cb.Unwrap()->onKeyUp || cb.Unwrap()->onGamepadButtonDown ||
+							cb.Unwrap()->onGamepadButtonUp))
+			return true;
 	}
 
 	if (IoCanWrite(mode)) return true;
@@ -1409,10 +1455,10 @@ bool InputSystem::HandleEvent(ecs::ArchetypeRegistry &world, const sdl3::Event &
 
 	// ── Clavier générique : la cible est le widget focalisé générique ──────
 	if (ev.IsKeyDown() || ev.IsKeyUp()) {
-		ecs::Entity focus = KeyboardFocus(world);
-		if (focus.Valid() && !world.HasComponent<UiInput>(focus) &&
-			!world.HasComponent<UiInputArea>(focus)) {
-			if (auto cb = world.GetComponent<UiCallbacks>(focus); cb.IsSome()) {
+		ecs::Entity target = KeyboardFocus(world);
+		if (target.Valid() && !world.HasComponent<UiInput>(target) &&
+			!world.HasComponent<UiInputArea>(target)) {
+			if (auto cb = world.GetComponent<UiCallbacks>(target); cb.IsSome()) {
 				if (ev.IsKeyDown() && cb.Unwrap()->onKeyDown)
 					cb.Unwrap()->onKeyDown(ev);
 				if (ev.IsKeyUp() && cb.Unwrap()->onKeyUp)
@@ -1423,9 +1469,9 @@ bool InputSystem::HandleEvent(ecs::ArchetypeRegistry &world, const sdl3::Event &
 
 	// ── Manette : ciblage identique au clavier ─────────────────────────────
 	if (in.gamepadDownThisEvent || in.gamepadUpThisEvent) {
-		ecs::Entity focus = KeyboardFocus(world);
-		if (focus.Valid())
-			if (auto cb = world.GetComponent<UiCallbacks>(focus); cb.IsSome()) {
+		ecs::Entity target = KeyboardFocus(world);
+		if (target.Valid())
+			if (auto cb = world.GetComponent<UiCallbacks>(target); cb.IsSome()) {
 				if (in.gamepadDownThisEvent && cb.Unwrap()->onGamepadButtonDown)
 					cb.Unwrap()->onGamepadButtonDown(ev);
 				if (in.gamepadUpThisEvent && cb.Unwrap()->onGamepadButtonUp)
@@ -1452,7 +1498,11 @@ void InputSystem::Tick(ecs::ArchetypeRegistry &world, LayoutSystem &layout, floa
 	world.Query<UiTextOverflow, UiComputed>([&](ecs::Entity, UiTextOverflow &o, UiComputed &c) {
 		if (o.mode != TextOverflow::MARQUEE)
 			return;
-		const float travel = sdl3::Max(0.f, o.textWidth - sdl3::Max(1.f, c.screen.w - 2.f * TEXT_INSET));
+		// Un widget au moins aussi large que son texte (taille automatique)
+		// ne défile pas : seul un texte réellement rogné défile.
+		const float travel = o.textWidth <= c.screen.w + 0.5f
+								 ? 0.f
+								 : sdl3::Max(0.f, o.textWidth - sdl3::Max(1.f, c.screen.w - 2.f * TEXT_INSET));
 		if (travel <= 0.f) {
 			o.offset = 0.f;
 			o.hold = 0.f;
@@ -3640,7 +3690,11 @@ void RenderSystem::DrawTree(ecs::ArchetypeRegistry &world, IUiRenderBackend &ren
 	// (drawScrollbars ne dessine rien si maxScroll() == 0 sur les deux
 	// axes) — par-dessus le contenu, bornée au clip de CE widget (déjà
 	// actif ci-dessus), jamais celui, plus large, de ses enfants.
-	if (auto r = world.GetComponent<UiRect>(e); r.IsSome()) {
+	// Seuls les conteneurs défilants (.Scrollable(), zones de saisie) et
+	// les textes en défilement horizontal montrent une barre : ailleurs,
+	// le débordement est simplement rogné.
+	if (auto r = world.GetComponent<UiRect>(e);
+		r.IsSome() && (r.Unwrap()->clipContent || TextOverflowOf(world, e) == TextOverflow::SCROLL)) {
 		ren.SetClipRect(ToClipRect(selfClip));
 		DrawScrollbars(ren, *r.Unwrap(), c.screen);
 	}
@@ -3687,11 +3741,11 @@ void RenderSystem::DrawWidget(ecs::ArchetypeRegistry &world, IUiRenderBackend &r
 		// Substitutions hover/press — un style qui ne définit pas la variante
 		// correspondante garde la valeur de base (fallback = bg).
 		if (pressed) {
-			if (auto c = rs.BgPressed(sdl3::FColor{}); c.a > 0) bg = c;
-			if (auto c = rs.BorderPressed(sdl3::FColor{}); c.a > 0) { bcol = c; hasB = true; }
+			if (auto v = rs.BgPressed(sdl3::FColor{}); v.a > 0) bg = v;
+			if (auto v = rs.BorderPressed(sdl3::FColor{}); v.a > 0) { bcol = v; hasB = true; }
 		} else if (hovered) {
-			if (auto c = rs.BgHovered(sdl3::FColor{}); c.a > 0) bg = c;
-			if (auto c = rs.BorderHovered(sdl3::FColor{}); c.a > 0) { bcol = c; hasB = true; }
+			if (auto v = rs.BgHovered(sdl3::FColor{}); v.a > 0) bg = v;
+			if (auto v = rs.BorderHovered(sdl3::FColor{}); v.a > 0) { bcol = v; hasB = true; }
 		}
 
 		math::Corners radius = rs.BordersRadius(math::Corners{});
@@ -3796,6 +3850,9 @@ void RenderSystem::DrawWidget(ecs::ArchetypeRegistry &world, IUiRenderBackend &r
 	if (auto l = world.GetComponent<UiLabel>(e); l.IsSome()) {
 		ResolvedStyle rs = GetResolved(world, e);
 		const String &text = l.Unwrap()->text;
+		// Le texte occupe la zone de contenu (bordure, padding et barres
+		// exclus) ; sans padding ni bordure, c'est la boîte elle-même.
+		const sdl3::FRect ts = c.content.w > 0.f && c.content.h > 0.f ? c.content : s;
 		sdl3::FColor textColor = rs.TextColor(sdl3::FColor::UI_TEXT_PRIMARY());
 		TextAlign align = rs.TextAlign(TextAlign::Left);
 		float fs = rs.FontSize(14.f);
@@ -3804,7 +3861,7 @@ void RenderSystem::DrawWidget(ecs::ArchetypeRegistry &world, IUiRenderBackend &r
 		bool hl = rs.Highlight(false), ul = rs.Underline(false), st = rs.Strikethrough(false);
 		bool needsDecoration = (hl || ul || st) && !text.IsEmpty();
 		sdl3::FPoint tsz{};
-		float tx = s.x, ty = s.y;
+		float tx = ts.x, ty = ts.y;
 		if (needsDecoration) {
 			// Reproduit l'alignement interne de drawTextCentered pour
 			// positionner les décorations exactement sous/sur/derrière le
@@ -3812,19 +3869,19 @@ void RenderSystem::DrawWidget(ecs::ArchetypeRegistry &world, IUiRenderBackend &r
 			// par drawTextCentered — dupliqué ici plutôt que de changer
 			// sa signature, utilisée ailleurs sans ce besoin).
 			tsz = MeasureCached(text, fs);
-			tx = s.x + 8.f;
+			tx = ts.x + 8.f;
 			if (align == TextAlign::Center)
-				tx = s.x + (s.w - tsz.x) * 0.5f;
+				tx = ts.x + (ts.w - tsz.x) * 0.5f;
 			else if (align == TextAlign::Right)
-				tx = s.x + s.w - tsz.x - 8.f;
-			ty = s.y + (s.h - tsz.y) * 0.5f;
+				tx = ts.x + ts.w - tsz.x - 8.f;
+			ty = ts.y + (ts.h - tsz.y) * 0.5f;
 		}
 		if (hl && needsDecoration) {
 			ren.SetDrawColor(rs.HighlightColor(sdl3::FColor{255/255.f, 230/255.f, 90/255.f, 130/255.f}));
 			ren.FillRect({tx - 2.f, ty - 1.f, tsz.x + 4.f, tsz.y + 2.f});
 		}
 
-		DrawOverflowText(ren, world, e, text, textColor, s, align, useFont);
+		DrawOverflowText(ren, world, e, text, textColor, ts, align, useFont);
 
 		if (needsDecoration) {
 			ren.SetDrawColor(textColor);
@@ -5063,6 +5120,14 @@ sdl3::Font * RenderSystem::PickTextFont(bool bold, bool italic) const {
 	return m_font;
 }
 
+sdl3::FPoint RenderSystem::MeasureLine(const String &line, float fontSize, bool bold, bool italic) {
+	if (sdl3::Font *base = PickTextFont(bold, italic))
+		if (sdl3::Font *sized = fontSize > 0.f ? FontAt(base, fontSize) : base)
+			if (auto sz = sized->Measure(line); sz.IsSome())
+				return {float(sz.Unwrap().x), float(sz.Unwrap().y)};
+	return {float(DisplayCells(line)) * CharWidthApprox(fontSize), LineHeightApprox(fontSize)};
+}
+
 sdl3::FPoint RenderSystem::MeasureCached(const String &text, float fontSize) {
 	auto measureLine = [this, fontSize](const String &line, float fs) -> sdl3::FPoint {
 		if (sdl3::Font *sized = FontAt(m_font, fontSize)) {
@@ -5275,10 +5340,18 @@ void RenderSystem::DrawOverflowText(IUiRenderBackend &ren, ecs::ArchetypeRegistr
 		break;
 	}
 	case TextOverflow::MARQUEE: {
-		float offset = 0.f;
-		if (auto o = world.GetComponent<UiTextOverflow>(e); o.IsSome())
+		float offset = 0.f, textWidth = 0.f;
+		if (auto o = world.GetComponent<UiTextOverflow>(e); o.IsSome()) {
 			offset = o.Unwrap()->offset;
-		DrawTextRaw(ren, text, color, box.x + TEXT_INSET - offset, box.y, box.h);
+			textWidth = o.Unwrap()->textWidth;
+		}
+		// Texte qui tient : placé comme un libellé ordinaire (marge rabotée
+		// si la boîte est juste à sa taille, cf. TextOriginX) ; seul un texte
+		// réellement trop long part de la marge et défile.
+		if (textWidth <= box.w + 0.5f)
+			DrawTextCentered(ren, e, text, color, box, align, font);
+		else
+			DrawTextRaw(ren, text, color, box.x + TEXT_INSET - offset, box.y, box.h);
 		break;
 	}
 	case TextOverflow::WRAP: {
@@ -5359,6 +5432,10 @@ void RenderSystem::DrawWrappedLine(IUiRenderBackend &ren, const WrappedLine &lin
 
 sdl3::FPoint RenderSystem::MeasureLineWith(const String &line, float fontSize, sdl3::Font *font) {
 	sdl3::Font *f = font ? font : m_font;
+	// Mesure à la taille du texte dessiné (cf. DrawFont) : à la taille de
+	// base, un texte plus petit se replierait trop tôt.
+	if (f && fontSize > 0.f)
+		f = FontAt(f, fontSize);
 	if (f)
 		if (auto size = f->Measure(line); size.IsSome())
 			return {float(size.Unwrap().x), float(size.Unwrap().y)};

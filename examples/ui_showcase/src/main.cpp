@@ -610,12 +610,12 @@ int main() {
 							 r.FillRect(rect);
 							 const float CELL = 20.f;
 							 r.SetDrawColor(sdl3::FColor{44 / 255.f, 50 / 255.f, 72 / 255.f, 120 / 255.f});
-							 for (int ix = 0; ix * CELL < rect.w; ++ix)
-								 for (int iy = 0; iy * CELL < rect.h; ++iy)
+							 for (int ix = 0; static_cast<float>(ix) * CELL < rect.w; ++ix)
+								 for (int iy = 0; static_cast<float>(iy) * CELL < rect.h; ++iy)
 									 if ((ix + iy) % 2 == 0)
-										 r.FillRect({rect.x + ix * CELL, rect.y + iy * CELL,
-													 sdl3::Min(CELL, rect.w - ix * CELL),
-													 sdl3::Min(CELL, rect.h - iy * CELL)});
+										 r.FillRect({rect.x + static_cast<float>(ix) * CELL, rect.y + static_cast<float>(iy) * CELL,
+													 sdl3::Min(CELL, rect.w - static_cast<float>(ix) * CELL),
+													 sdl3::Min(CELL, rect.h - static_cast<float>(iy) * CELL)});
 							 // Carré tournant
 							 float cx = rect.x + rect.w * 0.5f, cy = rect.y + rect.h * 0.5f;
 							 float sz = sdl3::Min(rect.w, rect.h) * 0.32f;
@@ -908,7 +908,7 @@ int main() {
 	auto switchPage = [&](int idx) {
 		scenes.SwitchTo(String(kPages[idx]));
 		for (int i = 0; i < int(app.navButtons.size()); ++i) {
-			ui::EditInlineStyle(ar, app.navButtons[i],
+			ui::EditInlineStyle(ar, app.navButtons[static_cast<std::vector<ecs::Entity>::size_type>(i)],
 								[&](ui::UiStyle &s) { s.SetBg((i == idx) ? pal::TAB_ON : pal::TAB_OFF); });
 		}
 	};

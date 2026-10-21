@@ -8,7 +8,7 @@ namespace sdl3 {
 // ── VkLibrary ────────────────────────────────────────────────────────────────
 
 VkLibrary::~VkLibrary() {
-	if (loaded)
+	if (m_loaded)
 		SDL_Vulkan_UnloadLibrary();
 }
 

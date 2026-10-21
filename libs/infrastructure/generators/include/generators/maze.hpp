@@ -35,10 +35,10 @@ struct Room3D: public math::FAABB {
 		: math::FAABB(pmin, pmax), id(_id) {}
 
 	bool TooClose(const Room3D& another, int distance) {
-		return min.x - distance < another.max.x 
-			&& max.x + distance > another.min.x 
-			&& min.y - distance < another.max.y 
-			&& max.y + distance > another.min.y;
+		return min.x - static_cast<float>(distance) < another.max.x 
+			&& max.x + static_cast<float>(distance) > another.min.x 
+			&& min.y - static_cast<float>(distance) < another.max.y 
+			&& max.y + static_cast<float>(distance) > another.min.y;
 	}
 
 	bool HasPoint(const math::FVector3& point);

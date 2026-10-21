@@ -57,13 +57,13 @@ class Wifi {
      * @brief Ajoute une connexion WiFi bidirectionnelle avec un autre Core.
      * @param core Core distant à relier.
      */
-    void addConnection(Core *core);
+    void addConnection(Core *peer);
 
     /**
      * @brief Supprime une connexion WiFi bidirectionnelle.
      * @param core Core distant.
      */
-    void remConnection(Core *core);
+    void remConnection(Core *peer);
     
     /** @name Lectures des registres MAC/BB */
     ///@{

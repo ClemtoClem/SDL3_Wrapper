@@ -45,9 +45,11 @@ namespace detail {
 std::string FontNorm(std::string_view s) noexcept {
 	std::string r;
 	r.reserve(s.size());
-	for (unsigned char c : s)
+	for (const char cChar : s) {
+		const auto c = static_cast<unsigned char>(cChar);
 		if (c != '-' && c != '_' && c != ' ')
 			r += char(std::tolower(c));
+	}
 	return r;
 }
 
@@ -180,7 +182,7 @@ Result<Font, StringView> Font::FindLocal(std::initializer_list<const char *> nam
 
 void Font::SetStyle(FontStyle s) {
 	if (m_handle)
-		TTF_SetFontStyle(m_handle, int(s));
+		TTF_SetFontStyle(m_handle, static_cast<TTF_FontStyleFlags>(s));
 }
 
 void Font::SetOutline(int px) {

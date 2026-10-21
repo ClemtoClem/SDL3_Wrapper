@@ -3,9 +3,12 @@
 #include <voxel/json.hpp>
 #include <voxel/save.hpp>
 
+#include <sql/binary_storage.hpp>
+
 #include <chrono>
 #include <ctime>
 #include <filesystem>
+#include <cstdio>
 #include <fstream>
 
 namespace voxel {
@@ -15,7 +18,23 @@ namespace fs = std::filesystem;
 namespace {
 
 constexpr uint32_t CHUNK_MAGIC = 0x4B435856; // « VXCK »
-constexpr uint16_t CHUNK_FORMAT = 1;
+/// 1 : params bruts (CHUNK_VOLUME octets) ; 2 : params en plages.
+constexpr uint16_t CHUNK_FORMAT = 2;
+constexpr uint8_t PARAMS_NONE = 0, PARAMS_RAW = 1, PARAMS_RUNS = 2;
+
+constexpr const char *DB_FORMAT = "voxel.world.db";
+constexpr int DB_VERSION = 1;
+
+using dataio::Node;
+
+String ChunkKey(const ChunkPos &p) { return String::Format("%d,%d,%d", p.x, p.y, p.z); }
+
+String Bytes(const std::vector<uint8_t> &bytes) { return String(reinterpret_cast<const char *>(bytes.data()), bytes.size()); }
+
+std::vector<uint8_t> Bytes(const String &text) {
+	const auto *data = reinterpret_cast<const uint8_t *>(text.CStr());
+	return std::vector<uint8_t>(data, data + text.GetSize());
+}
 
 String NowIso() {
 	const std::time_t now = std::time(nullptr);
@@ -101,9 +120,171 @@ WorldSave::WorldSave(const ContentRegistry &content, String directory) : m_conte
 		}
 		return NONE;
 	});
+	// Version 2 → 3 : un fichier par chunk, entities.json et players/*.json
+	// rejoignent la base world.db.
+	RegisterMigration(2, [this](NodePtr &, const String &) -> Option<String> { return ImportLegacyFiles(); });
+}
+
+WorldSave::~WorldSave() {
+	if (m_dirty)
+		(void)Flush();
 }
 
 void WorldSave::RegisterMigration(int fromVersion, Migration migration) { m_migrations[fromVersion] = std::move(migration); }
+
+// ── Base world.db ────────────────────────────────────────────────────────────
+
+String WorldSave::DatabasePath() const { return m_dir + String("/world.db"); }
+
+void WorldSave::CreateSchema(sql::Database &db) const {
+	(void)db.Execute("CREATE TABLE info (key STRING PRIMARY KEY, value STRING)");
+	(void)db.Execute("CREATE TABLE chunks (pos STRING PRIMARY KEY, x INT, y INT, z INT, data STRING)");
+	(void)db.Execute("CREATE TABLE entities (uuid STRING PRIMARY KEY, kind STRING, x FLOAT, y FLOAT, z FLOAT, data STRING)");
+	(void)db.Execute("CREATE TABLE players (name STRING PRIMARY KEY, data STRING, saved STRING)");
+	(void)db.Upsert("info", {Node::MakeString(String("format")), Node::MakeString(String(DB_FORMAT))});
+	(void)db.Upsert("info", {Node::MakeString(String("version")), Node::MakeString(String::Format("%d", DB_VERSION))});
+}
+
+Result<bool, String> WorldSave::OpenDatabase() {
+	if (m_dbOpen)
+		return Ok(true);
+	const String path = DatabasePath(), backup = path + String(".bak");
+	auto valid = [](sql::Database &db) {
+		for (const char *table : {"info", "chunks", "entities", "players"})
+			if (db.GetSchema(String(table)).IsNone())
+				return false;
+		auto format = db.FindByKey(String("info"), Node::MakeString(String("format")));
+		return format.IsOk() && format.Value().IsSome() && format.Value().Unwrap()[1]->stringValue == DB_FORMAT;
+	};
+	String failure;
+	for (const String &candidate : {path, backup}) {
+		if (!fs::exists(candidate.CStr()))
+			continue;
+		Result<sql::Database, String> loaded = sql::LoadDatabaseBinary(candidate);
+		if (loaded.IsOk() && valid(loaded.Value())) {
+			m_db = std::move(loaded.Value());
+			if (candidate == backup) {
+				m_warnings.push_back(String::Format("%s illisible (%s) : sauvegarde précédente restaurée", path.CStr(), failure.CStr()));
+				m_dirty = true; // réécrit au propre à la prochaine sauvegarde
+			}
+			m_dbOpen = true;
+			return Ok(true);
+		}
+		failure = loaded.IsError() ? loaded.Error() : String("tables manquantes");
+	}
+	if (!failure.IsEmpty()) {
+		// Rien de lisible : on écarte les fichiers abîmés (jamais écrasés)
+		// et on repart d'une base vide.
+		const String stamp = NowIso();
+		std::error_code ec;
+		for (const String &candidate : {path, backup})
+			if (fs::exists(candidate.CStr()))
+				fs::rename(candidate.CStr(), (candidate + String(".corrupt-") + stamp).CStr(), ec);
+		m_warnings.push_back(String::Format("base du monde illisible (%s) : mise de côté, monde régénéré", failure.CStr()));
+	}
+	m_db = sql::Database();
+	CreateSchema(m_db);
+	m_dbOpen = true;
+	return Ok(true);
+}
+
+sql::Database &WorldSave::Database() {
+	(void)OpenDatabase();
+	return m_db;
+}
+
+size_t WorldSave::StoredChunkCount() {
+	(void)OpenDatabase();
+	return m_db.RowCount(String("chunks"));
+}
+
+Result<bool, String> WorldSave::Flush() {
+	if (!m_dirty)
+		return Ok(true);
+	if (Result<bool, String> r = OpenDatabase(); r.IsError())
+		return r;
+	std::error_code ec;
+	fs::create_directories(m_dir.CStr(), ec);
+	// La base actuelle devient la sauvegarde de repli, puis la nouvelle la
+	// remplace atomiquement (cf. sql::SaveDatabaseBinary).
+	const String path = DatabasePath();
+	if (fs::exists(path.CStr()))
+		fs::copy_file(path.CStr(), (path + String(".bak")).CStr(), fs::copy_options::overwrite_existing, ec);
+	if (!sql::SaveDatabaseBinary(path, m_db))
+		return Err(String::Format("écriture de %s impossible", path.CStr()));
+	m_dirty = false;
+	return Ok(true);
+}
+
+Option<String> WorldSave::ImportLegacyFiles() {
+	if (Result<bool, String> r = OpenDatabase(); r.IsError())
+		return Some(r.Error());
+	const fs::path dir(m_dir.CStr());
+	std::error_code ec;
+	// Chunks : un fichier « x_y_z.chunk » chacun, réencodé au format courant
+	// (repris tel quel s'il est illisible : le jeu le signalera au chargement).
+	size_t chunks = 0;
+	if (fs::is_directory(dir / "chunks", ec))
+		for (const auto &entry : fs::directory_iterator(dir / "chunks", ec)) {
+			int x = 0, y = 0, z = 0;
+			if (entry.path().extension() != ".chunk" ||
+				std::sscanf(entry.path().stem().string().c_str(), "%d_%d_%d", &x, &y, &z) != 3)
+				continue;
+			const std::vector<uint8_t> bytes = ReadBytes(String(entry.path().string().c_str()));
+			if (bytes.empty())
+				continue;
+			const ChunkPos p{x, y, z};
+			Chunk chunk(p);
+			const std::vector<uint8_t> stored = DecodeChunk(bytes, chunk) ? EncodeChunk(chunk) : bytes;
+			(void)m_db.Upsert(String("chunks"), {Node::MakeString(ChunkKey(p)), Node::MakeInt(x), Node::MakeInt(y), Node::MakeInt(z),
+												  Node::MakeString(Bytes(stored))});
+			++chunks;
+		}
+	if (fs::exists(dir / "entities.json")) {
+		Result<NodePtr, String> read = json::ReadFile(String((dir / "entities.json").string().c_str()));
+		if (read.IsError())
+			return Some(read.Error());
+		NodePtr list = json::At(read.Value(), "entities");
+		for (size_t i = 0; list && i < list->GetSize(); ++i) {
+			NodePtr e = list->At(i);
+			String uuid = json::Str(e, "uuid");
+			if (uuid.IsEmpty())
+				uuid = Uuid::Generate().ToString();
+			const math::FVector3 pos = json::Vec3(e, "position");
+			(void)m_db.Upsert(String("entities"), {Node::MakeString(uuid), Node::MakeString(json::Str(e, "kind")), Node::MakeFloat(pos.x),
+												   Node::MakeFloat(pos.y), Node::MakeFloat(pos.z), Node::MakeString(json::Encode(e))});
+		}
+	}
+	if (fs::is_directory(dir / "players", ec))
+		for (const auto &entry : fs::directory_iterator(dir / "players", ec)) {
+			if (entry.path().extension() != ".json")
+				continue;
+			Result<NodePtr, String> read = json::ReadFile(String(entry.path().string().c_str()));
+			if (read.IsError())
+				return Some(read.Error());
+			const String name = json::Str(read.Value(), "name", String(entry.path().stem().string().c_str()));
+			(void)m_db.Upsert(String("players"),
+							  {Node::MakeString(name), Node::MakeString(json::Encode(read.Value())), Node::MakeString(NowIso())});
+		}
+	// La base doit être écrite AVANT de supprimer les anciens fichiers.
+	m_dirty = true;
+	if (Result<bool, String> r = Flush(); r.IsError())
+		return Some(r.Error());
+	// Relue et comparée : les anciens fichiers ne partent que si la base
+	// écrite contient bien tout.
+	Result<sql::Database, String> check = sql::LoadDatabaseBinary(DatabasePath());
+	if (check.IsError())
+		return Some(String("relecture de world.db : ") + check.Error());
+	for (const char *table : {"chunks", "entities", "players"})
+		if (check.Value().RowCount(String(table)) != m_db.RowCount(String(table)))
+			return Some(String::Format("relecture de world.db : table %s incomplète", table));
+	fs::remove_all(dir / "chunks", ec);
+	fs::remove_all(dir / "players", ec);
+	fs::remove(dir / "entities.json", ec);
+	if (chunks > 0)
+		m_warnings.push_back(String::Format("ancienne sauvegarde importée dans world.db (%d chunk(s))", int(chunks)));
+	return NONE;
+}
 
 bool WorldSave::Exists() const { return fs::exists((m_dir + String("/world.json")).CStr()); }
 
@@ -129,6 +310,8 @@ Result<Option<WorldMetadata>, String> WorldSave::LoadMetadata() {
 	}
 	if (migrated)
 		(void)json::WriteFile(m_dir + String("/world.json"), world);
+	if (Result<bool, String> r = OpenDatabase(); r.IsError())
+		return Err(r.Error());
 	WorldMetadata m;
 	m.name = json::Str(world, "name", m.name);
 	m.seed = uint32_t(json::Num(world, "seed", m.seed));
@@ -173,10 +356,6 @@ Result<bool, String> WorldSave::SaveMetadata(const WorldMetadata &m) {
 	return json::WriteFile(m_dir + String("/world.json"), world);
 }
 
-String WorldSave::ChunkPath(const ChunkPos &p) const {
-	return String::Format("%s/chunks/%d_%d_%d.chunk", m_dir.CStr(), p.x, p.y, p.z);
-}
-
 std::vector<uint8_t> WorldSave::EncodeChunk(const Chunk &chunk) const {
 	const std::vector<BlockId> blocks = chunk.Blocks();
 	// Palette locale : indices compacts, identifiants textuels.
@@ -210,10 +389,26 @@ std::vector<uint8_t> WorldSave::EncodeChunk(const Chunk &chunk) const {
 	}
 	PutU32(out, uint32_t(runs));
 	out.insert(out.end(), body.begin(), body.end());
-	// Params : présents ou non.
+	// Params : absents, ou en plages (valeur, longueur) — surtout des zéros.
 	const std::vector<uint8_t> &params = chunk.Params();
-	out.push_back(params.empty() ? 0 : 1);
-	out.insert(out.end(), params.begin(), params.end());
+	if (params.empty()) {
+		out.push_back(PARAMS_NONE);
+		return out;
+	}
+	out.push_back(PARAMS_RUNS);
+	std::vector<uint8_t> paramRuns;
+	uint32_t paramRunCount = 0;
+	for (size_t i = 0; i < params.size();) {
+		size_t j = i;
+		while (j < params.size() && params[j] == params[i] && j - i < 0xFFFF)
+			++j;
+		paramRuns.push_back(params[i]);
+		PutU16(paramRuns, uint16_t(j - i));
+		++paramRunCount;
+		i = j;
+	}
+	PutU32(out, paramRunCount);
+	out.insert(out.end(), paramRuns.begin(), paramRuns.end());
 	return out;
 }
 
@@ -250,36 +445,47 @@ bool WorldSave::DecodeChunk(const std::vector<uint8_t> &bytes, Chunk &chunk) {
 	if (!r.ok || blocks.size() != size_t(CHUNK_VOLUME))
 		return false;
 	std::vector<uint8_t> params;
-	if (r.U8() == 1 && r.ok) {
+	const uint8_t paramsMode = r.U8();
+	if (paramsMode == PARAMS_RAW && r.ok) {
 		params.reserve(CHUNK_VOLUME);
 		for (int i = 0; i < CHUNK_VOLUME && r.ok; ++i)
 			params.push_back(r.U8());
+	} else if (paramsMode == PARAMS_RUNS && r.ok) {
+		params.reserve(CHUNK_VOLUME);
+		const uint32_t paramRuns = r.U32();
+		for (uint32_t i = 0; i < paramRuns && r.ok && params.size() <= size_t(CHUNK_VOLUME); ++i) {
+			const uint8_t value = r.U8();
+			const uint16_t count = r.U16();
+			params.insert(params.end(), count, value);
+		}
+		if (params.size() != size_t(CHUNK_VOLUME))
+			return false;
 	}
 	chunk.Assign(std::move(blocks), std::move(params));
 	return r.ok;
 }
 
 bool WorldSave::LoadChunk(Chunk &chunk) {
-	const String path = ChunkPath(chunk.Pos());
-	if (!fs::exists(path.CStr()))
+	if (OpenDatabase().IsError())
 		return false;
-	if (!DecodeChunk(ReadBytes(path), chunk)) {
-		m_warnings.push_back(String::Format("chunk illisible %s : régénéré", path.CStr()));
+	Result<Option<sql::Row>, String> row = m_db.FindByKey(String("chunks"), Node::MakeString(ChunkKey(chunk.Pos())));
+	if (row.IsError() || row.Value().IsNone())
+		return false;
+	if (!DecodeChunk(Bytes(row.Value().Unwrap()[4]->stringValue), chunk)) {
+		m_warnings.push_back(String::Format("chunk illisible %s : régénéré", ChunkKey(chunk.Pos()).CStr()));
 		return false;
 	}
 	return true;
 }
 
 void WorldSave::SaveChunk(const Chunk &chunk) {
-	const String path = ChunkPath(chunk.Pos());
-	std::error_code ec;
-	fs::create_directories(fs::path(path.CStr()).parent_path(), ec);
-	const std::vector<uint8_t> bytes = EncodeChunk(chunk);
-	std::ofstream file(path.CStr(), std::ios::binary | std::ios::trunc);
-	file.write(reinterpret_cast<const char *>(bytes.data()), std::streamsize(bytes.size()));
+	if (OpenDatabase().IsError())
+		return;
+	const ChunkPos &p = chunk.Pos();
+	(void)m_db.Upsert(String("chunks"), {Node::MakeString(ChunkKey(p)), Node::MakeInt(p.x), Node::MakeInt(p.y), Node::MakeInt(p.z),
+										  Node::MakeString(Bytes(EncodeChunk(chunk)))});
+	m_dirty = true;
 }
-
-// ── Entités ──────────────────────────────────────────────────────────────────
 
 NodePtr EntityToJson(ecs::ArchetypeRegistry &registry, ecs::Entity e) {
 	NodePtr n = dataio::Node::MakeObject();
@@ -381,32 +587,45 @@ ecs::Entity EntityFromJson(ecs::ArchetypeRegistry &registry, const ContentRegist
 }
 
 Result<bool, String> WorldSave::SaveEntities(ecs::ArchetypeRegistry &registry) {
-	NodePtr list = dataio::Node::MakeArray();
+	if (Result<bool, String> r = OpenDatabase(); r.IsError())
+		return r;
+	// Instantané complet : les entités disparues depuis quittent la table.
+	if (Result<sql::QueryResult, String> r = m_db.Execute(String("DELETE FROM entities")); r.IsError())
+		return Err(r.Error());
 	std::vector<ecs::Entity> entities;
 	registry.Query<Persistent, EntityKind>([&](ecs::Entity e, Persistent &, EntityKind &) { entities.push_back(e); });
-	for (ecs::Entity e : entities)
-		if (!registry.HasComponent<Player>(e))
-			list->Push(EntityToJson(registry, e));
-	NodePtr root = dataio::Node::MakeObject();
-	root->Set("version", json::MakeInt(SAVE_VERSION));
-	root->Set("entities", list);
-	return json::WriteFile(m_dir + String("/entities.json"), root);
+	for (ecs::Entity e : entities) {
+		if (registry.HasComponent<Player>(e))
+			continue;
+		const NodePtr n = EntityToJson(registry, e);
+		const math::FVector3 pos = json::Vec3(n, "position");
+		if (Result<sql::QueryResult, String> r =
+				m_db.Upsert(String("entities"), {Node::MakeString(json::Str(n, "uuid")), Node::MakeString(json::Str(n, "kind")),
+												 Node::MakeFloat(pos.x), Node::MakeFloat(pos.y), Node::MakeFloat(pos.z),
+												 Node::MakeString(json::Encode(n))});
+			r.IsError())
+			return Err(r.Error());
+	}
+	m_dirty = true;
+	return Ok(true);
 }
 
 Result<size_t, String> WorldSave::LoadEntities(ecs::ArchetypeRegistry &registry) {
-	const String path = m_dir + String("/entities.json");
-	if (!fs::exists(path.CStr()))
-		return Ok(size_t(0));
-	Result<NodePtr, String> read = json::ReadFile(path);
-	if (read.IsError())
-		return Err(read.Error());
+	if (Result<bool, String> r = OpenDatabase(); r.IsError())
+		return Err(r.Error());
+	std::vector<NodePtr> stored;
+	(void)m_db.ForEachRow(String("entities"), [&](const sql::Row &row) {
+		if (Result<NodePtr, String> n = json::Parse(row[5]->stringValue); n.IsOk())
+			stored.push_back(n.Value());
+		else
+			m_warnings.push_back(String::Format("entité %s illisible : ignorée", row[0]->stringValue.CStr()));
+	});
 	size_t count = 0;
-	NodePtr list = json::At(read.Value(), "entities");
-	for (size_t i = 0; list && i < list->GetSize(); ++i) {
-		if (EntityFromJson(registry, m_content, list->At(i)).Valid())
+	for (const NodePtr &n : stored) {
+		if (EntityFromJson(registry, m_content, n).Valid())
 			++count;
 		else
-			m_warnings.push_back(String::Format("entité « %s » inconnue : ignorée", json::Str(list->At(i), "kind").CStr()));
+			m_warnings.push_back(String::Format("entité « %s » inconnue : ignorée", json::Str(n, "kind").CStr()));
 	}
 	return Ok(count);
 }
@@ -415,17 +634,27 @@ Result<bool, String> WorldSave::SavePlayer(ecs::ArchetypeRegistry &registry, ecs
 	auto p = registry.GetComponent<Player>(player);
 	if (p.IsNone())
 		return Err(String("pas un joueur"));
-	return json::WriteFile(m_dir + String("/players/") + p.Unwrap()->name + String(".json"), EntityToJson(registry, player));
+	if (Result<bool, String> r = OpenDatabase(); r.IsError())
+		return r;
+	if (Result<sql::QueryResult, String> r =
+			m_db.Upsert(String("players"), {Node::MakeString(p.Unwrap()->name), Node::MakeString(json::Encode(EntityToJson(registry, player))),
+										   Node::MakeString(NowIso())});
+		r.IsError())
+		return Err(r.Error());
+	m_dirty = true;
+	return Ok(true);
 }
 
 bool WorldSave::LoadPlayer(ecs::ArchetypeRegistry &registry, ecs::Entity player) {
 	auto p = registry.GetComponent<Player>(player);
 	if (p.IsNone())
 		return false;
-	const String path = m_dir + String("/players/") + p.Unwrap()->name + String(".json");
-	if (!fs::exists(path.CStr()))
+	if (OpenDatabase().IsError())
 		return false;
-	Result<NodePtr, String> read = json::ReadFile(path);
+	Result<Option<sql::Row>, String> row = m_db.FindByKey(String("players"), Node::MakeString(p.Unwrap()->name));
+	if (row.IsError() || row.Value().IsNone())
+		return false;
+	Result<NodePtr, String> read = json::Parse(row.Value().Unwrap()[1]->stringValue);
 	if (read.IsError())
 		return false;
 	NodePtr n = read.Unwrap();

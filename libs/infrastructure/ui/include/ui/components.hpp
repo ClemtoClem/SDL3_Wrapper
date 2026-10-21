@@ -273,6 +273,9 @@ struct UiComputed {
 	sdl3::FRect childClip{};      ///< région passée aux enfants
 	sdl3::FPoint contentOrigin{}; ///< coin haut-gauche de la zone de contenu (écran - scroll)
 	sdl3::FPoint measured{};      ///< taille intrinsèque issue de la passe de mesure
+	/// Zone de contenu à l'écran : la boîte moins bordure, padding et barres
+	/// de défilement — là où se dessine le texte d'un libellé.
+	sdl3::FRect content{};
 };
 
 // ============================================================================

@@ -22,7 +22,7 @@ enum GXState {
 struct Entry {
     Entry() : command(0), param(0) {
     }
-    Entry(uint8_t command, uint32_t param) : command(command), param(param) {
+    Entry(uint8_t command_, uint32_t param_) : command(command_), param(param_) {
     }
     uint8_t  command;
     uint32_t param;
@@ -85,10 +85,10 @@ class Gpu3D {
         return gxStat;
     }
     uint32_t readPosResult(int index) {
-        return posResult[index];
+        return static_cast<uint32_t>(posResult[index]);
     }
     uint32_t readVecResult(int index) {
-        return vecResult[index];
+        return static_cast<uint32_t>(vecResult[index]);
     }
     uint32_t readRamCount();
     uint32_t readClipMtxResult(int index);

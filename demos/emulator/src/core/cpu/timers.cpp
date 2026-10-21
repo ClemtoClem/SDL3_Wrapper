@@ -4,7 +4,7 @@
 namespace emulator {
 
 
-Timers::Timers(Core *core, bool cpu) : core(core), cpu(cpu) {
+Timers::Timers(Core *core_, bool cpu_) : core(core_), cpu(cpu_) {
     for (int i = 0; i < 4; i++)
         overflowTask[i] = std::bind(&Timers::overflow, this, i);
 }
@@ -20,8 +20,8 @@ void Timers::overflow(int timer) {
         return;
     timers[timer] = tmCntL[timer];
     if (timer == 0 || !(tmCntH[timer] & BIT(2))) {
-        core->schedule(Task(&overflowTask[timer], (0x10000 - timers[timer]) << shifts[timer]));
-        endCycles[timer] = core->getGlobalCycles() + ((0x10000 - timers[timer]) << shifts[timer]);
+        core->schedule(Task(&overflowTask[timer], static_cast<uint32_t>((0x10000 - timers[timer]) << shifts[timer])));
+        endCycles[timer] = core->getGlobalCycles() + static_cast<uint32_t>(((0x10000 - timers[timer]) << shifts[timer]));
     }
     if (tmCntH[timer] & BIT(6))
         core->interpreter[cpu].sendInterrupt(3 + timer);
@@ -38,11 +38,11 @@ void Timers::writeTmCntL(int timer, uint16_t mask, uint16_t value) {
 void Timers::writeTmCntH(int timer, uint16_t mask, uint16_t value) {
     bool dirty = false;
     if ((tmCntH[timer] & BIT(7)) && (timer == 0 || !(value & BIT(2))))
-        timers[timer] = 0x10000 - ((endCycles[timer] - core->getGlobalCycles()) >> shifts[timer]);
+        timers[timer] = static_cast<uint16_t>(0x10000 - ((endCycles[timer] - core->getGlobalCycles()) >> shifts[timer]));
     if (mask & 0x00FF) {
         int shift = (((value & 0x0003) && (timer == 0 || !(value & BIT(2)))) ? (4 + (value & 0x0003) * 2) : 0);
         if (shifts[timer] != shift) {
-            shifts[timer] = shift;
+            shifts[timer] = static_cast<uint8_t>(shift);
             dirty         = true;
         }
     }
@@ -53,14 +53,14 @@ void Timers::writeTmCntH(int timer, uint16_t mask, uint16_t value) {
     mask &= 0x00C7;
     tmCntH[timer] = (tmCntH[timer] & ~mask) | (value & mask);
     if (dirty && (tmCntH[timer] & BIT(7)) && (timer == 0 || !(tmCntH[timer] & BIT(2)))) {
-        core->schedule(Task(&overflowTask[timer], (0x10000 - timers[timer]) << shifts[timer]));
-        endCycles[timer] = core->getGlobalCycles() + ((0x10000 - timers[timer]) << shifts[timer]);
+        core->schedule(Task(&overflowTask[timer], static_cast<uint32_t>((0x10000 - timers[timer]) << shifts[timer])));
+        endCycles[timer] = core->getGlobalCycles() + static_cast<uint32_t>(((0x10000 - timers[timer]) << shifts[timer]));
     }
 }
 
 uint16_t Timers::readTmCntL(int timer) {
     if ((tmCntH[timer] & BIT(7)) && (timer == 0 || !(tmCntH[timer] & BIT(2))))
-        timers[timer] = 0x10000 - ((endCycles[timer] - core->getGlobalCycles()) >> shifts[timer]);
+        timers[timer] = static_cast<uint16_t>(0x10000 - ((endCycles[timer] - core->getGlobalCycles()) >> shifts[timer]));
     return timers[timer];
 }
 

@@ -32,7 +32,7 @@ FORCE_INLINE uint32_t CPU::rplr(uint32_t opcode) {
 FORCE_INLINE uint32_t CPU::rpar(uint32_t opcode) {
     uint32_t value = *registers[opcode & 0x0000000F];
     uint8_t  shift = (opcode & 0x00000F80) >> 7;
-    return shift ? ((int32_t)value >> shift) : ((value & BIT(31)) ? 0xFFFFFFFF : 0);
+    return shift ? static_cast<unsigned int>(((int32_t)value >> shift)) : ((value & BIT(31)) ? 0xFFFFFFFF : 0);
 }
 
 FORCE_INLINE uint32_t CPU::rprr(uint32_t opcode) {
@@ -44,7 +44,7 @@ FORCE_INLINE uint32_t CPU::rprr(uint32_t opcode) {
 FORCE_INLINE int CPU::ldrsbOf(uint32_t opcode, uint32_t op2) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t  op1 = *registers[(opcode & 0x000F0000) >> 16];
-    *op0          = (int8_t)core->memory.read<uint8_t>(cpu, op1 + op2);
+    *op0          = (uint32_t)(int8_t)core->memory.read<uint8_t>(cpu, op1 + op2);
     if (op0 != registers[15])
         return ((cpu == 0) ? 1 : 3);
     flushPipeline();
@@ -54,9 +54,9 @@ FORCE_INLINE int CPU::ldrsbOf(uint32_t opcode, uint32_t op2) {
 FORCE_INLINE int CPU::ldrshOf(uint32_t opcode, uint32_t op2) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t  op1 = *registers[(opcode & 0x000F0000) >> 16];
-    *op0          = (int16_t)core->memory.read<uint16_t>(cpu, op1 += op2);
+    *op0          = (uint32_t)(int16_t)core->memory.read<uint16_t>(cpu, op1 += op2);
     if (cpu == 1 && (op1 & 1))
-        *op0 = (int16_t)*op0 >> 8;
+        *op0 = static_cast<uint32_t>((int16_t)*op0 >> 8);
     if (op0 != registers[15])
         return ((cpu == 0) ? 1 : 3);
     flushPipeline();
@@ -78,7 +78,7 @@ FORCE_INLINE int CPU::ldrbOf(uint32_t opcode, uint32_t op2) {
 FORCE_INLINE int CPU::strbOf(uint32_t opcode, uint32_t op2) {
     uint32_t op0 = *registers[(opcode & 0x0000F000) >> 12] + (((opcode & 0x0000F000) == 0x0000F000) ? 4 : 0);
     uint32_t op1 = *registers[(opcode & 0x000F0000) >> 16];
-    core->memory.write<uint8_t>(cpu, op1 + op2, op0);
+    core->memory.write<uint8_t>(cpu, op1 + op2, static_cast<unsigned char>(op0));
     return ((cpu == 0) ? 1 : 2);
 }
 
@@ -97,7 +97,7 @@ FORCE_INLINE int CPU::ldrhOf(uint32_t opcode, uint32_t op2) {
 FORCE_INLINE int CPU::strhOf(uint32_t opcode, uint32_t op2) {
     uint32_t op0 = *registers[(opcode & 0x0000F000) >> 12] + (((opcode & 0x0000F000) == 0x0000F000) ? 4 : 0);
     uint32_t op1 = *registers[(opcode & 0x000F0000) >> 16];
-    core->memory.write<uint16_t>(cpu, op1 + op2, op0);
+    core->memory.write<uint16_t>(cpu, op1 + op2, static_cast<unsigned short>(op0));
     return ((cpu == 0) ? 1 : 2);
 }
 
@@ -152,7 +152,7 @@ FORCE_INLINE int CPU::ldrsbPr(uint32_t opcode, uint32_t op2) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
     *op1 += op2;
-    *op0 = (int8_t)core->memory.read<uint8_t>(cpu, *op1);
+    *op0 = (uint32_t)(int8_t)core->memory.read<uint8_t>(cpu, *op1);
     if (op0 != registers[15])
         return ((cpu == 0) ? 1 : 3);
     flushPipeline();
@@ -164,9 +164,9 @@ FORCE_INLINE int CPU::ldrshPr(uint32_t opcode, uint32_t op2) {
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
     uint32_t  address;
     *op1 += op2;
-    *op0 = (int16_t)core->memory.read<uint16_t>(cpu, address = *op1);
+    *op0 = (uint32_t)(int16_t)core->memory.read<uint16_t>(cpu, address = *op1);
     if (cpu == 1 && (address & 1))
-        *op0 = (int16_t)*op0 >> 8;
+        *op0 = static_cast<uint32_t>((int16_t)*op0 >> 8);
     if (op0 != registers[15])
         return ((cpu == 0) ? 1 : 3);
     flushPipeline();
@@ -190,7 +190,7 @@ FORCE_INLINE int CPU::strbPr(uint32_t opcode, uint32_t op2) {
     uint32_t  op0 = *registers[(opcode & 0x0000F000) >> 12] + (((opcode & 0x0000F000) == 0x0000F000) ? 4 : 0);
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
     *op1 += op2;
-    core->memory.write<uint8_t>(cpu, *op1, op0);
+    core->memory.write<uint8_t>(cpu, *op1, static_cast<unsigned char>(op0));
     return ((cpu == 0) ? 1 : 2);
 }
 
@@ -212,7 +212,7 @@ FORCE_INLINE int CPU::strhPr(uint32_t opcode, uint32_t op2) {
     uint32_t  op0 = *registers[(opcode & 0x0000F000) >> 12] + (((opcode & 0x0000F000) == 0x0000F000) ? 4 : 0);
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
     *op1 += op2;
-    core->memory.write<uint16_t>(cpu, *op1, op0);
+    core->memory.write<uint16_t>(cpu, *op1, static_cast<unsigned short>(op0));
     return ((cpu == 0) ? 1 : 2);
 }
 
@@ -271,7 +271,7 @@ FORCE_INLINE int CPU::strdPr(uint32_t opcode, uint32_t op2) {
 FORCE_INLINE int CPU::ldrsbPt(uint32_t opcode, uint32_t op2) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    *op0          = (int8_t)core->memory.read<uint8_t>(cpu, *op1);
+    *op0          = (uint32_t)(int8_t)core->memory.read<uint8_t>(cpu, *op1);
     if (op0 != op1)
         *op1 += op2;
     if (op0 != registers[15])
@@ -284,11 +284,11 @@ FORCE_INLINE int CPU::ldrshPt(uint32_t opcode, uint32_t op2) {
     uint32_t *op0 = registers[(opcode & 0x0000F000) >> 12];
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
     uint32_t  address;
-    *op0 = (int16_t)core->memory.read<uint16_t>(cpu, address = *op1);
+    *op0 = (uint32_t)(int16_t)core->memory.read<uint16_t>(cpu, address = *op1);
     if (op0 != op1)
         *op1 += op2;
     if (cpu == 1 && (address & 1))
-        *op0 = (int16_t)*op0 >> 8;
+        *op0 = static_cast<uint32_t>((int16_t)*op0 >> 8);
     if (op0 != registers[15])
         return ((cpu == 0) ? 1 : 3);
     flushPipeline();
@@ -312,7 +312,7 @@ FORCE_INLINE int CPU::ldrbPt(uint32_t opcode, uint32_t op2) {
 FORCE_INLINE int CPU::strbPt(uint32_t opcode, uint32_t op2) {
     uint32_t  op0 = *registers[(opcode & 0x0000F000) >> 12] + (((opcode & 0x0000F000) == 0x0000F000) ? 4 : 0);
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    core->memory.write<uint8_t>(cpu, *op1, op0);
+    core->memory.write<uint8_t>(cpu, *op1, static_cast<unsigned char>(op0));
     *op1 += op2;
     return ((cpu == 0) ? 1 : 2);
 }
@@ -334,7 +334,7 @@ FORCE_INLINE int CPU::ldrhPt(uint32_t opcode, uint32_t op2) {
 FORCE_INLINE int CPU::strhPt(uint32_t opcode, uint32_t op2) {
     uint32_t  op0 = *registers[(opcode & 0x0000F000) >> 12] + (((opcode & 0x0000F000) == 0x0000F000) ? 4 : 0);
     uint32_t *op1 = registers[(opcode & 0x000F0000) >> 16];
-    core->memory.write<uint16_t>(cpu, *op1, op0);
+    core->memory.write<uint16_t>(cpu, *op1, static_cast<unsigned short>(op0));
     *op1 += op2;
     return ((cpu == 0) ? 1 : 2);
 }
@@ -1165,7 +1165,7 @@ int CPU::swpb(uint32_t opcode) {
     uint32_t  op1 = *registers[opcode & 0x0000000F];
     uint32_t  op2 = *registers[(opcode & 0x000F0000) >> 16];
     *op0          = core->memory.read<uint8_t>(cpu, op2);
-    core->memory.write<uint8_t>(cpu, op2, op1);
+    core->memory.write<uint8_t>(cpu, op2, static_cast<unsigned char>(op1));
     return (cpu == 0) ? 2 : 4;
 }
 
@@ -1184,7 +1184,7 @@ int CPU::swp(uint32_t opcode) {
 
 int CPU::ldmda(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - n * 4;
+    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
             op0 += 4;
@@ -1201,7 +1201,7 @@ int CPU::ldmda(uint32_t opcode) {
 
 int CPU::stmda(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - n * 4;
+    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
             op0 += 4;
@@ -1242,7 +1242,7 @@ int CPU::stmia(uint32_t opcode) {
 
 int CPU::ldmdb(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - n * 4;
+    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
             *registers[i] = core->memory.read<uint32_t>(cpu, op0);
@@ -1259,7 +1259,7 @@ int CPU::ldmdb(uint32_t opcode) {
 
 int CPU::stmdb(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - n * 4;
+    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
             core->memory.write<uint32_t>(cpu, op0, *registers[i]);
@@ -1301,7 +1301,7 @@ int CPU::stmib(uint32_t opcode) {
 int CPU::ldmdaW(uint32_t opcode) {
     int      m         = (opcode & 0x000F0000) >> 16;
     int      n         = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0       = *registers[m] - n * 4;
+    uint32_t op0       = *registers[m] - static_cast<uint32_t>(n * 4);
     uint32_t writeback = op0;
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
@@ -1323,7 +1323,7 @@ int CPU::ldmdaW(uint32_t opcode) {
 int CPU::stmdaW(uint32_t opcode) {
     int      m         = (opcode & 0x000F0000) >> 16;
     int      n         = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0       = *registers[m] - n * 4;
+    uint32_t op0       = *registers[m] - static_cast<uint32_t>(n * 4);
     uint32_t writeback = op0;
     if (cpu == 1 && (opcode & BIT(m)) && (opcode & (BIT(m) - 1)))
         *registers[m] = writeback;
@@ -1363,7 +1363,7 @@ int CPU::stmiaW(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
     uint32_t op0 = *registers[m];
     if (cpu == 1 && (opcode & BIT(m)) && (opcode & (BIT(m) - 1)))
-        *registers[m] = op0 + n * 4;
+        *registers[m] = op0 + static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
             core->memory.write<uint32_t>(cpu, op0, *registers[i]);
@@ -1377,7 +1377,7 @@ int CPU::stmiaW(uint32_t opcode) {
 int CPU::ldmdbW(uint32_t opcode) {
     int      m         = (opcode & 0x000F0000) >> 16;
     int      n         = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0       = *registers[m] - n * 4;
+    uint32_t op0       = *registers[m] - static_cast<uint32_t>(n * 4);
     uint32_t writeback = op0;
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
@@ -1399,7 +1399,7 @@ int CPU::ldmdbW(uint32_t opcode) {
 int CPU::stmdbW(uint32_t opcode) {
     int      m         = (opcode & 0x000F0000) >> 16;
     int      n         = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0       = *registers[m] - n * 4;
+    uint32_t op0       = *registers[m] - static_cast<uint32_t>(n * 4);
     uint32_t writeback = op0;
     if (cpu == 1 && (opcode & BIT(m)) && (opcode & (BIT(m) - 1)))
         *registers[m] = writeback;
@@ -1439,7 +1439,7 @@ int CPU::stmibW(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
     uint32_t op0 = *registers[m];
     if (cpu == 1 && (opcode & BIT(m)) && (opcode & (BIT(m) - 1)))
-        *registers[m] = op0 + n * 4;
+        *registers[m] = op0 + static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
             op0 += 4;
@@ -1452,7 +1452,7 @@ int CPU::stmibW(uint32_t opcode) {
 
 int CPU::ldmdaU(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - n * 4;
+    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - static_cast<uint32_t>(n * 4);
     if (!(opcode & BIT(15))) {
         for (int i = 0; i < 16; i++) {
             if (opcode & BIT(i)) {
@@ -1478,7 +1478,7 @@ int CPU::ldmdaU(uint32_t opcode) {
 
 int CPU::stmdaU(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - n * 4;
+    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
             op0 += 4;
@@ -1528,7 +1528,7 @@ int CPU::stmiaU(uint32_t opcode) {
 
 int CPU::ldmdbU(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - n * 4;
+    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - static_cast<uint32_t>(n * 4);
     if (!(opcode & BIT(15))) {
         for (int i = 0; i < 16; i++) {
             if (opcode & BIT(i)) {
@@ -1554,7 +1554,7 @@ int CPU::ldmdbU(uint32_t opcode) {
 
 int CPU::stmdbU(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - n * 4;
+    uint32_t op0 = *registers[(opcode & 0x000F0000) >> 16] - static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
             core->memory.write<uint32_t>(cpu, op0, registersUsr[i]);
@@ -1605,7 +1605,7 @@ int CPU::stmibU(uint32_t opcode) {
 int CPU::ldmdaUW(uint32_t opcode) {
     int      m         = (opcode & 0x000F0000) >> 16;
     int      n         = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0       = *registers[m] - n * 4;
+    uint32_t op0       = *registers[m] - static_cast<uint32_t>(n * 4);
     uint32_t writeback = op0;
     if (!(opcode & BIT(15))) {
         for (int i = 0; i < 16; i++) {
@@ -1639,7 +1639,7 @@ int CPU::ldmdaUW(uint32_t opcode) {
 int CPU::stmdaUW(uint32_t opcode) {
     int      m         = (opcode & 0x000F0000) >> 16;
     int      n         = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0       = *registers[m] - n * 4;
+    uint32_t op0       = *registers[m] - static_cast<uint32_t>(n * 4);
     uint32_t writeback = op0;
     if (cpu == 1 && (opcode & BIT(m)) && (opcode & (BIT(m) - 1)))
         *registers[m] = writeback;
@@ -1691,7 +1691,7 @@ int CPU::stmiaUW(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
     uint32_t op0 = *registers[m];
     if (cpu == 1 && (opcode & BIT(m)) && (opcode & (BIT(m) - 1)))
-        *registers[m] = op0 + n * 4;
+        *registers[m] = op0 + static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
             core->memory.write<uint32_t>(cpu, op0, registersUsr[i]);
@@ -1705,7 +1705,7 @@ int CPU::stmiaUW(uint32_t opcode) {
 int CPU::ldmdbUW(uint32_t opcode) {
     int      m         = (opcode & 0x000F0000) >> 16;
     int      n         = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0       = *registers[m] - n * 4;
+    uint32_t op0       = *registers[m] - static_cast<uint32_t>(n * 4);
     uint32_t writeback = op0;
     if (!(opcode & BIT(15))) {
         for (int i = 0; i < 16; i++) {
@@ -1739,7 +1739,7 @@ int CPU::ldmdbUW(uint32_t opcode) {
 int CPU::stmdbUW(uint32_t opcode) {
     int      m         = (opcode & 0x000F0000) >> 16;
     int      n         = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
-    uint32_t op0       = *registers[m] - n * 4;
+    uint32_t op0       = *registers[m] - static_cast<uint32_t>(n * 4);
     uint32_t writeback = op0;
     if (cpu == 1 && (opcode & BIT(m)) && (opcode & (BIT(m) - 1)))
         *registers[m] = writeback;
@@ -1791,7 +1791,7 @@ int CPU::stmibUW(uint32_t opcode) {
     int      n   = bitCount[opcode & 0xFF] + bitCount[(opcode >> 8) & 0xFF];
     uint32_t op0 = *registers[m];
     if (cpu == 1 && (opcode & BIT(m)) && (opcode & (BIT(m) - 1)))
-        *registers[m] = op0 + n * 4;
+        *registers[m] = op0 + static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 16; i++) {
         if (opcode & BIT(i)) {
             op0 += 4;
@@ -1810,7 +1810,7 @@ int CPU::msrRc(uint32_t opcode) {
     }
     for (int i = 0; i < 3; i++) {
         if (opcode & BIT(17 + i))
-            cpsr = (cpsr & ~(0x0000FF00 << (i * 8))) | (op1 & (0x0000FF00 << (i * 8)));
+            cpsr = (cpsr & ~(0x0000FF00u << (i * 8))) | (op1 & (0x0000FF00u << (i * 8)));
     }
     return 1;
 }
@@ -1820,7 +1820,7 @@ int CPU::msrRs(uint32_t opcode) {
     if (spsr) {
         for (int i = 0; i < 4; i++) {
             if (opcode & BIT(16 + i))
-                *spsr = (*spsr & ~(0x000000FF << (i * 8))) | (op1 & (0x000000FF << (i * 8)));
+                *spsr = (*spsr & ~(0x000000FFu << (i * 8))) | (op1 & (0x000000FFu << (i * 8)));
         }
     }
     return 1;
@@ -1836,7 +1836,7 @@ int CPU::msrIc(uint32_t opcode) {
     }
     for (int i = 0; i < 3; i++) {
         if (opcode & BIT(17 + i))
-            cpsr = (cpsr & ~(0x0000FF00 << (i * 8))) | (op1 & (0x0000FF00 << (i * 8)));
+            cpsr = (cpsr & ~(0x0000FF00u << (i * 8))) | (op1 & (0x0000FF00u << (i * 8)));
     }
     return 1;
 }
@@ -1848,7 +1848,7 @@ int CPU::msrIs(uint32_t opcode) {
     if (spsr) {
         for (int i = 0; i < 4; i++) {
             if (opcode & BIT(16 + i))
-                *spsr = (*spsr & ~(0x000000FF << (i * 8))) | (op1 & (0x000000FF << (i * 8)));
+                *spsr = (*spsr & ~(0x000000FFu << (i * 8))) | (op1 & (0x000000FFu << (i * 8)));
         }
     }
     return 1;
@@ -1893,7 +1893,7 @@ int CPU::ldrsbRegT(uint16_t opcode) {
     uint32_t *op0 = registers[opcode & 0x0007];
     uint32_t  op1 = *registers[(opcode & 0x0038) >> 3];
     uint32_t  op2 = *registers[(opcode & 0x01C0) >> 6];
-    *op0          = (int8_t)core->memory.read<uint8_t>(cpu, op1 + op2);
+    *op0          = (uint32_t)(int8_t)core->memory.read<uint8_t>(cpu, op1 + op2);
     return ((cpu == 0) ? 1 : 3);
 }
 
@@ -1901,9 +1901,9 @@ int CPU::ldrshRegT(uint16_t opcode) {
     uint32_t *op0 = registers[opcode & 0x0007];
     uint32_t  op1 = *registers[(opcode & 0x0038) >> 3];
     uint32_t  op2 = *registers[(opcode & 0x01C0) >> 6];
-    *op0          = (int16_t)core->memory.read<uint16_t>(cpu, op1 += op2);
+    *op0          = (uint32_t)(int16_t)core->memory.read<uint16_t>(cpu, op1 += op2);
     if (cpu == 1 && (op1 & 1))
-        *op0 = (int16_t)*op0 >> 8;
+        *op0 = static_cast<uint32_t>((int16_t)*op0 >> 8);
     return ((cpu == 0) ? 1 : 3);
 }
 
@@ -1919,7 +1919,7 @@ int CPU::strbRegT(uint16_t opcode) {
     uint32_t op0 = *registers[opcode & 0x0007];
     uint32_t op1 = *registers[(opcode & 0x0038) >> 3];
     uint32_t op2 = *registers[(opcode & 0x01C0) >> 6];
-    core->memory.write<uint8_t>(cpu, op1 + op2, op0);
+    core->memory.write<uint8_t>(cpu, op1 + op2, static_cast<unsigned char>(op0));
     return ((cpu == 0) ? 1 : 2);
 }
 
@@ -1937,7 +1937,7 @@ int CPU::strhRegT(uint16_t opcode) {
     uint32_t op0 = *registers[opcode & 0x0007];
     uint32_t op1 = *registers[(opcode & 0x0038) >> 3];
     uint32_t op2 = *registers[(opcode & 0x01C0) >> 6];
-    core->memory.write<uint16_t>(cpu, op1 + op2, op0);
+    core->memory.write<uint16_t>(cpu, op1 + op2, static_cast<unsigned short>(op0));
     return ((cpu == 0) ? 1 : 2);
 }
 
@@ -1973,7 +1973,7 @@ int CPU::strbImm5T(uint16_t opcode) {
     uint32_t op0 = *registers[opcode & 0x0007];
     uint32_t op1 = *registers[(opcode & 0x0038) >> 3];
     uint32_t op2 = (opcode & 0x07C0) >> 6;
-    core->memory.write<uint8_t>(cpu, op1 + op2, op0);
+    core->memory.write<uint8_t>(cpu, op1 + op2, static_cast<unsigned char>(op0));
     return ((cpu == 0) ? 1 : 2);
 }
 
@@ -1991,7 +1991,7 @@ int CPU::strhImm5T(uint16_t opcode) {
     uint32_t op0 = *registers[opcode & 0x0007];
     uint32_t op1 = *registers[(opcode & 0x0038) >> 3];
     uint32_t op2 = (opcode & 0x07C0) >> 5;
-    core->memory.write<uint16_t>(cpu, op1 + op2, op0);
+    core->memory.write<uint16_t>(cpu, op1 + op2, static_cast<unsigned short>(op0));
     return ((cpu == 0) ? 1 : 2);
 }
 
@@ -2017,7 +2017,7 @@ int CPU::strImm5T(uint16_t opcode) {
 
 int CPU::ldrPcT(uint16_t opcode) {
     uint32_t *op0 = registers[(opcode & 0x0700) >> 8];
-    uint32_t  op1 = *registers[15] & ~3;
+    uint32_t  op1 = *registers[15] & ~3u;
     uint32_t  op2 = (opcode & 0x00FF) << 2;
     *op0          = core->memory.read<uint32_t>(cpu, op1 += op2);
     if (op1 & 3) {
@@ -2067,7 +2067,7 @@ int CPU::stmiaT(uint16_t opcode) {
     int      n   = bitCount[opcode & 0xFF];
     uint32_t op0 = *registers[m];
     if (cpu == 1 && (opcode & BIT(m)) && (opcode & (BIT(m) - 1)))
-        *registers[m] = op0 + n * 4;
+        *registers[m] = op0 + static_cast<uint32_t>(n * 4);
     for (int i = 0; i < 8; i++) {
         if (opcode & BIT(i)) {
             core->memory.write<uint32_t>(cpu, op0, *registers[i]);
@@ -2093,7 +2093,7 @@ int CPU::popT(uint16_t opcode) {
 
 int CPU::pushT(uint16_t opcode) {
     int      n     = bitCount[opcode & 0xFF];
-    uint32_t op0   = *registers[13] - n * 4;
+    uint32_t op0   = *registers[13] - static_cast<uint32_t>(n * 4);
     *registers[13] = op0;
     for (int i = 0; i < 8; i++) {
         if (opcode & BIT(i)) {
@@ -2123,7 +2123,7 @@ int CPU::popPcT(uint16_t opcode) {
 
 int CPU::pushLrT(uint16_t opcode) {
     int      n     = bitCount[opcode & 0xFF] + 1;
-    uint32_t op0   = *registers[13] - n * 4;
+    uint32_t op0   = *registers[13] - static_cast<uint32_t>(n * 4);
     *registers[13] = op0;
     for (int i = 0; i < 8; i++) {
         if (opcode & BIT(i)) {

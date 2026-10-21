@@ -5,21 +5,20 @@ namespace sdl3 {
 
 // ── PropertiesLock ───────────────────────────────────────────────────────────
 
-PropertiesLock::PropertiesLock(SDL_PropertiesID id) : id(id) {
-    if (id)
-        SDL_LockProperties(id);
+PropertiesLock::PropertiesLock(SDL_PropertiesID id) : m_id(id) {
+    if (m_id)
+        SDL_LockProperties(m_id);
 }
 
 PropertiesLock::~PropertiesLock() {
-    if (id)
-        SDL_UnlockProperties(id);
+    if (m_id)
+        SDL_UnlockProperties(m_id);
 }
 
 // ── PropertiesBase ───────────────────────────────────────────────────────────
 
-bool PropertiesBase::SetPointerWithCleanup(const char *name, void *val, SDL_CleanupPropertyCallback cleanup,
-		void *userdata) {
-    return SDL_SetPointerPropertyWithCleanup(id, name, val, cleanup, userdata);
+bool PropertiesBase::SetPointerWithCleanup(const char *name, void *val, SDL_CleanupPropertyCallback cleanup, void *userdata) {
+    return SDL_SetPointerPropertyWithCleanup(m_id, name, val, cleanup, userdata);
 }
 
 bool PropertiesBase::SetPointerWithCleanup(const char *name, void *val, std::function<void(void *)> cleanup) {
@@ -29,34 +28,34 @@ bool PropertiesBase::SetPointerWithCleanup(const char *name, void *val, std::fun
         (*f)(v);
         delete f;
     };
-    return SDL_SetPointerPropertyWithCleanup(id, name, val, cb, fn);
+    return SDL_SetPointerPropertyWithCleanup(m_id, name, val, cb, fn);
 }
 
 const char * PropertiesBase::GetString(const char *name, const char *def) const {
-    return SDL_GetStringProperty(id, name, def);
+    return SDL_GetStringProperty(m_id, name, def);
 }
 
 Sint64 PropertiesBase::GetNumber(const char *name, Sint64 def) const {
-    return SDL_GetNumberProperty(id, name, def);
+    return SDL_GetNumberProperty(m_id, name, def);
 }
 
 float PropertiesBase::GetFloat(const char *name, float def) const {
-    return SDL_GetFloatProperty(id, name, def);
+    return SDL_GetFloatProperty(m_id, name, def);
 }
 
 void * PropertiesBase::GetPointer(const char *name, void *def) const {
-    return SDL_GetPointerProperty(id, name, def);
+    return SDL_GetPointerProperty(m_id, name, def);
 }
 
 sdl3::PropertyType PropertiesBase::PropertyType(const char *name) const noexcept {
-    return sdl3::PropertyType(SDL_GetPropertyType(id, name));
+    return sdl3::PropertyType(SDL_GetPropertyType(m_id, name));
 }
 
 void PropertiesBase::Enumerate(std::function<void(const char *name)> fn) const {
     auto cb = [](void *ud, SDL_PropertiesID, const char *name) {
         (*static_cast<std::function<void(const char *)> *>(ud))(name);
     };
-    SDL_EnumerateProperties(id, cb, &fn);
+    SDL_EnumerateProperties(m_id, cb, &fn);
 }
 
 uint64_t PropertiesBase::Count() const {
@@ -68,13 +67,13 @@ uint64_t PropertiesBase::Count() const {
 // ── Properties ───────────────────────────────────────────────────────────────
 
 Properties::~Properties() {
-    if (id)
-        SDL_DestroyProperties(id);
+    if (m_id)
+        SDL_DestroyProperties(m_id);
 }
 
 Properties Properties::Clone() const {
     Properties dst = Properties::Create();
-    SDL_CopyProperties(id, dst.id);
+    SDL_CopyProperties(m_id, dst.m_id);
     return dst;
 }
 

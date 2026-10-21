@@ -1564,7 +1564,7 @@ Result<size_t, String> Runtime::RemoveScript(const String &scriptName) {
 	size_t nodes = 0;
 	for (const SceneDesc *document : m_project.Fs().Documents())
 		document->tree.Traverse(document->tree.Root(), [&](scene::NodeId, const scene::Node &node) {
-			nodes += ScriptRef::Has(node) && ScriptRef::Read(node).script == scriptName ? 1 : 0;
+			nodes += ScriptRef::Has(node) && ScriptRef::Read(node).script == scriptName ? 1 : static_cast<size_t>(0);
 		});
 	if (onProjectChanged)
 		onProjectChanged();
@@ -2552,17 +2552,17 @@ void Runtime::EnsureGizmoNodes() {
 	m_gizmoRoot->SetName(String("__gizmo"));
 
 	auto material = [](sdl3::Color color) {
-		render3d::Material material;
-		material.baseColor = color;
+		render3d::Material made;
+		made.baseColor = color;
 		// Non éclairé : un manipulateur doit garder la même couleur quelle
 		// que soit l'orientation du soleil, sinon l'axe dans l'ombre
 		// devient noir et illisible.
-		material.lit = false;
+		made.lit = false;
 		// Dessiné PAR-DESSUS la scène : on attrape un axe même quand il
 		// est à l'intérieur de l'objet qu'il manipule (le nœud du
 		// manipulateur est ajouté en dernier, donc dessiné en dernier).
-		material.depthTest = false;
-		return material;
+		made.depthTest = false;
+		return made;
 	};
 	struct AxisSetup {
 		GizmoAxis axis;
@@ -4780,7 +4780,7 @@ void Runtime::InstallHostApi(script::Interpreter &vm) {
 									   return Err(wanted.Error());
 								   size_t n = 0;
 								   for (const auto &info : all)
-									   n += info.typeName == wanted.Value() ? 1 : 0;
+									   n += info.typeName == wanted.Value() ? 1 : static_cast<size_t>(0);
 								   return Ok(Value::Number(double(n)));
 							   });
 

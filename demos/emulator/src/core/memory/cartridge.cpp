@@ -76,7 +76,7 @@ void Cartridge::trimRom() {
     if (newSize < romSize) {
         romSize         = newSize;
         uint8_t *newRom = new uint8_t[newSize];
-        memcpy(newRom, rom, newSize * sizeof(uint8_t));
+        memcpy(newRom, rom, static_cast<size_t>(newSize) * sizeof(uint8_t));
         delete[] rom;
         rom = newRom;
         if (auto res = sdl3::IOStream::FromFile(romName, "wb"); res) {
@@ -108,10 +108,10 @@ void Cartridge::resizeSave(int newSize, bool dirty) {
         if (saveSize < 0)
             saveSize = 0;
         if (save && saveSize > 0) // memcpy depuis nullptr : indéfini même pour 0 octet
-            memcpy(newSave, save, saveSize * sizeof(uint8_t));
-        memset(&newSave[saveSize], 0xFF, (newSize - saveSize) * sizeof(uint8_t));
+            memcpy(newSave, save, static_cast<size_t>(saveSize) * sizeof(uint8_t));
+        memset(&newSave[saveSize], 0xFF, static_cast<size_t>((newSize - saveSize)) * sizeof(uint8_t));
     } else if (save) {
-        memcpy(newSave, save, newSize * sizeof(uint8_t));
+        memcpy(newSave, save, static_cast<size_t>(newSize) * sizeof(uint8_t));
     }
     delete[] save;
     save     = newSave;
@@ -164,7 +164,7 @@ void Cartridge::ioState(StateArchive &archive) {
         archive.io(save, size_t(saveSize));
 }
 
-CartridgeNds::CartridgeNds(Core *core) : Cartridge(core) {
+CartridgeNds::CartridgeNds(Core *core_) : Cartridge(core_) {
     wordReadyTasks[0] = std::bind(&CartridgeNds::wordReady, this, 0);
     wordReadyTasks[1] = std::bind(&CartridgeNds::wordReady, this, 1);
 }
@@ -259,8 +259,8 @@ void CartridgeNds::directBoot() {
                 core->memory.write<uint32_t>(0, ramAddr9 + i, 0xE7FFDEFF);
             } else {
                 initKeycode(3);
-                uint64_t data = decrypt64(U8TO64(rom, (offset + i) & ~7));
-                core->memory.write<uint32_t>(0, ramAddr9 + i, data >> (((offset + i) & 4) ? 32 : 0));
+                uint64_t data = decrypt64(U8TO64(rom, (offset + i) & ~7u));
+                core->memory.write<uint32_t>(0, ramAddr9 + i, static_cast<unsigned int>(data >> (((offset + i) & 4) ? 32 : 0)));
             }
         } else {
             core->memory.write<uint32_t>(0, ramAddr9 + i, U8TO32(rom, offset + i));
@@ -280,8 +280,8 @@ void CartridgeNds::directBoot() {
                 core->memory.write<uint32_t>(1, ramAddr7 + i, 0xE7FFDEFF);
             } else {
                 initKeycode(3);
-                uint64_t data = decrypt64(U8TO64(rom, (offset + i) & ~7));
-                core->memory.write<uint32_t>(1, ramAddr7 + i, data >> (((offset + i) & 4) ? 32 : 0));
+                uint64_t data = decrypt64(U8TO64(rom, (offset + i) & ~7u));
+                core->memory.write<uint32_t>(1, ramAddr7 + i, static_cast<unsigned int>(data >> (((offset + i) & 4) ? 32 : 0)));
             }
         } else {
             core->memory.write<uint32_t>(1, ramAddr7 + i, U8TO32(rom, offset + i));
@@ -290,8 +290,8 @@ void CartridgeNds::directBoot() {
 }
 
 uint64_t CartridgeNds::encrypt64(uint64_t value) {
-    uint32_t y = value;
-    uint32_t x = value >> 32;
+    uint32_t y = static_cast<uint32_t>(value);
+    uint32_t x = static_cast<uint32_t>(value >> 32);
     for (int i = 0x00; i <= 0x0F; i++) {
         uint32_t z = encTable[i] ^ x;
         x          = encTable[0x012 + ((z >> 24) & 0xFF)];
@@ -305,8 +305,8 @@ uint64_t CartridgeNds::encrypt64(uint64_t value) {
 }
 
 uint64_t CartridgeNds::decrypt64(uint64_t value) {
-    uint32_t y = value;
-    uint32_t x = value >> 32;
+    uint32_t y = static_cast<uint32_t>(value);
+    uint32_t x = static_cast<uint32_t>(value >> 32);
     for (int i = 0x11; i >= 0x02; i--) {
         uint32_t z = encTable[i] ^ x;
         x          = encTable[0x012 + ((z >> 24) & 0xFF)];
@@ -321,7 +321,7 @@ uint64_t CartridgeNds::decrypt64(uint64_t value) {
 
 void CartridgeNds::initKeycode(int level) {
     for (int i = 0; i < 0x412; i++)
-        encTable[i] = core->memory.read<uint32_t>(1, 0x30 + i * 4);
+        encTable[i] = core->memory.read<uint32_t>(1, static_cast<uint32_t>(0x30 + i * 4));
     encCode[0] = romCode;
     encCode[1] = romCode / 2;
     encCode[2] = romCode * 2;
@@ -337,11 +337,11 @@ void CartridgeNds::initKeycode(int level) {
 
 void CartridgeNds::applyKeycode() {
     uint64_t enc1 = encrypt64(((uint64_t)encCode[2] << 32) | encCode[1]);
-    encCode[1]    = enc1;
-    encCode[2]    = enc1 >> 32;
+    encCode[1]    = static_cast<uint32_t>(enc1);
+    encCode[2]    = static_cast<uint32_t>(enc1 >> 32);
     uint64_t enc2 = encrypt64(((uint64_t)encCode[1] << 32) | encCode[0]);
-    encCode[0]    = enc2;
-    encCode[1]    = enc2 >> 32;
+    encCode[0]    = static_cast<uint32_t>(enc2);
+    encCode[1]    = static_cast<uint32_t>(enc2 >> 32);
     for (int i = 0; i <= 0x11; i++) {
         uint32_t byteReverse = 0;
         for (int j = 0; j < 4; j++)
@@ -351,8 +351,8 @@ void CartridgeNds::applyKeycode() {
     uint64_t scratch = 0;
     for (int i = 0; i <= 0x410; i += 2) {
         scratch         = encrypt64(scratch);
-        encTable[i + 0] = scratch >> 32;
-        encTable[i + 1] = scratch;
+        encTable[i + 0] = static_cast<uint32_t>(scratch >> 32);
+        encTable[i + 1] = static_cast<uint32_t>(scratch);
     }
 }
 
@@ -630,7 +630,7 @@ void CartridgeNds::writeRomCtrl(bool cpu, uint32_t mask, uint32_t value) {
             encrypted[cpu] = false;
         } else if ((command >> 56) == 0xB7) {
             cmdMode          = CMD_DATA;
-            romAddrReal[cpu] = (command >> 24) & romMask;
+            romAddrReal[cpu] = static_cast<uint32_t>((command >> 24) & romMask);
             if (romFile) {
                 if (romAddrReal[cpu] < 0x8000) {
                     loadRomSection(0, 0x8200 + blockSize[cpu]);
@@ -683,14 +683,14 @@ uint32_t CartridgeNds::readRomDataIn(bool cpu) {
         case CMD_SECURE: {
             if (!romEncrypted && romAddrReal[cpu] == 0x4000 && readCount[cpu] <= 0x800) {
                 uint64_t data = (readCount[cpu] <= 8) ? 0x6A624F7972636E65
-                                                      : U8TO64(rom, (romAddrVirt[cpu] + readCount[cpu] - 4) & ~7);
+                                                      : U8TO64(rom, (romAddrVirt[cpu] + readCount[cpu] - 4) & ~7u);
                 initKeycode(3);
                 data = encrypt64(data);
                 if (readCount[cpu] <= 8) {
                     initKeycode(2);
                     data = encrypt64(data);
                 }
-                return data >> (((romAddrReal[cpu] + readCount[cpu]) & 4) ? 0 : 32);
+                return static_cast<uint32_t>(data >> (((romAddrReal[cpu] + readCount[cpu]) & 4) ? 0 : 32));
             }
             return U8TO32(rom, romAddrVirt[cpu] + readCount[cpu] - 4);
         }
@@ -724,7 +724,7 @@ bool CartridgeGba::findString(String string) {
     for (int i = 0; i < romSize; i += 4) {
         bool found = true;
         for (size_t j = 0; j < string.Length(); j++) {
-            if (i + j >= size_t(romSize) || rom[i + j] != string[j]) {
+            if (static_cast<size_t>(i) + j >= size_t(romSize) || rom[static_cast<size_t>(i) + j] != string[j]) {
                 found = false;
                 break;
             }
@@ -737,7 +737,7 @@ bool CartridgeGba::findString(String string) {
 
 bool CartridgeGba::loadRom(const String& path) {
     bool res = Cartridge::loadRom(path);
-    loadRomSection(0, romSize);
+    loadRomSection(0, static_cast<size_t>(romSize));
     romFile.Reset();
     if (romSize > 0xAC && rom[0xAC] == 'F') {
         for (romMask = 1; romMask < uint32_t(romSize); romMask <<= 1)
@@ -793,7 +793,7 @@ uint8_t CartridgeGba::eepromRead() {
         if (++eepromCount >= length + 6) {
             int      bit   = 63 - (eepromCount - (length + 6));
             uint16_t addr  = (saveSize == 0x200) ? ((eepromCmd & 0x3F00) >> 8) : (eepromCmd & 0x03FF);
-            uint8_t  value = (save[addr * 8 + bit / 8] & BIT(bit % 8)) >> (bit % 8);
+            uint8_t  value = static_cast<uint8_t>((save[addr * 8 + bit / 8] & BIT(bit % 8)) >> (bit % 8));
             if (eepromCount >= length + 69) {
                 eepromCount = 0;
                 eepromCmd   = 0;
@@ -811,7 +811,7 @@ void CartridgeGba::eepromWrite(uint8_t value) {
     eepromDone = false;
     int length = (saveSize == 0x200) ? 8 : 16;
     if (eepromCount < length) {
-        eepromCmd |= (value & BIT(0)) << (16 - ++eepromCount);
+        eepromCmd = static_cast<uint16_t>(eepromCmd | ((value & BIT(0)) << (16 - ++eepromCount)));
     } else if (((eepromCmd & 0xC000) >> 14) == 0x3) {
         if (eepromCount < length + 1)
             eepromCount++;
@@ -826,7 +826,7 @@ void CartridgeGba::eepromWrite(uint8_t value) {
             mutex.lock();
             uint16_t addr = (saveSize == 0x200) ? ((eepromCmd & 0x3F00) >> 8) : (eepromCmd & 0x03FF);
             for (unsigned int i = 0; i < 8; i++)
-                save[addr * 8 + i] = eepromData >> (i * 8);
+                save[addr * 8 + i] = static_cast<uint8_t>(eepromData >> (i * 8));
             saveDirty = true;
             mutex.unlock();
             eepromCount = 0;
@@ -869,7 +869,7 @@ void CartridgeGba::sramWrite(uint32_t address, uint8_t value) {
             saveDirty                 = true;
             mutex.unlock();
             flashCmd = 0xF0;
-        } else if (flashErase && (address & ~0x000F000) == 0xE000000 && (value & 0xFF) == 0x30) {
+        } else if (flashErase && (address & ~0x000F000u) == 0xE000000 && (value & 0xFF) == 0x30) {
             if (bankSwap)
                 address += 0x10000;
             mutex.lock();
@@ -888,7 +888,7 @@ void CartridgeGba::sramWrite(uint32_t address, uint8_t value) {
                 flashErase = false;
             } else if (flashErase && flashCmd == 0x10) {
                 mutex.lock();
-                memset(save, 0xFF, saveSize * sizeof(uint8_t));
+                memset(save, 0xFF, static_cast<size_t>(saveSize) * sizeof(uint8_t));
                 saveDirty = true;
                 mutex.unlock();
             }

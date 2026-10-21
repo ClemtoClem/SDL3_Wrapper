@@ -332,28 +332,29 @@ public:
 // ============================================================================
 
 class GpuMappedBuffer {
+private:
     SDL_GPUDevice *m_device = nullptr;
-    SDL_GPUTransferBuffer *buf = nullptr;
-    void *ptr = nullptr;
+    SDL_GPUTransferBuffer *m_buf = nullptr;
+    void *m_ptr = nullptr;
 
 public:
     constexpr GpuMappedBuffer() noexcept = default;
     GpuMappedBuffer(SDL_GPUDevice *dev, SDL_GPUTransferBuffer *buf, bool cycle)
-        : m_device(dev), buf(buf), ptr(SDL_MapGPUTransferBuffer(dev, buf, cycle)) {}
+        : m_device(dev), m_buf(buf), m_ptr(SDL_MapGPUTransferBuffer(dev, buf, cycle)) {}
     ~GpuMappedBuffer();
     GpuMappedBuffer(const GpuMappedBuffer &) = delete;
     GpuMappedBuffer &operator=(const GpuMappedBuffer &) = delete;
-    GpuMappedBuffer(GpuMappedBuffer &&o) noexcept : m_device(o.m_device), buf(o.buf), ptr(o.ptr) {
-        o.ptr = nullptr;
+    GpuMappedBuffer(GpuMappedBuffer &&o) noexcept : m_device(o.m_device), m_buf(o.m_buf), m_ptr(o.m_ptr) {
+        o.m_ptr = nullptr;
     }
 
-    [[nodiscard]] void *GetData() noexcept { return ptr; }
-    [[nodiscard]] explicit operator bool() const noexcept { return ptr != nullptr; }
+    [[nodiscard]] void *GetData() noexcept { return m_ptr; }
+    [[nodiscard]] explicit operator bool() const noexcept { return m_ptr != nullptr; }
 
-    template <typename T> [[nodiscard]] T *As() noexcept { return static_cast<T *>(ptr); }
+    template <typename T> [[nodiscard]] T *As() noexcept { return static_cast<T *>(m_ptr); }
 
     template <typename T> [[nodiscard]] std::span<T> Span(size_t count) noexcept {
-        return ptr ? std::span<T>(static_cast<T *>(ptr), count) : std::span<T>{};
+        return m_ptr ? std::span<T>(static_cast<T *>(m_ptr), count) : std::span<T>{};
     }
 };
 

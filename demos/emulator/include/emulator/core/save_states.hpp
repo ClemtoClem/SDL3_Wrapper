@@ -24,7 +24,7 @@ enum StateResult {
  */
 class SaveStates {
 public:
-    SaveStates(Core *core): core(core) {}
+    SaveStates(Core *core_): core(core_) {}
 
     void setPath(const String& path, RomType romType);
 

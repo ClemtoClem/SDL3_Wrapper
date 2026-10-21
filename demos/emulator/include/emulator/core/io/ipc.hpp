@@ -25,7 +25,7 @@ class Ipc {
      *
      * @param core Pointeur vers le cœur principal de l’émulateur.
      */
-    Ipc(Core *core) : core(core) {
+    Ipc(Core *core_) : core(core_) {
     }
 
     /**

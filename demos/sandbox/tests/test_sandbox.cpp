@@ -1807,7 +1807,7 @@ TEST(EngineBases_EachNodeGetsItsOwnBehaviourInstanceDestroyedWithTheScene) {
 	CHECK(Node(h, "Cristal")->Get(String("images"))->AsFloat() == 3.f);
 	size_t behaviours = 0;
 	for (const script::OwnerInfo &info : h.runtime.LiveOwners())
-		behaviours += info.typeName == "game.Behaviour" ? 1 : 0;
+		behaviours += info.typeName == "game.Behaviour" ? 1 : static_cast<size_t>(0);
 	CHECK_EQ(behaviours, size_t(2));
 	h.runtime.Stop();
 	CHECK_EQ(h.runtime.LiveOwners().size(), size_t(0));

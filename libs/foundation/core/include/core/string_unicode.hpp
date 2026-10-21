@@ -69,10 +69,11 @@ template <typename Sink> inline void EncodeUtf8(CodepointT cp, Sink &out) {
 /// La comparaison se fait sur cur_start : quand il atteint end, l'itérateur
 /// est égal à end() — le codepoint courant a déjà été rendu lors du tour précédent.
 class CodepointIterator {
-	const uint8_t *curStart; // début du codepoint courant (clé d'égalité)
-	const uint8_t *pos;       // position après decode du codepoint courant
-	const uint8_t *end;
-	CodepointT current;
+private:
+	const uint8_t *m_curStart; // début du codepoint courant (clé d'égalité)
+	const uint8_t *m_pos;       // position après decode du codepoint courant
+	const uint8_t *m_end;
+	CodepointT m_current;
 
 public:
 	using IteratorCategory = std::forward_iterator_tag;
@@ -84,18 +85,18 @@ public:
 	explicit CodepointIterator(const char *p, const char *end);
 
 	// Constructeur de fin
-	explicit CodepointIterator(const char *end)
-		: curStart(reinterpret_cast<const uint8_t *>(end)), pos(reinterpret_cast<const uint8_t *>(end)),
-		  end(reinterpret_cast<const uint8_t *>(end)), current(0) {}
+	explicit CodepointIterator(const char *end_)
+		: m_curStart(reinterpret_cast<const uint8_t *>(end_)), m_pos(reinterpret_cast<const uint8_t *>(end_)),
+		  m_end(reinterpret_cast<const uint8_t *>(end_)), m_current(0) {}
 
-	CodepointT operator*() const noexcept { return current; }
+	CodepointT operator*() const noexcept { return m_current; }
 
 	CodepointIterator &operator++() {
-		curStart = pos; // avance la clé vers le prochain codepoint
-		if (pos < end)
-			current = DecodeNext(pos, end);
+		m_curStart = m_pos; // avance la clé vers le prochain codepoint
+		if (m_pos < m_end)
+			m_current = DecodeNext(m_pos, m_end);
 		else
-			current = 0;
+			m_current = 0;
 		return *this;
 	}
 	CodepointIterator operator++(int) {
@@ -104,7 +105,7 @@ public:
 		return tmp;
 	}
 
-	bool operator==(const CodepointIterator &o) const noexcept { return curStart == o.curStart; }
+	bool operator==(const CodepointIterator &o) const noexcept { return m_curStart == o.m_curStart; }
 	bool operator!=(const CodepointIterator &o) const noexcept { return !(*this == o); }
 };
 

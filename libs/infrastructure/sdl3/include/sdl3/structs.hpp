@@ -185,7 +185,7 @@ struct Color {
 	#undef _c
 
 	constexpr Color() = default;
-	constexpr Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) : r(r), g(g), b(b), a(a) {}
+	constexpr Color(uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_ = 255) : r(r_), g(g_), b(b_), a(a_) {}
 	constexpr explicit Color(const SDL_Color& c) : r(c.r), g(c.g), b(c.b), a(c.a) {}
 
 	[[nodiscard]] constexpr operator SDL_Color() const { return {r, g, b, a}; }
@@ -845,7 +845,7 @@ struct Point {
 	int x = 0, y = 0;
 
 	constexpr Point() = default;
-	constexpr Point(int x, int y) : x(x), y(y) {}
+	constexpr Point(int x_, int y_) : x(x_), y(y_) {}
 	constexpr explicit Point(SDL_Point p) : x(p.x), y(p.y) {}
 	constexpr explicit Point(FPoint p);
 
@@ -863,7 +863,7 @@ struct FPoint {
 	float x = 0.f, y = 0.f;
 
 	constexpr FPoint() = default;
-	constexpr FPoint(float x, float y) : x(x), y(y) {}
+	constexpr FPoint(float x_, float y_) : x(x_), y(y_) {}
 	constexpr explicit FPoint(SDL_FPoint p) : x(p.x), y(p.y) {}
 	constexpr explicit FPoint(Point p) : x(float(p.x)), y(float(p.y)) {}
 	/// Interop avec le module math (Foundation) : math::FVector2 <-> sdl3::FPoint.
@@ -896,7 +896,7 @@ struct Rect {
 	int x = 0, y = 0, w = 0, h = 0;
 
 	constexpr Rect() = default;
-	constexpr Rect(int x, int y, int w, int h) : x(x), y(y), w(w), h(h) {}
+	constexpr Rect(int x_, int y_, int w_, int h_) : x(x_), y(y_), w(w_), h(h_) {}
 	constexpr Rect(Point pos, Point size) : x(pos.x), y(pos.y), w(size.x), h(size.y) {}
 	constexpr explicit Rect(SDL_Rect r) : x(r.x), y(r.y), w(r.w), h(r.h) {}
 	constexpr explicit Rect(FRect r);
@@ -919,7 +919,7 @@ struct FRect {
 	float x = 0.f, y = 0.f, w = 0.f, h = 0.f;
 
 	constexpr FRect() = default;
-	constexpr FRect(float x, float y, float w, float h) : x(x), y(y), w(w), h(h) {}
+	constexpr FRect(float x_, float y_, float w_, float h_) : x(x_), y(y_), w(w_), h(h_) {}
 	constexpr FRect(FPoint pos, FPoint size) : x(pos.x), y(pos.y), w(size.x), h(size.y) {}
 	constexpr explicit FRect(SDL_FRect r) : x(r.x), y(r.y), w(r.w), h(r.h) {}
 	constexpr explicit FRect(Rect r) : x(float(r.x)), y(float(r.y)), w(float(r.w)), h(float(r.h)) {}
@@ -972,8 +972,8 @@ struct Vertex {
 	FPoint texCoord; /**< Normalized texture coordinates, if needed */
 
 	constexpr Vertex() = default;
-	constexpr Vertex(const FPoint& position, const FColor& color, const FPoint& texCoord)
-		: position(position), color(color), texCoord(texCoord) {}
+	constexpr Vertex(const FPoint& position_, const FColor& color_, const FPoint& texCoord_)
+		: position(position_), color(color_), texCoord(texCoord_) {}
 	constexpr explicit Vertex(const SDL_Vertex& v) : position(v.position), color(v.color), texCoord(v.tex_coord) {}
 
 	[[nodiscard]] constexpr operator SDL_Vertex() const { return {position, color, texCoord}; }

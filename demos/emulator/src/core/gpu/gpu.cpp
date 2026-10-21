@@ -6,7 +6,7 @@
 namespace emulator {
 
 
-Gpu::Gpu(Core *core) : core(core) {
+Gpu::Gpu(Core *core_) : core(core_) {
     ready.store(false);
     drawing.store(0);
     gbaScanline240Task = std::bind(&Gpu::gbaScanline240, this);
@@ -40,16 +40,16 @@ void Gpu::gbaScheduleInit() {
 }
 
 uint32_t Gpu::rgb5ToRgb8(uint32_t color) {
-    uint8_t r = (((color >> 0) & 0x1F) << 1) * 255 / 63;
-    uint8_t g = (((color >> 5) & 0x1F) << 1) * 255 / 63;
-    uint8_t b = (((color >> 10) & 0x1F) << 1) * 255 / 63;
+    uint8_t r = static_cast<uint8_t>((((color >> 0) & 0x1F) << 1) * 255 / 63);
+    uint8_t g = static_cast<uint8_t>((((color >> 5) & 0x1F) << 1) * 255 / 63);
+    uint8_t b = static_cast<uint8_t>((((color >> 10) & 0x1F) << 1) * 255 / 63);
     return (0xFF << 24) | (b << 16) | (g << 8) | r;
 }
 
 uint32_t Gpu::rgb6ToRgb8(uint32_t color) {
-    uint8_t r = ((color >> 0) & 0x3F) * 255 / 63;
-    uint8_t g = ((color >> 6) & 0x3F) * 255 / 63;
-    uint8_t b = ((color >> 12) & 0x3F) * 255 / 63;
+    uint8_t r = static_cast<uint8_t>(((color >> 0) & 0x3F) * 255 / 63);
+    uint8_t g = static_cast<uint8_t>(((color >> 6) & 0x3F) * 255 / 63);
+    uint8_t b = static_cast<uint8_t>(((color >> 12) & 0x3F) * 255 / 63);
     return (0xFF << 24) | (b << 16) | (g << 8) | r;
 }
 
@@ -83,14 +83,14 @@ bool Gpu::getFrame(uint32_t *out, bool gbaCrop) {
         }
     } else if (core->isGbaMode()) {
         int      offset = (powCnt1 & BIT(15)) ? 0 : (256 * 192);
-        uint32_t base   = 0x6800000 + gbaBlock * 0x20000;
+        uint32_t base   = static_cast<uint32_t>(0x6800000 + gbaBlock * 0x20000);
         gbaBlock        = !gbaBlock;
         if (Settings::getHighRes3D()) {
             for (int y = 0; y < 192; y++) {
                 for (int x = 0; x < 256; x++) {
                     uint32_t color = rgb5ToRgb8((x >= 8 && x < 256 - 8 && y >= 16 && y < 192 - 16)
                                                     ? buffers.framebuffer[(y - 16) * 256 + (x - 8)]
-                                                    : core->memory.read<uint16_t>(0, base + (y * 256 + x) * 2));
+                                                    : core->memory.read<uint16_t>(0, base + static_cast<uint32_t>((y * 256 + x) * 2)));
                     int      i     = (offset * 4) + (y * 2) * (256 * 2) + (x * 2);
                     out[i + 0]     = color;
                     out[i + 1]     = color;
@@ -105,7 +105,7 @@ bool Gpu::getFrame(uint32_t *out, bool gbaCrop) {
                     out[offset + y * 256 + x] =
                         rgb5ToRgb8((x >= 8 && x < 256 - 8 && y >= 16 && y < 192 - 16)
                                        ? buffers.framebuffer[(y - 16) * 256 + (x - 8)]
-                                       : core->memory.read<uint16_t>(0, base + (y * 256 + x) * 2));
+                                       : core->memory.read<uint16_t>(0, base + static_cast<uint32_t>((y * 256 + x) * 2)));
                 }
             }
             memset(&out[256 * 192 - offset], 0, 256 * 192 * sizeof(uint32_t));
@@ -178,7 +178,7 @@ void Gpu::gbaScanline240() {
 }
 
 void Gpu::gbaScanline308() {
-    dispStat[1] &= ~BIT(1);
+    dispStat[1] = static_cast<uint16_t>(dispStat[1] & ~BIT(1));
     switch (++vCount) {
         case 160: {
             if (thread) {
@@ -203,7 +203,7 @@ void Gpu::gbaScanline308() {
             break;
         }
         case 227: {
-            dispStat[1] &= ~BIT(0);
+            dispStat[1] = static_cast<uint16_t>(dispStat[1] & ~BIT(0));
             core->endFrame();
             break;
         }
@@ -225,7 +225,7 @@ void Gpu::gbaScanline308() {
         if (dispStat[1] & BIT(5))
             core->interpreter[1].sendInterrupt(2);
     } else if (dispStat[1] & BIT(2)) {
-        dispStat[1] &= ~BIT(2);
+        dispStat[1] = static_cast<uint16_t>(dispStat[1] & ~BIT(2));
     }
     core->schedule(Task(&gbaScanline308Task, 308 * 4));
 }
@@ -271,14 +271,14 @@ void Gpu::scanline256() {
                     break;
             }
             uint32_t base        = 0x6800000 + ((dispCapCnt & 0x00030000) >> 16) * 0x20000;
-            uint32_t writeOffset = ((dispCapCnt & 0x000C0000) >> 3) + vCount * width * 2;
+            uint32_t writeOffset = ((dispCapCnt & 0x000C0000) >> 3) + static_cast<uint32_t>(vCount * width * 2);
             switch ((dispCapCnt & 0x60000000) >> 29) {
                 case 0: {
                     uint32_t *source =
                         (dispCapCnt & BIT(24)) ? core->gpu3DRenderer.getLine(vCount) : core->gpu2D[0].getRawLine();
                     bool resShift = (Settings::getHighRes3D() && (dispCapCnt & BIT(24)));
                     for (int i = 0; i < width; i++)
-                        core->memory.write<uint16_t>(0, base + ((writeOffset + i * 2) & 0x1FFFF),
+                        core->memory.write<uint16_t>(0, base + ((writeOffset + static_cast<uint32_t>(i * 2)) & 0x1FFFF),
                                                      rgb6ToRgb5(source[i << resShift]));
                     break;
                 }
@@ -287,10 +287,10 @@ void Gpu::scanline256() {
                         LOG("Unimplemented display capture source: display FIFO\n");
                         break;
                     }
-                    uint32_t readOffset = ((dispCapCnt & 0x0C000000) >> 11) + vCount * width * 2;
+                    uint32_t readOffset = ((dispCapCnt & 0x0C000000) >> 11) + static_cast<uint32_t>(vCount * width * 2);
                     for (int i = 0; i < width; i++) {
-                        uint16_t color = core->memory.read<uint16_t>(0, base + ((readOffset + i * 2) & 0x1FFFF));
-                        core->memory.write<uint16_t>(0, base + ((writeOffset + i * 2) & 0x1FFFF), color);
+                        uint16_t color = core->memory.read<uint16_t>(0, base + ((readOffset + static_cast<uint32_t>(i * 2)) & 0x1FFFF));
+                        core->memory.write<uint16_t>(0, base + ((writeOffset + static_cast<uint32_t>(i * 2)) & 0x1FFFF), color);
                     }
                     break;
                 }
@@ -302,17 +302,17 @@ void Gpu::scanline256() {
                     uint32_t *source =
                         (dispCapCnt & BIT(24)) ? core->gpu3DRenderer.getLine(vCount) : core->gpu2D[0].getRawLine();
                     bool     resShift   = (Settings::getHighRes3D() && (dispCapCnt & BIT(24)));
-                    uint32_t readOffset = ((dispCapCnt & 0x0C000000) >> 11) + vCount * width * 2;
-                    uint8_t  eva        = std::min((dispCapCnt >> 0) & 0x1F, 16U);
-                    uint8_t  evb        = std::min((dispCapCnt >> 8) & 0x1F, 16U);
+                    uint32_t readOffset = ((dispCapCnt & 0x0C000000) >> 11) + static_cast<uint32_t>(vCount * width * 2);
+                    uint8_t  eva        = static_cast<uint8_t>(std::min((dispCapCnt >> 0) & 0x1F, 16U));
+                    uint8_t  evb        = static_cast<uint8_t>(std::min((dispCapCnt >> 8) & 0x1F, 16U));
                     for (int i = 0; i < width; i++) {
                         uint16_t c1    = rgb6ToRgb5(source[i << resShift]);
-                        uint16_t c2    = core->memory.read<uint16_t>(0, base + ((readOffset + i * 2) & 0x1FFFF));
-                        uint8_t  r     = std::min((((c1 >> 0) & 0x1F) * eva + ((c2 >> 0) & 0x1F) * evb) / 16, 31);
-                        uint8_t  g     = std::min((((c1 >> 5) & 0x1F) * eva + ((c2 >> 5) & 0x1F) * evb) / 16, 31);
-                        uint8_t  b     = std::min((((c1 >> 10) & 0x1F) * eva + ((c2 >> 10) & 0x1F) * evb) / 16, 31);
+                        uint16_t c2    = core->memory.read<uint16_t>(0, base + ((readOffset + static_cast<uint32_t>(i * 2)) & 0x1FFFF));
+                        uint8_t  r     = static_cast<uint8_t>(std::min((((c1 >> 0) & 0x1F) * eva + ((c2 >> 0) & 0x1F) * evb) / 16, 31));
+                        uint8_t  g     = static_cast<uint8_t>(std::min((((c1 >> 5) & 0x1F) * eva + ((c2 >> 5) & 0x1F) * evb) / 16, 31));
+                        uint8_t  b     = static_cast<uint8_t>(std::min((((c1 >> 10) & 0x1F) * eva + ((c2 >> 10) & 0x1F) * evb) / 16, 31));
                         uint16_t color = BIT(15) | (b << 10) | (g << 5) | r;
-                        core->memory.write<uint16_t>(0, base + ((writeOffset + i * 2) & 0x1FFFF), color);
+                        core->memory.write<uint16_t>(0, base + ((writeOffset + static_cast<uint32_t>(i * 2)) & 0x1FFFF), color);
                     }
                     break;
                 }
@@ -328,7 +328,7 @@ void Gpu::scanline256() {
             dirty3D = BIT(1);
         core->gpu3DRenderer.drawScanline((vCount + 48) % 263);
         if (vCount == 143)
-            dirty3D &= ~BIT(1);
+            dirty3D = static_cast<uint8_t>(dirty3D & ~BIT(1));
     }
     for (int i = 0; i < 2; i++) {
         dispStat[i] |= BIT(1);
@@ -385,7 +385,7 @@ void Gpu::scanline355() {
         }
         case 262: {
             for (int i = 0; i < 2; i++)
-                dispStat[i] &= ~BIT(0);
+                dispStat[i] = static_cast<uint16_t>(dispStat[i] & ~BIT(0));
             core->actionReplay.applyCheats();
             core->endFrame();
             break;
@@ -409,9 +409,9 @@ void Gpu::scanline355() {
             if (dispStat[i] & BIT(5))
                 core->interpreter[i].sendInterrupt(2);
         } else if (dispStat[i] & BIT(2)) {
-            dispStat[i] &= ~BIT(2);
+            dispStat[i] = static_cast<uint16_t>(dispStat[i] & ~BIT(2));
         }
-        dispStat[i] &= ~BIT(1);
+        dispStat[i] = static_cast<uint16_t>(dispStat[i] & ~BIT(1));
     }
     core->schedule(Task(&scanline355Task, 355 * 6));
 }

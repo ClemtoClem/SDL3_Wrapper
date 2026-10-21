@@ -14,22 +14,35 @@ namespace voxel {
 void TextureAtlas::Build(AssetManager &assets, const ContentRegistry &content, int tileSize) {
 	m_tile = std::max(2, tileSize);
 	m_rects.clear();
+	// Seules les textures réellement posées sur des faces (blocs, objets,
+	// entités, groupes des modèles) prennent une tuile : les mods déclarent
+	// aussi skins, interfaces, peintures… que l'atlas n'a pas à décoder.
 	std::set<std::string> ids;
 	ids.insert(MISSING);
-	for (const TextureDef *t : content.Textures())
-		ids.insert(t->id.CStr());
 	auto add = [&](const String &id) {
 		if (!id.IsEmpty())
 			ids.insert(id.CStr());
 	};
-	for (const BlockDef &b : content.Blocks())
+	auto addModel = [&](const ShapeDesc &shape, const String &mod) {
+		if (shape.kind != ShapeKind::MODEL || shape.model.IsEmpty())
+			return;
+		if (std::shared_ptr<ModelResource> model = assets.Model(shape.model))
+			for (const ModelMesh::Group &group : model->Mesh().groups)
+				if (!group.texture.IsEmpty())
+					add(ContentRegistry::Qualify(group.texture, mod));
+	};
+	for (const BlockDef &b : content.Blocks()) {
 		for (const String &f : b.look.faces)
 			add(f);
+		addModel(b.shape, b.mod);
+	}
 	for (const ItemDef *i : content.Items())
 		add(i->icon);
-	for (const EntityDef *e : content.Entities())
+	for (const EntityDef *e : content.Entities()) {
 		for (const String &f : e->look.faces)
 			add(f);
+		addModel(e->shape, e->mod);
+	}
 
 	// Images d'abord : une texture introuvable ne prend pas de tuile, elle
 	// renverra le damier commun.

@@ -17,7 +17,7 @@ protected:
 public:
 	// --- Constructeurs ---
 	constexpr Wrapper() noexcept = default;
-	constexpr explicit Wrapper(T *m_handle) noexcept : m_handle(m_handle) {}
+	constexpr explicit Wrapper(T *handle) noexcept : m_handle(handle) {}
 
 	// Interdire la copie : on ne peut pas dupliquer magiquement une ressource C (comme une fenêtre)
 	Wrapper(const Wrapper &) = delete;
@@ -183,7 +183,7 @@ protected:
 
 public:
 	constexpr Borrowed() noexcept = default;
-	constexpr explicit Borrowed(T *m_handle) noexcept : m_handle(m_handle) {}
+	constexpr explicit Borrowed(T *m_handle_) noexcept : m_handle(m_handle_) {}
 
 	[[nodiscard]] T *Get() const noexcept { return m_handle; }
 	[[nodiscard]] explicit operator bool() const noexcept { return m_handle != nullptr; }

@@ -1,6 +1,9 @@
 // Définitions de sql/binary_storage.hpp
 #include <sql/binary_storage.hpp>
 
+#include <array>
+#include <filesystem>
+
 namespace sql {
 
 namespace detail {
@@ -120,6 +123,23 @@ Result<dataio::NodeType, String> Reader::ReadTypeTag() {
 
 } // namespace detail
 
+uint32_t detail::Crc32(const uint8_t *data, size_t size) noexcept {
+	static const auto TABLE = [] {
+		std::array<uint32_t, 256> t{};
+		for (uint32_t i = 0; i < 256; ++i) {
+			uint32_t c = i;
+			for (int k = 0; k < 8; ++k)
+				c = (c & 1u) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+			t[i] = c;
+		}
+		return t;
+	}();
+	uint32_t crc = 0xFFFFFFFFu;
+	for (size_t i = 0; i < size; ++i)
+		crc = TABLE[(crc ^ data[i]) & 0xFFu] ^ (crc >> 8);
+	return crc ^ 0xFFFFFFFFu;
+}
+
 bool SaveDatabaseBinary(const String &path, Database &db) {
 	std::vector<uint8_t> buf;
 	buf.reserve(256);
@@ -128,7 +148,7 @@ bool SaveDatabaseBinary(const String &path, Database &db) {
 	buf.push_back('Q');
 	buf.push_back('L');
 	buf.push_back('B');
-	detail::PushU8(buf, 1); // version
+	detail::PushU8(buf, BINARY_FORMAT_VERSION);
 
 	std::vector<String> tableNames = db.TableNames();
 	detail::PushU32Le(buf, static_cast<uint32_t>(tableNames.size()));
@@ -148,16 +168,17 @@ bool SaveDatabaseBinary(const String &path, Database &db) {
 				return false; // a SQL column can only ever be one of the 4 scalar types
 			detail::PushU8(buf, tag);
 		}
+		detail::PushString(buf, schema.primaryKey); // v2: empty = no key
 
-		auto selectR = db.Execute(String("SELECT * FROM ") + tableName);
-		if (selectR.IsError())
-			return false;
-		const std::vector<Row> &rows = selectR.Value().rows;
-
-		detail::PushU32Le(buf, static_cast<uint32_t>(rows.size()));
-		for (const Row &row : rows) {
-			if (row.size() != schema.columns.size())
-				return false; // SELECT * always matches schema column order/count
+		detail::PushU32Le(buf, static_cast<uint32_t>(db.RowCount(tableName)));
+		bool rowsOk = true;
+		auto visited = db.ForEachRow(tableName, [&](const Row &row) {
+			if (!rowsOk)
+				return;
+			if (row.size() != schema.columns.size()) {
+				rowsOk = false;
+				return;
+			}
 			for (size_t c = 0; c < row.size(); ++c) {
 				const dataio::NodePtr &cell = row[c];
 				switch (schema.columns[c].type) {
@@ -174,13 +195,32 @@ bool SaveDatabaseBinary(const String &path, Database &db) {
 						detail::PushString(buf, cell->stringValue);
 						break;
 					default:
-						return false; // schema.hpp restricts columns to these 4 scalars
+						rowsOk = false; // schema.hpp restricts columns to these 4 scalars
+						return;
 				}
 			}
-		}
+		});
+		if (visited.IsError() || !rowsOk)
+			return false;
 	}
 
-	return sdl3::WriteFile(path, buf.data(), buf.size());
+	// v2: CRC-32 of everything before it, so a torn or bit-rotted file is
+	// reported instead of silently loading wrong data.
+	detail::PushU32Le(buf, detail::Crc32(buf.data(), buf.size()));
+
+	// Atomic replace: write a sibling temp file, then rename it over the
+	// target — a crash mid-write leaves the previous file intact.
+	const std::string target(path.CStr(), path.GetSize());
+	const std::string temp = target + ".tmp";
+	if (!sdl3::WriteFile(String(temp.c_str()), buf.data(), buf.size()))
+		return false;
+	std::error_code ec;
+	std::filesystem::rename(temp, target, ec);
+	if (ec) {
+		std::filesystem::remove(temp, ec);
+		return false;
+	}
+	return true;
 }
 
 Result<Database, String> LoadDatabaseBinary(const String &path) {
@@ -200,9 +240,19 @@ Result<Database, String> LoadDatabaseBinary(const String &path) {
 	auto versionR = r.ReadU8();
 	if (versionR.IsError())
 		return Err(versionR.Error());
-	if (versionR.Value() != 1)
+	const uint8_t version = versionR.Value();
+	if (version < 1 || version > BINARY_FORMAT_VERSION)
 		return Err(String::Format("sql: binary_storage: unsupported format version %u",
-								   static_cast<unsigned>(versionR.Value())));
+								   static_cast<unsigned>(version)));
+	if (version >= 2) {
+		if (buf.size() < 9)
+			return Err(String("sql: binary_storage: truncated buffer (no checksum)"));
+		const size_t body = buf.size() - 4;
+		const uint32_t stored = uint32_t(buf[body]) | (uint32_t(buf[body + 1]) << 8) | (uint32_t(buf[body + 2]) << 16) |
+								(uint32_t(buf[body + 3]) << 24);
+		if (stored != detail::Crc32(buf.data(), body))
+			return Err(String("sql: binary_storage: checksum mismatch (corrupt or truncated file)"));
+	}
 
 	auto tableCountR = r.ReadU32Le();
 	if (tableCountR.IsError())
@@ -229,6 +279,12 @@ Result<Database, String> LoadDatabaseBinary(const String &path) {
 			if (typeR.IsError())
 				return Err(typeR.Error());
 			schema.columns.push_back(ColumnDef{colNameR.Value(), typeR.Value()});
+		}
+		if (version >= 2) {
+			auto keyR = r.ReadString();
+			if (keyR.IsError())
+				return Err(keyR.Error());
+			schema.primaryKey = keyR.Value();
 		}
 
 		auto createR = db.CreateTable(nameR.Value(), schema);

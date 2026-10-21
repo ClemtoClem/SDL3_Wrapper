@@ -32,14 +32,14 @@ Result<bool, EntityMap::Error> EntityMap::Success() const {
     return Ok(true);
 }
 
-EntityMap::EntityMap(std::uint32_t width, std::uint32_t height, std::uint32_t level, ecs::Entity fill)
-    : width(width),
-      height(height),
-      level(level),
+EntityMap::EntityMap(std::uint32_t width_, std::uint32_t height_, std::uint32_t level_, ecs::Entity fill)
+    : width(width_),
+      height(height_),
+      level(level_),
       data(
-          static_cast<std::size_t>(width) *
-          static_cast<std::size_t>(height) *
-          static_cast<std::size_t>(level),
+          static_cast<std::size_t>(width_) *
+          static_cast<std::size_t>(height_) *
+          static_cast<std::size_t>(level_),
           EntityList{fill}
       ) {
 }
@@ -250,7 +250,7 @@ Result<bool, EntityMap::Error> EntityMap::Insert(std::size_t index, std::size_t 
         );
 
     entities.insert(
-        entities.begin() + position,
+        entities.begin() + static_cast<ptrdiff_t>(position),
         entity
     );
 
@@ -284,7 +284,7 @@ Result<bool, EntityMap::Error> EntityMap::Erase(std::size_t index, std::size_t p
         );
 
     entities.erase(
-        entities.begin() + position
+        entities.begin() + static_cast<ptrdiff_t>(position)
     );
 
     return Success();

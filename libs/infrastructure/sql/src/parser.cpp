@@ -35,6 +35,10 @@ bool IsKeyword(const Token &t, const char *keyword) noexcept {
 	return t.type == TokenType::KEYWORD && t.text.ToUpper() == keyword;
 }
 
+bool IsWord(const Token &t, const char *word) noexcept {
+	return (t.type == TokenType::KEYWORD || t.type == TokenType::IDENTIFIER) && t.text.ToUpper() == word;
+}
+
 Option<dataio::NodeType> ParseColumnType(const String &text) {
 	String up = text.ToUpper();
 	if (up == "INT" || up == "INTEGER")
@@ -138,6 +142,18 @@ Result<Statement, String> ParseCreateTable(const std::vector<Token> &tokens, siz
 		if (colType.IsNone())
 			return Err(String("sql: unknown column type '") + typeNameR.Value() + "' for column '" + colName + "'");
 		++pos;
+
+		// Optional "PRIMARY KEY" column constraint (at most one per table).
+		// PRIMARY/KEY are matched as plain words, not reserved keywords, so
+		// existing tables keep columns named "key".
+		if (pos < tokens.size() && IsWord(tokens[pos], "PRIMARY")) {
+			if (pos + 1 >= tokens.size() || !IsWord(tokens[pos + 1], "KEY"))
+				return Err(String("sql: expected KEY after PRIMARY, got '") + TokenTextOrEnd(tokens, pos + 1) + "'");
+			if (!schema.primaryKey.IsEmpty())
+				return Err(String("sql: CREATE TABLE allows a single PRIMARY KEY column"));
+			schema.primaryKey = colName;
+			pos += 2;
+		}
 
 		schema.columns.push_back(ColumnDef{colName, *colType});
 		first = false;

@@ -289,7 +289,7 @@ public:
 	std::vector<Entity> entities;
 	std::unordered_map<std::type_index, std::unique_ptr<IAnyVec>> components;
 
-	Archetype(size_t id, std::vector<std::type_index> types) : id(id), types(std::move(types)) {}
+	Archetype(size_t id_, std::vector<std::type_index> types_) : id(id_), types(std::move(types_)) {}
 
 	size_t Len() const { return entities.size(); }
 	bool IsEmpty() const { return entities.empty(); }

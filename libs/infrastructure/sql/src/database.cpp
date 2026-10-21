@@ -55,6 +55,10 @@ Option<Ref<Schema>> Database::GetSchema(const String &tableName) const {
 Result<QueryResult, String> Database::CreateTable(const String &tableName, Schema schema) {
 	if (m_schemas.find(tableName) != m_schemas.end())
 		return Err(String("sql: table '") + tableName + "' already exists");
+	if (!schema.primaryKey.IsEmpty() && schema.ColumnIndex(schema.primaryKey.View()).IsNone())
+		return Err(String("sql: PRIMARY KEY column '") + schema.primaryKey + "' is not a column of '" + tableName + "'");
+	if (!schema.primaryKey.IsEmpty())
+		m_keys[tableName];
 
 	m_schemas[tableName] = std::move(schema);
 	m_tables[tableName] = Table<Row>();
@@ -78,7 +82,15 @@ Result<QueryResult, String> Database::InsertRow(const String &tableName, Row val
 	if (coercedR.IsError())
 		return Err(coercedR.Error());
 
-	m_tables[tableName].Insert(coercedR.Value());
+	if (auto keys = m_keys.find(tableName); keys != m_keys.end()) {
+		const size_t keyCol = *schema.ColumnIndex(schema.primaryKey.View());
+		std::string key = EncodeKey(coercedR.Value()[keyCol]);
+		if (keys->second.contains(key))
+			return Err(String("sql: duplicate PRIMARY KEY in '") + tableName + "'");
+		keys->second.emplace(std::move(key), m_tables[tableName].Insert(coercedR.Value()));
+	} else {
+		m_tables[tableName].Insert(coercedR.Value());
+	}
 
 	QueryResult result;
 	result.message = "1 row inserted";
@@ -124,6 +136,108 @@ Result<std::vector<Row>, String> Database::LookupByIndex(const String &tableName
 			results.push_back(*rowOpt.Value());
 	}
 	return Ok(std::move(results));
+}
+
+std::string Database::EncodeKey(const dataio::NodePtr &key) {
+	std::string out;
+	if (!key)
+		return out;
+	switch (key->type) {
+		case dataio::NodeType::INT:
+		case dataio::NodeType::FLOAT: {
+			// INT and FLOAT share one encoding: a FLOAT column stores the
+			// coerced INT, and lookups may pass either.
+			const double v = key->IsInt() ? double(key->intValue) : key->floatValue;
+			out.push_back('n');
+			out.append(reinterpret_cast<const char *>(&v), sizeof(v));
+			break;
+		}
+		case dataio::NodeType::BOOL:
+			out.push_back(key->boolValue ? 't' : 'f');
+			break;
+		case dataio::NodeType::STRING:
+			out.push_back('s');
+			out.append(key->stringValue.CStr(), key->stringValue.GetSize());
+			break;
+		default:
+			break;
+	}
+	return out;
+}
+
+Result<size_t, String> Database::KeyColumn(const String &tableName) const {
+	auto schemaIt = m_schemas.find(tableName);
+	if (schemaIt == m_schemas.end())
+		return Err(String("sql: unknown table '") + tableName + "'");
+	if (schemaIt->second.primaryKey.IsEmpty())
+		return Err(String("sql: table '") + tableName + "' has no PRIMARY KEY");
+	return Ok(*schemaIt->second.ColumnIndex(schemaIt->second.primaryKey.View()));
+}
+
+Result<QueryResult, String> Database::Upsert(const String &tableName, Row values) {
+	auto keyColR = KeyColumn(tableName);
+	if (keyColR.IsError())
+		return Err(keyColR.Error());
+	const Schema &schema = m_schemas.at(tableName);
+	if (values.size() != schema.columns.size())
+		return Err(String::Format("sql: UPSERT INTO '%s' expects %zu value(s), got %zu", tableName.CStr(),
+								   schema.columns.size(), values.size()));
+	auto coercedR = CoerceInsertValues(values, schema);
+	if (coercedR.IsError())
+		return Err(coercedR.Error());
+
+	std::unordered_map<std::string, size_t> &keys = m_keys[tableName];
+	Table<Row> &table = m_tables[tableName];
+	std::string key = EncodeKey(coercedR.Value()[keyColR.Value()]);
+	QueryResult result;
+	if (auto it = keys.find(key); it != keys.end()) {
+		if (auto row = table.Get(it->second); row.IsSome()) {
+			*row.Value() = std::move(coercedR.Value());
+			result.message = "1 row updated";
+			return Ok(result);
+		}
+	}
+	keys.insert_or_assign(std::move(key), table.Insert(std::move(coercedR.Value())));
+	result.message = "1 row inserted";
+	return Ok(result);
+}
+
+Result<Option<Row>, String> Database::FindByKey(const String &tableName, const dataio::NodePtr &key) const {
+	auto keyColR = KeyColumn(tableName);
+	if (keyColR.IsError())
+		return Err(keyColR.Error());
+	const auto &keys = m_keys.at(tableName);
+	auto it = keys.find(EncodeKey(key));
+	if (it == keys.end())
+		return Ok(Option<Row>(NONE));
+	auto row = m_tables.at(tableName).Get(it->second);
+	return Ok(row.IsSome() ? Option<Row>(Some(Row(*row.Value()))) : Option<Row>(NONE));
+}
+
+Result<bool, String> Database::DeleteByKey(const String &tableName, const dataio::NodePtr &key) {
+	auto keyColR = KeyColumn(tableName);
+	if (keyColR.IsError())
+		return Err(keyColR.Error());
+	auto &keys = m_keys[tableName];
+	auto it = keys.find(EncodeKey(key));
+	if (it == keys.end())
+		return Ok(false);
+	const bool removed = m_tables[tableName].Delete(it->second);
+	keys.erase(it);
+	return Ok(removed);
+}
+
+Result<bool, String> Database::ForEachRow(const String &tableName, const std::function<void(const Row &)> &fn) const {
+	auto tableIt = m_tables.find(tableName);
+	if (tableIt == m_tables.end())
+		return Err(String("sql: unknown table '") + tableName + "'");
+	tableIt->second.ForEachLive([&](size_t /*id*/, const Row &row) { fn(row); });
+	return Ok(true);
+}
+
+size_t Database::RowCount(const String &tableName) const {
+	auto tableIt = m_tables.find(tableName);
+	return tableIt == m_tables.end() ? 0 : tableIt->second.Size();
 }
 
 Result<QueryResult, String> Database::ExecuteCreateTable(const CreateTableStatement &stmt) {
@@ -240,8 +354,15 @@ Result<QueryResult, String> Database::ExecuteDelete(const DeleteStatement &stmt)
 	if (hadError)
 		return Err(errMsg);
 
-	for (size_t id : idsToDelete)
+	auto keys = m_keys.find(stmt.tableName);
+	const Option<size_t> keyCol = keys == m_keys.end() ? Option<size_t>(NONE)
+									: schemaIt->second.ColumnIndex(schemaIt->second.primaryKey.View());
+	for (size_t id : idsToDelete) {
+		if (keyCol.IsSome())
+			if (auto row = table.Get(id); row.IsSome())
+				keys->second.erase(EncodeKey((*row.Value())[*keyCol]));
 		table.Delete(id);
+	}
 
 	QueryResult result;
 	result.message = String::Format("%zu row(s) deleted", idsToDelete.size());
@@ -255,6 +376,9 @@ Result<QueryResult, String> Database::ExecuteDropTable(const DropTableStatement 
 
 	m_schemas.erase(schemaIt);
 	m_tables.erase(stmt.tableName);
+	m_keys.erase(stmt.tableName);
+	for (auto it = m_indexes.begin(); it != m_indexes.end();)
+		it = it->first.first == stmt.tableName ? m_indexes.erase(it) : std::next(it);
 
 	QueryResult result;
 	result.message = String("table '") + stmt.tableName + "' dropped";

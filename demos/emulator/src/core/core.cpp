@@ -7,11 +7,11 @@
 
 namespace emulator {
 
-Core::Core(RomType type, String path, int id)
-    : id(id), actionReplay(this), ndsBios9(this), ndsBios7(this), cartridgeNds(this), cartridgeGba(this), cp15(this),
+Core::Core(RomType type, String path, int id_)
+    : actionReplay(this), ndsBios9(this), ndsBios7(this), cartridgeNds(this), cartridgeGba(this), cp15(this),
       divSqrt(this), dldi(this), dma{Dma(this, 0), Dma(this, 1)}, gpu(this), gpu2D{Gpu2D(this, 0), Gpu2D(this, 1)}, gpu3D(this),
       gpu3DRenderer(this), hleArm7(this), input(this), interpreter{CPU(this, 0), CPU(this, 1)}, ipc(this), memory(this), rtc(this),
-      spi(this), spu(this), timers{Timers(this, 0), Timers(this, 1)}, wifi(this) {
+      spi(this), spu(this), timers{Timers(this, 0), Timers(this, 1)}, wifi(this), id(id_) {
     if (!memory.loadNdsBios9() && (!Settings::getDirectBoot() || (path == "")))
         { bootError = ERROR_BIOS; return; }
     if (!memory.loadNdsBios7() && (!Settings::getDirectBoot() || (path == "")))
@@ -119,7 +119,7 @@ void Core::runGbaFrame() {
             globalCycles = arm7Cycles;
 
         while (interpreter[1].shouldRun() && tasks[0].cycles > arm7Cycles)
-            arm7Cycles = (globalCycles += interpreter[1].runOpcode());
+            arm7Cycles = (globalCycles += static_cast<uint32_t>(interpreter[1].runOpcode()));
 
         globalCycles = tasks[0].cycles;
         while (tasks[0].cycles <= globalCycles) {
@@ -133,13 +133,13 @@ void Core::runNdsFrame() {
     while (running.exchange(true)) {
         while (tasks[0].cycles > globalCycles) {
             if (interpreter[0].shouldRun() && globalCycles >= arm9Cycles)
-                arm9Cycles = globalCycles + interpreter[0].runOpcode();
+                arm9Cycles = globalCycles + static_cast<uint32_t>(interpreter[0].runOpcode());
 
             if (interpreter[1].shouldRun() && globalCycles >= arm7Cycles)
-                arm7Cycles = globalCycles + (interpreter[1].runOpcode() << 1);
+                arm7Cycles = globalCycles + static_cast<uint32_t>((interpreter[1].runOpcode() << 1));
 
-            globalCycles = std::min<uint32_t>((interpreter[0].shouldRun() ? arm9Cycles : -1),
-                                              (interpreter[1].shouldRun() ? arm7Cycles : -1));
+            globalCycles = std::min<uint32_t>((interpreter[0].shouldRun() ? arm9Cycles : UINT32_MAX),
+                                              (interpreter[1].shouldRun() ? arm7Cycles : UINT32_MAX));
         }
 
         globalCycles = tasks[0].cycles;
@@ -181,7 +181,7 @@ void Core::endFrame() {
     if (arm7Hle)
         hleArm7.runFrame();
     std::chrono::duration<double> fpsTime = std::chrono::steady_clock::now() - lastFpsTime;
-    if (fpsTime.count() >= 1.0f) {
+    if (fpsTime.count() >= 1.0) {
         fps = fpsCount;
         fpsCount = 0;
         lastFpsTime = std::chrono::steady_clock::now();
@@ -281,7 +281,7 @@ FORCE_INLINE int CPU::runOpcode() {
     pipeline[0] = pipeline[1];
     if (cpsr & BIT(5)) {
         pipeline[1] = core->memory.read<uint16_t>(cpu, *registers[15] += 2);
-        return (this->*thumbInstrs[(opcode >> 6) & 0x3FF])(opcode);
+        return (this->*thumbInstrs[(opcode >> 6) & 0x3FF])(static_cast<uint16_t>(opcode));
     }
     else {
         pipeline[1] = core->memory.read<uint32_t>(cpu, *registers[15] += 4);

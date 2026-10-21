@@ -40,15 +40,15 @@ void Rtc::updateDateTime() {
     time->tm_mon++;
     if (!(control & BIT(core->isGbaMode() ? 6 : 1)))
         time->tm_hour %= 12;
-    dateTime[0] = ((time->tm_year / 10) << 4) | (time->tm_year % 10);
-    dateTime[1] = ((time->tm_mon / 10) << 4) | (time->tm_mon % 10);
-    dateTime[2] = ((time->tm_mday / 10) << 4) | (time->tm_mday % 10);
+    dateTime[0] = static_cast<uint8_t>(((time->tm_year / 10) << 4) | (time->tm_year % 10));
+    dateTime[1] = static_cast<uint8_t>(((time->tm_mon / 10) << 4) | (time->tm_mon % 10));
+    dateTime[2] = static_cast<uint8_t>(((time->tm_mday / 10) << 4) | (time->tm_mday % 10));
     dateTime[3] = uint8_t(time->tm_wday);
-    dateTime[4] = ((time->tm_hour / 10) << 4) | (time->tm_hour % 10);
-    dateTime[5] = ((time->tm_min / 10) << 4) | (time->tm_min % 10);
-    dateTime[6] = ((time->tm_sec / 10) << 4) | (time->tm_sec % 10);
+    dateTime[4] = static_cast<uint8_t>(((time->tm_hour / 10) << 4) | (time->tm_hour % 10));
+    dateTime[5] = static_cast<uint8_t>(((time->tm_min / 10) << 4) | (time->tm_min % 10));
+    dateTime[6] = static_cast<uint8_t>(((time->tm_sec / 10) << 4) | (time->tm_sec % 10));
     if (time->tm_hour >= 12)
-        dateTime[4] |= BIT(6 << core->isGbaMode());
+        dateTime[4] = static_cast<uint8_t>(dateTime[4] | BIT(6 << core->isGbaMode()));
 }
 
 void Rtc::reset() {
@@ -174,7 +174,7 @@ void Rtc::writeRegister(uint8_t index, bool value) {
         switch (index) {
             case 1:
                 if (BIT(writeCount & 7) & 0x6A)
-                    control = (control & ~BIT(writeCount & 7)) | (value << (writeCount & 7));
+                    control = static_cast<uint8_t>((control & ~BIT(writeCount & 7)) | (value << (writeCount & 7)));
                 return;
             case 2:
             case 3: {
@@ -208,7 +208,7 @@ void Rtc::writeRegister(uint8_t index, bool value) {
                 resetRegisters();
                 timeOffset = 0;
             } else if (BIT(writeCount & 7) & 0x0E) {
-                control = (control & ~BIT(writeCount & 7)) | (value << (writeCount & 7));
+                control = static_cast<uint8_t>((control & ~BIT(writeCount & 7)) | (value << (writeCount & 7)));
             }
             return;
         case 1:
@@ -250,7 +250,7 @@ void Rtc::writeRegister(uint8_t index, bool value) {
 }
 
 void Rtc::writeRtc(uint8_t value) {
-    rtc      = value & ~0x07;
+    rtc      = static_cast<uint8_t>(value & ~0x07);
     bool cs  = (rtc & BIT(6)) ? (value & BIT(2)) : csCur;
     bool sck = (rtc & BIT(5)) ? !(value & BIT(1)) : sckCur;
     bool sio = (rtc & BIT(4)) ? (value & BIT(0)) : sioCur;

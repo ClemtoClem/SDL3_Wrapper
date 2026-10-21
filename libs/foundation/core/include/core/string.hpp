@@ -100,7 +100,7 @@ public:
 	String() noexcept = default;
 
 	String(const char *cstr) { Assign(cstr, cstr ? std::strlen(cstr) : 0); }
-	String(const char *m_data, size_t len) { Assign(m_data, len); }
+	String(const char *data, size_t len) { Assign(data, len); }
 	String(const char8_t *cstr) : String(cstr ? reinterpret_cast<const char *>(cstr) : "") {}
 	String(StringView sv) { Assign(sv.GetData(), sv.GetSize()); }
 	String(char c) { Assign(&c, 1); }
@@ -200,7 +200,11 @@ public:
 	/// Construit depuis une chaîne UTF-16.
 	static String FromUtf16(std::u16string_view utf16) { return String(unicode::FromUtf16(utf16)); }
 
-	/// Format printf-style.
+	/// Format printf-style. Le format est par nature non littéral ici, et
+	/// les float sont promus en double comme pour tout appel variadique.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
 	template <typename... Args> static String Format(const char *fmt, Args... args) {
 		int len = std::snprintf(nullptr, 0, fmt, args...);
 		if (len <= 0)
@@ -211,6 +215,7 @@ public:
 		result.SetLength(static_cast<size_t>(len));
 		return result;
 	}
+#pragma GCC diagnostic pop
 
 	// =========================================================================
 	// Accès au stockage sous-jacent
@@ -648,7 +653,7 @@ public:
 	// Conversion vers types numériques
 	// =========================================================================
 
-	[[nodiscard]] int32_t ToInt32() const { return std::strtol(CStr(), nullptr, 10); }
+	[[nodiscard]] int32_t ToInt32() const { return static_cast<int32_t>(std::strtol(CStr(), nullptr, 10)); }
 	[[nodiscard]] int64_t ToInt64() const { return std::strtoll(CStr(), nullptr, 10); }
 	[[nodiscard]] uint64_t ToUint64() const { return std::strtoull(CStr(), nullptr, 10); }
 	[[nodiscard]] float ToFloat() const { return std::strtof(CStr(), nullptr); }
@@ -693,7 +698,7 @@ public:
 
 	void GetBytes(uint8_t *buf, size_t bufsize, size_t offset = 0) const;
 
-	void Reserve(size_t m_capacity) { EnsureCapacity(m_capacity); }
+	void Reserve(size_t capacity) { EnsureCapacity(capacity); }
 
 	// =========================================================================
 	// Flux
