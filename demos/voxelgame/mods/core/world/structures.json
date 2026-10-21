@@ -272,44 +272,44 @@
 		},
 		"layers": [
 			[
-				"LPPPPPL",
-				"PPPPPPP",
-				"PPPPPPP",
-				"PPPPPPP",
-				"PPPPPPP",
-				"LPPPPPL"
+				"LPPPPPPPL",
+				"PPPPPPPPP",
+				"PPPPPPPPP",
+				"PPPPPPPPP",
+				"PPPPPPPPP",
+				"LPPPPPPPL"
 			],
 			[
-				"LPPPPPL",
-				"P t   P",
-				"P     P",
-				"P  T C P",
-				"Pc    P",
-				"LPP PPL"
+				"LPPPPPPPL",
+				"P t   c P",
+				"P       P",
+				"P CTC   P",
+				"P     t P",
+				"LPP PPPPL"
 			],
 			[
-				"LPGPGPL",
-				"P     P",
-				"G     G",
-				"P     P",
-				"P     P",
-				"LPP PPL"
+				"LPPPGPGPL",
+				"P       P",
+				"G       G",
+				"P       P",
+				"P       P",
+				"LPP PPPPL"
 			],
 			[
-				"LPPPPPL",
-				"P     P",
-				"P     P",
-				"P     P",
-				"P     P",
-				"LPPPPPL"
+				"LPPPPPPPL",
+				"P       P",
+				"P       P",
+				"P       P",
+				"P       P",
+				"LPPPPPPPL"
 			],
 			[
-				"PPPPPPP",
-				"PPPPPPP",
-				"PPPPPPP",
-				"PPPPPPP",
-				"PPPPPPP",
-				"PPPPPPP"
+				"PPPPPPPPP",
+				"PPPPPPPPP",
+				"PPPPPPPPP",
+				"PPPPPPPPP",
+				"PPPPPPPPP",
+				"PPPPPPPPP"
 			]
 		]
 	}

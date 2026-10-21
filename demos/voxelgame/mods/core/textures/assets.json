@@ -1,20 +1,20 @@
 // Alias des textures du mod « core » : noms courts utilisés par les
 // définitions (dont les exemples du cahier des charges) → images du pack
 // rangées dans textures/ (blocks/, items/, entities/…). Les autres images
-// sont déclarées d'office : « core:blocks/stone », ou « core:stone » si le nom
+// sont déclarées d'office : « core:stone », ou « core:stone » si le nom
 // est libre (les blocs passent avant les objets).
 [
   // Herbe grise du pack, teintée selon le biome (colormaps de la configuration).
   {"type": "texture", "id": "grass_top", "path": "textures/blocks/grass_top.png", "biomeTint": "grass"},
   // Côté : terre + bordure d'herbe (calque gris coloré en vert tempéré).
-  {"type": "texture", "id": "grass_side", "compose": "blocks/dirt.png^(blocks/grass_block_side_overlay.png^tint(125, 185, 85))"},
+  {"type": "texture", "id": "grass_side", "compose": "textures/blocks/dirt.png^(textures/blocks/grass_block_side_overlay.png^tint(125, 185, 85))"},
   {"type": "texture", "id": "water", "path": "textures/blocks/water_still.png"},
   {"type": "texture", "id": "lava", "path": "textures/blocks/lava_still.png"},
   {"type": "texture", "id": "planks", "path": "textures/blocks/oak_planks.png"},
   {"type": "texture", "id": "cobble", "path": "textures/blocks/cobblestone.png"},
   {"type": "texture", "id": "table", "path": "textures/blocks/dark_oak_planks.png"},
   {"type": "texture", "id": "chair", "path": "textures/blocks/spruce_planks.png"},
-  {"type": "texture", "id": "lamp_glow", "compose": "blocks/glowstone.png^lighting(1.1)"},
+  {"type": "texture", "id": "lamp_glow", "compose": "textures/blocks/glowstone.png^lighting(1.1)"},
   // Composition : la bûche de chêne vue de dessus, éclaircie (planches de table de travail).
-  {"type": "texture", "id": "worktop", "compose": "blocks/oak_planks.png^(blocks/crafting_table_top.png^opacity(0.85))"}
+  {"type": "texture", "id": "worktop", "compose": "textures/blocks/oak_planks.png^(textures/blocks/crafting_table_top.png^opacity(0.85))"}
 ]

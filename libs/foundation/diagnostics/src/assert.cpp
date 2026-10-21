@@ -19,10 +19,10 @@ AssertHandler SetAssertHandler(AssertHandler handler) {
 
 void ReportAssertionFailure(std::string_view expression, std::string_view message, const char *file, int line) {
 	Logger::Global().Write(Level::Critical, "assert",
-	                       message.empty() ? std::format("assertion échouée : {} ({}:{})", expression, file, line)
-	                                       : std::format("assertion échouée : {} — {} ({}:{})", expression, message,
-	                                                     file, line),
-	                       file, line);
+						   message.empty() ? std::format("assertion échouée : {} ({}:{})", expression, file, line)
+										   : std::format("assertion échouée : {} — {} ({}:{})", expression, message,
+														 file, line),
+						   file, line);
 	AssertHandler handler;
 	{
 		std::lock_guard<std::mutex> lock(g_handlerMutex);

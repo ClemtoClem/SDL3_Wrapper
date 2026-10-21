@@ -48,16 +48,14 @@ template <class... Args> std::string AssertMessage(std::format_string<Args...> f
 #define DIAG_ENABLE_ASSERTS 1
 #endif
 
-#define DIAG_VERIFY(cond, ...)                                                                                         \
-	([&]() -> bool {                                                                                                   \
-		if (cond)                                                                                                      \
-			return true;                                                                                               \
-		::diagnostics::ReportAssertionFailure(#cond, ::diagnostics::detail::AssertMessage(__VA_ARGS__), __FILE__,      \
-		                                      __LINE__);                                                              \
-		return false;                                                                                                  \
+#define DIAG_VERIFY(cond, ...)		\
+	([&]() -> bool {				\
+		if (cond) return true;		\
+		::diagnostics::ReportAssertionFailure(#cond, ::diagnostics::detail::AssertMessage(__VA_ARGS__), __FILE__, __LINE__); \                                                            \
+		return false;				\
 	}())
 
-#if DIAG_ENABLE_ASSERTS
+#if defined(DIAG_ENABLE_ASSERTS) && (DIAG_ENABLE_ASSERTS == 1)
 #define DIAG_ASSERT(cond, ...) ((void)DIAG_VERIFY(cond __VA_OPT__(, ) __VA_ARGS__))
 #else
 #define DIAG_ASSERT(cond, ...) ((void)0)

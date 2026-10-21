@@ -9,7 +9,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/wheat_stage0",
+   "texture": "core:wheat_stage0",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -47,7 +47,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/wheat_stage1",
+   "texture": "core:wheat_stage1",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -85,7 +85,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/wheat_stage2",
+   "texture": "core:wheat_stage2",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -123,7 +123,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/wheat_stage3",
+   "texture": "core:wheat_stage3",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -161,7 +161,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/wheat_stage4",
+   "texture": "core:wheat_stage4",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -199,7 +199,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/wheat_stage5",
+   "texture": "core:wheat_stage5",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -237,7 +237,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/wheat_stage6",
+   "texture": "core:wheat_stage6",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -275,7 +275,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/wheat_stage7",
+   "texture": "core:wheat_stage7",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -304,7 +304,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/carrots_stage0",
+   "texture": "core:carrots_stage0",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -342,7 +342,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/carrots_stage1",
+   "texture": "core:carrots_stage1",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -380,7 +380,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/carrots_stage2",
+   "texture": "core:carrots_stage2",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -418,7 +418,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/carrots_stage3",
+   "texture": "core:carrots_stage3",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -447,7 +447,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/potatoes_stage0",
+   "texture": "core:potatoes_stage0",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -485,7 +485,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/potatoes_stage1",
+   "texture": "core:potatoes_stage1",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -523,7 +523,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/potatoes_stage2",
+   "texture": "core:potatoes_stage2",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -561,7 +561,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/potatoes_stage3",
+   "texture": "core:potatoes_stage3",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -590,7 +590,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/beetroots_stage0",
+   "texture": "core:beetroots_stage0",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -628,7 +628,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/beetroots_stage1",
+   "texture": "core:beetroots_stage1",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -666,7 +666,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/beetroots_stage2",
+   "texture": "core:beetroots_stage2",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -704,7 +704,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/beetroots_stage3",
+   "texture": "core:beetroots_stage3",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -733,7 +733,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/turnip_stage_0",
+   "texture": "core:turnip_stage_0",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -771,7 +771,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/turnip_stage_1",
+   "texture": "core:turnip_stage_1",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -809,7 +809,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/turnip_stage_2",
+   "texture": "core:turnip_stage_2",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -847,7 +847,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/turnip_stage_3",
+   "texture": "core:turnip_stage_3",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",

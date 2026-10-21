@@ -186,7 +186,7 @@ réellement de bout en bout (chargement sync ET async réels, pas juste la scaff
 **Test réel utilisé pour le fichier de démonstration** : `tests/smoke_test_7.cpp` référençait
 `"assets/sounds/SOUNDS.md"`, qui **n'existe pas** dans `assets/` (fichier fantôme, probablement
 supprimé/renommé depuis — ce test pré-existant n'a jamais été vérifié par cette session). Utilisé à
-la place `assets/textures/default_particle.png` (82 octets, le plus petit fichier de `assets/`) —
+la place `mods/core/textures/blocks/particle.png` (82 octets, le plus petit fichier de `assets/`) —
 `BytesResource` charge n'importe quel fichier en octets bruts, peu importe son format réel, donc un
 petit PNG convient parfaitement pour un test de chargement rapide et répété (8 chargements au total
 dans la suite de tests, dont 6 en parallèle via `AsyncLoader`).

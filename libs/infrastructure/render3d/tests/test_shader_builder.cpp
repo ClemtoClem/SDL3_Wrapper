@@ -217,7 +217,7 @@ TEST(ShaderBuilderSmokeTest, PhongWithTextureCompilesAndDraws) {
     ASSERT_TRUE(rigResult.IsOk());
     OffscreenRig rig = std::move(rigResult.Value());
 
-    auto textureResult = LoadTextureFromFile(rig.device, String("assets/textures/default_particle.png"));
+    auto textureResult = LoadTextureFromFile(rig.device, String("demos/voxelgame/mods/core/textures/blocks/particle.png"));
     ASSERT_TRUE(textureResult.IsOk());
     GpuTexture texture = std::move(textureResult.Value());
 

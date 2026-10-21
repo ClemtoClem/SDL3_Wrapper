@@ -16,9 +16,9 @@ using resources::ResourceState;
 
 // ── BytesResource : chargement sync réel via sdl3::readFile ──────────────
 TEST(BytesResource_Sync) {
-    auto res = std::make_shared<BytesResource>(String("assets/textures/default_particle.png"));
+    auto res = std::make_shared<BytesResource>(String("mods/core/textures/blocks/particle.png"));
     CHECK(res->IsUnloaded());
-    CHECK(res->Path() == StringView("assets/textures/default_particle.png"));
+    CHECK(res->Path() == StringView("mods/core/textures/blocks/particle.png"));
 
     auto loadResult = res->Load();
     CHECK(loadResult.IsOk());
@@ -43,7 +43,7 @@ TEST(BytesResource_DoesNotExist) {
 
 // ── Resource::OnReady : callback appelé immédiatement si déjà prêt ───────
 TEST(OnReady_ImmediateCallback) {
-    auto res = std::make_shared<BytesResource>(String("assets/textures/default_particle.png"));
+    auto res = std::make_shared<BytesResource>(String("mods/core/textures/blocks/particle.png"));
     res->Load();
     CHECK(res->IsReady());
     bool fired = false;
@@ -53,7 +53,7 @@ TEST(OnReady_ImmediateCallback) {
 
 // ── Resource::OnReady : callback différé jusqu'à Load() ─────────────────
 TEST(OnReady_DifferedCallback) {
-    auto res = std::make_shared<BytesResource>(String("assets/textures/default_particle.png"));
+    auto res = std::make_shared<BytesResource>(String("mods/core/textures/blocks/particle.png"));
     bool fired = false;
     res->OnReady([&fired](resources::Resource &) { fired = true; });
     CHECK(!fired); // pas encore charge -> pas encore appele
@@ -64,7 +64,7 @@ TEST(OnReady_DifferedCallback) {
     // ── Pool<T> : Insert/Get(Option)/Contains/Remove/Clear ───────────────────
 TEST(Poll) {
     Pool<BytesResource> pool;
-    auto res = std::make_shared<BytesResource>(String("assets/textures/default_particle.png"));
+    auto res = std::make_shared<BytesResource>(String("mods/core/textures/blocks/particle.png"));
     CHECK(pool.Insert("a", res));
     CHECK(!pool.Insert("a", res)); // deja present -> echec (pas d'ecrasement silencieux)
     CHECK(pool.Contains("a"));
@@ -87,7 +87,7 @@ TEST(Poll) {
 // ── Registry : collection hétérogène par type ────────────────────────────
 TEST(Registry) {
     Registry registry;
-    auto res = std::make_shared<BytesResource>(String("assets/textures/default_particle.png"));
+    auto res = std::make_shared<BytesResource>(String("mods/core/textures/blocks/particle.png"));
     CHECK(registry.Insert<BytesResource>("x", res));
     CHECK(registry.Contains<BytesResource>("x"));
     auto got = registry.Get<BytesResource>("x");
@@ -99,7 +99,7 @@ TEST(Registry) {
 // ── ResourceCache::Resolve : préfixe le chemin de base ───────────────────
 TEST(ResourceCache_Resolve) {
     ResourceCache cache(String("assets/"));
-    CHECK(cache.Resolve("textures/default_particle.png") == String("assets/textures/default_particle.png"));
+    CHECK(cache.Resolve("textures/default_particle.png") == String("mods/core/textures/blocks/particle.png"));
     CHECK(cache.Resolve("/abs/path") == String("/abs/path")); // chemin absolu : pas de prefixe
     CHECK(cache.Resolve("./rel") == String("./rel"));         // deja relatif explicite : pas de prefixe
 }
@@ -107,9 +107,9 @@ TEST(ResourceCache_Resolve) {
 // ── ResourceCache::LoadSync ────────────────────────────────────────────────
 TEST(ResourceCache_LoadSync) {
     ResourceCache cache;
-    auto res = cache.EmplaceSync<BytesResource>(String("assets/textures/default_particle.png"));
+    auto res = cache.EmplaceSync<BytesResource>(String("mods/core/textures/blocks/particle.png"));
     CHECK(res->IsReady());
-    auto cached = cache.Get<BytesResource>(String("assets/textures/default_particle.png"));
+    auto cached = cache.Get<BytesResource>(String("mods/core/textures/blocks/particle.png"));
     CHECK(cached.IsSome());
     CHECK(cached.Unwrap() == res); // meme instance, pas rechargee
 }
@@ -121,7 +121,7 @@ TEST(AsyncLoader) {
     std::vector<std::future<bool>> futures;
     constexpr int K_COUNT = 6;
     for (int i = 0; i < K_COUNT; ++i) {
-        auto res = std::make_shared<BytesResource>(String("assets/textures/default_particle.png"));
+        auto res = std::make_shared<BytesResource>(String("mods/core/textures/blocks/particle.png"));
         resList.push_back(res);
         futures.push_back(loader.Enqueue(res));
     }
@@ -137,10 +137,10 @@ TEST(AsyncLoader) {
 // ── ResourceCache::LoadAsync : bout en bout avec le loader ────────────────
 TEST(ResourceCache_LoadAsync) {
     ResourceCache cache(String(), 2);
-    auto future = cache.EmplaceAsync<BytesResource>(String("assets/textures/default_particle.png"));
+    auto future = cache.EmplaceAsync<BytesResource>(String("mods/core/textures/blocks/particle.png"));
     CHECK(future.get());
     CHECK(cache.WaitIdle());
-    auto got = cache.Get<BytesResource>(String("assets/textures/default_particle.png"));
+    auto got = cache.Get<BytesResource>(String("mods/core/textures/blocks/particle.png"));
     CHECK(got.IsSome());
     CHECK(got.Unwrap()->IsReady());
 }

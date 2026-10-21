@@ -78,7 +78,7 @@ public:
 
 	/// Délivre le message aux sinks s'il passe le filtre de niveau.
 	void Write(Level level, std::string_view category, std::string_view message, const char *file = nullptr,
-	           int line = 0);
+			   int line = 0);
 
 	template <class... Args>
 	void Log(Level level, std::string_view category, std::format_string<Args...> fmt, Args &&...args) {

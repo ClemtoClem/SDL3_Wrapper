@@ -10,9 +10,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/oak_log_top",
-    "bottom": "core:blocks/oak_log_top",
-    "side": "core:blocks/oak_log"
+    "top": "core:oak_log_top",
+    "bottom": "core:oak_log_top",
+    "side": "core:oak_log"
    }
   },
   "sounds": "core:wood",
@@ -31,9 +31,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/stripped_oak_log_top",
-    "bottom": "core:blocks/stripped_oak_log_top",
-    "side": "core:blocks/stripped_oak_log"
+    "top": "core:stripped_oak_log_top",
+    "bottom": "core:stripped_oak_log_top",
+    "side": "core:stripped_oak_log"
    }
   },
   "sounds": "core:wood",
@@ -51,7 +51,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/oak_planks"
+   "texture": "core:oak_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -66,7 +66,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/oak_leaves",
+   "texture": "core:oak_leaves",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -91,7 +91,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/oak_sapling",
+   "texture": "core:oak_sapling",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -127,9 +127,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/birch_log_top",
-    "bottom": "core:blocks/birch_log_top",
-    "side": "core:blocks/birch_log"
+    "top": "core:birch_log_top",
+    "bottom": "core:birch_log_top",
+    "side": "core:birch_log"
    }
   },
   "sounds": "core:wood",
@@ -148,9 +148,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/stripped_birch_log_top",
-    "bottom": "core:blocks/stripped_birch_log_top",
-    "side": "core:blocks/stripped_birch_log"
+    "top": "core:stripped_birch_log_top",
+    "bottom": "core:stripped_birch_log_top",
+    "side": "core:stripped_birch_log"
    }
   },
   "sounds": "core:wood",
@@ -168,7 +168,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/birch_planks"
+   "texture": "core:birch_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -183,7 +183,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/birch_leaves",
+   "texture": "core:birch_leaves",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -207,7 +207,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/birch_sapling",
+   "texture": "core:birch_sapling",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -243,9 +243,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/spruce_log_top",
-    "bottom": "core:blocks/spruce_log_top",
-    "side": "core:blocks/spruce_log"
+    "top": "core:spruce_log_top",
+    "bottom": "core:spruce_log_top",
+    "side": "core:spruce_log"
    }
   },
   "sounds": "core:wood",
@@ -264,9 +264,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/stripped_spruce_log_top",
-    "bottom": "core:blocks/stripped_spruce_log_top",
-    "side": "core:blocks/stripped_spruce_log"
+    "top": "core:stripped_spruce_log_top",
+    "bottom": "core:stripped_spruce_log_top",
+    "side": "core:stripped_spruce_log"
    }
   },
   "sounds": "core:wood",
@@ -284,7 +284,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/spruce_planks"
+   "texture": "core:spruce_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -299,7 +299,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/spruce_leaves",
+   "texture": "core:spruce_leaves",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -323,7 +323,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/spruce_sapling",
+   "texture": "core:spruce_sapling",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -359,9 +359,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/jungle_log_top",
-    "bottom": "core:blocks/jungle_log_top",
-    "side": "core:blocks/jungle_log"
+    "top": "core:jungle_log_top",
+    "bottom": "core:jungle_log_top",
+    "side": "core:jungle_log"
    }
   },
   "sounds": "core:wood",
@@ -380,9 +380,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/stripped_jungle_log_top",
-    "bottom": "core:blocks/stripped_jungle_log_top",
-    "side": "core:blocks/stripped_jungle_log"
+    "top": "core:stripped_jungle_log_top",
+    "bottom": "core:stripped_jungle_log_top",
+    "side": "core:stripped_jungle_log"
    }
   },
   "sounds": "core:wood",
@@ -400,7 +400,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/jungle_planks"
+   "texture": "core:jungle_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -415,7 +415,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/jungle_leaves",
+   "texture": "core:jungle_leaves",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -440,7 +440,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/jungle_sapling",
+   "texture": "core:jungle_sapling",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -476,9 +476,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/acacia_log_top",
-    "bottom": "core:blocks/acacia_log_top",
-    "side": "core:blocks/acacia_log"
+    "top": "core:acacia_log_top",
+    "bottom": "core:acacia_log_top",
+    "side": "core:acacia_log"
    }
   },
   "sounds": "core:wood",
@@ -497,9 +497,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/stripped_acacia_log_top",
-    "bottom": "core:blocks/stripped_acacia_log_top",
-    "side": "core:blocks/stripped_acacia_log"
+    "top": "core:stripped_acacia_log_top",
+    "bottom": "core:stripped_acacia_log_top",
+    "side": "core:stripped_acacia_log"
    }
   },
   "sounds": "core:wood",
@@ -517,7 +517,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/acacia_planks"
+   "texture": "core:acacia_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -532,7 +532,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/acacia_leaves",
+   "texture": "core:acacia_leaves",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -556,7 +556,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/acacia_sapling",
+   "texture": "core:acacia_sapling",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -592,9 +592,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/dark_oak_log_top",
-    "bottom": "core:blocks/dark_oak_log_top",
-    "side": "core:blocks/dark_oak_log"
+    "top": "core:dark_oak_log_top",
+    "bottom": "core:dark_oak_log_top",
+    "side": "core:dark_oak_log"
    }
   },
   "sounds": "core:wood",
@@ -613,9 +613,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/stripped_dark_oak_log_top",
-    "bottom": "core:blocks/stripped_dark_oak_log_top",
-    "side": "core:blocks/stripped_dark_oak_log"
+    "top": "core:stripped_dark_oak_log_top",
+    "bottom": "core:stripped_dark_oak_log_top",
+    "side": "core:stripped_dark_oak_log"
    }
   },
   "sounds": "core:wood",
@@ -633,7 +633,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/dark_oak_planks"
+   "texture": "core:dark_oak_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -648,7 +648,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/dark_oak_leaves",
+   "texture": "core:dark_oak_leaves",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -673,7 +673,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/dark_oak_sapling",
+   "texture": "core:dark_oak_sapling",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -709,9 +709,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/cherry_log_top",
-    "bottom": "core:blocks/cherry_log_top",
-    "side": "core:blocks/cherry_log"
+    "top": "core:cherry_log_top",
+    "bottom": "core:cherry_log_top",
+    "side": "core:cherry_log"
    }
   },
   "sounds": "core:wood",
@@ -729,7 +729,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/cherry_planks"
+   "texture": "core:cherry_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -744,7 +744,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_pink_cherry",
+   "texture": "core:leaves_pink_cherry",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -768,7 +768,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_pink_cherry",
+   "texture": "core:sapling_pink_cherry",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -801,7 +801,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_white_cherry",
+   "texture": "core:leaves_white_cherry",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -826,7 +826,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_white_cherry",
+   "texture": "core:sapling_white_cherry",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -862,9 +862,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/ebony_log_top",
-    "bottom": "core:blocks/ebony_log_top",
-    "side": "core:blocks/ebony_log"
+    "top": "core:ebony_log_top",
+    "bottom": "core:ebony_log_top",
+    "side": "core:ebony_log"
    }
   },
   "sounds": "core:wood",
@@ -882,7 +882,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/ebony_planks"
+   "texture": "core:ebony_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -897,7 +897,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_ebony",
+   "texture": "core:leaves_ebony",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -922,7 +922,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_ebony",
+   "texture": "core:sapling_ebony",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -958,9 +958,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/ethereal_log_top",
-    "bottom": "core:blocks/ethereal_log_top",
-    "side": "core:blocks/ethereal_log"
+    "top": "core:ethereal_log_top",
+    "bottom": "core:ethereal_log_top",
+    "side": "core:ethereal_log"
    }
   },
   "sounds": "core:wood",
@@ -978,7 +978,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/ethereal_planks"
+   "texture": "core:ethereal_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -993,7 +993,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_ethereal",
+   "texture": "core:leaves_ethereal",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -1017,7 +1017,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_ethereal",
+   "texture": "core:sapling_ethereal",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1053,9 +1053,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/eucalyptus_log_top",
-    "bottom": "core:blocks/eucalyptus_log_top",
-    "side": "core:blocks/eucalyptus_log"
+    "top": "core:eucalyptus_log_top",
+    "bottom": "core:eucalyptus_log_top",
+    "side": "core:eucalyptus_log"
    }
   },
   "sounds": "core:wood",
@@ -1073,7 +1073,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/eucalyptus_planks"
+   "texture": "core:eucalyptus_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -1088,7 +1088,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_eucalyptus",
+   "texture": "core:leaves_eucalyptus",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -1113,7 +1113,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_eucalyptus",
+   "texture": "core:sapling_eucalyptus",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1149,9 +1149,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/fir_log_top",
-    "bottom": "core:blocks/fir_log_top",
-    "side": "core:blocks/fir_log"
+    "top": "core:fir_log_top",
+    "bottom": "core:fir_log_top",
+    "side": "core:fir_log"
    }
   },
   "sounds": "core:wood",
@@ -1169,7 +1169,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/fir_planks"
+   "texture": "core:fir_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -1184,7 +1184,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_fir",
+   "texture": "core:leaves_fir",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -1208,7 +1208,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_fir",
+   "texture": "core:sapling_fir",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1244,9 +1244,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/hellbark_log_top",
-    "bottom": "core:blocks/hellbark_log_top",
-    "side": "core:blocks/hellbark_log"
+    "top": "core:hellbark_log_top",
+    "bottom": "core:hellbark_log_top",
+    "side": "core:hellbark_log"
    }
   },
   "sounds": "core:wood",
@@ -1264,7 +1264,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/hellbark_planks"
+   "texture": "core:hellbark_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -1279,7 +1279,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_hellbark",
+   "texture": "core:leaves_hellbark",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -1303,7 +1303,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_hellbark",
+   "texture": "core:sapling_hellbark",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1339,9 +1339,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/jacaranda_log_top",
-    "bottom": "core:blocks/jacaranda_log_top",
-    "side": "core:blocks/jacaranda_log"
+    "top": "core:jacaranda_log_top",
+    "bottom": "core:jacaranda_log_top",
+    "side": "core:jacaranda_log"
    }
   },
   "sounds": "core:wood",
@@ -1359,7 +1359,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/jacaranda_planks"
+   "texture": "core:jacaranda_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -1374,7 +1374,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_jacaranda",
+   "texture": "core:leaves_jacaranda",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -1398,7 +1398,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_jacaranda",
+   "texture": "core:sapling_jacaranda",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1434,9 +1434,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/magic_log_top",
-    "bottom": "core:blocks/magic_log_top",
-    "side": "core:blocks/magic_log"
+    "top": "core:magic_log_top",
+    "bottom": "core:magic_log_top",
+    "side": "core:magic_log"
    }
   },
   "sounds": "core:wood",
@@ -1454,7 +1454,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/magic_planks"
+   "texture": "core:magic_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -1469,7 +1469,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_magic",
+   "texture": "core:leaves_magic",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -1493,7 +1493,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_magic",
+   "texture": "core:sapling_magic",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1529,9 +1529,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/mahogany_log_top",
-    "bottom": "core:blocks/mahogany_log_top",
-    "side": "core:blocks/mahogany_log"
+    "top": "core:mahogany_log_top",
+    "bottom": "core:mahogany_log_top",
+    "side": "core:mahogany_log"
    }
   },
   "sounds": "core:wood",
@@ -1549,7 +1549,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/mahogany_planks"
+   "texture": "core:mahogany_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -1564,7 +1564,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_mahogany",
+   "texture": "core:leaves_mahogany",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -1589,7 +1589,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_mahogany",
+   "texture": "core:sapling_mahogany",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1625,9 +1625,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/mangrove_log_top",
-    "bottom": "core:blocks/mangrove_log_top",
-    "side": "core:blocks/mangrove_log"
+    "top": "core:mangrove_log_top",
+    "bottom": "core:mangrove_log_top",
+    "side": "core:mangrove_log"
    }
   },
   "sounds": "core:wood",
@@ -1645,7 +1645,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/mangrove_planks"
+   "texture": "core:mangrove_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -1660,7 +1660,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_mangrove",
+   "texture": "core:leaves_mangrove",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -1685,7 +1685,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_mangrove",
+   "texture": "core:sapling_mangrove",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1721,9 +1721,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/palm_log_top",
-    "bottom": "core:blocks/palm_log_top",
-    "side": "core:blocks/palm_log"
+    "top": "core:palm_log_top",
+    "bottom": "core:palm_log_top",
+    "side": "core:palm_log"
    }
   },
   "sounds": "core:wood",
@@ -1741,7 +1741,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/palm_planks"
+   "texture": "core:palm_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -1756,7 +1756,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_palm",
+   "texture": "core:leaves_palm",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -1781,7 +1781,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_palm",
+   "texture": "core:sapling_palm",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1817,9 +1817,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/pine_log_top",
-    "bottom": "core:blocks/pine_log_top",
-    "side": "core:blocks/pine_log"
+    "top": "core:pine_log_top",
+    "bottom": "core:pine_log_top",
+    "side": "core:pine_log"
    }
   },
   "sounds": "core:wood",
@@ -1837,7 +1837,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/pine_planks"
+   "texture": "core:pine_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -1852,7 +1852,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_pine",
+   "texture": "core:leaves_pine",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -1877,7 +1877,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_pine",
+   "texture": "core:sapling_pine",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1913,9 +1913,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/redwood_log_top",
-    "bottom": "core:blocks/redwood_log_top",
-    "side": "core:blocks/redwood_log"
+    "top": "core:redwood_log_top",
+    "bottom": "core:redwood_log_top",
+    "side": "core:redwood_log"
    }
   },
   "sounds": "core:wood",
@@ -1933,7 +1933,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/redwood_planks"
+   "texture": "core:redwood_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -1948,7 +1948,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_redwood",
+   "texture": "core:leaves_redwood",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -1973,7 +1973,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_redwood",
+   "texture": "core:sapling_redwood",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -2009,9 +2009,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/sacred_oak_log_top",
-    "bottom": "core:blocks/sacred_oak_log_top",
-    "side": "core:blocks/sacred_oak_log"
+    "top": "core:sacred_oak_log_top",
+    "bottom": "core:sacred_oak_log_top",
+    "side": "core:sacred_oak_log"
    }
   },
   "sounds": "core:wood",
@@ -2029,7 +2029,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/sacred_oak_planks"
+   "texture": "core:sacred_oak_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -2044,7 +2044,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_sacred_oak",
+   "texture": "core:leaves_sacred_oak",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -2069,7 +2069,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_sacred_oak",
+   "texture": "core:sapling_sacred_oak",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -2105,9 +2105,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/umbran_log_top",
-    "bottom": "core:blocks/umbran_log_top",
-    "side": "core:blocks/umbran_log"
+    "top": "core:umbran_log_top",
+    "bottom": "core:umbran_log_top",
+    "side": "core:umbran_log"
    }
   },
   "sounds": "core:wood",
@@ -2125,7 +2125,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/umbran_planks"
+   "texture": "core:umbran_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -2140,7 +2140,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_umbran",
+   "texture": "core:leaves_umbran",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -2164,7 +2164,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_umbran",
+   "texture": "core:sapling_umbran",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -2200,9 +2200,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/willow_log_top",
-    "bottom": "core:blocks/willow_log_top",
-    "side": "core:blocks/willow_log"
+    "top": "core:willow_log_top",
+    "bottom": "core:willow_log_top",
+    "side": "core:willow_log"
    }
   },
   "sounds": "core:wood",
@@ -2220,7 +2220,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/willow_planks"
+   "texture": "core:willow_planks"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -2235,7 +2235,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_willow",
+   "texture": "core:leaves_willow",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -2260,7 +2260,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_willow",
+   "texture": "core:sapling_willow",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -2296,9 +2296,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/dead_log_top",
-    "bottom": "core:blocks/dead_log_top",
-    "side": "core:blocks/dead_log"
+    "top": "core:dead_log_top",
+    "bottom": "core:dead_log_top",
+    "side": "core:dead_log"
    }
   },
   "sounds": "core:wood",
@@ -2314,7 +2314,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_dead",
+   "texture": "core:leaves_dead",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -2338,7 +2338,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_dead",
+   "texture": "core:sapling_dead",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -2371,7 +2371,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_maple",
+   "texture": "core:leaves_maple",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -2395,7 +2395,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_maple",
+   "texture": "core:sapling_maple",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -2428,7 +2428,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_orange_autumn",
+   "texture": "core:leaves_orange_autumn",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -2452,7 +2452,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_orange_autumn",
+   "texture": "core:sapling_orange_autumn",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -2485,7 +2485,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_yellow_autumn",
+   "texture": "core:leaves_yellow_autumn",
    "material": "CUTOUT",
    "backface_culling": false
   },
@@ -2509,7 +2509,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_yellow_autumn",
+   "texture": "core:sapling_yellow_autumn",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -2542,7 +2542,7 @@
    "leaves"
   ],
   "graphics": {
-   "texture": "core:blocks/leaves_flowering",
+   "texture": "core:leaves_flowering",
    "material": "CUTOUT",
    "biomeTint": "foliage",
    "backface_culling": false
@@ -2567,7 +2567,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sapling_flowering",
+   "texture": "core:sapling_flowering",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",

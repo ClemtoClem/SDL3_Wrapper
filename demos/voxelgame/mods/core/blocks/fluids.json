@@ -8,7 +8,7 @@
    "warm"
   ],
   "graphics": {
-   "texture": "core:blocks/hot_spring_water_still",
+   "texture": "core:hot_spring_water_still",
    "material": "TRANSPARENT",
    "tint": [
     255,
@@ -34,7 +34,7 @@
    "fluid"
   ],
   "graphics": {
-   "texture": "core:blocks/honey_still",
+   "texture": "core:honey_still",
    "material": "TRANSPARENT",
    "tint": [
     255,
@@ -60,7 +60,7 @@
    "toxic"
   ],
   "graphics": {
-   "texture": "core:blocks/poison_still",
+   "texture": "core:poison_still",
    "material": "TRANSPARENT",
    "tint": [
     255,

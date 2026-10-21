@@ -228,8 +228,8 @@ int main() {
 	}
 
 	// Textures pour la page Image (chemins relatifs à la racine du projet).
-	for (auto [key, path] : {std::pair{"logo", "assets/textures/default_logo.png"},
-							 std::pair{"pierre", "assets/textures/default_mineral_stone_block.png"}}) {
+	for (auto [key, path] : {std::pair{"logo", "mods/core/textures/blocks/logo.png"},
+							 std::pair{"pierre", "mods/core/textures/blocks/mineral_stone_block.png"}}) {
 		if (auto tex = sdl3::Texture::CreateFromFile(ren, path))
 			render.textures.insert_or_assign(String(key), std::move(tex.Value()));
 		else

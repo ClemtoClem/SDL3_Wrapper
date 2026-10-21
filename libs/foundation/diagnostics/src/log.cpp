@@ -29,7 +29,7 @@ std::string FormatRecord(const Record &record) {
 	std::strftime(stamp, sizeof stamp, "%Y-%m-%d %H:%M:%S", &tmv);
 	const auto ms = duration_cast<milliseconds>(record.time.time_since_epoch()).count() % 1000;
 	return std::format("{}.{:03} [{:<8}] {}: {}", stamp, ms, LevelName(record.level), record.category,
-	                   record.message);
+					   record.message);
 }
 
 // ── Logger ───────────────────────────────────────────────────────────────────

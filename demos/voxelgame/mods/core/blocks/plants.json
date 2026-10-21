@@ -9,7 +9,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/dandelion",
+   "texture": "core:dandelion",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -29,7 +29,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/poppy",
+   "texture": "core:poppy",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -49,7 +49,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/allium",
+   "texture": "core:allium",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -69,7 +69,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/azure_bluet",
+   "texture": "core:azure_bluet",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -89,7 +89,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/blue_orchid",
+   "texture": "core:blue_orchid",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -109,7 +109,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/oxeye_daisy",
+   "texture": "core:oxeye_daisy",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -129,7 +129,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/orange_tulip",
+   "texture": "core:orange_tulip",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -149,7 +149,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/pink_tulip",
+   "texture": "core:pink_tulip",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -169,7 +169,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/red_tulip",
+   "texture": "core:red_tulip",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -189,7 +189,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/white_tulip",
+   "texture": "core:white_tulip",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -209,7 +209,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/lily_of_the_valley",
+   "texture": "core:lily_of_the_valley",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -229,7 +229,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/rose",
+   "texture": "core:rose",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -249,7 +249,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/violet",
+   "texture": "core:violet",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -269,7 +269,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/lavender",
+   "texture": "core:lavender",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -289,7 +289,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/wildflower",
+   "texture": "core:wildflower",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -309,7 +309,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/goldenrod",
+   "texture": "core:goldenrod",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -329,7 +329,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/bluebells",
+   "texture": "core:bluebells",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -349,7 +349,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/white_anemone",
+   "texture": "core:white_anemone",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -369,7 +369,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/pink_daffodil",
+   "texture": "core:pink_daffodil",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -389,7 +389,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/pink_hibiscus",
+   "texture": "core:pink_hibiscus",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -409,7 +409,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/orange_cosmos",
+   "texture": "core:orange_cosmos",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -429,7 +429,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/icy_iris",
+   "texture": "core:icy_iris",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -449,7 +449,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/swampflower",
+   "texture": "core:swampflower",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -469,7 +469,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/deathbloom",
+   "texture": "core:deathbloom",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -489,7 +489,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/blue_hydrangea",
+   "texture": "core:blue_hydrangea",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -509,7 +509,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/bromeliad",
+   "texture": "core:bromeliad",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -529,7 +529,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/burning_blossom",
+   "texture": "core:burning_blossom",
    "material": "CUTOUT",
    "light": 6
   },
@@ -550,7 +550,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/enderlotus",
+   "texture": "core:enderlotus",
    "material": "CUTOUT",
    "light": 6
   },
@@ -571,7 +571,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/poppy",
+   "texture": "core:poppy",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -591,7 +591,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/dandelion",
+   "texture": "core:dandelion",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -611,7 +611,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/glowflower",
+   "texture": "core:glowflower",
    "material": "CUTOUT",
    "light": 10
   },
@@ -631,7 +631,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/shortgrass",
+   "texture": "core:shortgrass",
    "material": "CUTOUT",
    "biomeTint": "foliage"
   },
@@ -657,7 +657,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/mediumgrass",
+   "texture": "core:mediumgrass",
    "material": "CUTOUT",
    "biomeTint": "foliage"
   },
@@ -683,7 +683,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/fern",
+   "texture": "core:fern",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -703,7 +703,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/dead_bush",
+   "texture": "core:dead_bush",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -726,7 +726,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/dunegrass",
+   "texture": "core:dunegrass",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -745,7 +745,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/desertgrass",
+   "texture": "core:desertgrass",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -764,7 +764,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/desertsprouts",
+   "texture": "core:desertsprouts",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -783,7 +783,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/wheatgrass",
+   "texture": "core:wheatgrass",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -802,7 +802,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/clover",
+   "texture": "core:clover",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -821,7 +821,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sprout",
+   "texture": "core:sprout",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -840,7 +840,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/bush",
+   "texture": "core:bush",
    "material": "CUTOUT",
    "biomeTint": "foliage"
   },
@@ -860,7 +860,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/shrub",
+   "texture": "core:shrub",
    "material": "CUTOUT",
    "biomeTint": "foliage"
   },
@@ -880,7 +880,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/thorn",
+   "texture": "core:thorn",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -900,7 +900,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/cattail",
+   "texture": "core:cattail",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -919,7 +919,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/reed",
+   "texture": "core:reed",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -938,7 +938,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/rivercane",
+   "texture": "core:rivercane",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -957,7 +957,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sugar_cane",
+   "texture": "core:sugar_cane",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -980,7 +980,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/bamboo",
+   "texture": "core:bamboo",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -999,7 +999,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/berrybush_berry",
+   "texture": "core:berrybush_berry",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1022,7 +1022,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/poisonivy",
+   "texture": "core:poisonivy",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1041,7 +1041,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/devilweed",
+   "texture": "core:devilweed",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1060,7 +1060,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/miners_delight",
+   "texture": "core:miners_delight",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1079,7 +1079,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/koru",
+   "texture": "core:koru",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1098,7 +1098,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/spectralfern",
+   "texture": "core:spectralfern",
    "material": "CUTOUT",
    "light": 5
   },
@@ -1119,7 +1119,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/red_mushroom",
+   "texture": "core:red_mushroom",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1139,7 +1139,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/brown_mushroom",
+   "texture": "core:brown_mushroom",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1159,7 +1159,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/toadstool",
+   "texture": "core:toadstool",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1179,7 +1179,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/portobello",
+   "texture": "core:portobello",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1199,7 +1199,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/blue_milk_cap",
+   "texture": "core:blue_milk_cap",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1219,7 +1219,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/glowshroom",
+   "texture": "core:glowshroom",
    "material": "CUTOUT",
    "light": 10
   },
@@ -1240,7 +1240,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/shadow_shroom",
+   "texture": "core:shadow_shroom",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1260,7 +1260,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/seagrass",
+   "texture": "core:seagrass",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1280,7 +1280,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/kelp_plant",
+   "texture": "core:kelp_plant",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1300,7 +1300,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sea_pickle",
+   "texture": "core:sea_pickle",
    "material": "CUTOUT",
    "light": 6
   },
@@ -1321,7 +1321,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/sunflower_front",
+   "texture": "core:sunflower_front",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1341,7 +1341,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/vine",
+   "texture": "core:vine",
    "material": "CUTOUT",
    "biomeTint": "foliage"
   },
@@ -1363,7 +1363,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/willow_vine",
+   "texture": "core:willow_vine",
    "material": "CUTOUT",
    "biomeTint": "foliage"
   },
@@ -1395,7 +1395,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/lily_pad",
+   "texture": "core:lily_pad",
    "material": "CUTOUT",
    "biomeTint": "foliage"
   },
@@ -1425,7 +1425,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/leafpile",
+   "texture": "core:leafpile",
    "material": "CUTOUT",
    "biomeTint": "foliage"
   },
@@ -1447,7 +1447,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/tube_coral",
+   "texture": "core:tube_coral",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1465,7 +1465,7 @@
    "coral"
   ],
   "graphics": {
-   "texture": "core:blocks/tube_coral_block"
+   "texture": "core:tube_coral_block"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1483,7 +1483,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/brain_coral",
+   "texture": "core:brain_coral",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1501,7 +1501,7 @@
    "coral"
   ],
   "graphics": {
-   "texture": "core:blocks/brain_coral_block"
+   "texture": "core:brain_coral_block"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1519,7 +1519,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/bubble_coral",
+   "texture": "core:bubble_coral",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1537,7 +1537,7 @@
    "coral"
   ],
   "graphics": {
-   "texture": "core:blocks/bubble_coral_block"
+   "texture": "core:bubble_coral_block"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1555,7 +1555,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/fire_coral",
+   "texture": "core:fire_coral",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1573,7 +1573,7 @@
    "coral"
   ],
   "graphics": {
-   "texture": "core:blocks/fire_coral_block"
+   "texture": "core:fire_coral_block"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1591,7 +1591,7 @@
   ],
   "shape": "cross",
   "graphics": {
-   "texture": "core:blocks/horn_coral",
+   "texture": "core:horn_coral",
    "material": "CUTOUT"
   },
   "sounds": "core:plant",
@@ -1609,7 +1609,7 @@
    "coral"
   ],
   "graphics": {
-   "texture": "core:blocks/horn_coral_block"
+   "texture": "core:horn_coral_block"
   },
   "sounds": "core:stone",
   "gameplay": {

@@ -7,7 +7,7 @@
    "terrain"
   ],
   "graphics": {
-   "texture": "core:blocks/coarse_dirt"
+   "texture": "core:coarse_dirt"
   },
   "sounds": "core:dirt",
   "gameplay": {
@@ -23,9 +23,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/podzol_top",
-    "side": "core:blocks/podzol_side",
-    "bottom": "core:blocks/dirt"
+    "top": "core:podzol_top",
+    "side": "core:podzol_side",
+    "bottom": "core:dirt"
    }
   },
   "sounds": "core:dirt",
@@ -43,9 +43,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/mycelium_top",
-    "side": "core:blocks/mycelium_side",
-    "bottom": "core:blocks/dirt"
+    "top": "core:mycelium_top",
+    "side": "core:mycelium_side",
+    "bottom": "core:dirt"
    }
   },
   "sounds": "core:dirt",
@@ -64,9 +64,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/snow",
-    "side": "core:blocks/grass_block_snow",
-    "bottom": "core:blocks/dirt"
+    "top": "core:snow",
+    "side": "core:grass_block_snow",
+    "bottom": "core:dirt"
    }
   },
   "sounds": "core:snow",
@@ -89,9 +89,9 @@
   },
   "graphics": {
    "textures": {
-    "top": "core:blocks/grass_path_top",
-    "side": "core:blocks/grass_path_side",
-    "bottom": "core:blocks/dirt"
+    "top": "core:grass_path_top",
+    "side": "core:grass_path_side",
+    "bottom": "core:dirt"
    }
   },
   "sounds": "core:gravel",
@@ -115,9 +115,9 @@
   },
   "graphics": {
    "textures": {
-    "top": "core:blocks/farmland_moist",
-    "side": "core:blocks/dirt",
-    "bottom": "core:blocks/dirt"
+    "top": "core:farmland_moist",
+    "side": "core:dirt",
+    "bottom": "core:dirt"
    }
   },
   "sounds": "core:dirt",
@@ -134,7 +134,7 @@
    "terrain"
   ],
   "graphics": {
-   "texture": "core:blocks/mud"
+   "texture": "core:mud"
   },
   "sounds": "core:dirt",
   "gameplay": {
@@ -154,7 +154,7 @@
    "terrain"
   ],
   "graphics": {
-   "texture": "core:blocks/clay"
+   "texture": "core:clay"
   },
   "sounds": "core:dirt",
   "gameplay": {
@@ -174,7 +174,7 @@
    "granular"
   ],
   "graphics": {
-   "texture": "core:blocks/red_sand"
+   "texture": "core:red_sand"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -195,7 +195,7 @@
    "granular"
   ],
   "graphics": {
-   "texture": "core:blocks/white_sand"
+   "texture": "core:white_sand"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -215,7 +215,7 @@
    "cold"
   ],
   "graphics": {
-   "texture": "core:blocks/packed_ice"
+   "texture": "core:packed_ice"
   },
   "sounds": "core:ice",
   "gameplay": {
@@ -235,7 +235,7 @@
    "cold"
   ],
   "graphics": {
-   "texture": "core:blocks/blue_ice"
+   "texture": "core:blue_ice"
   },
   "sounds": "core:ice",
   "gameplay": {
@@ -255,7 +255,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/obsidian"
+   "texture": "core:obsidian"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -271,7 +271,7 @@
    "hot"
   ],
   "graphics": {
-   "texture": "core:blocks/netherrack"
+   "texture": "core:netherrack"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -286,7 +286,7 @@
    "terrain"
   ],
   "graphics": {
-   "texture": "core:blocks/soul_sand"
+   "texture": "core:soul_sand"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -304,7 +304,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/end_stone"
+   "texture": "core:end_stone"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -319,7 +319,7 @@
    "terrain"
   ],
   "graphics": {
-   "texture": "core:blocks/ash_block"
+   "texture": "core:ash_block"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -334,7 +334,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/mossy_cobblestone"
+   "texture": "core:mossy_cobblestone"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -351,8 +351,8 @@
   "graphics": {
    "textures": {
     "top": "core:grass_top",
-    "side": "core:blocks/overgrown_stone_side",
-    "bottom": "core:blocks/stone"
+    "side": "core:overgrown_stone_side",
+    "bottom": "core:stone"
    }
   },
   "sounds": "core:stone",
@@ -371,9 +371,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/spectral_moss_top",
-    "side": "core:blocks/spectral_moss_side",
-    "bottom": "core:blocks/dirt"
+    "top": "core:spectral_moss_top",
+    "side": "core:spectral_moss_side",
+    "bottom": "core:dirt"
    },
    "light": 4
   },
@@ -391,7 +391,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/granite"
+   "texture": "core:granite"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -406,7 +406,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/polished_granite"
+   "texture": "core:polished_granite"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -421,7 +421,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/diorite"
+   "texture": "core:diorite"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -436,7 +436,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/polished_diorite"
+   "texture": "core:polished_diorite"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -451,7 +451,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/andesite"
+   "texture": "core:andesite"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -466,7 +466,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/polished_andesite"
+   "texture": "core:polished_andesite"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -482,9 +482,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/sandstone_top",
-    "side": "core:blocks/sandstone",
-    "bottom": "core:blocks/sandstone_bottom"
+    "top": "core:sandstone_top",
+    "side": "core:sandstone",
+    "bottom": "core:sandstone_bottom"
    }
   },
   "sounds": "core:stone",
@@ -500,7 +500,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/chiseled_sandstone"
+   "texture": "core:chiseled_sandstone"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -515,7 +515,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/cut_sandstone"
+   "texture": "core:cut_sandstone"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -531,9 +531,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/red_sandstone_top",
-    "side": "core:blocks/red_sandstone",
-    "bottom": "core:blocks/red_sandstone_bottom"
+    "top": "core:red_sandstone_top",
+    "side": "core:red_sandstone",
+    "bottom": "core:red_sandstone_bottom"
    }
   },
   "sounds": "core:stone",
@@ -549,7 +549,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/chiseled_red_sandstone"
+   "texture": "core:chiseled_red_sandstone"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -564,7 +564,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/cut_red_sandstone"
+   "texture": "core:cut_red_sandstone"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -580,9 +580,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/white_sandstone_top",
-    "side": "core:blocks/white_sandstone_normal",
-    "bottom": "core:blocks/white_sandstone_bottom"
+    "top": "core:white_sandstone_top",
+    "side": "core:white_sandstone_normal",
+    "bottom": "core:white_sandstone_bottom"
    }
   },
   "sounds": "core:stone",
@@ -599,7 +599,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/terracotta"
+   "texture": "core:terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -615,7 +615,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/white_terracotta"
+   "texture": "core:white_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -631,7 +631,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/orange_terracotta"
+   "texture": "core:orange_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -647,7 +647,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/magenta_terracotta"
+   "texture": "core:magenta_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -663,7 +663,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/light_blue_terracotta"
+   "texture": "core:light_blue_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -679,7 +679,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/yellow_terracotta"
+   "texture": "core:yellow_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -695,7 +695,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/lime_terracotta"
+   "texture": "core:lime_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -711,7 +711,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/pink_terracotta"
+   "texture": "core:pink_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -727,7 +727,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/gray_terracotta"
+   "texture": "core:gray_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -743,7 +743,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/light_gray_terracotta"
+   "texture": "core:light_gray_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -759,7 +759,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/cyan_terracotta"
+   "texture": "core:cyan_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -775,7 +775,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/purple_terracotta"
+   "texture": "core:purple_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -791,7 +791,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/blue_terracotta"
+   "texture": "core:blue_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -807,7 +807,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/brown_terracotta"
+   "texture": "core:brown_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -823,7 +823,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/green_terracotta"
+   "texture": "core:green_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -839,7 +839,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/red_terracotta"
+   "texture": "core:red_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -855,7 +855,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/black_terracotta"
+   "texture": "core:black_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {

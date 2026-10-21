@@ -154,7 +154,7 @@ LSAN_OPTIONS = "suppressions={root}/tests/lsan_suppressions.txt"
 [package]
 formats = ["tar.gz"]           # tar.gz | tar.xz | zip | deb
 strip = true
-maintainer = "Nom <email@example.com>"
+maintainer = "Charrière <clement01.charriere@gmail.com>"
 description = ""
 # deb_depends = ["libc6"]
 

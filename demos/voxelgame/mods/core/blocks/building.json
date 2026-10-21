@@ -7,7 +7,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/glass",
+   "texture": "core:glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -23,7 +23,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/bricks"
+   "texture": "core:bricks"
   },
   "sounds": "core:ceramic",
   "gameplay": {
@@ -38,7 +38,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/stone_bricks"
+   "texture": "core:stone_bricks"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -53,7 +53,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/mossy_stone_bricks"
+   "texture": "core:mossy_stone_bricks"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -68,7 +68,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/cracked_stone_bricks"
+   "texture": "core:cracked_stone_bricks"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -83,7 +83,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/chiseled_stone_bricks"
+   "texture": "core:chiseled_stone_bricks"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -98,7 +98,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/mud_brick_block"
+   "texture": "core:mud_brick_block"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -113,7 +113,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/nether_bricks"
+   "texture": "core:nether_bricks"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -128,7 +128,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/red_nether_bricks"
+   "texture": "core:red_nether_bricks"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -143,7 +143,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/end_stone_bricks"
+   "texture": "core:end_stone_bricks"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -159,9 +159,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/quartz_block_top",
-    "bottom": "core:blocks/quartz_block_bottom",
-    "side": "core:blocks/quartz_block_side"
+    "top": "core:quartz_block_top",
+    "bottom": "core:quartz_block_bottom",
+    "side": "core:quartz_block_side"
    }
   },
   "sounds": "core:stone",
@@ -178,8 +178,8 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/chiseled_quartz_block_top",
-    "side": "core:blocks/chiseled_quartz_block"
+    "top": "core:chiseled_quartz_block_top",
+    "side": "core:chiseled_quartz_block"
    }
   },
   "sounds": "core:stone",
@@ -196,9 +196,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/quartz_pillar_top",
-    "bottom": "core:blocks/quartz_pillar_top",
-    "side": "core:blocks/quartz_pillar"
+    "top": "core:quartz_pillar_top",
+    "bottom": "core:quartz_pillar_top",
+    "side": "core:quartz_pillar"
    }
   },
   "sounds": "core:stone",
@@ -214,7 +214,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/prismarine"
+   "texture": "core:prismarine"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -229,7 +229,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/prismarine_bricks"
+   "texture": "core:prismarine_bricks"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -244,7 +244,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/dark_prismarine"
+   "texture": "core:dark_prismarine"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -259,7 +259,7 @@
    "stone"
   ],
   "graphics": {
-   "texture": "core:blocks/purpur_block"
+   "texture": "core:purpur_block"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -275,8 +275,8 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/purpur_pillar_top",
-    "side": "core:blocks/purpur_pillar"
+    "top": "core:purpur_pillar_top",
+    "side": "core:purpur_pillar"
    }
   },
   "sounds": "core:stone",
@@ -294,10 +294,10 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/crafting_table_top",
-    "bottom": "core:blocks/oak_planks",
-    "side": "core:blocks/crafting_table_side",
-    "south": "core:blocks/crafting_table_front"
+    "top": "core:crafting_table_top",
+    "bottom": "core:oak_planks",
+    "side": "core:crafting_table_side",
+    "south": "core:crafting_table_front"
    }
   },
   "sounds": "core:wood",
@@ -315,10 +315,10 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/furnace_top",
-    "bottom": "core:blocks/furnace_top",
-    "side": "core:blocks/furnace_side",
-    "south": "core:blocks/furnace_front"
+    "top": "core:furnace_top",
+    "bottom": "core:furnace_top",
+    "side": "core:furnace_side",
+    "south": "core:furnace_front"
    }
   },
   "sounds": "core:stone",
@@ -336,8 +336,8 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/oak_planks",
-    "side": "core:blocks/bookshelf"
+    "top": "core:oak_planks",
+    "side": "core:bookshelf"
    }
   },
   "sounds": "core:wood",
@@ -358,9 +358,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/tnt_top",
-    "bottom": "core:blocks/tnt_bottom",
-    "side": "core:blocks/tnt_side"
+    "top": "core:tnt_top",
+    "bottom": "core:tnt_bottom",
+    "side": "core:tnt_side"
    }
   },
   "sounds": "core:grass",
@@ -380,8 +380,8 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/pumpkin_top",
-    "side": "core:blocks/pumpkin_side"
+    "top": "core:pumpkin_top",
+    "side": "core:pumpkin_side"
    }
   },
   "sounds": "core:wood",
@@ -398,9 +398,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/pumpkin_top",
-    "side": "core:blocks/pumpkin_side",
-    "south": "core:blocks/carved_pumpkin"
+    "top": "core:pumpkin_top",
+    "side": "core:pumpkin_side",
+    "south": "core:carved_pumpkin"
    }
   },
   "sounds": "core:wood",
@@ -417,9 +417,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/pumpkin_top",
-    "side": "core:blocks/pumpkin_side",
-    "south": "core:blocks/jack_o_lantern"
+    "top": "core:pumpkin_top",
+    "side": "core:pumpkin_side",
+    "south": "core:jack_o_lantern"
    },
    "light": 15
   },
@@ -437,8 +437,8 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/melon_top",
-    "side": "core:blocks/melon_side"
+    "top": "core:melon_top",
+    "side": "core:melon_side"
    }
   },
   "sounds": "core:wood",
@@ -459,8 +459,8 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/hay_block_top",
-    "side": "core:blocks/hay_block_side"
+    "top": "core:hay_block_top",
+    "side": "core:hay_block_side"
    }
   },
   "sounds": "core:grass",
@@ -473,8 +473,8 @@
   "displayName": "Bloc d'os",
   "graphics": {
    "textures": {
-    "top": "core:blocks/bone_block_top",
-    "side": "core:blocks/bone_block_side"
+    "top": "core:bone_block_top",
+    "side": "core:bone_block_side"
    }
   },
   "sounds": "core:stone",
@@ -487,7 +487,7 @@
   "id": "sponge",
   "displayName": "Éponge",
   "graphics": {
-   "texture": "core:blocks/sponge"
+   "texture": "core:sponge"
   },
   "sounds": "core:grass",
   "gameplay": {
@@ -501,7 +501,7 @@
    "bouncy"
   ],
   "graphics": {
-   "texture": "core:blocks/slime_block",
+   "texture": "core:slime_block",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:grass",
@@ -516,7 +516,7 @@
   "id": "honeycomb_block",
   "displayName": "Bloc de rayon de miel",
   "graphics": {
-   "texture": "core:blocks/honeycomb_block"
+   "texture": "core:honeycomb_block"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -527,7 +527,7 @@
   "id": "note_block",
   "displayName": "Bloc musical",
   "graphics": {
-   "texture": "core:blocks/note_block"
+   "texture": "core:note_block"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -540,8 +540,8 @@
   "displayName": "Juke-box",
   "graphics": {
    "textures": {
-    "top": "core:blocks/jukebox_top",
-    "side": "core:blocks/jukebox_side"
+    "top": "core:jukebox_top",
+    "side": "core:jukebox_side"
    }
   },
   "sounds": "core:wood",
@@ -557,7 +557,7 @@
    "light"
   ],
   "graphics": {
-   "texture": "core:blocks/redstone_lamp_on",
+   "texture": "core:redstone_lamp_on",
    "light": 15
   },
   "sounds": "core:glass",
@@ -572,7 +572,7 @@
    "light"
   ],
   "graphics": {
-   "texture": "core:blocks/beacon",
+   "texture": "core:beacon",
    "material": "TRANSLUCENT",
    "light": 15
   },
@@ -595,9 +595,9 @@
   },
   "graphics": {
    "textures": {
-    "top": "core:blocks/enchanting_table_top",
-    "bottom": "core:blocks/enchanting_table_bottom",
-    "side": "core:blocks/enchanting_table_side"
+    "top": "core:enchanting_table_top",
+    "bottom": "core:enchanting_table_bottom",
+    "side": "core:enchanting_table_side"
    },
    "light": 7
   },
@@ -611,7 +611,7 @@
   "id": "spawner",
   "displayName": "Cage à monstres",
   "graphics": {
-   "texture": "core:blocks/spawner",
+   "texture": "core:spawner",
    "material": "CUTOUT"
   },
   "sounds": "core:metal",
@@ -636,7 +636,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/iron_bars",
+   "texture": "core:iron_bars",
    "material": "CUTOUT"
   },
   "sounds": "core:metal",
@@ -664,9 +664,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/cactus_top",
-    "bottom": "core:blocks/cactus_bottom",
-    "side": "core:blocks/cactus_side"
+    "top": "core:cactus_top",
+    "bottom": "core:cactus_bottom",
+    "side": "core:cactus_side"
    }
   },
   "sounds": "core:plant",
@@ -694,9 +694,9 @@
   ],
   "graphics": {
    "textures": {
-    "top": "core:blocks/cake_top",
-    "bottom": "core:blocks/cake_bottom",
-    "side": "core:blocks/cake_side"
+    "top": "core:cake_top",
+    "bottom": "core:cake_bottom",
+    "side": "core:cake_side"
    }
   },
   "sounds": "core:plant",
@@ -708,7 +708,7 @@
   "id": "hive",
   "displayName": "Ruche",
   "graphics": {
-   "texture": "core:blocks/hive_block"
+   "texture": "core:hive_block"
   },
   "sounds": "core:wood",
   "gameplay": {
@@ -724,7 +724,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/white_wool"
+   "texture": "core:white_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -739,7 +739,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/white_concrete"
+   "texture": "core:white_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -754,7 +754,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/white_concrete_powder"
+   "texture": "core:white_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -774,7 +774,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/white_glazed_terracotta"
+   "texture": "core:white_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -789,7 +789,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/white_stained_glass",
+   "texture": "core:white_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -816,7 +816,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_white"
+   "texture": "core:carpet_white"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -831,7 +831,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/orange_wool"
+   "texture": "core:orange_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -846,7 +846,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/orange_concrete"
+   "texture": "core:orange_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -861,7 +861,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/orange_concrete_powder"
+   "texture": "core:orange_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -881,7 +881,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/orange_glazed_terracotta"
+   "texture": "core:orange_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -896,7 +896,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/orange_stained_glass",
+   "texture": "core:orange_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -923,7 +923,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_orange"
+   "texture": "core:carpet_orange"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -938,7 +938,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/magenta_wool"
+   "texture": "core:magenta_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -953,7 +953,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/magenta_concrete"
+   "texture": "core:magenta_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -968,7 +968,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/magenta_concrete_powder"
+   "texture": "core:magenta_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -988,7 +988,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/magenta_glazed_terracotta"
+   "texture": "core:magenta_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1003,7 +1003,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/magenta_stained_glass",
+   "texture": "core:magenta_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -1030,7 +1030,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_magenta"
+   "texture": "core:carpet_magenta"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1045,7 +1045,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/light_blue_wool"
+   "texture": "core:light_blue_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1060,7 +1060,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/light_blue_concrete"
+   "texture": "core:light_blue_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1075,7 +1075,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/light_blue_concrete_powder"
+   "texture": "core:light_blue_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -1095,7 +1095,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/light_blue_glazed_terracotta"
+   "texture": "core:light_blue_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1110,7 +1110,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/light_blue_stained_glass",
+   "texture": "core:light_blue_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -1137,7 +1137,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_light_blue"
+   "texture": "core:carpet_light_blue"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1152,7 +1152,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/yellow_wool"
+   "texture": "core:yellow_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1167,7 +1167,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/yellow_concrete"
+   "texture": "core:yellow_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1182,7 +1182,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/yellow_concrete_powder"
+   "texture": "core:yellow_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -1202,7 +1202,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/yellow_glazed_terracotta"
+   "texture": "core:yellow_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1217,7 +1217,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/yellow_stained_glass",
+   "texture": "core:yellow_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -1244,7 +1244,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_yellow"
+   "texture": "core:carpet_yellow"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1259,7 +1259,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/lime_wool"
+   "texture": "core:lime_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1274,7 +1274,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/lime_concrete"
+   "texture": "core:lime_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1289,7 +1289,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/lime_concrete_powder"
+   "texture": "core:lime_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -1309,7 +1309,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/lime_glazed_terracotta"
+   "texture": "core:lime_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1324,7 +1324,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/lime_stained_glass",
+   "texture": "core:lime_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -1351,7 +1351,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_lime"
+   "texture": "core:carpet_lime"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1366,7 +1366,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/pink_wool"
+   "texture": "core:pink_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1381,7 +1381,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/pink_concrete"
+   "texture": "core:pink_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1396,7 +1396,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/pink_concrete_powder"
+   "texture": "core:pink_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -1416,7 +1416,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/pink_glazed_terracotta"
+   "texture": "core:pink_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1431,7 +1431,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/pink_stained_glass",
+   "texture": "core:pink_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -1458,7 +1458,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_pink"
+   "texture": "core:carpet_pink"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1473,7 +1473,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/gray_wool"
+   "texture": "core:gray_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1488,7 +1488,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/gray_concrete"
+   "texture": "core:gray_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1503,7 +1503,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/gray_concrete_powder"
+   "texture": "core:gray_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -1523,7 +1523,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/gray_glazed_terracotta"
+   "texture": "core:gray_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1538,7 +1538,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/gray_stained_glass",
+   "texture": "core:gray_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -1565,7 +1565,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_gray"
+   "texture": "core:carpet_gray"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1580,7 +1580,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/light_gray_wool"
+   "texture": "core:light_gray_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1595,7 +1595,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/light_gray_concrete"
+   "texture": "core:light_gray_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1610,7 +1610,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/light_gray_concrete_powder"
+   "texture": "core:light_gray_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -1630,7 +1630,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/light_gray_glazed_terracotta"
+   "texture": "core:light_gray_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1645,7 +1645,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/light_gray_stained_glass",
+   "texture": "core:light_gray_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -1672,7 +1672,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_silver"
+   "texture": "core:carpet_silver"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1687,7 +1687,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/cyan_wool"
+   "texture": "core:cyan_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1702,7 +1702,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/cyan_concrete"
+   "texture": "core:cyan_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1717,7 +1717,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/cyan_concrete_powder"
+   "texture": "core:cyan_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -1737,7 +1737,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/cyan_glazed_terracotta"
+   "texture": "core:cyan_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1752,7 +1752,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/cyan_stained_glass",
+   "texture": "core:cyan_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -1779,7 +1779,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_cyan"
+   "texture": "core:carpet_cyan"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1794,7 +1794,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/purple_wool"
+   "texture": "core:purple_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1809,7 +1809,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/purple_concrete"
+   "texture": "core:purple_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1824,7 +1824,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/purple_concrete_powder"
+   "texture": "core:purple_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -1844,7 +1844,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/purple_glazed_terracotta"
+   "texture": "core:purple_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1859,7 +1859,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/purple_stained_glass",
+   "texture": "core:purple_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -1886,7 +1886,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_purple"
+   "texture": "core:carpet_purple"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1901,7 +1901,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/blue_wool"
+   "texture": "core:blue_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -1916,7 +1916,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/blue_concrete"
+   "texture": "core:blue_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1931,7 +1931,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/blue_concrete_powder"
+   "texture": "core:blue_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -1951,7 +1951,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/blue_glazed_terracotta"
+   "texture": "core:blue_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -1966,7 +1966,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/blue_stained_glass",
+   "texture": "core:blue_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -1993,7 +1993,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_blue"
+   "texture": "core:carpet_blue"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -2008,7 +2008,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/brown_wool"
+   "texture": "core:brown_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -2023,7 +2023,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/brown_concrete"
+   "texture": "core:brown_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -2038,7 +2038,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/brown_concrete_powder"
+   "texture": "core:brown_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -2058,7 +2058,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/brown_glazed_terracotta"
+   "texture": "core:brown_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -2073,7 +2073,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/brown_stained_glass",
+   "texture": "core:brown_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -2100,7 +2100,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_brown"
+   "texture": "core:carpet_brown"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -2115,7 +2115,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/green_wool"
+   "texture": "core:green_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -2130,7 +2130,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/green_concrete"
+   "texture": "core:green_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -2145,7 +2145,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/green_concrete_powder"
+   "texture": "core:green_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -2165,7 +2165,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/green_glazed_terracotta"
+   "texture": "core:green_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -2180,7 +2180,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/green_stained_glass",
+   "texture": "core:green_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -2207,7 +2207,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_green"
+   "texture": "core:carpet_green"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -2222,7 +2222,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/red_wool"
+   "texture": "core:red_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -2237,7 +2237,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/red_concrete"
+   "texture": "core:red_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -2252,7 +2252,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/red_concrete_powder"
+   "texture": "core:red_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -2272,7 +2272,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/red_glazed_terracotta"
+   "texture": "core:red_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -2287,7 +2287,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/red_stained_glass",
+   "texture": "core:red_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -2314,7 +2314,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_red"
+   "texture": "core:carpet_red"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -2329,7 +2329,7 @@
    "fuel"
   ],
   "graphics": {
-   "texture": "core:blocks/black_wool"
+   "texture": "core:black_wool"
   },
   "sounds": "core:wool",
   "gameplay": {
@@ -2344,7 +2344,7 @@
    "concrete"
   ],
   "graphics": {
-   "texture": "core:blocks/black_concrete"
+   "texture": "core:black_concrete"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -2359,7 +2359,7 @@
    "concrete_powder"
   ],
   "graphics": {
-   "texture": "core:blocks/black_concrete_powder"
+   "texture": "core:black_concrete_powder"
   },
   "sounds": "core:sand",
   "gameplay": {
@@ -2379,7 +2379,7 @@
    "terracotta"
   ],
   "graphics": {
-   "texture": "core:blocks/black_glazed_terracotta"
+   "texture": "core:black_glazed_terracotta"
   },
   "sounds": "core:stone",
   "gameplay": {
@@ -2394,7 +2394,7 @@
    "glass"
   ],
   "graphics": {
-   "texture": "core:blocks/black_stained_glass",
+   "texture": "core:black_stained_glass",
    "material": "TRANSLUCENT"
   },
   "sounds": "core:glass",
@@ -2421,7 +2421,7 @@
    ]
   ],
   "graphics": {
-   "texture": "core:blocks/carpet_black"
+   "texture": "core:carpet_black"
   },
   "sounds": "core:wool",
   "gameplay": {
