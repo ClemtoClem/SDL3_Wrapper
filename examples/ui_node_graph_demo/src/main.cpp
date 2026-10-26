@@ -1,29 +1,24 @@
 /**
- * ui_node_graph_demo — démonstration de ui::nodegraph (éditeur de node-graph
- * réutilisable, cf. src/ui/nodegraph.hpp), sous forme d'une petite
- * "calculatrice visuelle" façon Blueprint Unreal : deux nœuds d'opération
- * (Add/Multiply) connectés à un nœud de sortie (Output).
+ * ui_node_graph_demo — démonstration de ui::nodegraph (éditeur de graphes de
+ * nœuds), sous forme d'une petite « calculatrice visuelle » façon Blueprint :
+ * deux nœuds d'opération (Add / Multiply) reliés à un nœud de sortie.
  *
- * Démontre toute la checklist d'acceptation du plan (section 11) :
- *   - grille de fond, pan (clic-milieu), zoom (molette vers le curseur)
- *   - nœuds déplaçables/redimensionnables, sélection simple/multiple (Ctrl),
- *     rectangle de sélection (marquee), déplacement de groupe
- *   - auto-scroll en glissant un nœud près du bord
- *   - pins de formes différentes (cercle/triangle), couleurs personnalisées
- *   - connexions Bézier ET orthogonale, épaisseur/couleur/flèches personnalisées
- *   - point intermédiaire sur une connexion (double-clic sur le tracé)
- *   - inner-zoom indépendant sur le nœud "Output" (contenu agrandi)
- *   - couper/copier/coller/supprimer (clavier) + menu contextuel (clic droit)
- *   - sauvegarde/chargement (Ctrl+S/Ctrl+O) via serializeGraph()/dataio::JsonDocument
- *   - rendu 100% personnalisable : le contenu des nœuds est fourni ici par
- *     l'application (inputNumber, labels), l'éditeur ne connaît que la boîte
- *     et l'en-tête.
+ *   - grille de fond, pan (clic milieu), zoom (molette vers le curseur)
+ *   - nœuds déplaçables / redimensionnables, sélection simple / multiple
+ *     (Ctrl), rectangle de sélection, déplacement de groupe
+ *   - pins de formes différentes, couleurs personnalisées
+ *   - connexions Bézier ET orthogonale, épaisseur / couleur / flèches
+ *   - point intermédiaire sur une connexion (double clic sur le tracé)
+ *   - zoom intérieur indépendant sur le nœud « Output »
+ *   - couper / copier / coller / supprimer (clavier, canevas focalisé) et
+ *     menu contextuel (clic droit sur un nœud)
+ *   - sauvegarde / chargement (Ctrl+S / Ctrl+O) en JSON
+ *   - le contenu des nœuds est un arbre de widgets ordinaire fourni par
+ *     l'application ; en-têtes et corps se stylent en CSS.
  *
- *   make examples && ./build/examples/ui_node_graph_demo
+ *   cpp-maker run ui_node_graph_demo
  */
-#include <format>
 #include <iostream>
-#include <memory>
 
 #include <core/core.hpp>
 #include <dataio/dataio.hpp>
@@ -32,11 +27,9 @@
 
 static constexpr int WIN_W = 1100;
 static constexpr int WIN_H = 700;
-static constexpr float FONT_PT = 14.f;
-static const char *savePath = "node_graph_demo.json";
+static constexpr const char *SAVE_PATH = "node_graph_demo.json";
 
 int main() {
-	// ── Init SDL / TTF ───────────────────────────────────────────────────────
 	auto sdl = sdl3::SdlContext::Create(sdl3::init_flags::VIDEO | sdl3::init_flags::EVENTS);
 	if (!sdl) {
 		std::cerr << "SDL init: " << sdl.Error().CStr() << "\n";
@@ -47,13 +40,6 @@ int main() {
 		std::cerr << "TTF init: " << ttf.Error().CStr() << "\n";
 		return 1;
 	}
-	auto fontRes = sdl3::Font::FindLocal({"DejaVuSans", "FreeSans", "Arial"}, FONT_PT);
-	if (!fontRes) {
-		std::cerr << "Font: " << fontRes.Error().CStr() << "\n";
-		return 1;
-	}
-	auto &font = fontRes.Value();
-
 	auto winRes =
 		sdl3::Window::Create(u8"ui::nodegraph - calculatrice visuelle", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
@@ -67,168 +53,119 @@ int main() {
 		return 1;
 	}
 	auto &ren = renRes.Value();
-	ui::SdlRendererBackend renBackend(ren);
-	auto engRes = sdl3::TextEngine::Create(ren);
-	if (!engRes) {
-		std::cerr << "TextEngine: " << engRes.Error().CStr() << "\n";
-		return 1;
-	}
-	auto &eng = engRes.Value();
 
-	// ── Pipeline UI — systèmes manuels (pas la façade ui::Ui) car
-	// NodeGraphSystem doit s'intercaler entre layout et rendu (cf. en-tête de
-	// src/ui/nodegraph.hpp pour l'ordre exact d'intégration). ──────────────
-	ecs::ArchetypeRegistry ar;
-	ui::LayoutSystem layout;
-	ui::InputSystem input;
-	ui::RenderSystem render;
-	ui::StyleSystem style;
-	ui::UiFactory f(ar, layout);
-	ui::NodeGraphSystem nodeGraph;
-	style.sheet = &f.sheet;
+	ecs::ArchetypeRegistry world;
+	ui::Ui gui(world, window, ren);
 
-	window.StartTextInput();
-	render.SetTextEngine(&eng, &font);
-	nodeGraph.SetTextEngine(eng, font);
-	layout.measureText = [&font](const String &s, float fs) -> sdl3::FPoint {
-		if (auto sz = font.Measure(s); sz.IsSome())
-			return {float(sz.Unwrap().x) * (fs / FONT_PT), fs * 1.35f};
-		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
-	};
-
-	// ── Encadrement de fenêtre ; l'aide clavier/souris va dans la barre d'état
-	// Pas de fond sur la racine : la grille du graphe est dessinée AVANT
-	// render.Run() et doit rester visible.
 	ui::WindowFrame frame;
-	frame.Build(f, layout, render, window,
+	frame.Build(gui, window,
 				{.title = "ui::nodegraph - calculatrice visuelle", .appIcon = Some(ui::MaterialIcons::ACCOUNT_TREE),
-				 .status = "Molette : zoom · Clic-milieu : pan · Ctrl+clic : multi-sélection · Glisser sur le vide : "
-						   "marquee · Suppr/Ctrl+C/X/V : presse-papiers · Clic droit : menu · Ctrl+S/O : sauver/charger"});
+				 .status = "Molette : zoom · Clic milieu : pan · Ctrl+clic : multi-sélection · Glisser sur le vide : "
+						   "rectangle · Suppr/Ctrl+C/X/V : presse-papiers · Clic droit : menu · Ctrl+S/O : "
+						   "sauver/charger"});
 
-	// ── Canvas : toute la zone de contenu ────────────────────────────────────
-	auto canvas = ui::CanvasBuilder(f);
-	canvas.GrowW().GrowH().Parent(frame.Content());
-	ecs::Entity canvasE = canvas.Spawn();
-	ui::AttachNodeGraphCanvas(ar, canvasE); // thème par défaut (Phase 7, style Blueprint) déjà appliqué
+	// ── Canevas : toute la zone de contenu ───────────────────────────────────
+	ui::Widget canvas = frame.Content().Append(ui::NodeGraph().Grow().FillWidth());
 
-	// ── Nœuds "Add"/"Multiply" (une opération, deux entrées, une sortie) ────
-	auto makeOpNode = [&](const char *title, sdl3::FPoint pos, sdl3::FColor header) {
-		auto content = f.Column();
-		content.Gap(4.f).Children(f.Label(title).FontSize(15.f),
-								  f.InputNumber(0.f, 100.f, 1.f).GrowW(),
-								  f.InputNumber(0.f, 100.f, 2.f).GrowW());
-		ecs::Entity e = ui::AddGraphNode(f, canvasE, title, pos, {190.f, 130.f}, std::move(content), header);
-		(void)ui::AddGraphPin(ar, e, ui::PinSide::Left, 0.3f, ui::PinShape::CIRCLE, {235, 235, 235, 255});
-		(void)ui::AddGraphPin(ar, e, ui::PinSide::Left, 0.7f, ui::PinShape::CIRCLE, {235, 235, 235, 255});
-		ecs::Entity out = ui::AddGraphPin(ar, e, ui::PinSide::Right, 0.5f, ui::PinShape::TRIANGLE, header);
-		return std::pair{e, out};
+	const ui::Color pinWhite = ui::Rgba(235, 235, 235);
+	auto makeOpNode = [&](const char *title, sdl3::FPoint pos, ui::Color header) {
+		ui::Widget node = ui::AddGraphNode(canvas, title, pos, {190.f, 130.f},
+										   ui::Column().Gap(4.f).Children({
+											   ui::Label(title).FontSize(15.f),
+											   ui::NumberInput(0.f, 100.f, 1.f).FillWidth(),
+											   ui::NumberInput(0.f, 100.f, 2.f).FillWidth(),
+										   }),
+										   header);
+		ui::AddGraphPin(node, ui::PinSide::Left, 0.3f, ui::PinShape::CIRCLE, pinWhite);
+		ui::AddGraphPin(node, ui::PinSide::Left, 0.7f, ui::PinShape::CIRCLE, pinWhite);
+		return ui::AddGraphPin(node, ui::PinSide::Right, 0.5f, ui::PinShape::TRIANGLE, header);
 	};
-	auto [addNode, addOut] = makeOpNode("Add", {60.f, 60.f}, sdl3::FColor{52/255.f, 120/255.f, 90/255.f, 255/255.f});
-	auto [mulNode, mulOut] = makeOpNode("Multiply", {60.f, 260.f}, sdl3::FColor{150/255.f, 90/255.f, 40/255.f, 255/255.f});
+	ui::Widget addOut = makeOpNode("Add", {60.f, 60.f}, ui::Rgba(52, 120, 90));
+	ui::Widget mulOut = makeOpNode("Multiply", {60.f, 260.f}, ui::Rgba(150, 90, 40));
 
-	// ── Nœud "Output" — contenu agrandi via inner-zoom (spec section 7) ─────
-	auto outContent = f.Column();
-	outContent.Gap(6.f).Children(f.Label("Output").FontSize(15.f), f.Label("= ?").FontSize(18.f));
-	ecs::Entity outNode = ui::AddGraphNode(f, canvasE, "Output", {430.f, 150.f}, {170.f, 110.f}, std::move(outContent),
-										  sdl3::FColor::UI_NODE_HEADER_NEUTRAL(), /*innerZoom=*/1.3f);
-	ecs::Entity outInA = ui::AddGraphPin(ar, outNode, ui::PinSide::Left, 0.3f, ui::PinShape::CIRCLE, {235, 235, 235, 255});
-	ecs::Entity outInB = ui::AddGraphPin(ar, outNode, ui::PinSide::Left, 0.7f, ui::PinShape::CIRCLE, {235, 235, 235, 255});
+	// Nœud « Output » : contenu agrandi par le zoom intérieur.
+	ui::Widget outNode = ui::AddGraphNode(canvas, "Output", {430.f, 150.f}, {170.f, 110.f},
+										  ui::Column().Gap(6.f).Children({
+											  ui::Label("Output").FontSize(15.f),
+											  ui::Label("= ?").FontSize(18.f),
+										  }),
+										  ui::Rgba(70, 74, 86), 1.3f);
+	ui::Widget outInA = ui::AddGraphPin(outNode, ui::PinSide::Left, 0.3f, ui::PinShape::CIRCLE, pinWhite);
+	ui::Widget outInB = ui::AddGraphPin(outNode, ui::PinSide::Left, 0.7f, ui::PinShape::CIRCLE, pinWhite);
 
-	style.Resolve(ar);
-	nodeGraph.Prepass(ar);
-	layout.RunIfNeeded(ar, float(WIN_W), float(WIN_H));
-	nodeGraph.UpdatePins(ar);
-
-	// Connexion Add -> Output : Bézier par défaut, flèche, un point intermédiaire.
-	if (auto *c1 = ui::ConnectPins(ar, addOut, outInA)) {
-		c1->color = sdl3::FColor{130/255.f, 220/255.f, 170/255.f, 255/255.f};
+	// Add -> Output : Bézier, flèche, un point intermédiaire.
+	if (ui::GraphConnection *c1 = ui::ConnectPins(world, addOut.Entity(), outInA.Entity())) {
+		c1->color = ui::Rgba(130, 220, 170);
 		ui::InsertWaypoint(*c1, 0, {380.f, 90.f});
 	}
-	// Connexion Multiply -> Output : orthogonale, plus épaisse, couleur assortie.
-	if (auto *c2 = ui::ConnectPins(ar, mulOut, outInB)) {
+	// Multiply -> Output : orthogonale, plus épaisse.
+	if (ui::GraphConnection *c2 = ui::ConnectPins(world, mulOut.Entity(), outInB.Entity())) {
 		c2->style = ui::ConnectionStyle::ORTHOGONAL;
-		c2->color = sdl3::FColor{230/255.f, 160/255.f, 90/255.f, 255/255.f};
+		c2->color = ui::Rgba(230, 160, 90);
 		c2->thickness = 3.5f;
 	}
 
-	// ── Menu contextuel (clic droit) : Supprimer / Dupliquer ────────────────
-	// cf. NodeGraphCallbacks::onContextMenu — l'éditeur détecte seulement le
-	// clic droit et le nœud visé ; ce popup est entièrement construit ici,
-	// côté application (Décision d'architecture, spec section 9).
-	auto rightClicked = std::make_shared<ecs::Entity>();
-
-	auto delBtn = f.Button("Supprimer");
-	delBtn.OnClick([&ar, &layout, rightClicked] {
-		if (rightClicked->Valid()) {
-			ui::DestroyGraphNode(ar, *rightClicked);
-			*rightClicked = ecs::Entity{};
-			layout.MarkDirty();
-		}
-	});
-	auto dupBtn = f.Button("Dupliquer");
-	dupBtn.OnClick([&ar, &f, &nodeGraph, &canvasE, rightClicked] {
-		if (!rightClicked->Valid())
+	// ── Menu contextuel (clic droit sur un nœud) : construit par l'application ─
+	ecs::Entity rightClicked{};
+	ui::Widget menu = gui.Mount(ui::ContextMenu().Children({
+		ui::MenuItem("Supprimer", "Suppr").OnClick([&] {
+			if (world.IsAlive(rightClicked))
+				ui::DestroyGraphNode(world, rightClicked);
+			rightClicked = ecs::Entity{};
+		}),
+		ui::MenuItem("Dupliquer").OnClick([&] {
+			auto node = world.GetComponent<ui::GraphNode>(rightClicked);
+			if (node.IsNone())
+				return;
+			const sdl3::FPoint p = node.Unwrap()->canvasPos;
+			ui::ClearGraphSelection(world, canvas.Entity());
+			ui::SelectNode(world, rightClicked);
+			ui::CopyGraphSelection(world, canvas.Entity());
+			ui::PasteGraphClipboard(canvas, {p.x + 40.f, p.y + 40.f});
+		}),
+	}));
+	ui::GraphCallbacks callbacks;
+	callbacks.onContextMenu = [&](ecs::Entity node, ecs::Entity, sdl3::FPoint at) {
+		if (!world.IsAlive(node))
 			return;
-		nodeGraph.SelectNode(ar, *rightClicked);
-		nodeGraph.CopySelection(ar, canvasE);
-		if (auto n = ar.GetComponent<ui::UiGraphNode>(*rightClicked); n.IsSome()) {
-			sdl3::FPoint p = n.Unwrap()->canvasPos;
-			nodeGraph.PasteClipboard(f, canvasE, {p.x + 40.f, p.y + 40.f});
-		}
-	});
-	auto ctxMenu = f.Popup();
-	ctxMenu.Gap(2.f).Pad(4.f).Children(std::move(delBtn), std::move(dupBtn));
-	ecs::Entity ctxMenuE = ctxMenu.Spawn();
-
-	ui::NodeGraphCallbacks cb;
-	cb.onContextMenu = [&ar, &layout, ctxMenuE, rightClicked](ecs::Entity node, ecs::Entity, sdl3::FPoint screenPos) {
-		*rightClicked = node;
-		if (auto rect = ar.GetComponent<ui::UiRect>(ctxMenuE); rect.IsSome())
-			rect.Unwrap()->offset = {screenPos.x, screenPos.y};
-		ui::OpenPopup(ar, layout, ctxMenuE, ctxMenuE);
+		rightClicked = node;
+		menu.OpenAt(at);
 	};
-	ar.AddComponent(canvasE, std::move(cb));
+	ui::SetGraphCallbacks(canvas, std::move(callbacks));
 
-	// ── Sauvegarde / chargement (Ctrl+S / Ctrl+O) ───────────────────────────
-	auto saveGraph = [&ar, canvasE] {
+	// ── Sauvegarde / chargement ─────────────────────────────────────────────
+	auto saveGraph = [&] {
 		dataio::JsonDocument json;
-		json.SetRoot(ui::SerializeGraph(ar, canvasE));
-		if (auto io = sdl3::IOStream::FromFile(savePath, "wb"); io) {
-			if (json.Encode(io.Value()))
-				std::cout << "Graphe sauvegarde: " << savePath << "\n";
-			else
-				std::cerr << "Echec d'ecriture: " << savePath << "\n";
-		} else {
-			std::cerr << "Echec sauvegarde: " << io.Error().CStr() << "\n";
-		}
+		json.SetRoot(ui::SerializeGraph(world, canvas.Entity()));
+		auto io = sdl3::IOStream::FromFile(SAVE_PATH, "wb");
+		if (io && json.Encode(io.Value()))
+			frame.SetStatus(String("Graphe sauvegardé : ") + SAVE_PATH);
+		else
+			frame.SetStatus(String("Échec de la sauvegarde : ") + SAVE_PATH);
 	};
-	auto loadGraph = [&ar, &f, &nodeGraph, &layout, canvasE] {
-		auto io = sdl3::IOStream::FromFile(savePath, "rb");
+	auto loadGraph = [&] {
+		auto io = sdl3::IOStream::FromFile(SAVE_PATH, "rb");
 		if (!io) {
-			std::cerr << "Echec chargement: " << io.Error().CStr() << "\n";
+			frame.SetStatus(String("Échec du chargement : ") + io.Error().CStr());
 			return;
 		}
 		dataio::JsonDocument json;
 		if (json.Decode(io.Value()).IsSome()) {
-			std::cerr << "JSON invalide dans " << savePath << "\n";
+			frame.SetStatus(String("JSON invalide : ") + SAVE_PATH);
 			return;
 		}
-		ui::DeserializeGraph(f, nodeGraph, layout, canvasE, json.GetRoot());
-		std::cout << "Graphe charge: " << savePath << "\n";
+		for (ecs::Entity n : ui::NodesOf(world, canvas.Entity()))
+			ui::DestroyGraphNode(world, n);
+		ui::DeserializeGraph(canvas, json.GetRoot());
+		frame.SetStatus(String("Graphe chargé : ") + SAVE_PATH);
 	};
 
-	// ── Boucle ───────────────────────────────────────────────────────────────
 	bool running = true;
 	uint64_t lastTick = sdl3::GetTicksMS();
-
 	while (running) {
-		uint64_t now = sdl3::GetTicksMS();
-		float dt = float(now - lastTick) / 1000.f;
+		const uint64_t now = sdl3::GetTicksMS();
+		const float dt = float(now - lastTick) / 1000.f;
 		lastTick = now;
-
-		nodeGraph.Prepass(ar);
-		layout.RunIfNeeded(ar, float(window.GetSize().x), float(window.GetSize().y));
-		nodeGraph.UpdatePins(ar);
 
 		while (auto ev = sdl3::PollEvent()) {
 			auto &e = ev.Value();
@@ -236,38 +173,28 @@ int main() {
 				running = false;
 				break;
 			}
-			if (e.IsKeyDown(SDLK_ESCAPE) && !input.HasOpenModal()) {
-				running = false;
-				break;
-			}
-			bool ctrl = (sdl3::keyboard::Mods() & SDL_KMOD_CTRL) != 0;
+			const bool ctrl = (sdl3::keyboard::Mods() & SDL_KMOD_CTRL) != 0;
 			if (ctrl && e.IsKeyDown(SDLK_S)) {
 				saveGraph();
-			} else if (ctrl && e.IsKeyDown(SDLK_O)) {
-				loadGraph();
-			} else if (ctrl && e.IsKeyDown(SDLK_V)) {
-				nodeGraph.PasteClipboard(f, canvasE, {200.f, 400.f});
+				continue;
 			}
-			input.HandleEvent(ar, e, layout);
-			nodeGraph.HandleEvent(ar, e, layout);
+			if (ctrl && e.IsKeyDown(SDLK_O)) {
+				loadGraph();
+				continue;
+			}
+			if (gui.HandleEvent(e))
+				continue;
+			if (e.IsKeyDown(SDLK_ESCAPE))
+				running = false;
 		}
-		input.Tick(ar, layout, dt);
-		nodeGraph.Tick(ar, layout, dt);
+		gui.Update(dt);
 		frame.Update();
 		if (frame.CloseRequested())
 			running = false;
 
-		style.Resolve(ar);
-		layout.RunIfNeeded(ar, float(window.GetSize().x), float(window.GetSize().y));
-
-		ren.SetDrawColor(sdl3::FColor{16 / 255.f, 17 / 255.f, 22 / 255.f, 1.f});
+		ren.SetDrawColor(gui.CurrentPalette().appBg);
 		ren.Clear();
-		nodeGraph.RenderGrid(ar, renBackend);
-		nodeGraph.RenderConnections(ar, renBackend);
-		render.Run(ar, renBackend, &input.tooltip);
-		nodeGraph.RenderHeaders(ar, renBackend);
-		nodeGraph.RenderPins(ar, renBackend);
-		nodeGraph.RenderMarquee(renBackend);
+		gui.Render();
 		ren.Present();
 	}
 	return 0;

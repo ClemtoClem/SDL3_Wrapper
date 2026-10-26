@@ -31,15 +31,15 @@ Option<math::FVector3> NodeOrigin(Runtime &rt, scene::NodeId id) {
 
 // ── Construction ─────────────────────────────────────────────────────────────
 
-void EditorUi::BuildViewportTools(ecs::Entity bar) {
+void EditorUi::BuildViewportTools(ui::Widget bar) {
 	m_modelToolButtons.clear();
 	m_modelOnlyButtons.clear();
 	m_sceneOnlyButtons.clear();
-	auto separator = [&](std::vector<ecs::Entity> *group) {
-		ui::WidgetBuilder line = m_ctx.factory.Row();
-		line.Pad(0.f);
-		line.Size(1.f, 20.f).Bg(kit::PaletteOf(m_ctx).separator).Margin(math::Sides{4.f, 0.f}).Parent(bar);
-		const ecs::Entity entity = line.Spawn();
+	auto separator = [&](std::vector<ui::Widget> *group) {
+		ui::WidgetBuilder line = ui::Row();
+		line.Padding(0.f);
+		line.Size(1.f, 20.f).Background(kit::PaletteOf(m_ctx).separator).Margin(math::Sides{4.f, 0.f});
+		ui::Widget entity = bar.Append(line);
 		if (group)
 			group->push_back(entity);
 	};
@@ -47,8 +47,8 @@ void EditorUi::BuildViewportTools(ecs::Entity bar) {
 	// Espace de travail 2D / 3D. En modélisation, « 2D » ouvre une esquisse
 	// (plan d'axes ou face d'un nœud) et « 3D » la referme.
 	for (int i = 0; i < 2; ++i) {
-		ui::WidgetBuilder button = m_ctx.factory.Button(String(i == 0 ? "2D" : "3D"));
-		button.Size(34.f, 24.f).FontSize(12.f).Bold().Radius(4.f);
+		ui::WidgetBuilder button = ui::Button(String(i == 0 ? "2D" : "3D"));
+		button.Size(34.f, 24.f).FontSize(12.f).Bold().BorderRadius(4.f);
 		button.Tooltip(String(i == 0 ? "Espace de travail 2D (en modélisation : esquisse sur un plan ou une face)"
 									 : "Espace de travail 3D (en modélisation : fin de l'esquisse)"));
 		button.OnClick([this, i] {
@@ -56,8 +56,8 @@ void EditorUi::BuildViewportTools(ecs::Entity bar) {
 				(void)(i == 0 ? OpenSketchMenu() : EndSketch());
 			else
 				Set2DView(i == 0);
-		}).Parent(bar);
-		m_workspaceButtons[i] = button.Spawn();
+		});
+		m_workspaceButtons[i] = bar.Append(button);
 	}
 	separator(nullptr);
 
@@ -119,7 +119,7 @@ void EditorUi::BuildViewportTools(ecs::Entity bar) {
 	for (const Drawing &d : drawing) {
 		const char key = modeling::ToolShortcut(d.kind);
 		const String tooltip = String::Format("%s (%c)", modeling::ToolName(d.kind), char(key - 'a' + 'A'));
-		const ecs::Entity button = kit::IconButton(m_ctx, bar, d.icon, tooltip, [this, kind = d.kind] {
+		ui::Widget button = kit::IconButton(m_ctx, bar, d.icon, tooltip, [this, kind = d.kind] {
 			m_modeling.SetTool(kind);
 			m_navTool = NavTool::NONE;
 		}, ICON);
@@ -169,7 +169,7 @@ void EditorUi::BuildViewportTools(ecs::Entity bar) {
 												 nullptr, kit::PaletteOf(m_ctx).ok));
 
 	// Menu des plans d'esquisse (bouton « 2D » en modélisation).
-	m_sketchMenu = m_ctx.factory.ContextMenu();
+	m_sketchMenu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_menuPopups.push_back(m_sketchMenu);
 	AddItem(m_sketchMenu, "Plan du sol (rouge / bleu)", "", [this] { BeginSketch(0); });
 	AddItem(m_sketchMenu, "Plan de face (rouge / vert)", "", [this] { BeginSketch(1); });
@@ -185,9 +185,9 @@ void EditorUi::RefreshViewportTools() {
 	const bool modeling = m_modeling.IsActive();
 	if (int(modeling) != m_shownToolMode) {
 		m_shownToolMode = int(modeling);
-		for (ecs::Entity e : m_modelOnlyButtons)
+		for (ui::Widget e : m_modelOnlyButtons)
 			kit::SetHidden(m_ctx, e, !modeling);
-		for (ecs::Entity e : m_sceneOnlyButtons)
+		for (ui::Widget e : m_sceneOnlyButtons)
 			kit::SetHidden(m_ctx, e, modeling);
 		m_shownToolKey = -1;
 		m_shownView2d = !m_shownView2d; // force le surlignage de 2D / 3D
@@ -215,7 +215,7 @@ void EditorUi::RefreshViewportTools() {
 		return;
 	m_shownToolKey = key;
 	const sdl3::FColor on = kit::PaletteOf(m_ctx).selection;
-	auto paint = [&](ecs::Entity button, bool active) { kit::SetBackground(m_ctx, button, active ? on : CLEAR); };
+	auto paint = [&](ui::Widget button, bool active) { kit::SetBackground(m_ctx, button, active ? on : CLEAR); };
 	using modeling::ToolKind;
 	paint(m_orbitButton, key == KEY_ORBIT);
 	paint(m_panButton, key == KEY_PAN);
@@ -352,9 +352,9 @@ void EditorUi::TapeHover(const math::FRay &ray) {
 // ── Esquisse ─────────────────────────────────────────────────────────────────
 
 void EditorUi::OpenSketchMenu() {
-	if (auto computed = m_ctx.registry.GetComponent<ui::UiComputed>(m_workspaceButtons[0]); computed.IsSome()) {
-		const sdl3::FRect r = computed.Unwrap()->screen;
-		m_ctx.gui.OpenPopupAt(m_sketchMenu, sdl3::FPoint{r.x, r.y + r.h});
+	if (ui::Widget(m_workspaceButtons[0])) {
+		const sdl3::FRect r = ui::Widget(m_workspaceButtons[0]).Bounds();
+		m_sketchMenu.OpenAt(sdl3::FPoint{r.x, r.y + r.h});
 	}
 }
 

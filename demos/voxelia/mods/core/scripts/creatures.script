@@ -1,0 +1,375 @@
+# Créatures : comportements (poursuite, tir, explosion, défense…) et
+# apparition naturelle. Les paramètres viennent des définitions JSON
+# (creatures/*.json), par exemple :
+#   {"id": "core:chase", "range": 24, "speed": 2.3, "damage": 3, "effect": "poison"}
+
+fn is_night() {
+    let t = game.time()
+    return t > 0.78 or t < 0.22
+}
+
+fn dist2(a, b) {
+    let dx = a.x - b.x
+    let dy = a.y - b.y
+    let dz = a.z - b.z
+    return dx * dx + dy * dy + dz * dz
+}
+
+fn has_tag(e, tag) {
+    for (t in entity.tags(e)) { if (t == tag) { return true } }
+    return false
+}
+
+fn timer(e, key, dt) {
+    let t = entity.prop(e, key)
+    if (t == nil) { t = 0 }
+    t -= dt
+    entity.set_prop(e, key, t)
+    return t
+}
+
+# Vers une position (déplacement horizontal) ; rend la distance horizontale.
+fn go_toward(e, target, speed) {
+    let p = entity.pos(e)
+    let dx = target.x - p.x
+    let dz = target.z - p.z
+    let d = math.max(0.01, math.sqrt(dx * dx + dz * dz))
+    entity.move(e, dx / d, dz / d, speed)
+    entity.look(e, math.atan2(dx, dz))
+    return d
+}
+
+# Cible d'une créature : la dernière qui l'a frappée (« provoquée »), sinon
+# le joueur le plus proche, sinon une proie de « targets ».
+fn pick_target(e, params) {
+    let angry = entity.prop(e, "angry_at")
+    if (angry != nil and entity.exists(angry)) { return angry }
+    if (params.onlyProvoked == true) { return nil }
+    if (params.nightOnly == true and not is_night()) { return nil }
+    let player = entity.nearest_player(e, params.range)
+    if (player != nil and game.mode() != "spectator" and game.mode() != "creative") { return player }
+    if (params.targets != nil) {
+        let p = entity.pos(e)
+        for (id in params.targets) {
+            let prey = world.entities(p.x, p.y, p.z, params.range, id)
+            if (len(prey) > 0) { return prey[0] }
+        }
+    }
+    return nil
+}
+
+fn melee(e, target, params, dt) {
+    if (timer(e, "attack_cd", dt) > 0) { return nil }
+    if (dist2(entity.pos(e), entity.pos(target)) < 2.6 * 2.6) {
+        entity.damage(target, params.damage, e)
+        if (params.effect != nil) { entity.effect(target, params.effect, 8, 1) }
+        entity.set_prop(e, "attack_cd", 1.1)
+    }
+}
+
+voxel.behavior("chase", fn(e, params, dt) {
+    let target = pick_target(e, params)
+    if (target == nil) { return nil }
+    let d = go_toward(e, entity.pos(target), params.speed)
+    if (d < 1.2) { entity.move(e, 0, 0) }
+    melee(e, target, params, dt)
+    return true      # les comportements suivants (errance) attendent
+})
+
+# Garde : attaque les créatures hostiles proches (et ce qui le frappe).
+voxel.behavior("defend", fn(e, params, dt) {
+    let target = entity.prop(e, "angry_at")
+    if (target == nil or not entity.exists(target)) {
+        target = nil
+        let p = entity.pos(e)
+        let best = params.range * params.range
+        for (other in world.entities(p.x, p.y, p.z, params.range, "creature")) {
+            if (has_tag(other, "hostile")) {
+                let d = dist2(p, entity.pos(other))
+                if (d < best) { best = d; target = other }
+            }
+        }
+    }
+    if (target == nil) { return nil }
+    if (params.ranged == true) {
+        shoot_at(e, target, 0.5, 12, nil, "core:snowball")
+        entity.set_prop(e, "angry_at", nil)
+        return nil
+    }
+    go_toward(e, entity.pos(target), params.speed)
+    melee(e, target, params, dt)
+    return true
+})
+
+# Archer : garde ses distances.
+voxel.behavior("keep_distance", fn(e, params, dt) {
+    let target = entity.nearest_player(e, params.range)
+    if (target == nil) { return nil }
+    let p = entity.pos(e)
+    let t = entity.pos(target)
+    let dx = p.x - t.x
+    let dz = p.z - t.z
+    let d = math.max(0.01, math.sqrt(dx * dx + dz * dz))
+    entity.look(e, math.atan2(0 - dx, 0 - dz))
+    if (d < params.distance - 1) { entity.move(e, dx / d, dz / d, params.speed) }
+    else if (d > params.distance + 2) { entity.move(e, 0 - dx / d, 0 - dz / d, params.speed) }
+    else { entity.move(e, 0, 0) }
+    return nil
+})
+
+# Projectile : une entité « arrow_projectile » lancée vers la cible.
+fn shoot_at(e, target, damage, speed, effect, kind) {
+    let p = entity.pos(e)
+    let t = entity.pos(target)
+    let dx = t.x - p.x
+    let dy = t.y + 1.0 - (p.y + 1.4)
+    let dz = t.z - p.z
+    let d = math.max(0.01, math.sqrt(dx * dx + dy * dy + dz * dz))
+    let id = "core:arrow_projectile"
+    if (kind == "core:potion") { id = "core:potion_projectile" }
+    let arrow = world.spawn(id, p.x + dx / d * 0.8, p.y + 1.4, p.z + dz / d * 0.8)
+    if (arrow == nil) { return nil }
+    entity.set_velocity(arrow, dx / d * speed, dy / d * speed + d * 0.06, dz / d * speed)
+    entity.look(arrow, math.atan2(dx, dz))
+    entity.set_prop(arrow, "owner", e)
+    entity.set_prop(arrow, "damage", damage)
+    entity.set_prop(arrow, "effect", effect)
+    entity.set_prop(arrow, "age", 0)
+    game.sound("bow", p.x, p.y + 1.4, p.z)
+}
+
+voxel.behavior("shoot", fn(e, params, dt) {
+    if (timer(e, "shoot_cd", dt) > 0) { return nil }
+    let target = entity.nearest_player(e, params.range)
+    if (target == nil or game.mode() == "creative" or game.mode() == "spectator") { return nil }
+    shoot_at(e, target, params.damage, params.speed, params.effect, nil)
+    entity.set_prop(e, "shoot_cd", params.interval)
+})
+
+voxel.behavior("throw_potion", fn(e, params, dt) {
+    if (timer(e, "potion_cd", dt) > 0) { return nil }
+    let target = entity.nearest_player(e, params.range)
+    if (target == nil or game.mode() == "creative" or game.mode() == "spectator") { return nil }
+    shoot_at(e, target, 1, 10, params.effect, "core:potion")
+    entity.set_prop(e, "potion_cd", params.interval)
+})
+
+# Vol d'un projectile : touche la première entité proche, sinon disparaît
+# une fois planté (vitesse nulle) ou trop vieux.
+voxel.behavior("projectile", fn(e, params, dt) {
+    let age = entity.prop(e, "age")
+    if (age == nil) { age = 0 }
+    age += dt
+    entity.set_prop(e, "age", age)
+    let p = entity.pos(e)
+    let owner = entity.prop(e, "owner")
+    for (other in world.entities(p.x, p.y, p.z, 1.3)) {
+        if (other != e and other != owner and entity.kind(other) != "core:arrow_projectile" and entity.kind(other) != "voxel:item") {
+            entity.damage(other, entity.prop(e, "damage"), owner)
+            let effect = entity.prop(e, "effect")
+            if (effect != nil) { entity.effect(other, effect, 10, 1) }
+            game.sound("arrow_hit", p.x, p.y, p.z)
+            entity.remove(e)
+            return true
+        }
+    }
+    let v = entity.velocity(e)
+    if (age > 12 or (age > 0.3 and math.abs(v.x) + math.abs(v.z) < 0.2)) {
+        if (entity.kind(e) == "core:potion_projectile") { game.sound("potion_break", p.x, p.y, p.z) }
+        entity.remove(e)
+    }
+    return true
+})
+
+# Creeper : s'approche, siffle, puis explose.
+voxel.behavior("creeper", fn(e, params, dt) {
+    let target = entity.nearest_player(e, params.range)
+    if (target == nil or game.mode() == "creative" or game.mode() == "spectator") {
+        entity.set_prop(e, "fuse", 0)
+        return nil
+    }
+    let d = go_toward(e, entity.pos(target), params.speed)
+    let fuse = entity.prop(e, "fuse")
+    if (fuse == nil) { fuse = 0 }
+    if (d < 2.4) {
+        if (fuse == 0) {
+            let p = entity.pos(e)
+            game.sound("fuse", p.x, p.y, p.z)
+        }
+        fuse += dt
+        entity.move(e, 0, 0)
+    } else {
+        fuse = math.max(0, fuse - dt)
+    }
+    entity.set_prop(e, "fuse", fuse)
+    if (fuse >= params.fuseTime) {
+        let p = entity.pos(e)
+        explode(e, p.x, p.y + 0.8, p.z, params.radius, 14)
+        entity.remove(e)
+    }
+    return true
+})
+
+fn explode(source, x, y, z, radius, damage) {
+    game.sound("explosion", x, y, z)
+    let r = math.floor(radius)
+    if (game.rule("mobGriefing")) {
+        for (dx in range(0 - r, r + 1)) {
+            for (dy in range(0 - r, r + 1)) {
+                for (dz in range(0 - r, r + 1)) {
+                    if (dx * dx + dy * dy + dz * dz <= r * r) {
+                        let bx = math.floor(x) + dx
+                        let by = math.floor(y) + dy
+                        let bz = math.floor(z) + dz
+                        let b = world.get(bx, by, bz)
+                        if (b != "core:bedrock" and b != "core:air" and b != "core:obsidian") { world.set(bx, by, bz, "core:air") }
+                    }
+                }
+            }
+        }
+    }
+    for (victim in world.entities(x, y, z, radius + 2)) {
+        if (victim != source) {
+            let vp = entity.pos(victim)
+            let dx = vp.x - x
+            let dz = vp.z - z
+            let dist = math.max(1, math.sqrt(dx * dx + dz * dz))
+            entity.impulse(victim, dx / dist * 8, 6, dz / dist * 8)
+            entity.damage(victim, damage * math.max(0.2, 1 - dist / (radius + 2)), source)
+        }
+    }
+}
+
+# Morts-vivants : brûlent au soleil, à découvert.
+voxel.behavior("burn_in_daylight", fn(e, params, dt) {
+    if (is_night()) { return nil }
+    if (timer(e, "burn_cd", dt) > 0) { return nil }
+    entity.set_prop(e, "burn_cd", 1)
+    let p = entity.pos(e)
+    let top = world.surface(p.x, p.z)
+    if (top != nil and p.y >= top - 0.5) { entity.damage(e, 1) }
+})
+
+# Fantôme : vole vers le joueur la nuit, se dissipe au lever du jour.
+voxel.behavior("haunt", fn(e, params, dt) {
+    if (not is_night()) {
+        entity.remove(e)
+        return true
+    }
+    let target = entity.nearest_player(e, params.range)
+    if (target == nil or game.mode() == "creative" or game.mode() == "spectator") {
+        entity.move(e, 0, 0)
+        return true
+    }
+    let p = entity.pos(e)
+    let t = entity.pos(target)
+    go_toward(e, t, params.speed)
+    entity.set_velocity(e, entity.velocity(e).x, math.clamp(t.y + 1.4 - p.y, -1.5, 1.5), entity.velocity(e).z)
+    melee(e, target, params, dt)
+    return true
+})
+
+# Riposte : une créature frappée garde rancune ; l'Enderman se téléporte.
+voxel.on("entity_damaged", fn(target, amount, source) {
+    if (source != nil and entity.exists(source) and entity.kind(source) != "core:arrow_projectile") {
+        entity.set_prop(target, "angry_at", source)
+    }
+    let behaviors = content.get("entity", entity.kind(target))
+    if (behaviors != nil and entity.kind(target) == "core:enderman" and math.random() < 0.6) {
+        let p = entity.pos(target)
+        let x = p.x + (math.random() - 0.5) * 16
+        let z = p.z + (math.random() - 0.5) * 16
+        let y = world.surface(x, z)
+        if (y != nil) {
+            game.sound("teleport", p.x, p.y, p.z)
+            entity.set_pos(target, x, y + 1, z)
+        }
+    }
+    return true
+})
+voxel.behavior("teleport_when_hurt", fn(e, params, dt) { return nil })
+
+# Chute d'objets supplémentaires et expérience à la mort : gérées par le
+# moteur (« drops », « xp »). Annonce des morts des joueurs.
+voxel.on("entity_died", fn(e, kind) {
+    if (kind == "voxel:player" and game.rule("announceDeaths")) {
+        game.say("Un joueur est mort.")
+    }
+    return true
+})
+
+# ── Apparition naturelle ────────────────────────────────────────────────────
+# Règles de chaque définition (« spawn ») : dimensions (sans elles : le monde
+# ordinaire seulement), biomes, sols, chance, nombre max, nuit, sous-sol,
+# hostilité de la forêt (« hostility » : [min, max]), créature volante.
+# Respecte les règles du monde et la difficulté.
+let spawn_timer = 0
+voxel.system("natural_spawning", fn(dt) {
+    spawn_timer -= dt
+    if (spawn_timer > 0) { return nil }
+    spawn_timer = 2
+    if (not game.rule("mobSpawning")) { return nil }
+    let config = content.config("spawning")
+    let peaceful = game.difficulty() == "peaceful"
+    let dimension = world.dimension()
+    let ordinary = dimension == world.default_dimension()
+    let hostility = world.data("hostility")
+    if (hostility == nil) { hostility = 0 }
+    for (player in entity.players()) {
+        let p = entity.pos(player)
+        let around = world.entities(p.x, p.y, p.z, config.radius, "creature")
+        if (len(around) >= config.maxCreatures) { continue }
+        let hostile = 0
+        for (c in around) { if (has_tag(c, "hostile")) { hostile += 1 } }
+        for (id in content.list("entity")) {
+            let def = content.get("entity", id)
+            let rule = def.spawn
+            if (rule == nil) { continue }
+            if (rule.dimensions == nil) {
+                if (not ordinary) { continue }
+            } else {
+                let here = false
+                for (d in rule.dimensions) { if (d == dimension) { here = true } }
+                if (not here) { continue }
+            }
+            if (rule.hostility != nil and (hostility < rule.hostility[0] or hostility > rule.hostility[1])) { continue }
+            let is_hostile = false
+            if (def.tags != nil) { for (t in def.tags) { if (t == "hostile") { is_hostile = true } } }
+            if (is_hostile and (peaceful or hostile >= config.maxHostile)) { continue }
+            if (rule.night == true and not is_night()) { continue }
+            if (math.random() > rule.chance * 50) { continue }
+            let angle = math.random() * 6.283
+            let dist = 18 + math.random() * 16
+            let x = math.floor(p.x + math.cos(angle) * dist)
+            let z = math.floor(p.z + math.sin(angle) * dist)
+            let y = world.surface(x, z)
+            if (not ordinary) {
+                # Îles, cavernes, salles : le sol réel près de la hauteur du joueur.
+                y = world.ground(x, z, math.floor(p.y) + 10, math.floor(p.y) - 14)
+                if (rule.flying == true and y == nil) { y = math.floor(p.y) + 2 }
+            }
+            if (y == nil) { continue }
+            if (rule.underground == true and ordinary) {
+                y = math.floor(p.y) - 1
+                if (world.get(x, y + 1, z) != "core:air" or world.get(x, y + 2, z) != "core:air") { continue }
+            }
+            if (rule.biomes != nil) {
+                let biome = world.biome(x, z)
+                let ok = false
+                for (b in rule.biomes) { if (b == biome) { ok = true } }
+                if (not ok) { continue }
+            }
+            let ground = world.get(x, y, z)
+            if (rule.onBlocks != nil) {
+                let ok = false
+                for (b in rule.onBlocks) { if (b == ground) { ok = true } }
+                if (not ok) { continue }
+            }
+            let above = world.get(x, y + 1, z)
+            if (above != "core:air" and above != "core:tall_grass" and above != "core:medium_grass" and above != "core:snow") { continue }
+            if (len(world.entities(x, y, z, 24, id)) >= rule.max) { continue }
+            if (def.physics != nil and def.physics.flies == true) { y += 4 }
+            world.spawn(id, x + 0.5, y + 1, z + 0.5)
+        }
+    }
+})

@@ -53,7 +53,7 @@ public:
 	InspectorPanel(const InspectorPanel &) = delete;
 	InspectorPanel &operator=(const InspectorPanel &) = delete;
 
-	void Build(ecs::Entity page);
+	void Build(ui::Widget page);
 
 	void Teardown();
 
@@ -93,18 +93,18 @@ private:
 
 	/// Section repliable. `component` non vide : section d'un composant, qui
 	/// reçoit son menu ⋮ (réinitialiser / retirer / JSON).
-	ecs::Entity Section(const char *title, const String &component);
+	ui::Widget Section(const char *title, const String &component);
 
-	void AddMenuItem(ecs::Entity menu, const char *text, std::function<void()> action);
+	void AddMenuItem(ui::Widget menu, const char *text, std::function<void()> action);
 
 	/// Le clic sur `button` ouvre `menu` sous lui.
-	void AttachMenu(ecs::Entity button, ecs::Entity menu);
+	void AttachMenu(ui::Widget button, ui::Widget menu);
 
 	// ── Sections par composant ───────────────────────────────────────────────
 
 	void BuildVisualSections(kit::PropertyRows &rows, scene::NodeId id, const VisualDesc &visual);
 	/// Maillage modélisé : fichier, statistiques, Modéliser / Terminer, export.
-	void BuildModeledMeshRows(kit::PropertyRows &rows, ecs::Entity section, scene::NodeId id, const VisualDesc &visual);
+	void BuildModeledMeshRows(kit::PropertyRows &rows, ui::Widget section, scene::NodeId id, const VisualDesc &visual);
 
 	void BuildLightSections(kit::PropertyRows &rows, scene::NodeId id, const LightDesc &light);
 
@@ -164,9 +164,9 @@ private:
 
 	UiContext &m_ctx;
 	InspectorActions m_actions;
-	ecs::Entity m_page{};
-	std::vector<ecs::Entity> m_popups;
-	std::vector<std::pair<String, ecs::Entity>> m_sections;
+	ui::Widget m_page{};
+	std::vector<ui::Widget> m_popups;
+	std::vector<std::pair<String, ui::Widget>> m_sections;
 	std::unordered_map<String, bool> m_open;
 	String m_pendingSection;
 	bool m_dirty = true;
@@ -189,13 +189,13 @@ class LibraryPanel {
 public:
 	LibraryPanel(UiContext &ctx, InspectorActions actions) : m_ctx(ctx), m_actions(std::move(actions)) {}
 
-	void BuildMaterials(ecs::Entity page);
+	void BuildMaterials(ui::Widget page);
 
-	void BuildScripts(ecs::Entity page);
+	void BuildScripts(ui::Widget page);
 
 	void RefreshScripts();
 
-	void BuildWorld(ecs::Entity page);
+	void BuildWorld(ui::Widget page);
 
 	void RefreshWorld();
 
@@ -206,8 +206,8 @@ private:
 
 	UiContext &m_ctx;
 	InspectorActions m_actions;
-	ecs::Entity m_materialsPage{}, m_scriptsPage{}, m_worldPage{};
-	std::vector<ecs::Entity> m_popups;
+	ui::Widget m_materialsPage{}, m_scriptsPage{}, m_worldPage{};
+	std::vector<ui::Widget> m_popups;
 	int m_scriptRowIndex = 0;
 };
 

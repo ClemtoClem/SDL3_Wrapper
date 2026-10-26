@@ -5,7 +5,7 @@ namespace sandbox {
 
 // ── DocumentArea ─────────────────────────────────────────────────────────────
 
-void DocumentArea::Build(ecs::Entity parent, const std::function<void(ui::WidgetBuilder &)> &size) {
+void DocumentArea::Build(ui::Widget parent, const std::function<void(ui::WidgetBuilder &)> &size) {
 	m_documents.clear();
 	m_dock.Build(parent, size);
 	m_dock.onClose = [this](int page) { Close(page); };
@@ -93,7 +93,7 @@ void DocumentArea::OpenToolConsole() {
 }
 
 CodeDocument * DocumentArea::Active() {
-	const ecs::Entity page = m_dock.Page(m_dock.Active());
+	ui::Widget page = m_dock.Page(m_dock.Active());
 	for (CodeDocument &doc : m_documents)
 		if (doc.page == page)
 			return &doc;
@@ -134,7 +134,7 @@ void DocumentArea::CheckActive() {
 }
 
 void DocumentArea::Close(int page) {
-	const ecs::Entity entity = m_dock.Page(page);
+	ui::Widget entity = m_dock.Page(page);
 	for (size_t i = 0; i < m_documents.size(); ++i) {
 		if (m_documents[i].page != entity)
 			continue;
@@ -148,7 +148,7 @@ void DocumentArea::Close(int page) {
 
 void DocumentArea::Tick() {
 	for (int page = 1; page < m_dock.Count(); ++page) {
-		const ecs::Entity entity = m_dock.Page(page);
+		ui::Widget entity = m_dock.Page(page);
 		for (CodeDocument &doc : m_documents) {
 			if (doc.page != entity)
 				continue;
@@ -157,14 +157,15 @@ void DocumentArea::Tick() {
 		}
 	}
 	if (CodeDocument *doc = Active()) {
-		if (auto area = m_ctx.registry.GetComponent<ui::UiInputArea>(doc->area); area.IsSome() && area.Unwrap()->focused) {
-			const ui::UiInputArea &a = *area.Unwrap();
+		if (auto editor = doc->area.Get<ui::TextEditor>(); editor.IsSome() && doc->area.IsFocused()) {
+			const String text = doc->area.Text();
+			const size_t cursor = editor.Unwrap()->cursor;
 			int line = 1, column = 1;
-			for (size_t i = 0; i < a.cursor && i < a.text.size(); ++i) {
-				if (a.text[i] == '\n') {
+			for (size_t i = 0; i < cursor && i < text.size(); ++i) {
+				if (text[i] == '\n') {
 					++line;
 					column = 1;
-				} else if ((static_cast<unsigned char>(a.text[i]) & 0xC0) != 0x80) {
+				} else if ((static_cast<unsigned char>(text[i]) & 0xC0) != 0x80) {
 					++column;
 				}
 			}
@@ -191,65 +192,62 @@ void DocumentArea::Open(CodeDocument doc, const String &text) {
 			return;
 		}
 	}
-	const ui::UiTheme &theme = m_ctx.Theme();
+	const ui::Palette &theme = m_ctx.Theme();
 	doc.page = m_dock.AddPage(doc.title, false, true, 0.f);
 	doc.saved = text;
 
 	// Barre du document : nom · état · position · actions.
-	ui::WidgetBuilder bar = m_ctx.factory.Row();
-	bar.Gap(6.f).Pad(math::Sides{8.f, 3.f}).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(doc.page);
-	ecs::Entity barEntity = bar.Spawn();
+	ui::WidgetBuilder bar = ui::Row();
+	bar.Gap(6.f).Padding(math::Sides{8.f, 3.f}).GrowWidth().AlignItems(ui::Align::Center);
+	ui::Widget barEntity = doc.page.Append(bar);
 	(void)kit::Glyph(m_ctx, barEntity, doc.kind == DocumentKind::COMPONENT_JSON ? ui::MaterialIcons::DATA_OBJECT
 									   : doc.kind == DocumentKind::TOOL_CONSOLE  ? ui::MaterialIcons::TERMINAL
 																				 : ui::MaterialIcons::DESCRIPTION,
 					 theme.muted, 15.f);
-	ui::WidgetBuilder path = m_ctx.factory.Label(DescriptionOf(doc));
-	path.WAuto().HAuto().FontSize(12.f).TextColor(theme.muted).TextEllipsis().Parent(barEntity);
-	(void)path.Spawn();
+	ui::WidgetBuilder path = ui::Label(DescriptionOf(doc));
+	path.FontSize(12.f).Color(theme.muted).Ellipsis();
+	barEntity.Append(path);
 	(void)kit::Spacer(m_ctx, barEntity);
-	ui::WidgetBuilder status = m_ctx.factory.Label(doc.readOnly ? String("Lecture seule") : String());
-	status.WAuto().HAuto().FontSize(12.f).TextColor(theme.muted).Parent(barEntity);
-	doc.status = status.Spawn();
-	ui::WidgetBuilder cursor = m_ctx.factory.Label(String("Ln 1, Col 1"));
-	cursor.Size(96.f, 0.f).HAuto().FontSize(12.f).TextColor(theme.muted).Parent(barEntity);
-	doc.cursor = cursor.Spawn();
+	ui::WidgetBuilder status = ui::Label(doc.readOnly ? String("Lecture seule") : String());
+	status.FontSize(12.f).Color(theme.muted);
+	doc.status = barEntity.Append(status);
+	ui::WidgetBuilder cursor = ui::Label(String("Ln 1, Col 1"));
+	cursor.Size(96.f, 0.f).FontSize(12.f).Color(theme.muted);
+	doc.cursor = barEntity.Append(cursor);
 	if (doc.kind == DocumentKind::TOOL_CONSOLE) {
-		ui::WidgetBuilder run = m_ctx.factory.Button(String("Exécuter"));
-		run.WAuto().HAuto().FontSize(12.f).Tooltip(String("Ctrl+Entrée")).Parent(barEntity);
+		ui::WidgetBuilder run = ui::Button(String("Exécuter"));
+		run.FontSize(12.f).Tooltip(String("Ctrl+Entrée"));
 		run.OnClick([this] { RunActive(); });
-		(void)run.Spawn();
+		barEntity.Append(run);
 	} else if (!doc.readOnly) {
-		ui::WidgetBuilder check = m_ctx.factory.Button(String("Vérifier"));
-		check.WAuto().HAuto().FontSize(12.f).Parent(barEntity);
+		ui::WidgetBuilder check = ui::Button(String("Vérifier"));
+		check.FontSize(12.f);
 		check.OnClick([this] { CheckActive(); });
-		(void)check.Spawn();
-		ui::WidgetBuilder save = m_ctx.factory.Button(String("Enregistrer"));
-		save.WAuto().HAuto().FontSize(12.f).Tooltip(String("Ctrl+S")).Parent(barEntity);
+		barEntity.Append(check);
+		ui::WidgetBuilder save = ui::Button(String("Enregistrer"));
+		save.FontSize(12.f).Tooltip(String("Ctrl+S"));
 		save.OnClick([this] { (void)SaveActive(); });
-		(void)save.Spawn();
+		barEntity.Append(save);
 		if (doc.kind == DocumentKind::LIBRARY_SCRIPT || doc.kind == DocumentKind::SCENE_SCRIPT) {
-			ui::WidgetBuilder saveAs = m_ctx.factory.Button(String("Enregistrer sous…"));
-			saveAs.WAuto().HAuto().FontSize(12.f).Tooltip(String("Écrit le script dans un fichier .script")).Parent(barEntity);
+			ui::WidgetBuilder saveAs = ui::Button(String("Enregistrer sous…"));
+			saveAs.FontSize(12.f).Tooltip(String("Écrit le script dans un fichier .script"));
 			const String key = doc.kind == DocumentKind::SCENE_SCRIPT ? String("@") + doc.target : doc.target;
 			saveAs.OnClick([this, key] {
 				(void)SaveActive();
 				if (onSaveScriptAs)
 					onSaveScriptAs(key);
 			});
-			(void)saveAs.Spawn();
+			barEntity.Append(saveAs);
 		}
 	}
 
-	ui::WidgetBuilder area = m_ctx.factory.InputArea();
-	area.GrowW().GrowH().FontSize(13.f).CodeEditor(doc.kind == DocumentKind::COMPONENT_JSON
-													   ? ui::UiSyntaxHighlighter(kit::syntax::HighlightJson)
-													   : kit::syntax::ForName(doc.title));
+	ui::WidgetBuilder area = ui::CodeEditor(text, doc.kind == DocumentKind::COMPONENT_JSON
+													  ? ui::SyntaxHighlighter(kit::syntax::HighlightJson)
+													  : kit::syntax::ForName(doc.title));
+	area.GrowWidth().GrowHeight().FontSize(13.f);
 	if (doc.readOnly)
-		area.IoMode(ui::IOMode::READ_AND_COPY_ONLY);
-	area.Parent(doc.page);
-	doc.area = area.Spawn();
-	if (auto field = m_ctx.registry.GetComponent<ui::UiInputArea>(doc.area); field.IsSome())
-		field.Unwrap()->text = text;
+		area.EditMode(ui::IOMode::ReadAndCopy);
+	doc.area = doc.page.Append(area);
 	m_documents.push_back(std::move(doc));
 	// AddPage a activé la page AVANT que le document soit enregistré :
 	// on la réactive pour que l'appel d'activation le trouve.
@@ -274,17 +272,13 @@ String DocumentArea::DescriptionOf(const CodeDocument &doc) {
 }
 
 String DocumentArea::TextOf(const CodeDocument &doc) const {
-	auto area = m_ctx.registry.GetComponent<ui::UiInputArea>(doc.area);
-	return area.IsSome() ? area.Unwrap()->text : String();
+	return doc.area.Text();
 }
 
 void DocumentArea::SetDocStatus(CodeDocument &doc, const String &text, bool error) {
 	kit::SetLabelText(m_ctx, doc.status, text);
-	if (auto label = m_ctx.registry.GetComponent<ui::UiStyle>(doc.status); label.IsSome()) {
-		label.Unwrap()->SetTextColor(error ? kit::PaletteOf(m_ctx).error : kit::PaletteOf(m_ctx).ok);
-		if (!m_ctx.registry.HasComponent<ui::UiStyleDirty>(doc.status))
-			m_ctx.registry.AddComponent(doc.status, ui::UiStyleDirty{});
-	}
+	ui::Widget status = doc.status;
+	status.Color(error ? kit::PaletteOf(m_ctx).error : kit::PaletteOf(m_ctx).ok);
 }
 
 void DocumentArea::Check(CodeDocument &doc, const String &text) {

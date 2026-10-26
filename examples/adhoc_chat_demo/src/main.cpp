@@ -23,7 +23,7 @@
  * commandes nmcli bloquent (un scan dure quelques secondes) : elles tournent
  * dans des tâches std::async dont l'interface relève le résultat.
  *
- *   ./build/debug/adhoc_chat_demo [options]
+ *   cpp-maker run adhoc_chat_demo -- [options]
  *     --nick NOM             pseudo (défaut : $USER)
  *     --discovery-port N     port UDP de découverte (défaut 48620)
  *     --tcp-port N           premier port TCP essayé (défaut 48621)
@@ -42,8 +42,6 @@
 #include <net/adhoc_chat.hpp>
 #include <net/wifi.hpp>
 #include <sdl3/sdl3.hpp>
-#include <ui/chrome.hpp>
-#include <ui/glyphs.hpp>
 #include <ui/ui.hpp>
 
 #include <cstdlib>
@@ -67,15 +65,12 @@ static constexpr sdl3::FColor Rgb(int r, int g, int b) {
 
 static constexpr int WIN_W = 1360;
 static constexpr int WIN_H = 840;
-static constexpr float FONT_PT = 14.f;
 
 static constexpr sdl3::FColor COL_MUTED = Rgb(150, 156, 178);
 static constexpr sdl3::FColor COL_ACCENT = Rgb(120, 190, 255);
 static constexpr sdl3::FColor COL_OK = Rgb(120, 210, 140);
 static constexpr sdl3::FColor COL_WARN = Rgb(240, 190, 90);
 static constexpr sdl3::FColor COL_ERR = Rgb(240, 110, 110);
-static constexpr sdl3::FColor COL_PANEL = Rgb(28, 30, 42);
-static constexpr sdl3::FColor COL_ROW = Rgb(36, 39, 54);
 
 // ============================================================================
 // Options de la ligne de commande
@@ -204,30 +199,68 @@ struct DeviceInfo {
 };
 
 // ============================================================================
+// Feuille de style
+// ============================================================================
+
+static constexpr const char *CHAT_CSS = R"css(
+window-frame { background-color: #12131b; }
+#titlebar { background-color: #1e2130; }
+#page { padding: 10px 8px 2px 10px; gap: 8px; }
+#header { gap: 10px; }
+#header-info { color: #969cb2; flex-grow: 1; text-overflow: ellipsis; overflow: hidden; }
+#body { gap: 10px; align-items: stretch; }
+.column { background-color: #1c1e2a; border-radius: 6px; padding: 10px; gap: 6px; border-width: 0; }
+#wifi { width: 430px; overflow-y: auto; }
+#chat { flex-grow: 1; }
+#peers { width: 400px; }
+.section { font-size: 16px; font-weight: bold; color: #78beff; }
+.muted { color: #969cb2; }
+.wrap { text-overflow: wrap; width: 100%; }
+.well { background-color: #161822; padding: 4px; gap: 2px; overflow-y: auto; }
+.field-label { width: 110px; }
+.row-card { background-color: #242736; border-radius: 4px; padding: 3px 6px; gap: 1px; }
+.row-card.selected { background-color: #303e60; }
+.small { font-size: 12px; }
+.ok { color: #78d28c; }
+.warn { color: #f0be5a; }
+.err { color: #f06e6e; }
+.accent { color: #78beff; }
+selectable.selected { background-color: #303e60; }
+)css";
+
+/// Longueur maximale d'un champ de saisie.
+static ui::WidgetBuilder MaxLen(ui::WidgetBuilder input, size_t n) {
+	input.OnBuilt([n](ui::Widget w) {
+		if (auto ed = w.Get<ui::TextEditor>(); ed.IsSome())
+			ed.Unwrap()->maxLength = n;
+	});
+	return input;
+}
+
+// ============================================================================
 // Application
 // ============================================================================
 
 class AdhocChatApp {
 public:
-	AdhocChatApp(ecs::ArchetypeRegistry& ar, ui::Ui& gui, sdl3::Window& window,
-				 chat::ChatNode& node, Options options)
-		: m_ar(ar), m_gui(gui), m_f(gui.Factory()), m_window(window), m_node(node),
-		  m_opt(std::move(options)) {
+	AdhocChatApp(ui::Ui &gui, sdl3::Window &window, chat::ChatNode &node, Options options)
+		: m_gui(gui), m_window(window), m_node(node), m_opt(std::move(options)) {
 		m_adhoc.device = m_opt.device;
 	}
 
 	void Build();
 	void Update();
-	void OnDropFile(const String& path);
+	void OnDropFile(const String &path);
 	[[nodiscard]] bool QuitRequested() const noexcept { return m_frame.CloseRequested(); }
 
 private:
 	// ── Construction ─────────────────────────────────────────────────────
-	ecs::Entity BuildWifiColumn(ecs::Entity parent);
-	ecs::Entity BuildChatColumn(ecs::Entity parent);
-	ecs::Entity BuildPeersColumn(ecs::Entity parent);
-	ui::WidgetBuilder Section(const char* title);
-	ui::WidgetBuilder Muted(const String& text);
+	ui::AnyWidget WifiColumn();
+	ui::AnyWidget ChatColumn();
+	ui::AnyWidget PeersColumn();
+	static ui::WidgetBuilder Section(const char *title) { return ui::Label(title).Class("section"); }
+	static ui::WidgetBuilder Muted(String text) { return ui::Label(std::move(text)).Class("muted").Class("wrap"); }
+	ui::AnyWidget Field(const char *label, ui::WidgetBuilder input, ui::Widget &ref);
 
 	// ── Wi-Fi ────────────────────────────────────────────────────────────
 	void StartProbe();
@@ -240,7 +273,7 @@ private:
 	void RebuildDeviceCombo();
 	void RebuildNetworks();
 	void RefreshWifiStatus();
-	void Log(const String& text);
+	void Log(const String &text);
 	[[nodiscard]] bool WifiBusy() const {
 		return m_probeJob.Running() || m_scanJob.Running() || m_configJob.Running();
 	}
@@ -248,25 +281,18 @@ private:
 	// ── Chat / pairs / fichiers ──────────────────────────────────────────
 	void SendMessage();
 	void PickFiles();
-	void SendFileToTargets(const String& path);
+	void SendFileToTargets(const String &path);
 	void RefreshChat();
 	void RefreshPeers(bool force);
 	void RefreshTransfers(bool force);
 	void RefreshHeader();
-	void SetStatus(const String& text, sdl3::FColor color);
+	void SetStatus(const String &text, sdl3::FColor color) { m_frame.SetStatus(text, Some(color)); }
+	/// Classe de couleur sémantique (ok / warn / err / muted) exclusive.
+	static void Tint(ui::Widget w, const char *cls);
 
-	// ── Aides ui ─────────────────────────────────────────────────────────
-	void SetText(ecs::Entity e, const String& text);
-	void SetColor(ecs::Entity e, sdl3::FColor color);
-	[[nodiscard]] String InputText(ecs::Entity e) const;
-	void SetInputText(ecs::Entity e, const String& text);
-	void Clear(ecs::Entity parent);
-
-	ecs::ArchetypeRegistry& m_ar;
-	ui::Ui& m_gui;
-	ui::UiFactory& m_f;
-	sdl3::Window& m_window;
-	chat::ChatNode& m_node;
+	ui::Ui &m_gui;
+	sdl3::Window &m_window;
+	chat::ChatNode &m_node;
 	Options m_opt;
 	ui::WindowFrame m_frame;
 
@@ -285,22 +311,21 @@ private:
 	uint64_t m_deviceInfoAt = 0;
 
 	// Widgets
-	ecs::Entity m_headerInfo, m_nickInput;
-	ecs::Entity m_deviceHolder, m_capsLabel, m_ipLabel, m_wifiState, m_networkList, m_scanButton;
-	ecs::Entity m_ssidInput, m_channelInput, m_addressInput, m_passwordInput, m_joinButton,
-		m_leaveButton;
-	ecs::Entity m_logArea;
-	ecs::Entity m_chatArea, m_messageInput;
-	ecs::Entity m_peerList, m_targetLabel, m_hostInput, m_portInput;
-	ecs::Entity m_transferList;
+	ui::Widget m_headerInfo, m_nickInput;
+	ui::Widget m_deviceHolder, m_capsLabel, m_ipLabel, m_wifiState, m_networkList, m_scanButton;
+	ui::Widget m_ssidInput, m_channelInput, m_addressInput, m_passwordInput, m_joinButton, m_leaveButton;
+	ui::Widget m_logArea;
+	ui::Widget m_chatArea, m_messageInput;
+	ui::Widget m_peerList, m_targetLabel, m_hostInput, m_portInput;
+	ui::Widget m_transferList;
 
 	// Rafraîchissements
 	String m_chatSignature = "-";
 	uint64_t m_lastRevision = 0;
 	String m_peersSignature;
 	String m_transfersSignature;
-	std::vector<std::pair<uint32_t, ecs::Entity>> m_progressBars; ///< transfert → barre
-	std::vector<std::pair<uint32_t, ecs::Entity>> m_progressLabels;
+	std::vector<std::pair<uint32_t, ui::Widget>> m_progressBars; ///< transfert → barre
+	std::vector<std::pair<uint32_t, ui::Widget>> m_progressLabels;
 	uint64_t m_selectedPeer = 0; ///< 0 : tous les pairs
 	uint64_t m_lastSlowRefresh = 0;
 
@@ -309,112 +334,57 @@ private:
 	std::vector<String> m_picked;
 };
 
-// ── Aides ui ─────────────────────────────────────────────────────────────────
-
-void AdhocChatApp::SetText(ecs::Entity e, const String& text) {
-	if (auto l = m_ar.GetComponent<ui::UiLabel>(e); l.IsSome() && l.Unwrap()->text != text) {
-		l.Unwrap()->text = text;
-		m_gui.Layout().MarkDirty();
-	}
-}
-
-void AdhocChatApp::SetColor(ecs::Entity e, sdl3::FColor color) {
-	auto style = m_ar.GetOrAddComponent<ui::UiStyle>(e);
-	if (style.IsSome()) {
-		style.Unwrap()->SetTextColor(color);
-		m_gui.Layout().MarkDirty();
-	}
-}
-
-String AdhocChatApp::InputText(ecs::Entity e) const {
-	if (auto in = m_ar.GetComponent<ui::UiInput>(e); in.IsSome())
-		return in.Unwrap()->text;
-	return {};
-}
-
-void AdhocChatApp::SetInputText(ecs::Entity e, const String& text) {
-	if (auto in = m_ar.GetComponent<ui::UiInput>(e); in.IsSome()) {
-		in.Unwrap()->text = text;
-		in.Unwrap()->cursor = in.Unwrap()->selectionAnchor = text.size();
-		m_gui.Layout().MarkDirty();
-	}
-}
-
-void AdhocChatApp::Clear(ecs::Entity parent) {
-	std::vector<ecs::Entity> children;
-	if (auto list = m_ar.GetComponent<ui::UiChildren>(parent); list.IsSome())
-		children = list.Unwrap()->list;
-	for (ecs::Entity child : children)
-		ui::DespawnTree(m_ar, child);
-	if (auto list = m_ar.GetComponent<ui::UiChildren>(parent); list.IsSome())
-		list.Unwrap()->list.clear();
-	m_gui.Layout().MarkDirty();
-}
-
-ui::WidgetBuilder AdhocChatApp::Section(const char* title) {
-	return std::move(m_f.Label(title).FontSize(16.f).Bold().TextColor(COL_ACCENT));
-}
-
-ui::WidgetBuilder AdhocChatApp::Muted(const String& text) {
-	return std::move(m_f.Label(text).TextColor(COL_MUTED).TextWrap().GrowW());
+void AdhocChatApp::Tint(ui::Widget w, const char *cls) {
+	for (const char *c : {"ok", "warn", "err", "muted", "accent"})
+		w.RemoveClass(c);
+	w.AddClass(cls);
 }
 
 // ── Construction ─────────────────────────────────────────────────────────────
 
-void AdhocChatApp::Build() {
-	// Fenêtre sans décoration : encadrement du module ui (barre de titre,
-	// déplacement, réduire / agrandir / fermer, barre d'état et poignée de
-	// redimensionnement).
-	m_frame.Build(m_gui, m_window,
-				  {.title = "Chat Wi-Fi ad hoc (IBSS)",
-				   .appIcon = Some(ui::MaterialIcons::WIFI_TETHERING),
-				   .status = "Prêt.",
-				   .background = Rgb(18, 19, 27),
-				   .titleBackground = Rgb(30, 33, 48)});
-
-	auto root = m_f.Column();
-	root.Gap(8.f).Pad(math::Sides{10.f, 8.f, 10.f, 2.f}).GrowW().GrowH().Parent(m_frame.Content());
-	ecs::Entity rootE = root.Spawn();
-
-	// ── En-tête : pseudo, adresses locales ───────────────────────────────
-	auto header = m_f.Row();
-	header.Gap(10.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(rootE);
-	ecs::Entity headerE = header.Spawn();
-	auto info = m_f.Label("");
-	info.TextColor(COL_MUTED).GrowW().TextEllipsis().Parent(headerE);
-	m_headerInfo = info.Spawn();
-	m_f.Label("Pseudo").Parent(headerE).Spawn();
-	auto nick = m_f.Input("pseudo");
-	nick.W(ui::Dimension::Px(160)).MaxLen(48).Parent(headerE).OnSubmit([this](const String& s) {
-		m_node.SetNickname(s);
-		SetStatus("Pseudo : " + m_node.Nickname(), COL_OK);
+ui::AnyWidget AdhocChatApp::Field(const char *label, ui::WidgetBuilder input, ui::Widget &ref) {
+	return ui::Row().Gap(6.f).FillWidth().Children({
+		ui::Label(label).Class("field-label"),
+		input.Grow().Ref(ref),
 	});
-	m_nickInput = nick.Spawn();
-	SetInputText(m_nickInput, m_node.Nickname());
-	m_f.Button("Appliquer")
-		.Parent(headerE)
-		.OnClick([this] {
-			m_node.SetNickname(InputText(m_nickInput));
-			SetStatus("Pseudo : " + m_node.Nickname(), COL_OK);
-		})
-		.Spawn();
+}
 
-	// ── Corps : trois colonnes ───────────────────────────────────────────
-	auto body = m_f.Row();
-	body.Gap(10.f).GrowW().GrowH().Parent(rootE);
-	ecs::Entity bodyE = body.Spawn();
-	BuildWifiColumn(bodyE);
-	BuildChatColumn(bodyE);
-	BuildPeersColumn(bodyE);
+void AdhocChatApp::Build() {
+	m_gui.AddStyleSheet(CHAT_CSS);
+	// Fenêtre sans décoration : barre de titre, déplacement, réduire /
+	// agrandir / fermer, barre d'état et poignée de redimensionnement.
+	m_frame.Build(m_gui, m_window,
+				  {.title = "Chat Wi-Fi ad hoc (IBSS)", .appIcon = Some(ui::MaterialIcons::WIFI_TETHERING),
+				   .status = "Prêt."});
+
+	auto applyNick = [this] {
+		m_node.SetNickname(m_nickInput.Text());
+		SetStatus("Pseudo : " + m_node.Nickname(), COL_OK);
+	};
+	m_frame.Content().Append(ui::Column().Id("page").Grow().FillWidth().Children({
+		// ── En-tête : informations locales, pseudo ──
+		ui::Row().Id("header").FillWidth().Children({
+			ui::Label("").Id("header-info").Ref(m_headerInfo),
+			ui::Label("Pseudo"),
+			MaxLen(ui::Input("pseudo", m_node.Nickname()), 48).Width(160.f).Ref(m_nickInput).OnSubmit(
+				[applyNick](const String &) { applyNick(); }),
+			ui::Button("Appliquer").OnClick(applyNick),
+		}),
+		// ── Corps : trois colonnes ──
+		ui::Row().Id("body").Grow().FillWidth().Children({WifiColumn(), ChatColumn(), PeersColumn()}),
+	}));
 
 	RefreshHeader();
+	RebuildNetworks();
+	RefreshPeers(true);
+	RefreshTransfers(true);
 	if (m_opt.wifi) {
 		StartProbe();
 	} else {
 		Log("Wi-Fi : désactivé (--no-wifi) — le chat utilise le réseau actuel.");
 		RefreshWifiStatus();
 	}
-	for (auto& [host, port] : m_opt.peers) {
+	for (auto &[host, port] : m_opt.peers) {
 		if (auto err = m_node.AddManualPeer(host, port))
 			Log("Pair " + host + " : " + *err);
 		else
@@ -422,160 +392,85 @@ void AdhocChatApp::Build() {
 	}
 }
 
-ecs::Entity AdhocChatApp::BuildWifiColumn(ecs::Entity parent) {
-	auto col = m_f.Panel();
-	col.Gap(6.f)
-		.Pad(10.f)
-		.W(ui::Dimension::Px(430))
-		.GrowH()
-		.Scrollable()
-		.Clip()
-		.Bg(COL_PANEL)
-		.Radius(6.f)
-		.Parent(parent);
-	ecs::Entity c = col.Spawn();
-
-	Section("Wi-Fi").Parent(c).Spawn();
-	auto devRow = m_f.Row();
-	devRow.Gap(6.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(c);
-	ecs::Entity devRowE = devRow.Spawn();
-	m_f.Label("Interface").W(ui::Dimension::Px(70)).Parent(devRowE).Spawn();
-	auto holder = m_f.Row();
-	holder.GrowW().HAuto().Parent(devRowE);
-	m_deviceHolder = holder.Spawn();
-	m_f.Button("Actualiser")
-		.Tooltip("Relire les interfaces, capacités, adresses et pare-feu")
-		.Parent(devRowE)
-		.OnClick([this] {
-			if (m_opt.wifi && !WifiBusy())
-				StartProbe();
+ui::AnyWidget AdhocChatApp::WifiColumn() {
+	return ui::Panel().Class("column").Id("wifi").Children({
+		Section("Wi-Fi"),
+		ui::Row().Gap(6.f).FillWidth().Children({
+			ui::Label("Interface").Width(70.f),
+			ui::Row().Grow().Ref(m_deviceHolder),
+			ui::Button("Actualiser").Tooltip("Relire les interfaces, capacités, adresses et pare-feu").OnClick([this] {
+				if (m_opt.wifi && !WifiBusy())
+					StartProbe();
+			}),
+		}),
+		Muted("").Ref(m_capsLabel),
+		Muted("").Ref(m_ipLabel),
+		ui::Label("").Class("wrap").Ref(m_wifiState),
+		// ── Réseaux visibles ──
+		ui::Row().Gap(6.f).FillWidth().Children({
+			ui::Label("Réseaux visibles").Bold().Grow(),
+			ui::Button("Scanner")
+				.Tooltip("Balayage radio (quelques secondes) ; les cellules ad hoc sont en tête")
+				.Ref(m_scanButton)
+				.OnClick([this] {
+					if (m_opt.wifi && !WifiBusy())
+						StartScan();
+				}),
+		}),
+		ui::Column().Class("well").FillWidth().Height(170.f).Ref(m_networkList),
+		// ── Cellule ad hoc ──
+		ui::Separator(),
+		ui::Label("Cellule ad hoc").Bold(),
+		Field("SSID", MaxLen(ui::Input("adhoc-chat", m_adhoc.ssid), 32), m_ssidInput),
+		Field("Canal (1-13)", MaxLen(ui::Input("6", String::Format("%d", m_adhoc.channel)), 2), m_channelInput),
+		ui::Row().Gap(6.f).FillWidth().Children({
+			ui::Label("Adressage IPv4").Class("field-label"),
+			ui::Combo(std::vector<String>{"Lien local (169.254.x.x)", "Adresse fixe"}, 0).Grow().OnSelect([this](int i) {
+				m_adhoc.ipv4 = i == 1 ? wifi::Ipv4Method::MANUAL : wifi::Ipv4Method::LINK_LOCAL;
+				m_addressInput.SetEnabled(m_adhoc.ipv4 == wifi::Ipv4Method::MANUAL);
+			}),
+		}),
+		Field("Adresse fixe", MaxLen(ui::Input("10.42.0.N/24, unique par machine"), 18).Disabled(), m_addressInput),
+		Field("Mot de passe", MaxLen(ui::Input("vide : cellule ouverte (WPA2 : 8+ car.)"), 63), m_passwordInput),
+		ui::Row().Gap(6.f).FillWidth().Children({
+			ui::Button("Créer / rejoindre")
+				.Grow()
+				.Tooltip("Même SSID et même canal sur chaque ordinateur ; la connexion Wi-Fi en cours sera coupée")
+				.Ref(m_joinButton)
+				.OnClick([this] {
+					if (m_opt.wifi && !WifiBusy())
+						StartJoin();
+				}),
+			ui::Button("Quitter la cellule")
+				.Grow()
+				.Tooltip("Supprime le profil ad hoc ; NetworkManager reprend la connexion habituelle")
+				.Ref(m_leaveButton)
+				.OnClick([this] {
+					if (m_opt.wifi && !WifiBusy())
+						StartLeave();
+				}),
+		}),
+		ui::Label("Journal (commandes et sorties, copiable)").Bold(),
+		ui::LogView([](const String &line, std::vector<ui::TextSpan> &out) {
+			if (line.StartsWith("$ "))
+				out.push_back({0, line.size(), COL_ACCENT});
+			else if (line.StartsWith("!"))
+				out.push_back({0, line.size(), COL_WARN});
+			else if (line.StartsWith("  sudo "))
+				out.push_back({0, line.size(), COL_OK});
 		})
-		.Spawn();
-
-	auto caps = Muted("");
-	caps.Parent(c);
-	m_capsLabel = caps.Spawn();
-	auto ip = Muted("");
-	ip.Parent(c);
-	m_ipLabel = ip.Spawn();
-	auto state = m_f.Label("");
-	state.TextWrap().GrowW().Parent(c);
-	m_wifiState = state.Spawn();
-
-	// ── Réseaux visibles ─────────────────────────────────────────────────
-	auto scanRow = m_f.Row();
-	scanRow.Gap(6.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(c);
-	ecs::Entity scanRowE = scanRow.Spawn();
-	m_f.Label("Réseaux visibles").Bold().GrowW().Parent(scanRowE).Spawn();
-	auto scan = m_f.Button("Scanner");
-	scan.Tooltip("Balayage radio (quelques secondes) ; les cellules ad hoc sont en tête")
-		.Parent(scanRowE)
-		.OnClick([this] {
-			if (m_opt.wifi && !WifiBusy())
-				StartScan();
-		});
-	m_scanButton = scan.Spawn();
-	auto list = m_f.Column();
-	list.Gap(2.f)
-		.Pad(4.f)
-		.GrowW()
-		.H(ui::Dimension::Px(170))
-		.Scrollable()
-		.Clip()
-		.Bg(Rgb(22, 24, 34))
-		.Parent(c);
-	m_networkList = list.Spawn();
-
-	// ── Cellule ad hoc ───────────────────────────────────────────────────
-	m_f.Separator().Parent(c).Spawn();
-	m_f.Label("Cellule ad hoc").Bold().Parent(c).Spawn();
-	auto field = [&](const char* label, ui::WidgetBuilder& input) {
-		auto row = m_f.Row();
-		row.Gap(6.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(c);
-		ecs::Entity r = row.Spawn();
-		m_f.Label(label).W(ui::Dimension::Px(110)).Parent(r).Spawn();
-		input.GrowW().Parent(r);
-		return input.Spawn();
-	};
-	m_ssidInput = field("SSID", m_f.Input("adhoc-chat").MaxLen(32));
-	SetInputText(m_ssidInput, m_adhoc.ssid);
-	m_channelInput = field("Canal (1-13)", m_f.Input("6").MaxLen(2));
-	SetInputText(m_channelInput, String::Format("%d", m_adhoc.channel));
-	{
-		auto row = m_f.Row();
-		row.Gap(6.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(c);
-		ecs::Entity r = row.Spawn();
-		m_f.Label("Adressage IPv4").W(ui::Dimension::Px(110)).Parent(r).Spawn();
-		m_f.Combo(std::vector<String>{"Lien local (169.254.x.x)", "Adresse fixe"}, 0)
-			.GrowW()
-			.Parent(r)
-			.OnChange([this](float v) {
-				m_adhoc.ipv4 =
-					int(v) == 1 ? wifi::Ipv4Method::MANUAL : wifi::Ipv4Method::LINK_LOCAL;
-				ui::SetEnabled(m_ar, m_addressInput, m_adhoc.ipv4 == wifi::Ipv4Method::MANUAL);
-			})
-			.Spawn();
-	}
-	m_addressInput =
-		field("Adresse fixe", m_f.Input("10.42.0.N/24, unique par machine").MaxLen(18));
-	ui::SetEnabled(m_ar, m_addressInput, false);
-	m_passwordInput =
-		field("Mot de passe", m_f.Input("vide : cellule ouverte (WPA2 : 8+ car.)").MaxLen(63));
-
-	auto actions = m_f.Row();
-	actions.Gap(6.f).GrowW().HAuto().Parent(c);
-	ecs::Entity a = actions.Spawn();
-	auto join = m_f.Button("Créer / rejoindre");
-	join.GrowW()
-		.Tooltip("Même SSID et même canal sur chaque ordinateur ; la connexion Wi-Fi en cours sera "
-				 "coupée")
-		.Parent(a)
-		.OnClick([this] {
-			if (m_opt.wifi && !WifiBusy())
-				StartJoin();
-		});
-	m_joinButton = join.Spawn();
-	auto leave = m_f.Button("Quitter la cellule");
-	leave.GrowW()
-		.Tooltip("Supprime le profil ad hoc ; NetworkManager reprend la connexion habituelle")
-		.Parent(a)
-		.OnClick([this] {
-			if (m_opt.wifi && !WifiBusy())
-				StartLeave();
-		});
-	m_leaveButton = leave.Spawn();
-
-	m_f.Label("Journal (commandes et sorties, copiable)").Bold().Parent(c).Spawn();
-	auto logArea = m_f.InputArea("");
-	logArea.IoMode(ui::IOMode::READ_AND_COPY_ONLY)
-		.GrowW()
-		.H(ui::Dimension::Px(190))
-		.FontSize(12.f)
-		.Parent(c);
-	logArea.Highlighter([](const String& line, std::vector<ui::UiTextSpan>& out) {
-		if (line.StartsWith("$ "))
-			out.push_back({0, line.size(), COL_ACCENT});
-		else if (line.StartsWith("!"))
-			out.push_back({0, line.size(), COL_WARN});
-		else if (line.StartsWith("  sudo "))
-			out.push_back({0, line.size(), COL_OK});
+			.FillWidth()
+			.Height(190.f)
+			.FontSize(12.f)
+			.Ref(m_logArea),
 	});
-	m_logArea = logArea.Spawn();
-	return c;
 }
 
-ecs::Entity AdhocChatApp::BuildChatColumn(ecs::Entity parent) {
-	auto col = m_f.Panel();
-	col.Gap(6.f).Pad(10.f).GrowW().GrowH().Bg(COL_PANEL).Radius(6.f).Parent(parent);
-	ecs::Entity c = col.Spawn();
-	Section("Chat").Parent(c).Spawn();
-
-	auto area = m_f.InputArea("Aucun message pour l'instant.");
-	area.IoMode(ui::IOMode::READ_AND_COPY_ONLY).GrowW().GrowH().Parent(c);
+ui::AnyWidget AdhocChatApp::ChatColumn() {
 	// « [hh:mm:ss] Pseudo : texte » — l'auteur en couleur ; les lignes
 	// système (« * … ») en gris, les nôtres en vert.
-	area.Highlighter([this](const String& line, std::vector<ui::UiTextSpan>& out) {
-		size_t close = line.Find("] ");
+	auto highlight = [this](const String &line, std::vector<ui::TextSpan> &out) {
+		const size_t close = line.Find("] ");
 		if (close == String::NPOS)
 			return;
 		out.push_back({0, close + 1, COL_MUTED});
@@ -583,136 +478,84 @@ ecs::Entity AdhocChatApp::BuildChatColumn(ecs::Entity parent) {
 			out.push_back({close + 2, line.size(), COL_MUTED});
 			return;
 		}
-		size_t colon = line.Find(" : ", close);
+		const size_t colon = line.Find(" : ", close);
 		if (colon != String::NPOS) {
-			bool mine = line.Substr(close + 2, colon - close - 2) == m_node.Nickname();
+			const bool mine = line.Substr(close + 2, colon - close - 2) == m_node.Nickname();
 			out.push_back({close + 2, colon, mine ? COL_OK : COL_ACCENT});
 		}
+	};
+	return ui::Panel().Class("column").Id("chat").Children({
+		Section("Chat"),
+		ui::LogView(highlight).FillWidth().Grow().Ref(m_chatArea),
+		ui::Row().Gap(6.f).FillWidth().Children({
+			MaxLen(ui::Input("Message à tous les pairs — Entrée pour envoyer"), 4000)
+				.Grow()
+				.Ref(m_messageInput)
+				.OnSubmit([this](const String &) { SendMessage(); }),
+			ui::Button("Envoyer").OnClick([this] { SendMessage(); }),
+		}),
 	});
-	m_chatArea = area.Spawn();
-
-	auto row = m_f.Row();
-	row.Gap(6.f).GrowW().HAuto().Parent(c);
-	ecs::Entity r = row.Spawn();
-	auto input = m_f.Input("Message à tous les pairs — Entrée pour envoyer");
-	input.GrowW().MaxLen(4000).Parent(r).OnSubmit([this](const String&) { SendMessage(); });
-	m_messageInput = input.Spawn();
-	m_f.Button("Envoyer").Parent(r).OnClick([this] { SendMessage(); }).Spawn();
-	return c;
 }
 
-ecs::Entity AdhocChatApp::BuildPeersColumn(ecs::Entity parent) {
-	auto col = m_f.Panel();
-	col.Gap(6.f)
-		.Pad(10.f)
-		.W(ui::Dimension::Px(400))
-		.GrowH()
-		.Bg(COL_PANEL)
-		.Radius(6.f)
-		.Parent(parent);
-	ecs::Entity c = col.Spawn();
-
-	auto head = m_f.Row();
-	head.Gap(6.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(c);
-	ecs::Entity h = head.Spawn();
-	Section("Pairs").GrowW().Parent(h).Spawn();
-	m_f.Button("Sonder")
-		.Tooltip("Diffuse une demande : les voisins répondent tout de suite")
-		.Parent(h)
-		.OnClick([this] {
-			m_node.Probe();
-			SetStatus("Sonde diffusée.", COL_MUTED);
-		})
-		.Spawn();
-
-	auto list = m_f.Column();
-	list.Gap(2.f)
-		.Pad(4.f)
-		.GrowW()
-		.H(ui::Dimension::Px(210))
-		.Scrollable()
-		.Clip()
-		.Bg(Rgb(22, 24, 34))
-		.Parent(c);
-	m_peerList = list.Spawn();
-
-	auto manual = m_f.Row();
-	manual.Gap(6.f).GrowW().HAuto().Parent(c);
-	ecs::Entity m = manual.Spawn();
-	auto host = m_f.Input("adresse IP du pair");
-	host.GrowW().MaxLen(64).Parent(m);
-	m_hostInput = host.Spawn();
-	auto port = m_f.Input("port");
-	port.W(ui::Dimension::Px(64)).MaxLen(5).Parent(m);
-	m_portInput = port.Spawn();
-	SetInputText(m_portInput, String::Format("%u", unsigned(chat::DEFAULT_TCP_PORT)));
-	m_f.Button("Ajouter")
-		.Tooltip("Joindre un pair directement (diffusion bloquée, autre sous-réseau)")
-		.Parent(m)
-		.OnClick([this] {
-			String hostText = InputText(m_hostInput).Trim();
-			int p = InputText(m_portInput).Trim().ToInt32();
-			if (auto err = m_node.AddManualPeer(hostText, uint16_t(p > 0 && p < 65536 ? p : 0)))
-				SetStatus("Pair manuel : " + *err, COL_ERR);
-			else {
-				SetStatus("Pair manuel ajouté : " + hostText, COL_OK);
-				SetInputText(m_hostInput, "");
-			}
-		})
-		.Spawn();
-
-	m_f.Separator().Parent(c).Spawn();
-	auto fhead = m_f.Row();
-	fhead.Gap(6.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(c);
-	ecs::Entity fh = fhead.Spawn();
-	Section("Fichiers").GrowW().Parent(fh).Spawn();
-	m_f.Button("Envoyer…")
-		.Tooltip("Choisir des fichiers ; ou les déposer sur la fenêtre")
-		.Parent(fh)
-		.OnClick([this] { PickFiles(); })
-		.Spawn();
-	auto target = Muted("");
-	target.Parent(c);
-	m_targetLabel = target.Spawn();
-
-	auto transfers = m_f.Column();
-	transfers.Gap(4.f).Pad(4.f).GrowW().GrowH().Scrollable().Clip().Bg(Rgb(22, 24, 34)).Parent(c);
-	m_transferList = transfers.Spawn();
-
-	auto bottom = m_f.Row();
-	bottom.Gap(6.f).GrowW().HAuto().Parent(c);
-	ecs::Entity b = bottom.Spawn();
-	m_f.Button("Dossier de réception")
-		.GrowW()
-		.Tooltip(m_node.DownloadDir())
-		.Parent(b)
-		.OnClick([this] { sdl3::OpenUrl("file://" + m_node.DownloadDir()); })
-		.Spawn();
-	m_f.Button("Effacer les terminés")
-		.GrowW()
-		.Parent(b)
-		.OnClick([this] { m_node.ClearFinishedTransfers(); })
-		.Spawn();
-	return c;
+ui::AnyWidget AdhocChatApp::PeersColumn() {
+	return ui::Panel().Class("column").Id("peers").Children({
+		ui::Row().Gap(6.f).FillWidth().Children({
+			Section("Pairs").Grow(),
+			ui::Button("Sonder").Tooltip("Diffuse une demande : les voisins répondent tout de suite").OnClick([this] {
+				m_node.Probe();
+				SetStatus("Sonde diffusée.", COL_MUTED);
+			}),
+		}),
+		ui::Column().Class("well").FillWidth().Height(210.f).Ref(m_peerList),
+		ui::Row().Gap(6.f).FillWidth().Children({
+			MaxLen(ui::Input("adresse IP du pair"), 64).Grow().Ref(m_hostInput),
+			MaxLen(ui::Input("port", String::Format("%u", unsigned(chat::DEFAULT_TCP_PORT))), 5)
+				.Width(64.f)
+				.Ref(m_portInput),
+			ui::Button("Ajouter")
+				.Tooltip("Joindre un pair directement (diffusion bloquée, autre sous-réseau)")
+				.OnClick([this] {
+					const String hostText = m_hostInput.Text().Trim();
+					const int p = m_portInput.Text().Trim().ToInt32();
+					if (auto err = m_node.AddManualPeer(hostText, uint16_t(p > 0 && p < 65536 ? p : 0)))
+						SetStatus("Pair manuel : " + *err, COL_ERR);
+					else {
+						SetStatus("Pair manuel ajouté : " + hostText, COL_OK);
+						m_hostInput.SetText("");
+					}
+				}),
+		}),
+		ui::Separator(),
+		ui::Row().Gap(6.f).FillWidth().Children({
+			Section("Fichiers").Grow(),
+			ui::Button("Envoyer…").Tooltip("Choisir des fichiers ; ou les déposer sur la fenêtre").OnClick([this] {
+				PickFiles();
+			}),
+		}),
+		Muted("").Ref(m_targetLabel),
+		ui::Column().Class("well").FillWidth().Grow().Gap(4.f).Ref(m_transferList),
+		ui::Row().Gap(6.f).FillWidth().Children({
+			ui::Button("Dossier de réception").Grow().Tooltip(m_node.DownloadDir()).OnClick([this] {
+				sdl3::OpenUrl("file://" + m_node.DownloadDir());
+			}),
+			ui::Button("Effacer les terminés").Grow().OnClick([this] { m_node.ClearFinishedTransfers(); }),
+		}),
+	});
 }
 
 // ── Wi-Fi ────────────────────────────────────────────────────────────────────
 
-void AdhocChatApp::Log(const String& text) {
+void AdhocChatApp::Log(const String &text) {
 	if (!m_log.IsEmpty())
 		m_log.Append('\n');
 	m_log.Append(text);
-	if (auto area = m_ar.GetComponent<ui::UiInputArea>(m_logArea); area.IsSome()) {
-		area.Unwrap()->text = m_log;
-		area.Unwrap()->cursor = area.Unwrap()->selectionAnchor = m_log.size();
-		m_gui.Layout().MarkDirty();
-	}
+	m_logArea.SetText(m_log); // le journal suit la fin du texte
 }
 
 void AdhocChatApp::StartProbe() {
-	SetText(m_wifiState, "Lecture de la configuration Wi-Fi…");
-	uint16_t udp = m_node.DiscoveryPort();
-	uint16_t tcp = m_opt.node.tcpPort;
+	m_wifiState.SetText("Lecture de la configuration Wi-Fi…");
+	const uint16_t udp = m_node.DiscoveryPort();
+	const uint16_t tcp = m_opt.node.tcpPort;
 	m_probeJob.Start([udp, tcp] {
 		WifiProbe p;
 		p.firewall = wifi::DetectFirewall(udp, tcp, uint16_t(tcp + 31));
@@ -748,16 +591,16 @@ void AdhocChatApp::StartDeviceInfo() {
 
 void AdhocChatApp::StartScan() {
 	String dev = m_adhoc.device;
-	SetText(m_scanButton, "Scan…");
+	m_scanButton.SetText("Scan…");
 	SetStatus("Balayage radio en cours…", COL_MUTED);
 	m_scanJob.Start([dev] { return wifi::Scan(dev, true); });
 }
 
 void AdhocChatApp::ReadAdhocForm() {
-	m_adhoc.ssid = InputText(m_ssidInput).Trim();
-	m_adhoc.channel = InputText(m_channelInput).Trim().ToInt32();
-	m_adhoc.address = InputText(m_addressInput).Trim();
-	m_adhoc.password = InputText(m_passwordInput);
+	m_adhoc.ssid = m_ssidInput.Text().Trim();
+	m_adhoc.channel = m_channelInput.Text().Trim().ToInt32();
+	m_adhoc.address = m_addressInput.Text().Trim();
+	m_adhoc.password = m_passwordInput.Text();
 	m_adhoc.connectionName = String();
 }
 
@@ -771,11 +614,10 @@ void AdhocChatApp::StartJoin() {
 		SetStatus("Aucune interface Wi-Fi choisie.", COL_ERR);
 		return;
 	}
-	Log(String::Format("\n— Cellule « %s », canal %d (%d MHz) sur %s", m_adhoc.ssid.CStr(),
-					   m_adhoc.channel, wifi::ChannelToFrequencyMHz(m_adhoc.channel),
-					   m_adhoc.device.CStr()));
-	SetText(m_wifiState, "Création / adhésion à la cellule… (jusqu'à 30 s)");
-	SetColor(m_wifiState, COL_WARN);
+	Log(String::Format("\n— Cellule « %s », canal %d (%d MHz) sur %s", m_adhoc.ssid.CStr(), m_adhoc.channel,
+					   wifi::ChannelToFrequencyMHz(m_adhoc.channel), m_adhoc.device.CStr()));
+	m_wifiState.SetText("Création / adhésion à la cellule… (jusqu'à 30 s)");
+	Tint(m_wifiState, "warn");
 	m_configIsJoin = true;
 	wifi::AdhocConfig cfg = m_adhoc;
 	m_configJob.Start([cfg] { return wifi::JoinAdhoc(cfg); });
@@ -784,8 +626,8 @@ void AdhocChatApp::StartJoin() {
 void AdhocChatApp::StartLeave() {
 	ReadAdhocForm();
 	Log("\n— Départ de la cellule « " + m_adhoc.ssid + " »");
-	SetText(m_wifiState, "Départ de la cellule…");
-	SetColor(m_wifiState, COL_WARN);
+	m_wifiState.SetText("Départ de la cellule…");
+	Tint(m_wifiState, "warn");
 	m_configIsJoin = false;
 	wifi::AdhocConfig cfg = m_adhoc;
 	m_configJob.Start([cfg] { return wifi::LeaveAdhoc(cfg); });
@@ -798,14 +640,13 @@ void AdhocChatApp::PollJobs() {
 			Log("! Wi-Fi : " + m_probe.error);
 		if (m_adhoc.device.IsEmpty() && !m_probe.devices.empty())
 			m_adhoc.device = m_probe.devices.front().name;
-		for (auto& d : m_probe.devices)
+		for (auto &d : m_probe.devices)
 			Log(String::Format("Interface %s : %s%s%s", d.name.CStr(), d.state.CStr(),
 							   d.connection.IsEmpty() ? "" : " — ", d.connection.CStr()));
 		if (m_probe.firewall) {
 			Log("! Pare-feu " + m_probe.firewall->name +
-				" actif : il bloque en général la découverte et les connexions des pairs. Pour "
-				"ouvrir les ports :");
-			for (auto& cmd : m_probe.firewall->commands)
+				" actif : il bloque en général la découverte et les connexions des pairs. Pour ouvrir les ports :");
+			for (auto &cmd : m_probe.firewall->commands)
 				Log("  " + cmd);
 		}
 		RebuildDeviceCombo();
@@ -817,13 +658,12 @@ void AdhocChatApp::PollJobs() {
 		RefreshWifiStatus();
 	}
 	if (auto scan = m_scanJob.Take()) {
-		SetText(m_scanButton, "Scanner");
+		m_scanButton.SetText("Scanner");
 		if (*scan) {
 			m_networks = std::move(scan->Value());
-			size_t adhoc = size_t(std::count_if(m_networks.begin(), m_networks.end(),
-												[](auto& n) { return n.IsAdhoc(); }));
-			SetStatus(String::Format("%zu réseau(x) visible(s), dont %zu cellule(s) ad hoc.",
-									 m_networks.size(), adhoc),
+			const size_t adhoc =
+				size_t(std::count_if(m_networks.begin(), m_networks.end(), [](auto &n) { return n.IsAdhoc(); }));
+			SetStatus(String::Format("%zu réseau(x) visible(s), dont %zu cellule(s) ad hoc.", m_networks.size(), adhoc),
 					  COL_OK);
 		} else {
 			SetStatus("Scan : " + scan->Error(), COL_ERR);
@@ -832,21 +672,19 @@ void AdhocChatApp::PollJobs() {
 		RebuildNetworks();
 	}
 	if (auto report = m_configJob.Take()) {
-		for (auto& line : report->log)
+		for (auto &line : report->log)
 			Log(line);
 		if (report->ok) {
 			m_joined = m_configIsJoin;
-			Log(m_configIsJoin
-					? "Cellule active. Les pairs apparaissent dès que leurs balises arrivent."
-					: "Profil ad hoc supprimé.");
+			Log(m_configIsJoin ? "Cellule active. Les pairs apparaissent dès que leurs balises arrivent."
+							   : "Profil ad hoc supprimé.");
 			SetStatus(m_configIsJoin ? "Cellule ad hoc active." : "Cellule quittée.", COL_OK);
 			m_node.Probe();
 		} else {
 			Log("! Échec : " + report->error);
 			SetStatus("Wi-Fi : " + report->error, COL_ERR);
 			if (report->permissionDenied) {
-				Log("! Droits insuffisants pour NetworkManager. Commandes à lancer en "
-					"administrateur :");
+				Log("! Droits insuffisants pour NetworkManager. Commandes à lancer en administrateur :");
 				Log(wifi::ManualInstructions(m_adhoc));
 			}
 		}
@@ -857,19 +695,16 @@ void AdhocChatApp::PollJobs() {
 	if (m_opt.wifi && !m_adhoc.device.IsEmpty() && SDL_GetTicks() - m_deviceInfoAt > 5000)
 		StartDeviceInfo();
 
-	bool busy = WifiBusy();
-	ui::SetEnabled(m_ar, m_joinButton, m_opt.wifi && !busy);
-	ui::SetEnabled(m_ar, m_leaveButton, m_opt.wifi && !busy);
-	ui::SetEnabled(m_ar, m_scanButton, m_opt.wifi && !busy);
+	const bool usable = m_opt.wifi && !WifiBusy();
+	m_joinButton.SetEnabled(usable);
+	m_leaveButton.SetEnabled(usable);
+	m_scanButton.SetEnabled(usable);
 }
 
 void AdhocChatApp::RebuildDeviceCombo() {
-	Clear(m_deviceHolder);
+	m_deviceHolder.Clear();
 	if (m_probe.devices.empty()) {
-		m_f.Label(m_opt.wifi ? "aucune interface Wi-Fi" : "—")
-			.TextColor(COL_MUTED)
-			.Parent(m_deviceHolder)
-			.Spawn();
+		m_deviceHolder.Append(ui::Label(m_opt.wifi ? "aucune interface Wi-Fi" : "—").Class("muted"));
 		return;
 	}
 	std::vector<String> names;
@@ -879,115 +714,100 @@ void AdhocChatApp::RebuildDeviceCombo() {
 		if (m_probe.devices[i].name == m_adhoc.device)
 			selected = int(i);
 	}
-	m_f.Combo(names, selected)
-		.GrowW()
-		.Parent(m_deviceHolder)
-		.OnChange([this](float v) {
-			size_t i = size_t(v);
-			if (i < m_probe.devices.size()) {
-				m_adhoc.device = m_probe.devices[i].name;
-				m_deviceInfoAt = 0;
-				StartDeviceInfo();
-			}
-		})
-		.Spawn();
+	m_deviceHolder.Append(ui::Combo(names, selected).Grow().OnSelect([this](int i) {
+		if (size_t(i) < m_probe.devices.size()) {
+			m_adhoc.device = m_probe.devices[size_t(i)].name;
+			m_deviceInfoAt = 0;
+			StartDeviceInfo();
+		}
+	}));
 }
 
 void AdhocChatApp::RebuildNetworks() {
-	Clear(m_networkList);
+	m_networkList.Clear();
 	if (m_networks.empty()) {
-		m_f.Label("Aucun réseau (lancez un scan).")
-			.TextColor(COL_MUTED)
-			.Parent(m_networkList)
-			.Spawn();
+		m_networkList.Append(ui::Label("Aucun réseau (lancez un scan).").Class("muted"));
 		return;
 	}
 	int index = 0;
-	for (auto& n : m_networks) {
-		String ssid = n.ssid.IsEmpty() ? String("(masqué)") : n.ssid;
-		String text = String::Format("%s%-8s %s  · canal %d · %d %% · %s", n.inUse ? "● " : "",
-									 wifi::WifiModeName(n.mode), ssid.CStr(), n.channel, n.signal,
-									 n.IsOpen() ? "ouvert" : n.security.CStr());
-		auto row = m_f.Selectable(text, index++);
-		row.GrowW().TextEllipsis().Tooltip(
-			n.bssid + " — " + String::Format("%d MHz, %s", n.frequencyMHz, n.rate.CStr()));
+	for (auto &n : m_networks) {
+		const String ssid = n.ssid.IsEmpty() ? String("(masqué)") : n.ssid;
+		const String text = String::Format("%s%-8s %s  · canal %d · %d %% · %s", n.inUse ? "● " : "",
+										   wifi::WifiModeName(n.mode), ssid.CStr(), n.channel, n.signal,
+										   n.IsOpen() ? "ouvert" : n.security.CStr());
+		ui::WidgetBuilder row = ui::Selectable(text, index++);
+		row.FillWidth().Ellipsis().Tooltip(n.bssid + " — " + String::Format("%d MHz, %s", n.frequencyMHz, n.rate.CStr()));
 		if (n.IsAdhoc())
-			row.TextColor(COL_OK);
+			row.Class("ok");
 		else if (n.inUse)
-			row.TextColor(COL_ACCENT);
+			row.Class("accent");
 		wifi::WifiNetwork copy = n;
-		row.Parent(m_networkList).OnClick([this, copy] {
+		row.OnClick([this, copy] {
 			if (!copy.ssid.IsEmpty())
-				SetInputText(m_ssidInput, copy.ssid);
+				m_ssidInput.SetText(copy.ssid);
 			if (copy.channel >= 1 && copy.channel <= 14)
-				SetInputText(m_channelInput, String::Format("%d", copy.channel));
-			SetStatus(copy.IsAdhoc()
-						  ? "Cellule ad hoc choisie : « Créer / rejoindre » pour y entrer."
-						  : "Pas une cellule ad hoc : seuls le SSID et le canal sont repris.",
+				m_channelInput.SetText(String::Format("%d", copy.channel));
+			SetStatus(copy.IsAdhoc() ? "Cellule ad hoc choisie : « Créer / rejoindre » pour y entrer."
+									 : "Pas une cellule ad hoc : seuls le SSID et le canal sont repris.",
 					  copy.IsAdhoc() ? COL_OK : COL_WARN);
 		});
-		row.Spawn();
+		m_networkList.Append(row);
 	}
 }
 
 void AdhocChatApp::RefreshWifiStatus() {
 	if (!m_opt.wifi) {
-		SetText(m_wifiState, "Configuration Wi-Fi désactivée.");
+		m_wifiState.SetText("Configuration Wi-Fi désactivée.");
 		return;
 	}
 	if (!m_probe.available && !m_probeJob.Running()) {
-		SetText(m_wifiState,
-				"NetworkManager indisponible : configurez la cellule à la main (cf. journal).");
-		SetColor(m_wifiState, COL_ERR);
+		m_wifiState.SetText("NetworkManager indisponible : configurez la cellule à la main (cf. journal).");
+		Tint(m_wifiState, "err");
 		if (m_log.Find("iw dev") == String::NPOS)
 			Log(wifi::ManualInstructions(m_adhoc));
 		return;
 	}
 	if (m_deviceInfo.device == m_adhoc.device && m_deviceInfo.caps) {
-		auto& caps = *m_deviceInfo.caps;
-		SetText(
-			m_capsLabel,
-			String::Format("Capacités : ad hoc %s · IBSS chiffré (RSN) %s · 2,4 GHz %s · 5 GHz %s",
-						   caps.adhoc ? "oui" : "NON", caps.ibssRsn ? "oui" : "non",
-						   caps.band2GHz ? "oui" : "non", caps.band5GHz ? "oui" : "non"));
-		SetColor(m_capsLabel, caps.adhoc ? COL_MUTED : COL_ERR);
+		auto &caps = *m_deviceInfo.caps;
+		m_capsLabel.SetText(String::Format("Capacités : ad hoc %s · IBSS chiffré (RSN) %s · 2,4 GHz %s · 5 GHz %s",
+										   caps.adhoc ? "oui" : "NON", caps.ibssRsn ? "oui" : "non",
+										   caps.band2GHz ? "oui" : "non", caps.band5GHz ? "oui" : "non"));
+		Tint(m_capsLabel, caps.adhoc ? "muted" : "err");
 	}
-	SetText(m_ipLabel, m_deviceInfo.ipv4.empty()
-						   ? String("Adresse IPv4 : aucune")
-						   : "Adresse IPv4 : " + String::Join(m_deviceInfo.ipv4, ", "));
+	m_ipLabel.SetText(m_deviceInfo.ipv4.empty() ? String("Adresse IPv4 : aucune")
+												: "Adresse IPv4 : " + String::Join(m_deviceInfo.ipv4, ", "));
 	String connection;
-	for (auto& d : m_probe.devices)
+	for (auto &d : m_probe.devices)
 		if (d.name == m_adhoc.device)
 			connection = d.connection;
 	if (m_configJob.Running())
 		return;
 	if (m_joined) {
-		SetText(m_wifiState,
-				"Dans la cellule « " + m_adhoc.ssid + " » (profil " + m_adhoc.ProfileName() + ").");
-		SetColor(m_wifiState, COL_OK);
+		m_wifiState.SetText("Dans la cellule « " + m_adhoc.ssid + " » (profil " + m_adhoc.ProfileName() + ").");
+		Tint(m_wifiState, "ok");
 	} else {
-		SetText(m_wifiState, connection.IsEmpty() ? String("Pas de cellule ad hoc active.")
-												  : "Connexion actuelle : " + connection +
-														" (pas une cellule de ce programme).");
-		SetColor(m_wifiState, COL_MUTED);
+		m_wifiState.SetText(connection.IsEmpty()
+								? String("Pas de cellule ad hoc active.")
+								: "Connexion actuelle : " + connection + " (pas une cellule de ce programme).");
+		Tint(m_wifiState, "muted");
 	}
 }
 
 // ── Chat / pairs / fichiers ──────────────────────────────────────────────────
 
 void AdhocChatApp::SendMessage() {
-	String text = InputText(m_messageInput).Trim();
+	const String text = m_messageInput.Text().Trim();
 	if (text.IsEmpty())
 		return;
 	m_node.SendChat(text);
-	SetInputText(m_messageInput, "");
+	m_messageInput.SetText("");
 	if (m_node.Peers().empty())
 		SetStatus("Aucun pair pour l'instant : le message n'est parti chez personne.", COL_WARN);
 }
 
 void AdhocChatApp::PickFiles() {
 	sdl3::dialog::ShowOpenFile(
-		[this](const sdl3::DialogResult& r, int) {
+		[this](const sdl3::DialogResult &r, int) {
 			if (!r.Ok())
 				return;
 			std::lock_guard lock(m_pickedMutex);
@@ -996,13 +816,11 @@ void AdhocChatApp::PickFiles() {
 		m_window, {}, "", true);
 }
 
-void AdhocChatApp::OnDropFile(const String& path) {
-	SendFileToTargets(path);
-}
+void AdhocChatApp::OnDropFile(const String &path) { SendFileToTargets(path); }
 
-void AdhocChatApp::SendFileToTargets(const String& path) {
+void AdhocChatApp::SendFileToTargets(const String &path) {
 	std::vector<chat::PeerInfo> targets;
-	for (auto& p : m_node.Peers())
+	for (auto &p : m_node.Peers())
 		if (p.id != 0 && (m_selectedPeer == 0 || p.id == m_selectedPeer))
 			targets.push_back(p);
 	if (targets.empty()) {
@@ -1010,7 +828,7 @@ void AdhocChatApp::SendFileToTargets(const String& path) {
 		return;
 	}
 	int ok = 0;
-	for (auto& p : targets) {
+	for (auto &p : targets) {
 		auto res = m_node.SendFile(p.id, path);
 		if (res)
 			++ok;
@@ -1018,195 +836,160 @@ void AdhocChatApp::SendFileToTargets(const String& path) {
 			SetStatus("Envoi à " + p.nickname + " : " + res.Error(), COL_ERR);
 	}
 	if (ok)
-		SetStatus(String::Format(
-					  "Envoi de « %s » à %d pair(s).",
-					  String(std::filesystem::path(path.CStr()).filename().string()).CStr(), ok),
+		SetStatus(String::Format("Envoi de « %s » à %d pair(s).",
+								 String(std::filesystem::path(path.CStr()).filename().string()).CStr(), ok),
 				  COL_OK);
 }
 
 void AdhocChatApp::RefreshChat() {
-	auto& msgs = m_node.Messages();
+	auto &msgs = m_node.Messages();
 	// Le nombre de messages plafonne (les plus anciens partent) : la
 	// signature inclut donc le dernier message.
-	String sig = msgs.empty() ? String("0")
-							  : String::Format("%zu|%llu|", msgs.size(),
-											   (unsigned long long)msgs.back().timeMs) +
-									msgs.back().text;
+	const String sig =
+		msgs.empty() ? String("0")
+					 : String::Format("%zu|%llu|", msgs.size(), (unsigned long long)msgs.back().timeMs) + msgs.back().text;
 	if (sig == m_chatSignature)
 		return;
 	m_chatSignature = sig;
 	String text;
-	for (auto& m : msgs) {
+	for (auto &m : msgs) {
 		if (!text.IsEmpty())
 			text.Append('\n');
 		text.Append("[" + ClockOf(m.timeMs) + "] ");
 		if (m.system)
 			text.Append("* " + m.text);
 		else
-			text.Append((m.author.IsEmpty() ? String("?") : m.author) + " : " +
-						m.text.Replace("\n", "\n    "));
+			text.Append((m.author.IsEmpty() ? String("?") : m.author) + " : " + m.text.Replace("\n", "\n    "));
 	}
-	if (auto area = m_ar.GetComponent<ui::UiInputArea>(m_chatArea); area.IsSome()) {
-		area.Unwrap()->text = text;
-		area.Unwrap()->cursor = area.Unwrap()->selectionAnchor = text.size();
-		m_gui.Layout().MarkDirty();
-	}
+	m_chatArea.SetText(msgs.empty() ? String("Aucun message pour l'instant.") : text);
 }
 
 void AdhocChatApp::RefreshPeers(bool force) {
 	auto peers = m_node.Peers();
 	String sig = String::Format("%llu|", (unsigned long long)m_selectedPeer);
-	for (auto& p : peers)
-		sig.Append(String::Format("%llu/%s/%s/%d/%s;", (unsigned long long)p.id, p.nickname.CStr(),
-								  p.address.CStr(), int(p.connected), p.status.CStr()));
+	for (auto &p : peers)
+		sig.Append(String::Format("%llu/%s/%s/%d/%s;", (unsigned long long)p.id, p.nickname.CStr(), p.address.CStr(),
+								  int(p.connected), p.status.CStr()));
 	if (!force && sig == m_peersSignature)
 		return;
 	m_peersSignature = sig;
-	if (m_selectedPeer != 0 &&
-		std::none_of(peers.begin(), peers.end(), [&](auto& p) { return p.id == m_selectedPeer; }))
+	if (m_selectedPeer != 0 && std::none_of(peers.begin(), peers.end(), [&](auto &p) { return p.id == m_selectedPeer; }))
 		m_selectedPeer = 0;
 
-	Clear(m_peerList);
-	auto all = m_f.Selectable(String::Format("Tous les pairs (%zu)", peers.size()), 0);
-	all.GrowW().Parent(m_peerList).OnClick([this] {
+	m_peerList.Clear();
+	ui::WidgetBuilder all = ui::Selectable(String::Format("Tous les pairs (%zu)", peers.size()), 0);
+	all.FillWidth().OnClick([this] {
 		m_selectedPeer = 0;
 		RefreshPeers(true);
 	});
 	if (m_selectedPeer == 0)
-		all.Bg(Rgb(48, 62, 96));
-	all.Spawn();
+		all.Class("selected");
+	m_peerList.Append(all);
 	int index = 1;
-	for (auto& p : peers) {
-		auto row = m_f.Column();
-		row.Gap(1.f)
-			.Pad(math::Sides{6.f, 3.f})
-			.GrowW()
-			.HAuto()
-			.Radius(4.f)
-			.Bg(p.id == m_selectedPeer ? Rgb(48, 62, 96) : COL_ROW);
-		row.Parent(m_peerList);
-		ecs::Entity r = row.Spawn();
-		auto name = m_f.Selectable((p.connected ? "● " : "○ ") +
-									   (p.nickname.IsEmpty() ? String("?") : p.nickname) +
-									   (p.manual ? "  (manuel)" : ""),
-								   index++);
-		uint64_t id = p.id;
-		name.GrowW().TextColor(p.connected ? COL_OK : COL_WARN).Parent(r).OnClick([this, id] {
-			if (id == 0) {
-				SetStatus("Pair pas encore identifié : attendez sa réponse.", COL_WARN);
-				return;
-			}
-			m_selectedPeer = id;
-			RefreshPeers(true);
+	for (auto &p : peers) {
+		const uint64_t id = p.id;
+		ui::WidgetBuilder card = ui::Column().Class("row-card").FillWidth();
+		if (id == m_selectedPeer)
+			card.Class("selected");
+		card.Children({
+			ui::Selectable((p.connected ? "● " : "○ ") + (p.nickname.IsEmpty() ? String("?") : p.nickname) +
+							   (p.manual ? "  (manuel)" : ""),
+						   index++)
+				.FillWidth()
+				.Class(p.connected ? "ok" : "warn")
+				.OnClick([this, id] {
+					if (id == 0) {
+						SetStatus("Pair pas encore identifié : attendez sa réponse.", COL_WARN);
+						return;
+					}
+					m_selectedPeer = id;
+					RefreshPeers(true);
+				}),
+			ui::Label(String::Format("%s:%u — %s", p.address.CStr(), unsigned(p.tcpPort), p.status.CStr()))
+				.Class("muted")
+				.Class("small")
+				.Ellipsis()
+				.FillWidth(),
 		});
-		name.Spawn();
-		m_f.Label(
-			   String::Format("%s:%u — %s", p.address.CStr(), unsigned(p.tcpPort), p.status.CStr()))
-			.TextColor(COL_MUTED)
-			.FontSize(12.f)
-			.TextEllipsis()
-			.GrowW()
-			.Parent(r)
-			.Spawn();
+		m_peerList.Append(card);
 	}
 	if (peers.empty())
-		m_f.Label("Aucun pair : lancez le programme sur un autre ordinateur de la cellule.")
-			.TextColor(COL_MUTED)
-			.TextWrap()
-			.GrowW()
-			.Parent(m_peerList)
-			.Spawn();
+		m_peerList.Append(Muted("Aucun pair : lancez le programme sur un autre ordinateur de la cellule."));
 
 	String target = "Destinataire des fichiers : tous les pairs identifiés";
-	for (auto& p : peers)
+	for (auto &p : peers)
 		if (p.id == m_selectedPeer && m_selectedPeer != 0)
 			target = "Destinataire des fichiers : " + p.nickname;
-	SetText(m_targetLabel, target + " — ou déposez un fichier sur la fenêtre.");
+	m_targetLabel.SetText(target + " — ou déposez un fichier sur la fenêtre.");
 }
 
 void AdhocChatApp::RefreshTransfers(bool force) {
-	auto& ts = m_node.Transfers();
+	auto &ts = m_node.Transfers();
 	String sig;
-	for (auto& t : ts)
+	for (auto &t : ts)
 		sig.Append(String::Format("%u/%d;", t.id, int(t.state)));
-	uint64_t now = SDL_GetTicks();
+	const uint64_t now = SDL_GetTicks();
 	if (force || sig != m_transfersSignature) {
 		m_transfersSignature = sig;
-		Clear(m_transferList);
+		m_transferList.Clear();
 		m_progressBars.clear();
 		m_progressLabels.clear();
 		if (ts.empty())
-			m_f.Label("Aucun transfert.").TextColor(COL_MUTED).Parent(m_transferList).Spawn();
+			m_transferList.Append(ui::Label("Aucun transfert.").Class("muted"));
 		for (auto it = ts.rbegin(); it != ts.rend(); ++it) {
-			const chat::TransferInfo& t = *it;
-			auto card = m_f.Column();
-			card.Gap(3.f).Pad(6.f).GrowW().HAuto().Radius(4.f).Bg(COL_ROW).Parent(m_transferList);
-			ecs::Entity c = card.Spawn();
-			auto head = m_f.Row();
-			head.Gap(6.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(c);
-			ecs::Entity h = head.Spawn();
-			sdl3::FColor color = t.state == chat::TransferState::DONE	   ? COL_OK
-								 : t.state == chat::TransferState::RUNNING ? COL_ACCENT
-																		   : COL_ERR;
-			m_f.Label((t.outgoing ? "↑ " : "↓ ") + t.fileName + (t.outgoing ? " → " : " ← ") +
-					  t.peerName)
-				.TextColor(color)
-				.TextEllipsis()
-				.GrowW()
-				.Tooltip(t.path)
-				.Parent(h)
-				.Spawn();
+			const chat::TransferInfo &t = *it;
+			const char *tint = t.state == chat::TransferState::DONE	   ? "ok"
+							   : t.state == chat::TransferState::RUNNING ? "accent"
+																		 : "err";
+			ui::WidgetBuilder head = ui::Row().Gap(6.f).FillWidth();
+			head.Child(ui::Label((t.outgoing ? "↑ " : "↓ ") + t.fileName + (t.outgoing ? " → " : " ← ") + t.peerName)
+						   .Class(tint)
+						   .Ellipsis()
+						   .Grow()
+						   .Tooltip(t.path));
 			if (t.state == chat::TransferState::RUNNING) {
-				uint32_t id = t.id;
-				m_f.Button("Annuler")
-					.Parent(h)
-					.OnClick([this, id] { m_node.CancelTransfer(id); })
-					.Spawn();
+				const uint32_t id = t.id;
+				head.Child(ui::Button("Annuler").OnClick([this, id] { m_node.CancelTransfer(id); }));
 			}
-			auto bar = m_f.Progress(0.f, 1.f, t.Progress());
-			bar.GrowW().Parent(c);
-			m_progressBars.push_back({t.id, bar.Spawn()});
-			auto label = m_f.Label("");
-			label.TextColor(COL_MUTED).FontSize(12.f).TextEllipsis().GrowW().Parent(c);
-			m_progressLabels.push_back({t.id, label.Spawn()});
+			ui::Widget card = m_transferList.Append(ui::Column().Class("row-card").FillWidth().Gap(3.f).Children({
+				head,
+				ui::Progress(0.f, 1.f, t.Progress()).FillWidth(),
+				ui::Label("").Class("muted").Class("small").Ellipsis().FillWidth(),
+			}));
+			std::vector<ui::Widget> parts = card.Children();
+			m_progressBars.push_back({t.id, parts[1]});
+			m_progressLabels.push_back({t.id, parts[2]});
 		}
 	}
 	// Progression mise à jour en place (sans reconstruire les widgets).
-	for (auto& t : ts) {
-		for (auto& [id, e] : m_progressBars)
+	for (auto &t : ts) {
+		for (auto &[id, bar] : m_progressBars)
 			if (id == t.id)
-				if (auto p = m_ar.GetComponent<ui::UiProgress>(e); p.IsSome())
-					p.Unwrap()->value = t.Progress();
-		for (auto& [id, e] : m_progressLabels) {
+				bar.SetValue(t.Progress());
+		for (auto &[id, label] : m_progressLabels) {
 			if (id != t.id)
 				continue;
-			String line =
-				String::Format("%s / %s · %s/s · %s", HumanSize(double(t.done)).CStr(),
-							   HumanSize(double(t.size)).CStr(), HumanSize(t.Rate(now)).CStr(),
-							   chat::TransferStateName(t.state));
+			String line = String::Format("%s / %s · %s/s · %s", HumanSize(double(t.done)).CStr(),
+										 HumanSize(double(t.size)).CStr(), HumanSize(t.Rate(now)).CStr(),
+										 chat::TransferStateName(t.state));
 			if (!t.error.IsEmpty())
 				line.Append(" : " + t.error);
-			SetText(e, line);
+			label.SetText(line);
 		}
 	}
 }
 
 void AdhocChatApp::RefreshHeader() {
 	String addrs;
-	for (auto& a : m_node.LocalAddresses()) {
+	for (auto &a : m_node.LocalAddresses()) {
 		if (a.Contains(':'))
 			continue; // IPv6 : liste trop longue pour l'en-tête
 		addrs.Append(addrs.IsEmpty() ? "" : ", ");
 		addrs.Append(a);
 	}
-	SetText(m_headerInfo, String::Format("Moi : %s · TCP %u · découverte UDP %u · adresses : %s",
-										 m_node.Nickname().CStr(), unsigned(m_node.TcpPort()),
-										 unsigned(m_node.DiscoveryPort()),
-										 addrs.IsEmpty() ? "aucune" : addrs.CStr()));
-}
-
-void AdhocChatApp::SetStatus(const String& text, sdl3::FColor color) {
-	m_frame.SetStatus(text, color);
+	m_headerInfo.SetText(String::Format("Moi : %s · TCP %u · découverte UDP %u · adresses : %s",
+										m_node.Nickname().CStr(), unsigned(m_node.TcpPort()),
+										unsigned(m_node.DiscoveryPort()), addrs.IsEmpty() ? "aucune" : addrs.CStr()));
 }
 
 void AdhocChatApp::Update() {
@@ -1219,10 +1002,10 @@ void AdhocChatApp::Update() {
 			std::lock_guard lock(m_pickedMutex);
 			picked.swap(m_picked);
 		}
-		for (auto& p : picked)
+		for (auto &p : picked)
 			SendFileToTargets(p);
 	}
-	bool changed = m_node.Revision() != m_lastRevision;
+	const bool changed = m_node.Revision() != m_lastRevision;
 	RefreshChat();
 	if (changed) {
 		RefreshPeers(false);
@@ -1231,7 +1014,7 @@ void AdhocChatApp::Update() {
 		m_lastRevision = m_node.Revision();
 	}
 	// Débit et états visibles même sans changement (une fois par seconde).
-	uint64_t now = SDL_GetTicks();
+	const uint64_t now = SDL_GetTicks();
 	if (now - m_lastSlowRefresh > 1000) {
 		m_lastSlowRefresh = now;
 		RefreshTransfers(false);
@@ -1242,7 +1025,7 @@ void AdhocChatApp::Update() {
 // main
 // ============================================================================
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 	auto optRes = ParseOptions(argc, argv);
 	if (!optRes)
 		return 1;
@@ -1268,55 +1051,34 @@ int main(int argc, char** argv) {
 		std::cerr << "Réseau : " << nodeRes.Error().CStr() << "\n";
 		return 1;
 	}
-	chat::ChatNode& node = *nodeRes.Value();
+	chat::ChatNode &node = *nodeRes.Value();
 
-	auto fontRes = sdl3::Font::FindLocal({"DejaVuSans", "FreeSans", "Arial"}, FONT_PT);
-	if (!fontRes) {
-		std::cerr << "Font: " << fontRes.Error().CStr() << "\n";
-		return 1;
-	}
-	auto& font = fontRes.Value();
-	auto winRes =
-		sdl3::Window::Create(u8"Chat Wi-Fi ad hoc - SDL3 Wrapper", WIN_W, WIN_H,
-							 ui::WindowFrame::WINDOW_FLAGS | sdl3::window_flags::TRANSPARENT);
+	auto winRes = sdl3::Window::Create(u8"Chat Wi-Fi ad hoc - SDL3 Wrapper", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
 	}
-	auto& window = winRes.Value();
+	auto &window = winRes.Value();
 	auto renRes = sdl3::Renderer::Create(window);
 	if (!renRes) {
 		std::cerr << "Renderer: " << renRes.Error().CStr() << "\n";
 		return 1;
 	}
-	auto& ren = renRes.Value();
-	auto engRes = sdl3::TextEngine::Create(ren);
-	if (!engRes) {
-		std::cerr << "TextEngine: " << engRes.Error().CStr() << "\n";
-		return 1;
-	}
-	auto& eng = engRes.Value();
+	auto &ren = renRes.Value();
 
-	ecs::ArchetypeRegistry ar;
-	ui::Ui gui(ar, window, ren);
-	gui.SetTextEngine(eng, font);
-	gui.Layout().measureText = [&font](const String& s, float fs) -> sdl3::FPoint {
-		if (auto sz = font.Measure(s); sz.IsSome())
-			return {float(sz.Unwrap().x) * (fs / FONT_PT), fs * 1.35f};
-		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
-	};
-
-	AdhocChatApp app(ar, gui, window, node, std::move(options));
+	ecs::ArchetypeRegistry world;
+	ui::Ui gui(world, window, ren);
+	AdhocChatApp app(gui, window, node, std::move(options));
 	app.Build();
 
 	bool running = true;
 	uint64_t lastTick = sdl3::GetTicksMS();
 	while (running) {
-		uint64_t now = sdl3::GetTicksMS();
-		float dt = float(now - lastTick) / 1000.f;
+		const uint64_t now = sdl3::GetTicksMS();
+		const float dt = float(now - lastTick) / 1000.f;
 		lastTick = now;
 		while (auto ev = sdl3::PollEvent()) {
-			auto& e = ev.Value();
+			auto &e = ev.Value();
 			if (e.IsQuit()) {
 				running = false;
 				break;
@@ -1330,8 +1092,8 @@ int main(int argc, char** argv) {
 		app.Update();
 		if (app.QuitRequested())
 			running = false;
-		gui.Tick(dt);
-		ren.SetDrawColor(sdl3::FColor::TRANSPARENT());
+		gui.Update(dt);
+		ren.SetDrawColor(gui.CurrentPalette().appBg);
 		ren.Clear();
 		gui.Render();
 		ren.Present();

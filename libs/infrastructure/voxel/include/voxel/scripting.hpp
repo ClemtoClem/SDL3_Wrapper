@@ -14,6 +14,8 @@
  *        "entity_interact" (e, actor)         "entity_touch_block" (e, pos, block, landed)
  *        "item_use" (actor, item)             "player_join" (player)
  *        "chunk_generated" (cx, cy, cz)       "tick" (dt)
+ *        "dimension_changed" (player, to, from)  "portal_used" (player, to)
+ *        "player_respawn" (player, cause, dimension)
  *   voxel.command(name, usage, help, fn(sender, args))  commande de console
  *   voxel.behavior(id, fn(e, state, dt))  comportement de créature
  *   voxel.generator(id, fn(gen))          générateur de terrain ("script")
@@ -23,6 +25,9 @@
  *   world.surface(x, z) / world.biome(x, z) / world.structure(id, x, y, z [, rot])
  *   world.spawn(id, x, y, z) → e         world.drop(item, count, x, y, z)
  *   world.entities(x, y, z, r [, kind]) → [e…]   world.raycast(x,y,z, dx,dy,dz, dist)
+ *   world.ground(x, z, top, bottom) → y | nil   (chunks chargés)
+ *   world.dimension() / world.default_dimension() / world.dimensions() / world.time_here()
+ *   world.data(key [, dim]) / world.set_data(key, value [, dim])   état persistant d'une dimension
  *
  *   entity.kind(e) / entity.pos(e) / entity.set_pos(e, x, y, z) / entity.forward(e)
  *   entity.velocity(e) / entity.set_velocity(e, x, y, z) / entity.impulse(e, x, y, z)
@@ -32,6 +37,10 @@
  *   entity.give(e, item, count) / entity.take(e, item, count) / entity.count(e, item)
  *   entity.held(e) / entity.nearest_player(e, range) / entity.sound(e, event)
  *   entity.exists(e) / entity.players()
+ *   entity.travel(e, dim [, x, y, z]) / entity.dimension(e)
+ *   entity.gravity(e) / entity.set_gravity(e, ±1) / entity.on_ground(e) / entity.sneaking(e)
+ *   entity.armor(e) → [item…] / entity.has_effect(e, id) → niveau
+ *   entity.body(e) → {on_ground, hit_ceiling, hit_wall, in_fluid, sinking, trapped, jumping, sneaking, gravity, fall}
  *
  *   content.get(kind, id) → table / content.list(kind) → [id…] / content.config(path)
  *   game.log(msg) / game.say(msg) / game.time() / game.set_time(t)

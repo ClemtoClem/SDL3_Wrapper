@@ -3,121 +3,103 @@
 
 namespace ui {
 
-// ── SceneManager ─────────────────────────────────────────────────────────────
-
-Scene & SceneManager::Add(String name, Scene::Builder builder) {
-	auto key = String(name.c_str());
-	scenes[key] = Scene(std::move(name), std::move(builder));
-	return scenes[key];
+SceneManager::Scene &SceneManager::Add(String name, Factory factory) {
+	Scene &s = m_scenes[name];
+	if (s.root)
+		s.root.Destroy();
+	s = Scene{name, std::move(factory), Widget(), false};
+	return s;
 }
 
-Scene * SceneManager::Get(const String &name) {
-	auto it = scenes.find(String(name.c_str()));
-	return it != scenes.end() ? &it->second : nullptr;
+bool SceneManager::Has(StringView name) const { return m_scenes.find(name) != m_scenes.end(); }
+
+SceneManager::Scene *SceneManager::Get(StringView name) {
+	auto it = m_scenes.find(name);
+	return it != m_scenes.end() ? &it->second : nullptr;
 }
 
-bool SceneManager::Show(const String &name) {
+void SceneManager::Build(Scene &s) {
+	if (s.root || !s.factory || !m_parent)
+		return;
+	// Construite cachée : Show la rend visible juste après.
+	AnyWidget w = s.factory();
+	s.root = m_parent.Append(w);
+	s.root.Hide();
+	s.visible = false;
+}
+
+Widget SceneManager::RootOf(StringView name) {
+	Scene *s = Get(name);
+	if (!s)
+		return Widget();
+	Build(*s);
+	return s->root;
+}
+
+bool SceneManager::Show(StringView name) {
 	Scene *s = Get(name);
 	if (!s)
 		return false;
-	BuildIfNeeded(*s);
-	if (s->visible)
-		return true;
+	Build(*s);
+	if (s->root)
+		s->root.Show();
 	s->visible = true;
-	ecs::ArchetypeRegistry &w = factory->World();
-	for (ecs::Entity root : s->roots)
-		if (w.IsAlive(root))
-			w.RemoveComponent<UiHidden>(root);
-	factory->Layout().MarkDirty();
 	return true;
 }
 
-bool SceneManager::Hide(const String &name) {
+bool SceneManager::Hide(StringView name) {
 	Scene *s = Get(name);
-	if (!s || !s->visible)
-		return s != nullptr;
+	if (!s)
+		return false;
+	if (s->root)
+		s->root.Hide();
 	s->visible = false;
-	ecs::ArchetypeRegistry &w = factory->World();
-	for (ecs::Entity root : s->roots) {
-		if (!w.IsAlive(root))
-			continue;
-		w.AddComponent(root, UiHidden{});
-		// Neutralise les rects calculés du sous-arbre : l'InputSystem ne
-		// doit plus toucher les widgets d'une scène cachée (leurs anciens
-		// UiComputed resteraient sinon cliquables jusqu'à la prochaine passe).
-		ZeroComputed(w, root);
-	}
-	factory->Layout().MarkDirty();
 	return true;
 }
 
-bool SceneManager::SwitchTo(const String &name) {
+bool SceneManager::SwitchTo(StringView name) {
 	if (!Has(name))
 		return false;
-	for (auto &[key, s] : scenes)
-		if (s.visible && s.name != name)
-			Hide(s.name);
+	for (auto &[key, s] : m_scenes)
+		if (s.visible && key != name)
+			Hide(key.View());
+	m_current = String(name);
 	return Show(name);
 }
 
-bool SceneManager::Toggle(const String &name) {
+bool SceneManager::Toggle(StringView name) {
 	Scene *s = Get(name);
 	if (!s)
 		return false;
 	return s->visible ? Hide(name) : Show(name);
 }
 
-bool SceneManager::Destroy(const String &name) {
+bool SceneManager::Destroy(StringView name) {
 	Scene *s = Get(name);
 	if (!s)
 		return false;
-	ecs::ArchetypeRegistry &w = factory->World();
-	for (ecs::Entity root : s->roots)
-		if (w.IsAlive(root))
-			DespawnTree(w, root);
-	s->roots.clear();
-	s->built = false;
+	if (s->root)
+		s->root.Destroy();
+	s->root = Widget();
 	s->visible = false;
-	factory->Layout().MarkDirty();
 	return true;
 }
 
-bool SceneManager::Remove(const String &name) {
-	if (!Has(name))
+bool SceneManager::Remove(StringView name) {
+	if (!Destroy(name))
 		return false;
-	Destroy(name);
-	scenes.erase(String(name.c_str()));
+	m_scenes.erase(m_scenes.find(name));
+	if (m_current == name)
+		m_current = String();
 	return true;
 }
 
 std::vector<String> SceneManager::VisibleScenes() const {
-	std::vector<String> v;
-	for (auto &[key, s] : scenes)
+	std::vector<String> out;
+	for (const auto &[key, s] : m_scenes)
 		if (s.visible)
-			v.push_back(s.name);
-	return v;
-}
-
-void SceneManager::BuildIfNeeded(Scene &s) {
-	if (s.built)
-		return;
-	s.roots = s.builder ? s.builder(*factory) : std::vector<ecs::Entity>{};
-	s.built = true;
-	// Les scènes naissent cachées ; show() rend visible juste après.
-	ecs::ArchetypeRegistry &w = factory->World();
-	for (ecs::Entity root : s.roots)
-		if (w.IsAlive(root) && !w.HasComponent<UiHidden>(root))
-			w.AddComponent(root, UiHidden{});
-}
-
-void SceneManager::ZeroComputed(ecs::ArchetypeRegistry &w, ecs::Entity e) {
-	if (auto c = w.GetComponent<UiComputed>(e); c.IsSome())
-		*c.Unwrap() = UiComputed{};
-	if (auto children = w.GetComponent<UiChildren>(e); children.IsSome()) {
-		std::vector<ecs::Entity> kids = children.Unwrap()->list;
-		for (ecs::Entity k : kids)
-			ZeroComputed(w, k);
-	}
+			out.push_back(key);
+	return out;
 }
 
 } // namespace ui

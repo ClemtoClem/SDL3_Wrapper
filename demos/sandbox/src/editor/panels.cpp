@@ -6,7 +6,7 @@ namespace sandbox {
 // ── EditorUi ─────────────────────────────────────────────────────────────────
 
 EditorUi::EditorUi(Runtime &runtime, ui::Ui &gui)
-	: m_ctx{runtime, gui, gui.World(), gui.Factory()}, m_tree(m_ctx),
+	: m_ctx{runtime, gui, gui.World()}, m_tree(m_ctx),
 	  m_inspector(m_ctx, MakeInspectorActions()), m_library(m_ctx, MakeInspectorActions()),
 	  m_assets(m_ctx, MakeAssetActions()), m_documents(m_ctx), m_treeDock(m_ctx), m_inspectorDock(m_ctx),
 	  m_libraryDock(m_ctx), m_assetDock(m_ctx), m_consoleDock(m_ctx) {
@@ -38,9 +38,7 @@ EditorUi::EditorUi(Runtime &runtime, ui::Ui &gui)
 	// Interface des scripts de jeu : un calque sur la vue du jeu.
 	const auto &gameUi = Rt().GameUi();
 	gameUi->registry = &m_ctx.registry;
-	gameUi->factory = &m_ctx.factory;
-	gameUi->layout = &m_ctx.gui.Layout();
-	gameUi->root = [this] { return m_gameOverlay; };
+	gameUi->root = [this] { return m_gameOverlay.Entity(); };
 	Rt().onGameUiReset = [this] { ResetGameOverlay(); };
 }
 
@@ -49,8 +47,8 @@ EditorUi::~EditorUi() {
 	const auto &gameUi = Rt().GameUi();
 	gameUi->root = nullptr;
 	gameUi->registry = nullptr;
-	gameUi->factory = nullptr;
-	gameUi->layout = nullptr;
+	if (m_editorSheet)
+		m_ctx.gui.RemoveStyleSheet(m_editorSheet);
 	Rt().onGameUiReset = nullptr;
 	Rt().SetTextMeasure(nullptr);
 }
@@ -76,65 +74,57 @@ void EditorUi::Build() {
 	else
 		m_assets.SetRoots(m_assetsDir, projectDir, String("Dossier du projet"));
 
-	ui::WidgetBuilder root = m_ctx.factory.Column();
-	root.Gap(0.f).Pad(0.f).Fixed().Anchor(ui::Anchor::TopLeft).Bg(kit::PaletteOf(m_ctx).base);
-	root.W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Rpct(100.f));
-	m_root = root.Spawn();
+	m_root = m_ctx.gui.Mount(ui::Column().Id("editor").Class("editor-base").Gap(0.f).Padding(0.f));
 
 	BuildWindowTitleBar();
 	BuildMenuBar(m_root);
 
-	ui::WidgetBuilder body = m_ctx.factory.Row();
-	body.Gap(0.f).Pad(math::Sides{4.f, 2.f, 4.f, 2.f}).GrowW().GrowH().Parent(m_root);
-	m_body = body.Spawn();
+	ui::WidgetBuilder body = ui::Row();
+	body.Gap(0.f).Padding(math::Sides{4.f, 2.f, 4.f, 2.f}).GrowWidth().GrowHeight();
+	m_body = m_root.Append(body);
 
 	// Colonne principale : (arbre | documents) au-dessus de (ressources | console).
-	ui::WidgetBuilder main = m_ctx.factory.Column();
-	main.Pad(0.f);
-	main.Gap(0.f).GrowW().GrowH().Parent(m_body);
-	ecs::Entity mainEntity = main.Spawn();
+	ui::WidgetBuilder main = ui::Column();
+	main.Padding(0.f);
+	main.Gap(0.f).GrowWidth().GrowHeight();
+	ui::Widget mainEntity = m_body.Append(main);
 
-	ui::WidgetBuilder top = m_ctx.factory.Row();
-	top.Pad(0.f);
-	top.Gap(0.f).GrowW().GrowH().Parent(mainEntity);
-	ecs::Entity topEntity = top.Spawn();
+	ui::WidgetBuilder top = ui::Row();
+	top.Padding(0.f);
+	top.Gap(0.f).GrowWidth().GrowHeight();
+	ui::Widget topEntity = mainEntity.Append(top);
 
-	m_treeDock.Build(topEntity, [](ui::WidgetBuilder &b) { b.W(ui::Dimension::Px(LEFT_WIDTH)).GrowH(); });
+	m_treeDock.Build(topEntity, [](ui::WidgetBuilder &b) { b.Width(LEFT_WIDTH).GrowHeight(); });
 	m_leftHandle = ResizeHandle(topEntity, ui::Orientation::Horizontal, m_treeDock.Frame(), true, 160.f, 700.f);
-	m_documents.Build(topEntity, [](ui::WidgetBuilder &b) { b.GrowW().GrowH(); });
+	m_documents.Build(topEntity, [](ui::WidgetBuilder &b) { b.GrowWidth().GrowHeight(); });
 
-	ui::WidgetBuilder bottom = m_ctx.factory.Row();
-	bottom.Pad(0.f);
-	bottom.Gap(0.f).GrowW().H(ui::Dimension::Px(BOTTOM_HEIGHT)).Parent(mainEntity);
-	m_bottomRow = bottom.Spawn();
-	// La poignée PRÉCÈDE la rangée du bas : elle la redimensionne « après ».
+	ui::WidgetBuilder bottom = ui::Row();
+	bottom.Padding(0.f);
+	bottom.Gap(0.f).GrowWidth().Height(BOTTOM_HEIGHT);
+	m_bottomRow = mainEntity.Append(bottom);
 	(void)ResizeHandle(mainEntity, ui::Orientation::Vertical, m_bottomRow, false, 90.f, 700.f);
-	MoveBefore(mainEntity, m_bottomRow);
 
-	m_assetDock.Build(m_bottomRow, [](ui::WidgetBuilder &b) { b.GrowW().GrowH(); });
-	ui::WidgetBuilder consoleSlot = m_ctx.factory.Column();
-	consoleSlot.Pad(0.f);
-	consoleSlot.Gap(0.f).W(ui::Dimension::Px(CONSOLE_WIDTH)).GrowH().Parent(m_bottomRow);
-	ecs::Entity consoleSlotEntity = consoleSlot.Spawn();
+	m_assetDock.Build(m_bottomRow, [](ui::WidgetBuilder &b) { b.GrowWidth().GrowHeight(); });
+	ui::WidgetBuilder consoleSlot = ui::Column();
+	consoleSlot.Padding(0.f);
+	consoleSlot.Gap(0.f).Width(CONSOLE_WIDTH).GrowHeight();
+	ui::Widget consoleSlotEntity = m_bottomRow.Append(consoleSlot);
 	(void)ResizeHandle(m_bottomRow, ui::Orientation::Horizontal, consoleSlotEntity, false, 200.f, 900.f);
-	MoveBefore(m_bottomRow, consoleSlotEntity);
-	m_consoleDock.Build(consoleSlotEntity, [](ui::WidgetBuilder &b) { b.GrowW().GrowH(); });
+	m_consoleDock.Build(consoleSlotEntity, [](ui::WidgetBuilder &b) { b.GrowWidth().GrowHeight(); });
 
 	// Colonne de droite : inspecteur au-dessus de la bibliothèque.
-	ui::WidgetBuilder right = m_ctx.factory.Column();
-	right.Pad(0.f);
-	right.Gap(0.f).W(ui::Dimension::Px(RIGHT_WIDTH)).GrowH().Parent(m_body);
-	m_rightColumn = right.Spawn();
+	ui::WidgetBuilder right = ui::Column();
+	right.Padding(0.f);
+	right.Gap(0.f).Width(RIGHT_WIDTH).GrowHeight();
+	m_rightColumn = m_body.Append(right);
 	(void)ResizeHandle(m_body, ui::Orientation::Horizontal, m_rightColumn, false, 240.f, 700.f);
-	MoveBefore(m_body, m_rightColumn);
-	m_inspectorDock.Build(m_rightColumn, [](ui::WidgetBuilder &b) { b.GrowW().GrowH(); });
-	ui::WidgetBuilder librarySlot = m_ctx.factory.Column();
-	librarySlot.Pad(0.f);
-	librarySlot.Gap(0.f).GrowW().H(ui::Dimension::Px(LIBRARY_HEIGHT)).Parent(m_rightColumn);
-	ecs::Entity librarySlotEntity = librarySlot.Spawn();
+	m_inspectorDock.Build(m_rightColumn, [](ui::WidgetBuilder &b) { b.GrowWidth().GrowHeight(); });
+	ui::WidgetBuilder librarySlot = ui::Column();
+	librarySlot.Padding(0.f);
+	librarySlot.Gap(0.f).GrowWidth().Height(LIBRARY_HEIGHT);
+	ui::Widget librarySlotEntity = m_rightColumn.Append(librarySlot);
 	(void)ResizeHandle(m_rightColumn, ui::Orientation::Vertical, librarySlotEntity, false, 80.f, 600.f);
-	MoveBefore(m_rightColumn, librarySlotEntity);
-	m_libraryDock.Build(librarySlotEntity, [](ui::WidgetBuilder &b) { b.GrowW().GrowH(); });
+	m_libraryDock.Build(librarySlotEntity, [](ui::WidgetBuilder &b) { b.GrowWidth().GrowHeight(); });
 
 	BuildStatusBar(m_root);
 	AttachWindowChrome();
@@ -199,9 +189,9 @@ void EditorUi::Teardown() {
 	m_chrome.Detach();
 	CloseDialog();
 	ExitRunMode();
-	for (ecs::Entity popup : m_menuPopups)
+	for (ui::Widget popup : m_menuPopups)
 		if (popup.Valid())
-			ui::DespawnTree(m_ctx.registry, popup);
+			ui::Widget(popup).Destroy();
 	m_menuPopups.clear();
 	m_tree.Teardown();
 	m_inspector.Teardown();
@@ -209,42 +199,46 @@ void EditorUi::Teardown() {
 	m_assets.Teardown();
 	m_documents.Teardown();
 	if (m_root.Valid()) {
-		ui::DespawnTree(m_ctx.registry, m_root);
-		m_root = ecs::Entity{};
+		ui::Widget(m_root).Destroy();
+		m_root = ui::Widget();
 	}
 	m_maximized = false;
 	m_editorBuilt = false;
 }
 
 bool EditorUi::SetTheme(const String &name) {
-	Option<ui::UiTheme> theme = ThemeByName(name);
+	Option<ui::Palette> theme = ThemeByName(name);
 	if (theme.IsNone())
 		return false;
 	m_themeName = name.ToLower();
 	m_ctx.gui.SetTheme(theme.Unwrap());
+	// Feuille de l'éditeur : couleurs du cadre dérivées de la nouvelle palette.
+	if (m_editorSheet)
+		m_ctx.gui.RemoveStyleSheet(m_editorSheet);
+	m_editorSheet = ui::StyleSheet::Parse(kit::EditorCss(theme.Unwrap()).View(), String(), String("<editor>"));
+	m_ctx.gui.AddStyleSheet(m_editorSheet);
 	kit::syntax::Colors() = kit::PaletteOf(m_ctx).light ? kit::syntax::Scheme::Light() : kit::syntax::Scheme::Dark();
 	if (m_root.Valid())
 		Rebuild();
 	return true;
 }
 
-Option<ui::UiTheme> EditorUi::ThemeByName(const String &name) {
+Option<ui::Palette> EditorUi::ThemeByName(const String &name) {
 	String key = name.ToLower();
 	if (key == "studio")
-		return Some(ui::UiTheme::Studio());
+		return Some(ui::Palette::Of(ui::Theme::Studio));
 	if (key == "dark")
-		return Some(ui::UiTheme::Dark());
+		return Some(ui::Palette::Of(ui::Theme::Dark));
 	if (key == "light")
-		return Some(ui::UiTheme::Light());
+		return Some(ui::Palette::Of(ui::Theme::Light));
 	if (key == "aero")
-		return Some(ui::UiTheme::Aero());
+		return Some(ui::Palette::Of(ui::Theme::Aero));
 	return NONE;
 }
 
 sdl3::FRect EditorUi::ViewportRect() const {
-	const ecs::Entity viewport = m_runMode ? m_runViewport : m_viewport;
-	auto computed = m_ctx.registry.GetComponent<ui::UiComputed>(viewport);
-	return computed.IsSome() ? computed.Unwrap()->screen : sdl3::FRect{};
+	ui::Widget viewport = m_runMode ? m_runViewport : m_viewport;
+	return viewport ? viewport.Bounds() : sdl3::FRect{};
 }
 
 bool EditorUi::PointerOverViewport(float x, float y) const {
@@ -253,16 +247,15 @@ bool EditorUi::PointerOverViewport(float x, float y) const {
 		return false;
 	if (x < rect.x || y < rect.y || x >= rect.x + rect.w || y >= rect.y + rect.h)
 		return false;
-	ecs::Entity front = m_ctx.gui.Input().FrontMostAt(m_ctx.registry, m_ctx.gui.Layout(), sdl3::FPoint{x, y});
-	const ecs::Entity viewport = m_runMode ? m_runViewport : m_viewport;
+	const ui::Widget front(m_ctx.registry, ui::HitTest(m_ctx.registry, sdl3::FPoint{x, y}));
+	const ui::Widget viewport = m_runMode ? m_runViewport : m_viewport;
 	if (!front.Valid())
 		return true;
-	if (!ui::IsDescendantOrSelf(m_ctx.registry, front, viewport))
+	if (!viewport.Contains(front))
 		return false;
 	// Un widget de l'interface du jeu (bouton, curseur…) reçoit le clic
 	// lui-même : la vue ne doit ni sélectionner l'objet derrière, ni bouger.
-	const bool gameWidget = m_gameOverlay.Valid() && front != m_gameOverlay &&
-							ui::IsDescendantOrSelf(m_ctx.registry, front, m_gameOverlay);
+	const bool gameWidget = m_gameOverlay.Valid() && !(front == m_gameOverlay) && m_gameOverlay.Contains(front);
 	return !gameWidget;
 }
 
@@ -288,20 +281,23 @@ void EditorUi::EnterRunMode() {
 	Rt().SetHostFullscreen(true);
 	kit::SetHidden(m_ctx, m_root, true);
 
-	ui::WidgetBuilder root = m_ctx.factory.Column();
-	root.Fixed().Anchor(ui::Anchor::TopLeft).W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Rpct(100.f));
-	root.Gap(0.f).Pad(0.f).Bg(kit::Rgb(0, 0, 0));
-	m_runRoot = root.Spawn();
+	ui::WidgetBuilder root = ui::Column();
+	root.Fixed().Anchor(ui::Anchor::TopLeft).Width(ui::Length::Pct(100.f)).Height(ui::Length::Pct(100.f));
+	root.Gap(0.f).Padding(0.f).Background(kit::Rgb(0, 0, 0));
+	m_runRoot = m_ctx.gui.Mount(root);
 
-	ui::WidgetBuilder viewport = m_ctx.factory.Viewport3D(Rt().SceneRoot(), Rt().ActiveCamera());
-	viewport.GrowW().GrowH().Parent(m_runRoot);
-	m_runViewport = viewport.Spawn();
+	ui::WidgetBuilder viewport = ui::Viewport3D(Rt().SceneRoot(), Rt().ActiveCamera());
+	viewport.GrowWidth().GrowHeight();
+	m_runViewport = m_runRoot.Append(viewport);
 	Spawn2DLayer(m_runViewport, true);
 
 	// Réticule au centre, seulement quand la souris est capturée (vue
 	// subjective) : libre, c'est le curseur qui vise.
 	Runtime *runtime = &Rt();
-	ui::WidgetBuilder crosshair = m_ctx.factory.Canvas([runtime](sdl3::Renderer &ren, sdl3::FRect r) {
+	ui::WidgetBuilder crosshair = ui::Canvas([runtime](ui::Painter &painter, const sdl3::FRect &r) {
+		if (!painter.Renderer())
+			return;
+		sdl3::Renderer &ren = *painter.Renderer();
 		if (runtime->EffectiveMouseMode() != Runtime::MouseMode::CAPTURED)
 			return;
 		const float cx = r.x + r.w * 0.5f, cy = r.y + r.h * 0.5f;
@@ -311,53 +307,51 @@ void EditorUi::EnterRunMode() {
 		ren.FillRect({cx - 1.f, cy - 11.f, 2.f, 8.f});
 		ren.FillRect({cx - 1.f, cy + 3.f, 2.f, 8.f});
 	});
-	crosshair.Absolute().Anchor(ui::Anchor::TopLeft).W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Rpct(100.f));
-	crosshair.PointerThrough().Parent(m_runViewport);
-	(void)crosshair.Spawn();
+	crosshair.Absolute().Anchor(ui::Anchor::TopLeft).Width(ui::Length::Pct(100.f)).Height(ui::Length::Pct(100.f));
+	crosshair.PointerThrough();
+	m_runViewport.Append(crosshair);
 
-	ui::WidgetBuilder hint = m_ctx.factory.Label(String("Échap : revenir à l'éditeur · ZQSD/WASD + souris : se déplacer · "
+	ui::WidgetBuilder hint = ui::Label(String("Échap : revenir à l'éditeur · ZQSD/WASD + souris : se déplacer · "
 									  "F7 : libérer / capturer la souris · F9 : encart des scripts"));
-	hint.Absolute().Anchor(ui::Anchor::TopLeft).Offset(14.f, 12.f).WAuto().HAuto().FontSize(12.f);
-	hint.TextColor(sdl3::FColor{1.f, 1.f, 1.f, 0.6f}).PointerThrough().Parent(m_runViewport);
-	(void)hint.Spawn();
+	hint.Absolute().Anchor(ui::Anchor::TopLeft).Offset(14.f, 12.f).FontSize(12.f);
+	hint.Color(sdl3::FColor{1.f, 1.f, 1.f, 0.6f}).PointerThrough();
+	m_runViewport.Append(hint);
 
 	// Encart « MODE TEST » : les scripts qui tournent. Déplaçable par son
 	// en-tête (souris libre), masquable par ✕ ou F9.
-	ui::WidgetBuilder panel = m_ctx.factory.Column();
+	ui::WidgetBuilder panel = ui::Column();
 	// Fixed : dessiné (et touché) dans la passe des superpositions, au-dessus
 	// de l'interface du jeu qu'il peut désormais survoler. La racine du mode
 	// plein écran est elle aussi une superposition (ordre 0) : l'encart passe
 	// explicitement APRÈS elle, sinon leur ordre relatif dépendrait de celui
 	// de l'ECS — dessin et clics pourraient même ne pas s'accorder.
-	panel.Fixed().OverlayOrder(10);
-	panel.Anchor(ui::Anchor::BottomRight).Offset(m_runPanelOffset.x, m_runPanelOffset.y).WAuto().HAuto();
-	panel.Gap(4.f).Pad(math::Sides{12.f, 8.f}).Radius(6.f).Bg(sdl3::FColor{0.08f, 0.08f, 0.09f, 0.82f});
-	panel.BorderColor(kit::PaletteOf(m_ctx).separator).PointerThrough().Parent(m_runViewport);
-	m_runPanel = panel.Spawn();
+	panel.Fixed().ZIndex(10);
+	panel.Anchor(ui::Anchor::BottomRight).Offset(m_runPanelOffset.x, m_runPanelOffset.y);
+	panel.Gap(4.f).Padding(math::Sides{12.f, 8.f}).BorderRadius(6.f).Background(sdl3::FColor{0.08f, 0.08f, 0.09f, 0.82f});
+	panel.BorderColor(kit::PaletteOf(m_ctx).separator).PointerThrough();
+	m_runPanel = m_runViewport.Append(panel);
 
-	ui::WidgetBuilder header = m_ctx.factory.Row();
-	header.Pad(0.f);
-	header.Gap(8.f).WAuto().HAuto().Align(ui::CrossAlign::Center).Parent(m_runPanel);
+	ui::WidgetBuilder header = ui::Row();
+	header.Padding(0.f);
+	header.Gap(8.f).AlignItems(ui::Align::Center);
 	header.Tooltip(String("Glisser pour déplacer (souris libre : F7)"));
-	m_runPanelHeader = header.Spawn();
+	m_runPanelHeader = m_runPanel.Append(header);
 	(void)kit::Glyph(m_ctx, m_runPanelHeader, ui::MaterialIcons::DRAG_INDICATOR, sdl3::FColor{0.7f, 0.7f, 0.74f, 1.f},
 					 16.f);
-	ui::WidgetBuilder title = m_ctx.factory.Label(String("MODE TEST (Run Mode)"));
-	title.FontSize(15.f).WAuto().HAuto().TextColor(sdl3::FColor{0.92f, 0.92f, 0.94f, 1.f}).PointerThrough();
-	title.Parent(m_runPanelHeader);
-	(void)title.Spawn();
+	ui::WidgetBuilder title = ui::Label(String("MODE TEST (Run Mode)"));
+	title.FontSize(15.f).Color(sdl3::FColor{0.92f, 0.92f, 0.94f, 1.f}).PointerThrough();
+	m_runPanelHeader.Append(title);
 	m_runPanelClose = kit::IconButton(m_ctx, m_runPanelHeader, ui::MaterialIcons::CLOSE,
 									  String("Masquer l'encart (F9 pour le réafficher)"),
 									  [this] { SetRunPanelHidden(true); }, 20.f);
 
-	ui::WidgetBuilder body = m_ctx.factory.Column();
-	body.Pad(0.f);
-	body.Gap(4.f).WAuto().HAuto().PointerThrough().Parent(m_runPanel);
-	m_runPanelBody = body.Spawn();
+	ui::WidgetBuilder body = ui::Column();
+	body.Padding(0.f);
+	body.Gap(4.f).PointerThrough();
+	m_runPanelBody = m_runPanel.Append(body);
 	m_draggingRunPanel = false;
 	EnsureGameOverlay(); // l'interface du jeu suit dans la vue plein écran
 	RefreshRunPanel();
-	m_ctx.gui.Layout().MarkDirty();
 	SetStatus(String("Mode Jeu plein écran — Échap pour revenir"));
 }
 
@@ -368,9 +362,9 @@ void EditorUi::ExitRunMode() {
 	Rt().SetHostFullscreen(false);
 	EnsureGameOverlay(); // ramenée dans la vue de l'éditeur avant de détruire l'autre
 	if (m_runRoot.Valid())
-		ui::DespawnTree(m_ctx.registry, m_runRoot);
-	m_runRoot = m_runViewport = m_runPanel = ecs::Entity{};
-	m_runPanelHeader = m_runPanelClose = m_runPanelBody = ecs::Entity{};
+		ui::Widget(m_runRoot).Destroy();
+	m_runRoot = m_runViewport = m_runPanel = ui::Widget();
+	m_runPanelHeader = m_runPanelClose = m_runPanelBody = ui::Widget();
 	m_draggingRunPanel = false;
 	kit::SetHidden(m_ctx, m_root, false);
 	if (Rt().IsPlaying())
@@ -378,31 +372,27 @@ void EditorUi::ExitRunMode() {
 }
 
 void EditorUi::EnsureGameOverlay() {
-	const ecs::Entity viewport = GameViewport();
-	if (!Rt().IsPlaying() || !viewport.Valid() || !m_ctx.registry.IsAlive(viewport))
+	ui::Widget viewport = GameViewport();
+	if (!Rt().IsPlaying() || !viewport.Valid())
 		return;
-	if (m_gameOverlay.Valid() && m_ctx.registry.IsAlive(m_gameOverlay)) {
-		auto parent = m_ctx.registry.GetComponent<ui::UiParent>(m_gameOverlay);
-		if (parent.IsSome() && parent.Unwrap()->parent != viewport) {
-			ui::SetParent(m_ctx.registry, m_gameOverlay, viewport);
-			m_ctx.gui.Layout().MarkDirty();
-		}
+	if (m_gameOverlay.Valid()) {
+		const Option<ui::Widget> parent = m_gameOverlay.Parent();
+		if (parent.IsNone() || !(parent.Value() == viewport))
+			(void)m_gameOverlay.MoveTo(viewport);
 		return;
 	}
-	ui::WidgetBuilder overlay = m_ctx.factory.Column();
+	ui::WidgetBuilder overlay = ui::Column();
 	// Pct (du PARENT, la vue) et non Rpct (de la fenêtre) : dans l'éditeur, la
 	// vue ne remplit pas la fenêtre.
-	overlay.Absolute().Anchor(ui::Anchor::TopLeft).W(ui::Dimension::Pct(100.f)).H(ui::Dimension::Pct(100.f));
-	overlay.Gap(0.f).Pad(0.f).PointerThrough().Parent(viewport);
-	m_gameOverlay = overlay.Spawn();
-	m_ctx.gui.Layout().MarkDirty();
+	overlay.Absolute().Anchor(ui::Anchor::TopLeft).Width(ui::Length::Pct(100.f)).Height(ui::Length::Pct(100.f));
+	overlay.Gap(0.f).Padding(0.f).PointerThrough();
+	m_gameOverlay = viewport.Append(overlay);
 }
 
 void EditorUi::ResetGameOverlay() {
-	if (m_gameOverlay.Valid() && m_ctx.registry.IsAlive(m_gameOverlay))
-		ui::DespawnTree(m_ctx.registry, m_gameOverlay);
-	m_gameOverlay = ecs::Entity{};
-	m_ctx.gui.Layout().MarkDirty();
+	if (m_gameOverlay.Valid())
+		ui::Widget(m_gameOverlay).Destroy();
+	m_gameOverlay = ui::Widget();
 	EnsureGameOverlay();
 }
 
@@ -516,7 +506,7 @@ void EditorUi::Tick(float dt, double fps) {
 	RefreshModelingUi();
 	if (m_window) {
 		m_chrome.Update();
-		m_titleBar.Update(m_ctx.registry, *m_window);
+		m_titleBar.Update(*m_window);
 	}
 	if (!m_editorBuilt)
 		return;
@@ -727,12 +717,15 @@ String EditorUi::ResolveAsset(const String &path) const {
 	return path;
 }
 
-void EditorUi::Spawn2DLayer(ecs::Entity viewport, bool runView) {
-	ui::WidgetBuilder layer = m_ctx.factory.Canvas(
-		[this, runView](sdl3::Renderer &ren, sdl3::FRect r) { Draw2DLayer(ren, r, runView); });
-	layer.Absolute().Anchor(ui::Anchor::TopLeft).W(ui::Dimension::Pct(100.f)).H(ui::Dimension::Pct(100.f));
-	layer.PointerThrough().Parent(viewport);
-	(void)layer.Spawn();
+void EditorUi::Spawn2DLayer(ui::Widget viewport, bool runView) {
+	ui::WidgetBuilder layer = ui::Canvas(
+		[this, runView](ui::Painter &painter, const sdl3::FRect &r) {
+			if (painter.Renderer())
+				Draw2DLayer(*painter.Renderer(), r, runView);
+		});
+	layer.Absolute().Anchor(ui::Anchor::TopLeft).Width(ui::Length::Pct(100.f)).Height(ui::Length::Pct(100.f));
+	layer.PointerThrough();
+	viewport.Append(layer);
 }
 
 void EditorUi::Draw2DLayer(sdl3::Renderer &ren, sdl3::FRect r, bool runView) {
@@ -1086,17 +1079,7 @@ bool EditorUi::UiCommand(const String &command, const String &argument) {
 		return true;
 	}
 	if (cmd == "close_menus") {
-		std::vector<ecs::Entity> open;
-		m_ctx.registry.Query<ui::UiPopupState>([&open](ecs::Entity e, ui::UiPopupState &state) {
-			if (state.open)
-				open.push_back(e);
-		});
-		for (ecs::Entity e : open) {
-			if (m_ctx.registry.GetComponent<ui::UiPopupState>(e).Unwrap()->modal)
-				m_ctx.gui.CloseModal(e);
-			else
-				m_ctx.gui.ClosePopup(e);
-		}
+		m_ctx.gui.CloseAllPopups();
 		return true;
 	}
 	if (cmd == "browse") {
@@ -1272,58 +1255,28 @@ math::FVector3 EditorUi::SpawnPointInFrontOfCamera(float lift) const {
 	return at;
 }
 
-ecs::Entity EditorUi::ResizeHandle(ecs::Entity parent, ui::Orientation orient, ecs::Entity target, bool before, float minSize,
+ui::Widget EditorUi::ResizeHandle(ui::Widget parent, ui::Orientation orient, ui::Widget target, bool before, float minSize,
 		float maxSize) {
 	const bool horizontal = orient == ui::Orientation::Horizontal;
-	ui::WidgetBuilder handle = m_ctx.factory.Row();
-	handle.Pad(0.f);
+	ui::WidgetBuilder handle = ui::Row();
+	handle.Padding(0.f);
 	if (horizontal)
-		handle.W(ui::Dimension::Px(5.f)).GrowH();
+		handle.Width(5.f).GrowHeight();
 	else
-		handle.GrowW().H(ui::Dimension::Px(5.f));
-	handle.Bg(kit::PaletteOf(m_ctx).base).Parent(parent);
-	ecs::Entity entity = handle.Spawn();
-
-	ui::UiResizeHandle h;
-	h.orient = orient;
-	ecs::ArchetypeRegistry *world = &m_ctx.registry;
-	auto get = [world, target, horizontal]() -> float {
-		if (auto item = world->GetComponent<ui::UiItem>(target); item.IsSome())
-			return horizontal ? item.Unwrap()->width.value : item.Unwrap()->height.value;
-		return 0.f;
-	};
-	auto set = [world, target, horizontal](float v) {
-		if (auto item = world->GetComponent<ui::UiItem>(target); item.IsSome()) {
-			if (horizontal)
-				item.Unwrap()->width = ui::Dimension::Px(v);
-			else
-				item.Unwrap()->height = ui::Dimension::Px(v);
-		}
-	};
-	if (before) {
-		h.getBefore = get;
-		h.setBefore = set;
-		h.minBefore = minSize;
-		h.maxBefore = maxSize;
-	} else {
-		h.getAfter = get;
-		h.setAfter = set;
-		h.minAfter = minSize;
-		h.maxAfter = maxSize;
-	}
-	m_ctx.registry.AddComponent(entity, std::move(h));
-	return entity;
-}
-
-void EditorUi::MoveBefore(ecs::Entity parent, ecs::Entity anchor) {
-	auto children = m_ctx.registry.GetComponent<ui::UiChildren>(parent);
-	if (children.IsNone() || children.Unwrap()->list.size() < 2)
-		return;
-	std::vector<ecs::Entity> &list = children.Unwrap()->list;
-	const ecs::Entity moved = list.back();
-	list.pop_back();
-	list.insert(std::find(list.begin(), list.end(), anchor), moved);
-	m_ctx.gui.Layout().MarkDirty();
+		handle.GrowWidth().Height(5.f);
+	handle.Background(kit::PaletteOf(m_ctx).base);
+	ui::ResizeHandle h;
+	h.axis = orient;
+	h.after = !before;
+	(before ? h.minBefore : h.minAfter) = minSize;
+	h.maxSize = maxSize;
+	handle.With(h);
+	if (before)
+		return parent.Append(handle);
+	// La poignée PRÉCÈDE le panneau qu'elle redimensionne (ancré à droite / en bas).
+	const std::vector<ui::Widget> children = parent.Children();
+	const auto at = std::find(children.begin(), children.end(), target);
+	return parent.Insert(size_t(at - children.begin()), handle);
 }
 
 void EditorUi::PlaceObject(const String &objectName) {
@@ -1339,102 +1292,97 @@ void EditorUi::PlaceObject(const String &objectName) {
 }
 
 ui::WidgetBuilder EditorUi::MenuAction(const char *text, const char *shortcut, std::function<void()> action) {
-	ui::WidgetBuilder item = m_ctx.factory.MenuItem(String(text), String(shortcut));
+	ui::WidgetBuilder item = ui::MenuItem(String(text), String(shortcut));
 	item.OnClick(std::move(action));
 	return item;
 }
 
-void EditorUi::AddItem(ecs::Entity menu, const char *text, const char *shortcut, std::function<void()> action) {
+void EditorUi::AddItem(ui::Widget menu, const char *text, const char *shortcut, std::function<void()> action) {
 	ui::WidgetBuilder item = MenuAction(text, shortcut, std::move(action));
-	item.Parent(menu);
-	(void)item.Spawn();
+	menu.Append(item);
 }
 
-void EditorUi::BuildMenuBar(ecs::Entity parent) {
-	ui::WidgetBuilder bar = m_ctx.factory.MenuBar();
-	bar.Parent(parent).GrowW().HAuto().Pad(math::Sides{6.f, 2.f}).Bg(kit::PaletteOf(m_ctx).header);
-	ecs::Entity barEntity = bar.Spawn();
+void EditorUi::BuildMenuBar(ui::Widget parent) {
+	ui::WidgetBuilder bar = ui::MenuBar();
+	bar.GrowWidth().Padding(math::Sides{6.f, 2.f}).Class("editor-header");
+	ui::Widget barEntity = parent.Append(bar);
 
-	ecs::Entity file = m_ctx.factory.Menu(
-		barEntity, String("Fichier"), MenuAction("Nouveau projet…", "Ctrl+N", [this] { OnNewProject(); }),
-		MenuAction("Ouvrir un projet…", "Ctrl+O", [this] { OnOpenProject(); }),
-		MenuAction("Enregistrer le projet", "Ctrl+S", [this] { OnSaveProject(); }),
-		MenuAction("Enregistrer le projet sous…", "", [this] { OnSaveProjectAs(); }),
-		MenuAction("Nouvelle scène", "", [this] { OnNewScene(); }),
-		MenuAction("Enregistrer la scène sous…", "", [this] { OnSaveSceneAs(); }),
-		MenuAction("Importer une scène…", "", [this] { OnImportScene(); }),
-		MenuAction("Importer un script…", "", [this] { OnImportScript(); }),
-		MenuAction("Enregistrer la sélection comme scène", "", [this] { OnSaveSelectionAsScene(); }),
-		MenuAction("Exporter le rapport", "", [this] { OnExportReport(); }),
-		MenuAction("Fermer le projet", "", [this] { OnCloseProject(); }),
-		MenuAction("Quitter", "Ctrl+Q", [this] {
+	ui::Widget file = barEntity.Append(ui::Menu(String("Fichier")).Children({MenuAction("Nouveau projet…", "Ctrl+N", [this] { OnNewProject(); }),
+MenuAction("Ouvrir un projet…", "Ctrl+O", [this] { OnOpenProject(); }),
+MenuAction("Enregistrer le projet", "Ctrl+S", [this] { OnSaveProject(); }),
+MenuAction("Enregistrer le projet sous…", "", [this] { OnSaveProjectAs(); }),
+MenuAction("Nouvelle scène", "", [this] { OnNewScene(); }),
+MenuAction("Enregistrer la scène sous…", "", [this] { OnSaveSceneAs(); }),
+MenuAction("Importer une scène…", "", [this] { OnImportScene(); }),
+MenuAction("Importer un script…", "", [this] { OnImportScript(); }),
+MenuAction("Enregistrer la sélection comme scène", "", [this] { OnSaveSelectionAsScene(); }),
+MenuAction("Exporter le rapport", "", [this] { OnExportReport(); }),
+MenuAction("Fermer le projet", "", [this] { OnCloseProject(); }),
+MenuAction("Quitter", "Ctrl+Q", [this] {
 			if (onQuit)
 				onQuit();
-		}));
+		})}));
 	m_menuPopups.push_back(file);
-	ecs::Entity scenes = m_ctx.factory.SubMenu(file, String("Ouvrir une scène"));
+	ui::Widget scenes = file.Append(ui::SubMenu(String("Ouvrir une scène")));
 	m_menuPopups.push_back(scenes);
 	for (const String &name : Rt().GetProject().Fs().ListScenes())
 		AddItem(scenes, name.CStr(), "", [this, name] { (void)Rt().OpenScene(SceneRef{name}); });
 
-	m_menuPopups.push_back(m_ctx.factory.Menu(
-		barEntity, String("Édition"), MenuAction("Annuler", "Ctrl+Z", [this] { OnUndo(); }),
-		MenuAction("Rétablir", "Ctrl+Y", [this] { OnRedo(); }),
-		MenuAction("Dupliquer", "Ctrl+D", [this] { OnDuplicate(); }),
-		MenuAction("Supprimer", "Suppr", [this] { OnDeleteSelection(); }),
-		MenuAction("Renommer…", "F2", [this] { m_tree.BeginRename(Rt().SelectedId()); }),
-		MenuAction("Tout désélectionner", "Échap", [this] { Rt().ClearSelection(); }),
-		MenuAction("Déplacer", "W", [this] { SetGizmoMode(Runtime::GizmoMode::TRANSLATE); }),
-		MenuAction("Tourner", "E", [this] { SetGizmoMode(Runtime::GizmoMode::ROTATE); }),
-		MenuAction("Redimensionner", "R", [this] { SetGizmoMode(Runtime::GizmoMode::SCALE); }),
-		MenuAction("Magnétisme", "X", [this] { ToggleSnap(); })));
+	m_menuPopups.push_back(barEntity.Append(ui::Menu(String("Édition")).Children({MenuAction("Annuler", "Ctrl+Z", [this] { OnUndo(); }),
+MenuAction("Rétablir", "Ctrl+Y", [this] { OnRedo(); }),
+MenuAction("Dupliquer", "Ctrl+D", [this] { OnDuplicate(); }),
+MenuAction("Supprimer", "Suppr", [this] { OnDeleteSelection(); }),
+MenuAction("Renommer…", "F2", [this] { m_tree.BeginRename(Rt().SelectedId()); }),
+MenuAction("Tout désélectionner", "Échap", [this] { Rt().ClearSelection(); }),
+MenuAction("Déplacer", "W", [this] { SetGizmoMode(Runtime::GizmoMode::TRANSLATE); }),
+MenuAction("Tourner", "E", [this] { SetGizmoMode(Runtime::GizmoMode::ROTATE); }),
+MenuAction("Redimensionner", "R", [this] { SetGizmoMode(Runtime::GizmoMode::SCALE); }),
+MenuAction("Magnétisme", "X", [this] { ToggleSnap(); })})));
 
 	// ── Objets réutilisables : une arborescence éditée une fois, posée
 	// partout ; ses instances suivent ses modifications.
-	ecs::Entity objectsMenu = m_ctx.factory.Menu(
-		barEntity, String("Objets"), MenuAction("Nouvel objet", "", [this] {
+	ui::Widget objectsMenu = barEntity.Append(ui::Menu(String("Objets")).Children({MenuAction("Nouvel objet", "", [this] {
 			const ObjectRef object = Rt().AddEmptyObject();
 			SetStatus(String::Format("Objet « %s » ouvert : ajoutez-y des nœuds", object.name.CStr()));
 		}),
-		MenuAction("Créer un objet à partir de la sélection", "", [this] {
+MenuAction("Créer un objet à partir de la sélection", "", [this] {
 			auto object = Rt().CreateObjectFromNode(Rt().SelectedId());
 			SetStatus(object.IsOk() ? String::Format("Objet « %s » créé ; la sélection en est une instance",
 													  object.Value().name.CStr())
 									: String::Format("Objet impossible : %s", object.Error().CStr()));
 		}),
-		MenuAction("Rendre l'instance indépendante", "", [this] {
+MenuAction("Rendre l'instance indépendante", "", [this] {
 			auto done = Rt().DetachInstance(Rt().SelectedId());
 			SetStatus(done.IsOk() ? String("Instance rendue indépendante")
 								  : String::Format("Impossible : %s", done.Error().CStr()));
 		}),
-		MenuAction("Actualiser les instances", "", [this] {
+MenuAction("Actualiser les instances", "", [this] {
 			Rt().RefreshObjectInstances();
 			Rt().RebuildRuntime();
 			SetStatus(String("Instances régénérées à partir des objets"));
-		}));
+		})}));
 	m_menuPopups.push_back(objectsMenu);
 	BuildModelingMenu(barEntity);
-	ecs::Entity place = m_ctx.factory.SubMenu(objectsMenu, String("Poser une instance"));
+	ui::Widget place = objectsMenu.Append(ui::SubMenu(String("Poser une instance")));
 	m_menuPopups.push_back(place);
-	ecs::Entity openObject = m_ctx.factory.SubMenu(objectsMenu, String("Ouvrir un objet"));
+	ui::Widget openObject = objectsMenu.Append(ui::SubMenu(String("Ouvrir un objet")));
 	m_menuPopups.push_back(openObject);
 	for (const String &name : Rt().GetProject().Fs().ListObjects()) {
 		AddItem(place, name.CStr(), "", [this, name] { PlaceObject(name); });
 		AddItem(openObject, name.CStr(), "", [this, name] { (void)Rt().OpenObject(ObjectRef{name}); });
 	}
 
-	ecs::Entity tools = m_ctx.factory.Menu(
-		barEntity, String("Outils"), MenuAction("Console de script", "", [this] { m_documents.OpenToolConsole(); }),
-		MenuAction("Script de la scène", "", [this] { m_documents.OpenSceneScript(ActiveDocumentName()); }),
-		MenuAction("Vérifier tous les scripts", "", [this] { OnCheckAllScripts(); }),
-		MenuAction("Cadrer la sélection", "F", [this] { OnFocusSelection(); }),
-		MenuAction("Parcourir les modèles", "", [this] {
+	ui::Widget tools = barEntity.Append(ui::Menu(String("Outils")).Children({MenuAction("Console de script", "", [this] { m_documents.OpenToolConsole(); }),
+MenuAction("Script de la scène", "", [this] { m_documents.OpenSceneScript(ActiveDocumentName()); }),
+MenuAction("Vérifier tous les scripts", "", [this] { OnCheckAllScripts(); }),
+MenuAction("Cadrer la sélection", "F", [this] { OnFocusSelection(); }),
+MenuAction("Parcourir les modèles", "", [this] {
 			m_assetDock.SetActive(0);
 			if (m_assets.Model().Navigate(m_assetsDir + String("/models")))
 				m_assets.MarkDirty();
-		}));
+		})}));
 	m_menuPopups.push_back(tools);
-	ecs::Entity create = m_ctx.factory.SubMenu(tools, String("Créer un nœud"));
+	ui::Widget create = tools.Append(ui::SubMenu(String("Créer un nœud")));
 	m_menuPopups.push_back(create);
 	for (const NodeTemplate &entry : NODE_TEMPLATES) {
 		const String key(entry.key);
@@ -1444,42 +1392,39 @@ void EditorUi::BuildMenuBar(ecs::Entity parent) {
 		});
 	}
 
-	ecs::Entity window = m_ctx.factory.Menu(
-		barEntity, String("Fenêtre"), MenuAction("Arbre de scène", "", [this] { (void)FocusPanel("tree", 0); }),
-		MenuAction("Inspecteur", "", [this] { (void)FocusPanel("inspector", 0); }),
-		MenuAction("Ressources", "", [this] { (void)FocusPanel("assets", 0); }),
-		MenuAction("Console", "", [this] { (void)FocusPanel("console", 0); }),
-		MenuAction("Profileur", "", [this] { (void)FocusPanel("profiler", 0); }),
-		MenuAction("Vue 3D seule", "", [this] { ToggleMaximized(); }));
+	ui::Widget window = barEntity.Append(ui::Menu(String("Fenêtre")).Children({MenuAction("Arbre de scène", "", [this] { (void)FocusPanel("tree", 0); }),
+MenuAction("Inspecteur", "", [this] { (void)FocusPanel("inspector", 0); }),
+MenuAction("Ressources", "", [this] { (void)FocusPanel("assets", 0); }),
+MenuAction("Console", "", [this] { (void)FocusPanel("console", 0); }),
+MenuAction("Profileur", "", [this] { (void)FocusPanel("profiler", 0); }),
+MenuAction("Vue 3D seule", "", [this] { ToggleMaximized(); })}));
 	m_menuPopups.push_back(window);
 	
-	ecs::Entity themes = m_ctx.factory.SubMenu(window, String("Thème"));
+	ui::Widget themes = window.Append(ui::SubMenu(String("Thème")));
 	m_menuPopups.push_back(themes);
 	AddItem(themes, "Atelier (par défaut)", "", [this] { (void)SetTheme("studio"); });
 	AddItem(themes, "Sombre", "", [this] { (void)SetTheme("dark"); });
 	AddItem(themes, "Clair", "", [this] { (void)SetTheme("light"); });
 	AddItem(themes, "Verre", "", [this] { (void)SetTheme("aero"); });
 
-	m_menuPopups.push_back(m_ctx.factory.Menu(
-		barEntity, String("Compiler"), MenuAction("Lancer dans la vue", "F5", [this] { Rt().TogglePlay(); }),
-		MenuAction("Lancer en plein écran", "F6", [this] { EnterRunMode(); }),
-		MenuAction("Arrêter", "", [this] { Rt().Stop(); }),
-		MenuAction("Vérifier les scripts", "", [this] { OnCheckAllScripts(); }),
-		MenuAction("Exporter le rapport", "", [this] { OnExportReport(); })));
+	m_menuPopups.push_back(barEntity.Append(ui::Menu(String("Compiler")).Children({MenuAction("Lancer dans la vue", "F5", [this] { Rt().TogglePlay(); }),
+MenuAction("Lancer en plein écran", "F6", [this] { EnterRunMode(); }),
+MenuAction("Arrêter", "", [this] { Rt().Stop(); }),
+MenuAction("Vérifier les scripts", "", [this] { OnCheckAllScripts(); }),
+MenuAction("Exporter le rapport", "", [this] { OnExportReport(); })})));
 
-	m_menuPopups.push_back(m_ctx.factory.Menu(
-		barEntity, String("Aide"), MenuAction("Raccourcis", "", [this] { OnShowShortcuts(); }),
-		MenuAction("À propos", "", [this] { OnAbout(); })));
+	m_menuPopups.push_back(barEntity.Append(ui::Menu(String("Aide")).Children({MenuAction("Raccourcis", "", [this] { OnShowShortcuts(); }),
+MenuAction("À propos", "", [this] { OnAbout(); })})));
 }
 
 void EditorUi::BuildDockMenus() {
-	m_treeMenu = m_ctx.factory.ContextMenu();
+	m_treeMenu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_menuPopups.push_back(m_treeMenu);
 	AddItem(m_treeMenu, "Tout déplier", "", [this] { m_tree.ExpandAll(true); });
 	AddItem(m_treeMenu, "Tout replier", "", [this] { m_tree.ExpandAll(false); });
 	AddItem(m_treeMenu, "Montrer la sélection", "", [this] { m_tree.RevealSelection(); });
 
-	m_documentsMenu = m_ctx.factory.ContextMenu();
+	m_documentsMenu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_menuPopups.push_back(m_documentsMenu);
 	AddItem(m_documentsMenu, "Console de script", "", [this] { m_documents.OpenToolConsole(); });
 	AddItem(m_documentsMenu, "Script de la scène", "", [this] { m_documents.OpenSceneScript(ActiveDocumentName()); });
@@ -1489,7 +1434,7 @@ void EditorUi::BuildDockMenus() {
 	});
 	AddItem(m_documentsMenu, "Vue 3D seule", "", [this] { ToggleMaximized(); });
 
-	m_inspectorMenu = m_ctx.factory.ContextMenu();
+	m_inspectorMenu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_menuPopups.push_back(m_inspectorMenu);
 	AddItem(m_inspectorMenu, "Modifier les propriétés en JSON…", "", [this] {
 		if (Rt().SelectedId().Valid())
@@ -1497,7 +1442,7 @@ void EditorUi::BuildDockMenus() {
 	});
 	AddItem(m_inspectorMenu, "Cadrer la sélection", "F", [this] { OnFocusSelection(); });
 
-	m_assetsMenu = m_ctx.factory.ContextMenu();
+	m_assetsMenu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_menuPopups.push_back(m_assetsMenu);
 	const std::pair<const char *, const char *> places[] = {
 		{"Projet", AssetBrowserModel::ROOT},        {"Scènes", AssetBrowserModel::SCENES},
@@ -1514,50 +1459,42 @@ void EditorUi::BuildDockMenus() {
 	}
 }
 
-void EditorUi::BuildViewportPage(ecs::Entity page) {
-	const ui::UiTheme &theme = m_ctx.Theme();
-	ui::WidgetBuilder bar = m_ctx.factory.Row();
-	bar.Gap(2.f).Pad(math::Sides{6.f, 3.f}).GrowW().HAuto().Align(ui::CrossAlign::Center);
-	bar.Bg(kit::PaletteOf(m_ctx).toolbar).Parent(page);
-	ecs::Entity barEntity = bar.Spawn();
+void EditorUi::BuildViewportPage(ui::Widget page) {
+	const ui::Palette &theme = m_ctx.Theme();
+	ui::WidgetBuilder bar = ui::Row();
+	bar.Gap(2.f).Padding(math::Sides{6.f, 3.f}).GrowWidth().AlignItems(ui::Align::Center);
+	bar.Background(kit::PaletteOf(m_ctx).toolbar);
+	ui::Widget barEntity = page.Append(bar);
 
 	BuildViewportTools(barEntity);
 	(void)kit::Spacer(m_ctx, barEntity);
 
 	// Sélecteur de document : deux sous-menus, les scènes puis les objets
 	// (un objet s'édite comme une scène) — tenu à jour par RefreshStatusBar.
-	ui::WidgetBuilder combo = m_ctx.factory.Combo(DocumentChoices(), 0);
-	combo.Size(140.f, 24.f).FontSize(13.f).Tooltip(String("Document ouvert : scène ou objet")).Parent(barEntity);
-	combo.OnChange([this](float index) {
-		auto box = m_ctx.registry.GetComponent<ui::UiComboBox>(m_sceneCombo);
-		const size_t i = size_t(index < 0.f ? 0.f : index);
-		if (box.IsSome() && i < box.Unwrap()->items.size()) {
-			// Premier sous-menu : les scènes ; second : les objets.
-			const String &name = box.Unwrap()->items[i];
-			(void)(box.Unwrap()->GroupOf(int(i)) == 0 ? Rt().OpenScene(SceneRef{name}) : Rt().OpenObject(ObjectRef{name}));
-		}
-	});
-	m_sceneCombo = combo.Spawn();
+	ui::WidgetBuilder comboSlot = ui::Row();
+	comboSlot.Padding(0.f).Gap(0.f).AlignItems(ui::Align::Center);
+	m_sceneComboSlot = barEntity.Append(comboSlot);
+	m_sceneCombo = m_sceneComboSlot.Append(DocumentCombo());
 	m_documentChoicesDirty = true;
 
-	ui::WidgetBuilder searchRow = m_ctx.factory.Row();
-	searchRow.Pad(0.f);
-	searchRow.Gap(4.f).W(ui::Dimension::Px(120.f)).HAuto().Align(ui::CrossAlign::Center).Parent(barEntity);
-	ecs::Entity searchRowEntity = searchRow.Spawn();
+	ui::WidgetBuilder searchRow = ui::Row();
+	searchRow.Padding(0.f);
+	searchRow.Gap(4.f).Width(120.f).AlignItems(ui::Align::Center);
+	ui::Widget searchRowEntity = barEntity.Append(searchRow);
 	// Pendant la modélisation, la place va aux outils.
-	m_sceneOnlyButtons.push_back(m_sceneCombo);
+	m_sceneOnlyButtons.push_back(m_sceneComboSlot);
 	m_sceneOnlyButtons.push_back(searchRowEntity);
 	(void)kit::Glyph(m_ctx, searchRowEntity, ui::MaterialIcons::SEARCH, theme.muted, 15.f);
-	ui::WidgetBuilder search = m_ctx.factory.Input(String("Aller à un nœud…"));
-	search.GrowW().H(ui::Dimension::Px(24.f)).FontSize(13.f).Parent(searchRowEntity);
+	ui::WidgetBuilder search = ui::Input(String("Aller à un nœud…"));
+	search.GrowWidth().Height(24.f).FontSize(13.f);
 	search.OnSubmit([this](const String &text) { GoToNode(text); });
-	(void)search.Spawn();
+	searchRowEntity.Append(search);
 	(void)kit::IconButton(m_ctx, barEntity, ui::MaterialIcons::FULLSCREEN, String("Vue 3D seule (masquer les panneaux)"),
 						  [this] { ToggleMaximized(); }, 26.f);
 
 	// La vue elle-même, avec les superpositions (axes, projection, badge).
-	ui::WidgetBuilder viewport = m_ctx.factory.Viewport3D(Rt().SceneRoot(), Rt().ActiveCamera());
-	viewport.GrowW().GrowH().Parent(page);
+	ui::WidgetBuilder viewport = ui::Viewport3D(Rt().SceneRoot(), Rt().ActiveCamera());
+	viewport.GrowWidth().GrowHeight();
 	// Glisser une vignette de modèle du navigateur dans la vue : import.
 	viewport.DropTarget(String("asset"));
 	viewport.OnDrop([this](int64_t index) {
@@ -1572,38 +1509,40 @@ void EditorUi::BuildViewportPage(ecs::Entity page) {
 		else
 			m_assets.Activate(i);
 	});
-	m_viewport = viewport.Spawn();
+	m_viewport = page.Append(viewport);
 	// Le calque 2D d'abord : tout le reste (repères, badge, interface du
 	// jeu) se dessine par-dessus.
 	Spawn2DLayer(m_viewport, false);
 
 	Runtime *runtime = &Rt();
-	ui::WidgetBuilder axes = m_ctx.factory.Canvas([runtime](sdl3::Renderer &ren, sdl3::FRect r) {
+	ui::WidgetBuilder axes = ui::Canvas([runtime](ui::Painter &painter, const sdl3::FRect &r) {
+		if (!painter.Renderer())
+			return;
+		sdl3::Renderer &ren = *painter.Renderer();
 		DrawAxisGizmo(ren, r, runtime->ActiveCamera());
 	});
 	axes.Absolute().Anchor(ui::Anchor::TopRight).Offset(-10.f, 10.f).Size(92.f, 92.f).PointerThrough();
-	axes.Parent(m_viewport);
-	m_axesGizmo = axes.Spawn();
-	ui::WidgetBuilder projection = m_ctx.factory.Label(String("‹ Persp"));
-	projection.Absolute().Anchor(ui::Anchor::TopRight).Offset(-30.f, 104.f).WAuto().HAuto().FontSize(12.f);
-	projection.TextColor(sdl3::FColor{1.f, 1.f, 1.f, 0.65f}).PointerThrough().Parent(m_viewport);
-	m_projectionLabel = projection.Spawn();
+	m_axesGizmo = m_viewport.Append(axes);
+	ui::WidgetBuilder projection = ui::Label(String("‹ Persp"));
+	projection.Absolute().Anchor(ui::Anchor::TopRight).Offset(-30.f, 104.f).FontSize(12.f);
+	projection.Color(sdl3::FColor{1.f, 1.f, 1.f, 0.65f}).PointerThrough();
+	m_projectionLabel = m_viewport.Append(projection);
 	Show2DWorkspace();
 
-	ui::WidgetBuilder badge = m_ctx.factory.Label(String("▶  MODE JEU — F5 pour arrêter"));
-	badge.Absolute().Anchor(ui::Anchor::TopLeft).Offset(12.f, 10.f).WAuto().HAuto().FontSize(13.f).Bold();
-	badge.Pad(math::Sides{10.f, 4.f}).Radius(4.f).Bg(sdl3::FColor{0.12f, 0.45f, 0.18f, 0.85f});
-	badge.TextColor(sdl3::FColor::WHITE()).PointerThrough().Parent(m_viewport);
-	m_playBadge = badge.Spawn();
+	ui::WidgetBuilder badge = ui::Label(String("▶  MODE JEU — F5 pour arrêter"));
+	badge.Absolute().Anchor(ui::Anchor::TopLeft).Offset(12.f, 10.f).FontSize(13.f).Bold();
+	badge.Padding(math::Sides{10.f, 4.f}).BorderRadius(4.f).Background(sdl3::FColor{0.12f, 0.45f, 0.18f, 0.85f});
+	badge.Color(sdl3::FColor::WHITE()).PointerThrough();
+	m_playBadge = m_viewport.Append(badge);
 	kit::SetHidden(m_ctx, m_playBadge, true);
 	BuildModelingOverlay(m_viewport);
 }
 
-void EditorUi::AddToolbarSeparator(ecs::Entity parent) {
-	ui::WidgetBuilder separator = m_ctx.factory.Row();
-	separator.Pad(0.f);
-	separator.Size(1.f, 20.f).Bg(kit::PaletteOf(m_ctx).separator).Margin(math::Sides{4.f, 0.f}).Parent(parent);
-	(void)separator.Spawn();
+void EditorUi::AddToolbarSeparator(ui::Widget parent) {
+	ui::WidgetBuilder separator = ui::Row();
+	separator.Padding(0.f);
+	separator.Size(1.f, 20.f).Background(kit::PaletteOf(m_ctx).separator).Margin(math::Sides{4.f, 0.f});
+	parent.Append(separator);
 }
 
 void EditorUi::DrawAxisGizmo(sdl3::Renderer &ren, sdl3::FRect r, const render3d::Camera &camera) {
@@ -1682,24 +1621,21 @@ void EditorUi::DrawLetter(sdl3::Renderer &ren, char letter, sdl3::FPoint c, floa
 
 void EditorUi::ToggleMaximized() {
 	m_maximized = !m_maximized;
-	for (ecs::Entity entity : {m_treeDock.Frame(), m_leftHandle, m_bottomRow, Previous(m_bottomRow), m_rightColumn,
+	for (ui::Widget entity : {m_treeDock.Frame(), m_leftHandle, m_bottomRow, Previous(m_bottomRow), m_rightColumn,
 							   Previous(m_rightColumn)})
 		kit::SetHidden(m_ctx, entity, m_maximized);
 	SetStatus(String(m_maximized ? "Vue 3D seule — même bouton pour revenir" : "Panneaux restaurés"));
 }
 
-ecs::Entity EditorUi::Previous(ecs::Entity entity) const {
-	auto parent = m_ctx.registry.GetComponent<ui::UiParent>(entity);
+ui::Widget EditorUi::Previous(ui::Widget entity) const {
+	const Option<ui::Widget> parent = entity.Parent();
 	if (parent.IsNone())
-		return ecs::Entity{};
-	auto children = m_ctx.registry.GetComponent<ui::UiChildren>(parent.Unwrap()->parent);
-	if (children.IsNone())
-		return ecs::Entity{};
-	const std::vector<ecs::Entity> &list = children.Unwrap()->list;
+		return ui::Widget();
+	const std::vector<ui::Widget> list = parent.Value().Children();
 	for (size_t i = 1; i < list.size(); ++i)
 		if (list[i] == entity)
 			return list[i - 1];
-	return ecs::Entity{};
+	return ui::Widget();
 }
 
 void EditorUi::GoToNode(const String &text) {
@@ -1720,12 +1656,12 @@ void EditorUi::GoToNode(const String &text) {
 	(void)Rt().FocusOn(found);
 }
 
-float EditorUi::UpdateViewportCamera(ecs::Entity entity) {
-	auto viewport = m_ctx.registry.GetComponent<ui::UiViewport3D>(entity);
+float EditorUi::UpdateViewportCamera(ui::Widget entity) {
+	auto viewport = entity.Get<ui::Viewport3DState>();
 	if (viewport.IsNone())
 		return 0.f;
 	viewport.Unwrap()->camera = Rt().ActiveCamera();
-	const ui::UiViewport3D &vp = *viewport.Unwrap();
+	const ui::Viewport3DState &vp = *viewport.Unwrap();
 	return vp.textureHeight > 0 ? float(vp.textureWidth) / float(vp.textureHeight) : 0.f;
 }
 
@@ -1755,12 +1691,11 @@ bool EditorUi::HandleGameMouse(const sdl3::Event &event) {
 bool EditorUi::HandleRunPanelDrag(const sdl3::Event &event) {
 	if (!m_runPanel.Valid())
 		return false;
-	if (event.IsMouseDown(SDL_BUTTON_LEFT) && !m_ctx.registry.HasComponent<ui::UiHidden>(m_runPanel) &&
+	if (event.IsMouseDown(SDL_BUTTON_LEFT) && m_runPanel.IsVisible() &&
 		Rt().EffectiveMouseMode() != Runtime::MouseMode::CAPTURED) {
 		const sdl3::FPoint at{event.MouseButton().x, event.MouseButton().y};
-		const ecs::Entity front = m_ctx.gui.Input().FrontMostAt(m_ctx.registry, m_ctx.gui.Layout(), at);
-		if (front.Valid() && ui::IsDescendantOrSelf(m_ctx.registry, front, m_runPanelHeader) &&
-			!ui::IsDescendantOrSelf(m_ctx.registry, front, m_runPanelClose)) {
+		const ui::Widget front(m_ctx.registry, ui::HitTest(m_ctx.registry, at));
+		if (front.Valid() && m_runPanelHeader.Contains(front) && !m_runPanelClose.Contains(front)) {
 			m_draggingRunPanel = true;
 			return true;
 		}
@@ -1780,19 +1715,15 @@ bool EditorUi::HandleRunPanelDrag(const sdl3::Event &event) {
 }
 
 void EditorUi::MoveRunPanel(float dx, float dy) {
-	auto rect = m_ctx.registry.GetComponent<ui::UiRect>(m_runPanel);
-	auto panel = m_ctx.registry.GetComponent<ui::UiComputed>(m_runPanel);
-	auto view = m_ctx.registry.GetComponent<ui::UiComputed>(m_runViewport);
-	if (rect.IsNone() || panel.IsNone() || view.IsNone())
+	if (!m_runPanel.Valid() || !m_runViewport.Valid())
 		return;
 	// Ancré en bas à droite : le décalage va de 0 (coin) à −(vue − encart).
-	const sdl3::FRect p = panel.Unwrap()->screen, v = view.Unwrap()->screen;
-	sdl3::FPoint offset = rect.Unwrap()->offset;
+	const sdl3::FRect p = m_runPanel.Bounds(), v = m_runViewport.Bounds();
+	sdl3::FPoint offset = m_runPanelOffset;
 	offset.x = sdl3::Clamp(offset.x + dx, -sdl3::Max(0.f, v.w - p.w), 0.f);
 	offset.y = sdl3::Clamp(offset.y + dy, -sdl3::Max(0.f, v.h - p.h), 0.f);
-	rect.Unwrap()->offset = offset;
+	m_runPanel.Offset(offset.x, offset.y);
 	m_runPanelOffset = offset;
-	m_ctx.gui.Layout().MarkDirty();
 }
 
 void EditorUi::SetRunPanelHidden(bool hidden) {
@@ -1805,7 +1736,7 @@ void EditorUi::SetRunPanelHidden(bool hidden) {
 
 void EditorUi::HandleRunModeEvent(const sdl3::Event &event) {
 	if (event.IsKeyDown(SDLK_F9))
-		SetRunPanelHidden(!m_ctx.registry.HasComponent<ui::UiHidden>(m_runPanel));
+		SetRunPanelHidden(m_runPanel.IsVisible());
 	(void)HandleGameMouse(event);
 	if (event.IsKeyDown(SDLK_ESCAPE) || event.IsKeyDown(SDLK_F6) || event.IsKeyDown(SDLK_F5))
 		ExitRunMode();
@@ -1816,30 +1747,29 @@ void EditorUi::RefreshRunPanel() {
 		return;
 	// Seul le corps est reconstruit (l'en-tête et son ✕ restent en place).
 	kit::ClearChildren(m_ctx, m_runPanelBody);
-	ui::WidgetBuilder rule = m_ctx.factory.Row();
-	rule.Pad(0.f);
-	rule.GrowW().H(ui::Dimension::Px(1.f)).Bg(kit::PaletteOf(m_ctx).separator).PointerThrough().Parent(m_runPanelBody);
-	(void)rule.Spawn();
+	ui::WidgetBuilder rule = ui::Row();
+	rule.Padding(0.f);
+	rule.GrowWidth().Height(1.f).Background(kit::PaletteOf(m_ctx).separator).PointerThrough();
+	m_runPanelBody.Append(rule);
 	for (const ScriptStatus &status : Rt().ScriptStatuses()) {
-		ui::WidgetBuilder row = m_ctx.factory.Row();
-		row.Pad(0.f);
-		row.Gap(6.f).WAuto().HAuto().Align(ui::CrossAlign::Center).PointerThrough().Parent(m_runPanelBody);
-		ecs::Entity rowEntity = row.Spawn();
+		ui::WidgetBuilder row = ui::Row();
+		row.Padding(0.f);
+		row.Gap(6.f).AlignItems(ui::Align::Center).PointerThrough();
+		ui::Widget rowEntity = m_runPanelBody.Append(row);
 		const bool failed = !status.error.IsEmpty();
 		const sdl3::FColor dot = failed ? kit::PaletteOf(m_ctx).error : status.running ? kit::PaletteOf(m_ctx).ok : kit::PaletteOf(m_ctx).warning;
-		ui::WidgetBuilder square = m_ctx.factory.Row();
-		square.Pad(0.f);
-		square.Size(8.f, 8.f).Bg(dot).PointerThrough().Parent(rowEntity);
-		(void)square.Spawn();
+		ui::WidgetBuilder square = ui::Row();
+		square.Padding(0.f);
+		square.Size(8.f, 8.f).Background(dot).PointerThrough();
+		rowEntity.Append(square);
 		const bool sceneScript = status.role == "scène";
 		const char *state = failed ? "Erreur" : !status.running ? "Arrêté" : sceneScript ? "Actif" : "Animé";
 		const String text = sceneScript ? String::Format("%s.script (%s)", status.name.CStr(), state)
 										: String::Format("%s.script (%s, %d nœud%s)", status.name.CStr(), state,
 														 int(status.nodes), status.nodes > 1 ? "s" : "");
-		ui::WidgetBuilder label = m_ctx.factory.Label(text);
-		label.FontSize(13.f).WAuto().HAuto().TextColor(sdl3::FColor{0.86f, 0.86f, 0.88f, 1.f}).PointerThrough();
-		label.Parent(rowEntity);
-		(void)label.Spawn();
+		ui::WidgetBuilder label = ui::Label(text);
+		label.FontSize(13.f).Color(sdl3::FColor{0.86f, 0.86f, 0.88f, 1.f}).PointerThrough();
+		rowEntity.Append(label);
 	}
 
 	// Objets de script vivants, regroupés par classe (registres C++ : aucune
@@ -1861,37 +1791,32 @@ void EditorUi::RefreshRunPanel() {
 	}
 	if (groups.empty())
 		return;
-	ui::WidgetBuilder heading = m_ctx.factory.Label(String("Objets vivants"));
-	heading.FontSize(12.f).WAuto().HAuto().TextColor(sdl3::FColor{0.62f, 0.64f, 0.70f, 1.f}).PointerThrough();
-	heading.Parent(m_runPanelBody);
-	(void)heading.Spawn();
+	ui::WidgetBuilder heading = ui::Label(String("Objets vivants"));
+	heading.FontSize(12.f).Color(sdl3::FColor{0.62f, 0.64f, 0.70f, 1.f}).PointerThrough();
+	m_runPanelBody.Append(heading);
 	constexpr size_t MAX_GROUPS = 8;
 	for (size_t i = 0; i < groups.size() && i < MAX_GROUPS; ++i) {
 		const String text = groups[i].count > 1 ? String::Format("%s ×%d", groups[i].signature.CStr(), groups[i].count)
 												: groups[i].signature;
-		ui::WidgetBuilder label = m_ctx.factory.Label(text);
-		label.FontSize(12.f).WAuto().HAuto().TextColor(kit::syntax::Colors().type).PointerThrough();
-		label.Parent(m_runPanelBody);
-		(void)label.Spawn();
+		ui::WidgetBuilder label = ui::Label(text);
+		label.FontSize(12.f).Color(kit::syntax::Colors().type).PointerThrough();
+		m_runPanelBody.Append(label);
 	}
 	if (groups.size() > MAX_GROUPS) {
-		ui::WidgetBuilder more = m_ctx.factory.Label(String::Format("… %d autres classes", int(groups.size() - MAX_GROUPS)));
-		more.FontSize(12.f).WAuto().HAuto().TextColor(sdl3::FColor{0.62f, 0.64f, 0.70f, 1.f}).PointerThrough();
-		more.Parent(m_runPanelBody);
-		(void)more.Spawn();
+		ui::WidgetBuilder more = ui::Label(String::Format("… %d autres classes", int(groups.size() - MAX_GROUPS)));
+		more.FontSize(12.f).Color(sdl3::FColor{0.62f, 0.64f, 0.70f, 1.f}).PointerThrough();
+		m_runPanelBody.Append(more);
 	}
 }
 
-void EditorUi::BuildConsolePage(ecs::Entity page) {
-	ui::WidgetBuilder console = m_ctx.factory.InputArea(String("(journal vide)"));
-	console.GrowW().GrowH().FontSize(12.f).IoMode(ui::IOMode::READ_AND_COPY_ONLY).Monospace();
-	console.Highlighter(kit::syntax::HighlightLog).Parent(page);
-	m_console = console.Spawn();
+void EditorUi::BuildConsolePage(ui::Widget page) {
+	ui::WidgetBuilder console = ui::LogView(kit::syntax::HighlightLog);
+	console.GrowWidth().GrowHeight().FontSize(12.f);
+	m_console = page.Append(console);
 }
 
 void EditorUi::RefreshConsole() {
-	auto area = m_ctx.registry.GetComponent<ui::UiInputArea>(m_console);
-	if (area.IsNone())
+	if (!m_console.Valid())
 		return;
 	// Les dernières lignes seulement : recopier 500 entrées à chaque ligne
 	// nouvelle coûterait plus que tout le reste de l'interface.
@@ -1902,7 +1827,7 @@ void EditorUi::RefreshConsole() {
 		text.Concat(String::Format("[%-6s] %s", log[i].LevelName(), log[i].text.CStr()));
 		text.Concat("\n");
 	}
-	area.Unwrap()->text = std::move(text);
+	m_console.SetText(std::move(text));
 }
 
 void EditorUi::AddProfilerRow(const char *label, const String &value) {
@@ -1930,9 +1855,9 @@ void EditorUi::RefreshProfiler() {
 	AddProfilerRow("Fils du vivier", String::Format("%d (pic %d en parallèle)", int(Rt().Jobs().WorkerCount()),
 													 Rt().Jobs().PeakConcurrentWorkers()));
 	if (m_fpsHistory.size() >= 2) {
-		ui::WidgetBuilder plot = m_ctx.factory.PlotLines(m_fpsHistory, String("images / seconde"));
-		plot.GrowW().H(ui::Dimension::Px(120.f)).Parent(m_profilerPage);
-		(void)plot.Spawn();
+		ui::PlotBuilder plot = ui::PlotLines(m_fpsHistory, String("images / seconde"));
+		plot.GrowWidth().Height(120.f);
+		m_profilerPage.Append(plot);
 	}
 }
 
@@ -1945,21 +1870,40 @@ void EditorUi::RefreshSceneList() {
 	for (const String &sceneName : project.Fs().ListScenes()) { // jamais d'objets (onglet « Objets »)
 		const SceneDesc &scene = *project.Fs().FindScene(SceneRef{sceneName});
 		const bool active = Rt().ActivePath() == ProjectPath::Scene(scene.name);
-		ui::WidgetBuilder row = m_ctx.factory.Selectable(String(), index++);
-		row.GrowW().HAuto().Gap(6.f).Pad(math::Sides{6.f, 3.f}).Tooltip(scene.description).Parent(m_sceneListPage);
+		ui::WidgetBuilder row = ui::Selectable(String(), index++);
+		row.GrowWidth().Gap(6.f).Padding(math::Sides{6.f, 3.f}).Tooltip(scene.description);
 		const String name = scene.name;
 		row.OnClick([this, name] { (void)Rt().OpenScene(SceneRef{name}); });
-		ecs::Entity rowEntity = row.Spawn();
-		if (auto selectable = m_ctx.registry.GetComponent<ui::UiSelectable>(rowEntity); selectable.IsSome())
-			selectable.Unwrap()->selected = active;
+		ui::Widget rowEntity = m_sceneListPage.Append(row);
+		if (active)
+			kit::MarkSelected(m_sceneListPage, index - 1);
 		(void)kit::Glyph(m_ctx, rowEntity, ui::MaterialIcons::LAYERS, kit::Rgb(126, 172, 232), 16.f);
-		ui::WidgetBuilder label = m_ctx.factory.Label(scene.name);
-		label.WAuto().HAuto().FontSize(13.f).PointerThrough().Parent(rowEntity);
-		(void)label.Spawn();
-		ui::WidgetBuilder detail = m_ctx.factory.Label(String::Format("(%d objets)", int(scene.NodeCount())));
-		detail.GrowW().HAuto().TextEllipsis().FontSize(12.f).TextColor(m_ctx.Theme().muted).PointerThrough().Parent(rowEntity);
-		(void)detail.Spawn();
+		ui::WidgetBuilder label = ui::Label(scene.name);
+		label.FontSize(13.f).PointerThrough();
+		rowEntity.Append(label);
+		ui::WidgetBuilder detail = ui::Label(String::Format("(%d objets)", int(scene.NodeCount())));
+		detail.GrowWidth().Ellipsis().FontSize(12.f).Color(m_ctx.Theme().muted).PointerThrough();
+		rowEntity.Append(detail);
 	}
+}
+
+ui::WidgetBuilder EditorUi::DocumentCombo() {
+	const std::vector<ui::ComboCategory> choices = DocumentChoices();
+	ui::WidgetBuilder combo = ui::Combo(choices, -1);
+	combo.Size(140.f, 24.f).FontSize(13.f).Tooltip(String("Document ouvert : scène ou objet"));
+	combo.OnChange([this, choices](float index) {
+		// Premier sous-menu : les scènes ; second : les objets.
+		int i = int(index);
+		for (size_t group = 0; group < choices.size(); ++group) {
+			if (i >= 0 && size_t(i) < choices[group].items.size()) {
+				const String name = choices[group].items[size_t(i)];
+				(void)(group == 0 ? Rt().OpenScene(SceneRef{name}) : Rt().OpenObject(ObjectRef{name}));
+				return;
+			}
+			i -= int(choices[group].items.size());
+		}
+	});
+	return combo;
 }
 
 std::vector<ui::ComboCategory> EditorUi::DocumentChoices() const {
@@ -1977,16 +1921,16 @@ void EditorUi::RefreshObjectList() {
 		return;
 	kit::ClearChildren(m_ctx, m_objectListPage);
 	const Project &project = Rt().GetProject();
-	const ui::UiTheme &theme = m_ctx.Theme();
+	const ui::Palette &theme = m_ctx.Theme();
 
 	// En-tête : créer un objet, vide ou à partir de la sélection.
-	ui::WidgetBuilder head = m_ctx.factory.Row();
-	head.Pad(math::Sides{4.f, 2.f}).Gap(4.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(m_objectListPage);
-	ecs::Entity headEntity = head.Spawn();
+	ui::WidgetBuilder head = ui::Row();
+	head.Padding(math::Sides{4.f, 2.f}).Gap(4.f).GrowWidth().AlignItems(ui::Align::Center);
+	ui::Widget headEntity = m_objectListPage.Append(head);
 	ui::WidgetBuilder title =
-		m_ctx.factory.Label(String::Format("Objets réutilisables (%d)", int(project.Fs().ListObjects().size())));
-	title.GrowW().HAuto().FontSize(12.f).TextColor(theme.muted).TextEllipsis().PointerThrough().Parent(headEntity);
-	(void)title.Spawn();
+		ui::Label(String::Format("Objets réutilisables (%d)", int(project.Fs().ListObjects().size())));
+	title.GrowWidth().FontSize(12.f).Color(theme.muted).Ellipsis().PointerThrough();
+	headEntity.Append(title);
 	(void)kit::IconButton(m_ctx, headEntity, ui::MaterialIcons::ADD_BOX, String("Nouvel objet"),
 						  [this] {
 							  const ObjectRef object = Rt().AddEmptyObject();
@@ -2009,22 +1953,22 @@ void EditorUi::RefreshObjectList() {
 	for (const String &objectName : project.Fs().ListObjects()) {
 		const SceneDesc &scene = *project.Fs().FindObject(ObjectRef{objectName});
 		const bool active = Rt().ActivePath() == ProjectPath::Object(scene.name);
-		ui::WidgetBuilder row = m_ctx.factory.Selectable(String(), index++);
-		row.GrowW().HAuto().Gap(6.f).Pad(math::Sides{6.f, 3.f}).Parent(m_objectListPage);
+		ui::WidgetBuilder row = ui::Selectable(String(), index++);
+		row.GrowWidth().Gap(6.f).Padding(math::Sides{6.f, 3.f});
 		row.Tooltip((scene.description.IsEmpty() ? scene.name : scene.description) +
 					String("\nObjet réutilisable : ses instances suivent ses modifications"));
 		const String name = scene.name;
 		row.OnClick([this, name] { (void)Rt().OpenObject(ObjectRef{name}); });
-		ecs::Entity rowEntity = row.Spawn();
-		if (auto selectable = m_ctx.registry.GetComponent<ui::UiSelectable>(rowEntity); selectable.IsSome())
-			selectable.Unwrap()->selected = active;
+		ui::Widget rowEntity = m_objectListPage.Append(row);
+		if (active)
+			kit::MarkSelected(m_objectListPage, index - 1);
 		(void)kit::Glyph(m_ctx, rowEntity, ui::MaterialIcons::CATEGORY, kit::Rgb(232, 176, 92), 16.f);
-		ui::WidgetBuilder label = m_ctx.factory.Label(scene.name);
-		label.WAuto().HAuto().FontSize(13.f).PointerThrough().Parent(rowEntity);
-		(void)label.Spawn();
-		ui::WidgetBuilder detail = m_ctx.factory.Label(String::Format("(%d nœuds)", int(scene.NodeCount())));
-		detail.GrowW().HAuto().TextEllipsis().FontSize(12.f).TextColor(theme.muted).PointerThrough().Parent(rowEntity);
-		(void)detail.Spawn();
+		ui::WidgetBuilder label = ui::Label(scene.name);
+		label.FontSize(13.f).PointerThrough();
+		rowEntity.Append(label);
+		ui::WidgetBuilder detail = ui::Label(String::Format("(%d nœuds)", int(scene.NodeCount())));
+		detail.GrowWidth().Ellipsis().FontSize(12.f).Color(theme.muted).PointerThrough();
+		rowEntity.Append(detail);
 		if (!active)
 			(void)kit::IconButton(m_ctx, rowEntity, ui::MaterialIcons::ADD_LOCATION_ALT,
 								  String("Poser une instance dans le document ouvert (sous la sélection)"),
@@ -2032,11 +1976,11 @@ void EditorUi::RefreshObjectList() {
 	}
 }
 
-void EditorUi::BuildStatusBar(ecs::Entity parent) {
-	ui::WidgetBuilder bar = m_ctx.factory.Row();
-	bar.Gap(16.f).Pad(math::Sides{10.f, 3.f}).GrowW().HAuto().Align(ui::CrossAlign::Center);
-	bar.Bg(kit::PaletteOf(m_ctx).header).Parent(parent);
-	ecs::Entity barEntity = bar.Spawn();
+void EditorUi::BuildStatusBar(ui::Widget parent) {
+	ui::WidgetBuilder bar = ui::Row();
+	bar.Gap(16.f).Padding(math::Sides{10.f, 3.f}).GrowWidth().AlignItems(ui::Align::Center);
+	bar.Class("editor-header");
+	ui::Widget barEntity = parent.Append(bar);
 	m_statusBar = barEntity;
 	m_statusFps = StatusLabel(barEntity, "— img/s", 70.f);
 	m_statusNodes = StatusLabel(barEntity, "— objets", 90.f);
@@ -2044,26 +1988,25 @@ void EditorUi::BuildStatusBar(ecs::Entity parent) {
 	m_statusScene = StatusLabel(barEntity, "—", 260.f); // « Projet · /objects/Torche »
 	m_statusMode = StatusLabel(barEntity, "■ Édition", 80.f);
 	m_statusGizmo = StatusLabel(barEntity, "déplacer", 170.f);
-	ui::WidgetBuilder message = m_ctx.factory.Label(m_statusMessage);
-	message.GrowW().HAuto().FontSize(12.f).TextColor(m_ctx.Theme().muted).TextEllipsis().TextAlign(ui::TextAlign::Right);
-	message.Parent(barEntity);
-	m_statusMessageLabel = message.Spawn();
+	ui::WidgetBuilder message = ui::Label(m_statusMessage);
+	message.GrowWidth().FontSize(12.f).Color(m_ctx.Theme().muted).Ellipsis().TextAlign(ui::TextAlign::Right);
+	m_statusMessageLabel = barEntity.Append(message);
 	if (m_window) {
 		// Poignée de redimensionnement (coin bas-droit, cf. ui::WindowChrome).
-		bool icons = m_ctx.gui.RenderSystem().HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
-		ui::WidgetBuilder grip = icons ? m_ctx.factory.Icon(ui::MaterialIcons::SOUTH_EAST, 16.f)
-									   : m_ctx.factory.Label(String("\xe2\x87\xb2"));
-		grip.TextColor(m_ctx.Theme().muted).Tooltip(String("Glisser pour redimensionner la fenêtre")).Parent(barEntity);
-		m_statusGrip = grip.Spawn();
+		const bool icons = m_ctx.gui.GetFonts().HasFamily(ui::Glyphs::FontFamily<ui::MaterialIcons>());
+		ui::WidgetBuilder grip = icons ? ui::Icon(ui::MaterialIcons::SOUTH_EAST, 16.f)
+									   : ui::Label(String("\xe2\x87\xb2"));
+		grip.Color(m_ctx.Theme().muted).Tooltip(String("Glisser pour redimensionner la fenêtre"));
+		m_statusGrip = barEntity.Append(grip);
 	} else {
-		m_statusGrip = ecs::Entity{};
+		m_statusGrip = ui::Widget();
 	}
 }
 
-ecs::Entity EditorUi::StatusLabel(ecs::Entity parent, const char *text, float width) {
-	ui::WidgetBuilder label = m_ctx.factory.Label(String(text));
-	label.Size(width, 0.f).HAuto().FontSize(12.f).TextEllipsis().Parent(parent);
-	return label.Spawn();
+ui::Widget EditorUi::StatusLabel(ui::Widget parent, const char *text, float width) {
+	ui::WidgetBuilder label = ui::Label(String(text));
+	label.Size(width, 0.f).FontSize(12.f).Ellipsis();
+	return parent.Append(label);
 }
 
 void EditorUi::RefreshStatusBar() {
@@ -2099,20 +2042,26 @@ void EditorUi::RefreshStatusBar() {
 	if (Rt().IsPlaying() != m_shownPlaying) {
 		m_shownPlaying = Rt().IsPlaying();
 		kit::SetHidden(m_ctx, m_playBadge, !m_shownPlaying);
-		if (auto glyph = m_ctx.registry.GetComponent<ui::UiIcon>(m_playIcon); glyph.IsSome())
+		if (auto glyph = m_playIcon.Get<ui::IconContent>(); glyph.IsSome())
 			glyph.Unwrap()->glyph = ui::Glyphs::ToUtf8(m_shownPlaying ? ui::MaterialIcons::STOP : ui::MaterialIcons::PLAY_ARROW);
 	}
 	// Le sélecteur de document suit les changements venus d'ailleurs :
 	// scènes ou objets ajoutés, renommés, supprimés, document ouvert.
-	if (auto combo = m_ctx.registry.GetComponent<ui::UiComboBox>(m_sceneCombo); combo.IsSome() && scene) {
-		if (m_documentChoicesDirty && !combo.Unwrap()->open) {
+	if (m_sceneComboSlot.Valid() && scene) {
+		if (m_documentChoicesDirty && !m_sceneCombo.IsOpen()) {
 			m_documentChoicesDirty = false;
-			combo.Unwrap()->SetCategories(DocumentChoices());
+			m_sceneComboSlot.Clear();
+			m_sceneCombo = m_sceneComboSlot.Append(DocumentCombo());
 		}
-		const std::vector<String> &items = combo.Unwrap()->items;
-		for (size_t i = 0; i < items.size(); ++i)
-			if (items[i] == scene->name)
-				combo.Unwrap()->selected = int(i);
+		int index = 0, current = -1;
+		for (const ui::ComboCategory &category : DocumentChoices())
+			for (const String &item : category.items) {
+				if (item == scene->name)
+					current = index;
+				++index;
+			}
+		if (current >= 0 && m_sceneCombo.Selected() != current)
+			m_sceneCombo.SetSelected(current);
 	}
 	m_fpsHistory.push_back(float(m_fps));
 	if (m_fpsHistory.size() > FPS_HISTORY_SIZE)
@@ -2314,15 +2263,13 @@ void EditorUi::BuildWindowTitleBar() {
 	ui::TitleBarOptions title;
 	title.title = u8"Éditeur de jeux 2D/3D";
 	title.appIcon = Some(ui::MaterialIcons::VIDEOGAME_ASSET);
-	title.icons = m_ctx.gui.RenderSystem().HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
-	title.height = 32.f;
-	title.titleSize = 13.f;
-	title.background = kit::PaletteOf(m_ctx).header;
+	title.icons = m_ctx.gui.GetFonts().HasFamily(ui::Glyphs::FontFamily<ui::MaterialIcons>());
 	title.onClose = [this] {
 		if (onQuit)
 			onQuit();
 	};
-	m_titleBar = ui::TitleBar(m_ctx.factory, *m_window, std::move(title), m_root);
+	m_root.Append(ui::TitleBar(*m_window, std::move(title)).Class("editor-header").Height(32.f));
+	m_titleBar = ui::TitleBarWidgets::From(m_root);
 }
 
 void EditorUi::AttachWindowChrome() {
@@ -2334,97 +2281,93 @@ void EditorUi::AttachWindowChrome() {
 	status.root = m_statusBar;
 	status.label = m_statusMessageLabel;
 	status.grip = m_statusGrip;
-	m_chrome.Attach(*m_window, m_ctx.registry, m_ctx.gui.Layout(), m_titleBar, &status);
+	m_chrome.Attach(*m_window, m_titleBar, &status);
 }
 
 void EditorUi::BuildStartPage() {
-	const ui::UiTheme &theme = m_ctx.Theme();
-	ui::WidgetBuilder root = m_ctx.factory.Column();
-	root.Gap(0.f).Pad(0.f).Fixed().Anchor(ui::Anchor::TopLeft).Bg(kit::PaletteOf(m_ctx).base);
-	root.W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Rpct(100.f));
-	m_root = root.Spawn();
+	const ui::Palette &theme = m_ctx.Theme();
+	m_root = m_ctx.gui.Mount(ui::Column().Id("editor").Class("editor-base").Gap(0.f).Padding(0.f));
 	BuildWindowTitleBar();
 
-	ui::WidgetBuilder bar = m_ctx.factory.MenuBar();
-	bar.Parent(m_root).GrowW().HAuto().Pad(math::Sides{6.f, 2.f}).Bg(kit::PaletteOf(m_ctx).header);
-	ecs::Entity barEntity = bar.Spawn();
-	m_menuPopups.push_back(m_ctx.factory.Menu(
-		barEntity, String("Fichier"), MenuAction("Nouveau projet…", "Ctrl+N", [this] { OnNewProject(); }),
-		MenuAction("Ouvrir un projet…", "Ctrl+O", [this] { OnOpenProject(); }),
-		MenuAction("Quitter", "Ctrl+Q", [this] {
+	ui::WidgetBuilder bar = ui::MenuBar();
+	bar.GrowWidth().Padding(math::Sides{6.f, 2.f}).Class("editor-header");
+	ui::Widget barEntity = m_root.Append(bar);
+	m_menuPopups.push_back(barEntity.Append(ui::Menu(String("Fichier")).Children({MenuAction("Nouveau projet…", "Ctrl+N", [this] { OnNewProject(); }),
+MenuAction("Ouvrir un projet…", "Ctrl+O", [this] { OnOpenProject(); }),
+MenuAction("Quitter", "Ctrl+Q", [this] {
 			if (onQuit)
 				onQuit();
-		})));
-	ecs::Entity window = m_ctx.factory.Menu(barEntity, String("Fenêtre"));
+		})})));
+	ui::Widget window = barEntity.Append(ui::Menu(String("Fenêtre")));
 	m_menuPopups.push_back(window);
-	ecs::Entity themes = m_ctx.factory.SubMenu(window, String("Thème"));
+	ui::Widget themes = window.Append(ui::SubMenu(String("Thème")));
 	m_menuPopups.push_back(themes);
 	AddItem(themes, "Atelier (par défaut)", "", [this] { (void)SetTheme("studio"); });
 	AddItem(themes, "Sombre", "", [this] { (void)SetTheme("dark"); });
 	AddItem(themes, "Clair", "", [this] { (void)SetTheme("light"); });
 	AddItem(themes, "Verre", "", [this] { (void)SetTheme("aero"); });
 
-	ui::WidgetBuilder center = m_ctx.factory.Column();
-	center.GrowW().GrowH().Pad(24.f).Justify(ui::Justify::Center).Align(ui::CrossAlign::Center).Parent(m_root);
-	ecs::Entity centerEntity = center.Spawn();
+	ui::WidgetBuilder center = ui::Column();
+	center.GrowWidth().GrowHeight().Padding(24.f).JustifyContent(ui::Justify::Center).AlignItems(ui::Align::Center);
+	ui::Widget centerEntity = m_root.Append(center);
 
-	ui::WidgetBuilder card = m_ctx.factory.Panel();
-	card.W(ui::Dimension::Px(640.f)).HAuto().Pad(24.f).Gap(12.f).Parent(centerEntity);
-	ecs::Entity cardEntity = card.Spawn();
+	ui::WidgetBuilder card = ui::Panel();
+	card.Width(640.f).Padding(24.f).Gap(12.f);
+	ui::Widget cardEntity = centerEntity.Append(card);
 	(void)kit::Glyph(m_ctx, cardEntity, ui::MaterialIcons::FOLDER_OPEN, theme.muted, 44.f);
-	ui::WidgetBuilder title = m_ctx.factory.Label(String("Aucun projet ouvert"));
-	title.FontSize(22.f).WAuto().HAuto().Parent(cardEntity);
-	(void)title.Spawn();
-	ui::WidgetBuilder hint = m_ctx.factory.Label(String::Format(
+	ui::WidgetBuilder title = ui::Label(String("Aucun projet ouvert"));
+	title.FontSize(22.f);
+	cardEntity.Append(title);
+	ui::WidgetBuilder hint = ui::Label(String::Format(
 		"Créez un projet vierge ou ouvrez un projet existant. Chaque projet est un dossier de %s : "
 		"son fichier .json, et les sous-dossiers assets, scenes (.scene) et scripts (.script).",
 		Rt().projectsRoot.CStr()));
-	hint.FontSize(13.f).TextColor(theme.muted).GrowW().HAuto().TextWrap().Parent(cardEntity);
-	(void)hint.Spawn();
+	hint.FontSize(13.f).Color(theme.muted).GrowWidth().TextWrap();
+	cardEntity.Append(hint);
 
-	ui::WidgetBuilder actions = m_ctx.factory.Row();
-	actions.Gap(8.f).Pad(0.f).GrowW().HAuto().Parent(cardEntity);
-	ecs::Entity actionsEntity = actions.Spawn();
+	ui::WidgetBuilder actions = ui::Row();
+	actions.Gap(8.f).Padding(0.f).GrowWidth();
+	ui::Widget actionsEntity = cardEntity.Append(actions);
 	for (auto [label, action] : {std::pair<const char *, void (EditorUi::*)()>{"Nouveau projet…", &EditorUi::OnNewProject},
 								 std::pair<const char *, void (EditorUi::*)()>{"Ouvrir un projet…", &EditorUi::OnOpenProject}}) {
-		ui::WidgetBuilder button = m_ctx.factory.Button(String(label));
-		button.WAuto().H(ui::Dimension::Px(32.f)).Parent(actionsEntity);
+		ui::WidgetBuilder button = ui::Button(String(label));
+		button.Height(32.f);
 		button.OnClick([this, action] { (this->*action)(); });
-		(void)button.Spawn();
+		actionsEntity.Append(button);
 	}
 
 	const std::vector<files::ProjectEntry> projects = files::ListProjects(Rt().projectsRoot);
-	ui::WidgetBuilder listTitle = m_ctx.factory.Label(
+	ui::WidgetBuilder listTitle = ui::Label(
 		projects.empty() ? String("Aucun projet dans ce dossier pour l'instant.") : String("Projets existants"));
-	listTitle.FontSize(14.f).WAuto().HAuto().Parent(cardEntity);
-	(void)listTitle.Spawn();
+	listTitle.FontSize(14.f);
+	cardEntity.Append(listTitle);
 	for (const files::ProjectEntry &project : projects)
 		SpawnProjectButton(cardEntity, project);
 
-	ui::WidgetBuilder status = m_ctx.factory.Label(String());
-	status.FontSize(12.f).TextColor(theme.muted).GrowW().HAuto().TextWrap().Parent(cardEntity);
-	m_statusMessageLabel = status.Spawn();
+	ui::WidgetBuilder status = ui::Label(String());
+	status.FontSize(12.f).Color(theme.muted).GrowWidth().TextWrap();
+	m_statusMessageLabel = cardEntity.Append(status);
 
 	// Barre d'état minimale : la poignée de redimensionnement de la fenêtre.
-	m_statusBar = m_statusGrip = ecs::Entity{};
+	m_statusBar = m_statusGrip = ui::Widget();
 	if (m_window) {
 		ui::StatusBarOptions options;
-		options.icons = m_ctx.gui.RenderSystem().HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
-		options.background = kit::PaletteOf(m_ctx).header;
-		ui::StatusBarWidgets statusBar = ui::StatusBar(m_ctx.factory, std::move(options), m_root);
+		options.icons = m_ctx.gui.GetFonts().HasFamily(ui::Glyphs::FontFamily<ui::MaterialIcons>());
+		m_root.Append(ui::StatusBar(std::move(options)).Class("editor-header"));
+		ui::StatusBarWidgets statusBar = ui::StatusBarWidgets::From(m_root);
 		m_statusBar = statusBar.root;
 		m_statusGrip = statusBar.grip;
 	}
 	AttachWindowChrome();
 }
 
-void EditorUi::SpawnProjectButton(ecs::Entity parent, const files::ProjectEntry &project) {
-	ui::WidgetBuilder row = m_ctx.factory.Button(String::Format("%s    —    %s", project.name.CStr(),
+void EditorUi::SpawnProjectButton(ui::Widget parent, const files::ProjectEntry &project) {
+	ui::WidgetBuilder row = ui::Button(String::Format("%s    —    %s", project.name.CStr(),
 																files::RelativeTo(Rt().projectsRoot, project.manifest).CStr()));
-	row.GrowW().H(ui::Dimension::Px(30.f)).FontSize(13.f).Tooltip(project.manifest).Parent(parent);
+	row.GrowWidth().Height(30.f).FontSize(13.f).Tooltip(project.manifest);
 	const String manifest = project.manifest;
 	row.OnClick([this, manifest] { OpenProjectAt(manifest); });
-	(void)row.Spawn();
+	parent.Append(row);
 }
 
 bool EditorUi::OpenProjectAt(const String &path) {
@@ -2447,74 +2390,68 @@ void EditorUi::OpenDialog(DialogKind kind, const String &title, const String &me
 		const String &placeholder, const String &confirm) {
 	CloseDialog();
 	m_dialogKind = kind;
-	const ui::UiTheme &theme = m_ctx.Theme();
+	const ui::Palette &theme = m_ctx.Theme();
 
-	ui::WidgetBuilder card = m_ctx.factory.Panel();
-	card.W(ui::Dimension::Px(600.f)).HAuto().Pad(18.f).Gap(10.f);
-	ui::WidgetBuilder modal = m_ctx.factory.Modal(std::move(card));
-	m_dialog = modal.Spawn();
-	ecs::Entity cardEntity{};
-	if (auto kids = m_ctx.registry.GetComponent<ui::UiChildren>(m_dialog); kids.IsSome() && kids.Unwrap()->list.size() > 1)
-		cardEntity = kids.Unwrap()->list[1]; // [0] = voile, [1] = le contenu (cf. UiFactory::Modal)
+	ui::WidgetBuilder card = ui::Panel();
+	ui::Widget cardEntity{};
+	card.Width(600.f).Padding(18.f).Gap(10.f).Ref(cardEntity);
+	m_dialog = m_ctx.gui.Mount(ui::Modal(std::move(card)));
 
-	ui::WidgetBuilder heading = m_ctx.factory.Label(title);
-	heading.FontSize(17.f).WAuto().HAuto().Parent(cardEntity);
-	(void)heading.Spawn();
-	ui::WidgetBuilder note = m_ctx.factory.Label(message);
-	note.FontSize(13.f).TextColor(theme.muted).GrowW().HAuto().TextWrap().Parent(cardEntity);
-	(void)note.Spawn();
+	ui::WidgetBuilder heading = ui::Label(title);
+	heading.FontSize(17.f);
+	cardEntity.Append(heading);
+	ui::WidgetBuilder note = ui::Label(message);
+	note.FontSize(13.f).Color(theme.muted).GrowWidth().TextWrap();
+	cardEntity.Append(note);
 
 	if (kind == DialogKind::OPEN_PROJECT)
 		for (const files::ProjectEntry &project : files::ListProjects(Rt().projectsRoot))
 			SpawnProjectButton(cardEntity, project);
 
-	ui::WidgetBuilder input = m_ctx.factory.Input(placeholder);
-	input.GrowW().H(ui::Dimension::Px(30.f)).Parent(cardEntity);
+	ui::WidgetBuilder input = ui::Input(placeholder);
+	input.GrowWidth().Height(30.f);
 	input.OnSubmit([this](const String &) { ConfirmDialog(); });
-	m_dialogInput = input.Spawn();
+	m_dialogInput = cardEntity.Append(input);
 	SetDialogText(text);
 
-	ui::WidgetBuilder error = m_ctx.factory.Label(String());
-	error.FontSize(12.f).TextColor(kit::PaletteOf(m_ctx).error).GrowW().HAuto().TextWrap().Parent(cardEntity);
-	m_dialogError = error.Spawn();
+	ui::WidgetBuilder error = ui::Label(String());
+	error.FontSize(12.f).Color(kit::PaletteOf(m_ctx).error).GrowWidth().TextWrap();
+	m_dialogError = cardEntity.Append(error);
 
-	ui::WidgetBuilder buttons = m_ctx.factory.Row();
-	buttons.Gap(8.f).Pad(0.f).GrowW().HAuto().Parent(cardEntity);
-	ecs::Entity buttonsEntity = buttons.Spawn();
+	ui::WidgetBuilder buttons = ui::Row();
+	buttons.Gap(8.f).Padding(0.f).GrowWidth();
+	ui::Widget buttonsEntity = cardEntity.Append(buttons);
 	if (kind != DialogKind::NEW_PROJECT && kind != DialogKind::SAVE_PROJECT_AS) {
-		ui::WidgetBuilder browse = m_ctx.factory.Button(String("Parcourir…"));
-		browse.WAuto().H(ui::Dimension::Px(30.f)).Parent(buttonsEntity).OnClick([this] { BrowseForDialog(); });
-		(void)browse.Spawn();
+		ui::WidgetBuilder browse = ui::Button(String("Parcourir…"));
+		browse.Height(30.f).OnClick([this] { BrowseForDialog(); });
+		buttonsEntity.Append(browse);
 	}
 	(void)kit::Spacer(m_ctx, buttonsEntity);
-	ui::WidgetBuilder cancel = m_ctx.factory.Button(String("Annuler"));
-	cancel.WAuto().H(ui::Dimension::Px(30.f)).Parent(buttonsEntity).OnClick([this] { CloseDialog(); });
-	(void)cancel.Spawn();
-	ui::WidgetBuilder ok = m_ctx.factory.Button(confirm);
-	ok.WAuto().H(ui::Dimension::Px(30.f)).Parent(buttonsEntity).OnClick([this] { ConfirmDialog(); });
-	(void)ok.Spawn();
+	ui::WidgetBuilder cancel = ui::Button(String("Annuler"));
+	cancel.Height(30.f).OnClick([this] { CloseDialog(); });
+	buttonsEntity.Append(cancel);
+	ui::WidgetBuilder ok = ui::Button(confirm);
+	ok.Height(30.f).OnClick([this] { ConfirmDialog(); });
+	buttonsEntity.Append(ok);
 
-	m_ctx.gui.OpenModal(m_dialog);
+	m_dialog.Open();
+	m_dialogInput.Focus();
 }
 
 void EditorUi::CloseDialog() {
 	if (!m_dialog.Valid())
 		return;
-	m_ctx.gui.CloseModal(m_dialog);
-	ui::DespawnTree(m_ctx.registry, m_dialog);
-	m_dialog = m_dialogInput = m_dialogError = ecs::Entity{};
+	m_dialog.Close();
+	m_dialog.Destroy();
+	m_dialog = m_dialogInput = m_dialogError = ui::Widget();
 }
 
 void EditorUi::SetDialogText(const String &text) {
-	if (auto field = m_ctx.registry.GetComponent<ui::UiInput>(m_dialogInput); field.IsSome()) {
-		field.Unwrap()->text = text;
-		field.Unwrap()->cursor = field.Unwrap()->selectionAnchor = text.GetSize();
-	}
+	m_dialogInput.SetText(text);
 }
 
 String EditorUi::DialogText() const {
-	auto field = m_ctx.registry.GetComponent<ui::UiInput>(m_dialogInput);
-	return field.IsSome() ? field.Unwrap()->text.Trim() : String();
+	return m_dialogInput.Valid() ? m_dialogInput.Text().Trim() : String();
 }
 
 void EditorUi::ShowDialogError(const String &message) {
@@ -2784,18 +2721,11 @@ void EditorUi::OnAbout() {
 }
 
 bool EditorUi::TextFieldHasFocus() const {
-	bool focused = false;
-	m_ctx.registry.Query<ui::UiInputArea>([&focused](ecs::Entity, const ui::UiInputArea &area) {
-		if (area.focused && area.ioMode != ui::IOMode::READ_AND_COPY_ONLY)
-			focused = true;
-	});
-	if (focused)
-		return true;
-	m_ctx.registry.Query<ui::UiInput>([&focused](ecs::Entity, const ui::UiInput &input) {
-		if (input.focused)
-			focused = true;
-	});
-	return focused;
+	ui::Widget focus = m_ctx.gui.Focused();
+	if (!focus.Valid())
+		return false;
+	auto editor = focus.Get<ui::TextEditor>();
+	return editor.IsSome() && editor.Unwrap()->mode != ui::IOMode::ReadOnly && editor.Unwrap()->mode != ui::IOMode::ReadAndCopy;
 }
 
 void EditorUi::PollCameraKeys(float dt) {

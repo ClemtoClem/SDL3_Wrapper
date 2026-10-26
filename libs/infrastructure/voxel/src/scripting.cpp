@@ -424,6 +424,63 @@ void ScriptHost::InstallWorldApi() {
 		result.AsMap()->SetKey("distance", Value::Number(hit.Value().distance));
 		return Ok(result);
 	});
+	// Sol où se tenir dans la colonne (chunks chargés seulement) : nil s'il n'y en a pas.
+	vm.RegisterNamespacedNative("world", "ground", 4, 4, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(x, sd::ArgNumber(args, 0, "world.ground"));
+		TRY(z, sd::ArgNumber(args, 1, "world.ground"));
+		TRY(top, sd::ArgNumber(args, 2, "world.ground"));
+		TRY(bottom, sd::ArgNumber(args, 3, "world.ground"));
+		Option<int> y = m_game.LoadedGround(int(std::floor(x)), int(std::floor(z)), int(std::floor(top)), int(std::floor(bottom)));
+		return Ok(y.IsSome() ? Value::Int(y.Unwrap()) : Value::Nil());
+	});
+	// ── Dimensions ──────────────────────────────────────────────────────────
+	vm.RegisterNamespacedNative("world", "dimension", 0, 0, [this](script::Interpreter &, std::vector<Value> &) -> NativeResult {
+		return Ok(Value::Str(m_game.CurrentDimension()));
+	});
+	vm.RegisterNamespacedNative("world", "default_dimension", 0, 0, [this](script::Interpreter &, std::vector<Value> &) -> NativeResult {
+		return Ok(Value::Str(m_game.Content().DefaultDimension()));
+	});
+	vm.RegisterNamespacedNative("world", "dimensions", 0, 0, [this](script::Interpreter &, std::vector<Value> &) -> NativeResult {
+		auto list = std::make_shared<script::ListObject>();
+		for (const DimensionDef *d : m_game.Content().Dimensions())
+			list->Push(Value::Str(d->id));
+		return Ok(Value::List(list));
+	});
+	// Temps passé dans la dimension courante depuis l'arrivée (s).
+	vm.RegisterNamespacedNative("world", "time_here", 0, 0, [this](script::Interpreter &, std::vector<Value> &) -> NativeResult {
+		return Ok(Value::Number(m_game.TimeInDimension()));
+	});
+	// Données persistantes de la dimension courante (ou de `dimension`).
+	vm.RegisterNamespacedNative("world", "data", 1, 2, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(key, sd::ArgString(args, 0, "world.data"));
+		String dimension;
+		if (args.size() > 1) {
+			TRY(d, sd::ArgString(args, 1, "world.data"));
+			dimension = Qualified(d, m_currentMod);
+		}
+		if (!m_game.HasWorld())
+			return Ok(Value::Nil());
+		NodePtr v = json::At(json::At(m_game.DimensionData(dimension), "state"), key.CStr());
+		return Ok(v ? script::ValueFromNode(v) : Value::Nil());
+	});
+	vm.RegisterNamespacedNative("world", "set_data", 2, 3, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(key, sd::ArgString(args, 0, "world.set_data"));
+		String dimension;
+		if (args.size() > 2) {
+			TRY(d, sd::ArgString(args, 2, "world.set_data"));
+			dimension = Qualified(d, m_currentMod);
+		}
+		if (!m_game.HasWorld())
+			return Ok(Value::Nil());
+		NodePtr data = m_game.DimensionData(dimension);
+		NodePtr state = json::At(data, "state");
+		if (!state || !state->IsObject()) {
+			state = dataio::Node::MakeObject();
+			data->Set("state", state);
+		}
+		state->Set(key, script::NodeFromValue(args[1]));
+		return Ok(Value::Nil());
+	});
 }
 
 void ScriptHost::InstallEntityApi() {
@@ -660,6 +717,90 @@ void ScriptHost::InstallEntityApi() {
 		auto list = std::make_shared<script::ListObject>();
 		reg.Query<Player>([&](ecs::Entity e, Player &) { list->Push(EntityValue(e)); });
 		return Ok(Value::List(list));
+	});
+	// Voyage entre dimensions : entity.travel(joueur, "core:inverted" [, x, y, z]).
+	vm.RegisterNamespacedNative("entity", "travel", 2, 5, [this, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.travel"));
+		TRY(id, sd::ArgString(args, 1, "entity.travel"));
+		Option<math::FVector3> at = NONE;
+		if (args.size() >= 5) {
+			TRY(p, ArgVec(args, 2, "entity.travel"));
+			at = Some(p);
+		}
+		Result<bool, String> r = m_game.TravelTo(e, id.IsEmpty() ? id : Qualified(id, m_currentMod), at);
+		if (r.IsError())
+			return Err(Error("entity.travel", r.Error()));
+		return Ok(Value::Boolean(true));
+	});
+	vm.RegisterNamespacedNative("entity", "dimension", 1, 1, [this, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.dimension"));
+		(void)e; // un seul monde actif : celui du joueur local
+		return Ok(Value::Str(m_game.CurrentDimension()));
+	});
+	// Gravité : 1 vers le bas, -1 vers le haut (marcher au plafond).
+	vm.RegisterNamespacedNative("entity", "gravity", 1, 1, [&reg, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.gravity"));
+		auto body = reg.GetComponent<PhysicsBody>(e);
+		return Ok(Value::Int(body.IsSome() && body.Unwrap()->gravityDirection < 0.f ? -1 : 1));
+	});
+	vm.RegisterNamespacedNative("entity", "set_gravity", 2, 2, [&reg, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.set_gravity"));
+		TRY(dir, sd::ArgNumber(args, 1, "entity.set_gravity"));
+		if (auto body = reg.GetComponent<PhysicsBody>(e); body.IsSome()) {
+			const float before = body.Unwrap()->gravityDirection;
+			body.Unwrap()->gravityDirection = dir < 0.0 ? -1.f : 1.f;
+			if (before != body.Unwrap()->gravityDirection)
+				body.Unwrap()->onGround = false;
+		}
+		return Ok(Value::Nil());
+	});
+	vm.RegisterNamespacedNative("entity", "armor", 1, 1, [&reg, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.armor"));
+		Value list = Value::EmptyList();
+		if (auto eq = reg.GetComponent<Equipment>(e); eq.IsSome())
+			for (const ItemStack &piece : eq.Unwrap()->armor)
+				if (!piece.IsEmpty())
+					list.AsList()->items.push_back(Value::Str(piece.item));
+		return Ok(list);
+	});
+	vm.RegisterNamespacedNative("entity", "sneaking", 1, 1, [&reg, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.sneaking"));
+		auto intent = reg.GetComponent<MoveIntent>(e);
+		return Ok(Value::Boolean(intent.IsSome() && intent.Unwrap()->sneak));
+	});
+	vm.RegisterNamespacedNative("entity", "on_ground", 1, 1, [&reg, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.on_ground"));
+		auto body = reg.GetComponent<PhysicsBody>(e);
+		return Ok(Value::Boolean(body.IsSome() && body.Unwrap()->onGround));
+	});
+	// État physique : {on_ground, hit_ceiling, hit_wall, in_fluid, sinking, trapped, jumping, sneaking, gravity, fall}.
+	vm.RegisterNamespacedNative("entity", "body", 1, 1, [&reg, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.body"));
+		auto map = std::make_shared<script::MapObject>();
+		if (auto body = reg.GetComponent<PhysicsBody>(e); body.IsSome()) {
+			const PhysicsBody &b = *body.Unwrap();
+			map->SetKey("on_ground", Value::Boolean(b.onGround));
+			map->SetKey("hit_ceiling", Value::Boolean(b.hitCeiling));
+			map->SetKey("hit_wall", Value::Boolean(b.hitWall));
+			map->SetKey("in_fluid", Value::Boolean(b.inFluid));
+			map->SetKey("sinking", Value::Boolean(b.inSinking));
+			map->SetKey("trapped", Value::Boolean(b.trapped));
+			map->SetKey("flies", Value::Boolean(b.flies));
+			map->SetKey("gravity", Value::Int(b.gravityDirection < 0.f ? -1 : 1));
+			map->SetKey("fall", Value::Number(b.fallDistance));
+		}
+		if (auto intent = reg.GetComponent<MoveIntent>(e); intent.IsSome()) {
+			map->SetKey("jumping", Value::Boolean(intent.Unwrap()->jump));
+			map->SetKey("sneaking", Value::Boolean(intent.Unwrap()->sneak));
+			map->SetKey("moving", Value::Boolean(intent.Unwrap()->wish.Length() > 0.1f));
+		}
+		return Ok(Value::Map(map));
+	});
+	vm.RegisterNamespacedNative("entity", "has_effect", 2, 2, [&reg, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.has_effect"));
+		TRY(id, sd::ArgString(args, 1, "entity.has_effect"));
+		auto fx = reg.GetComponent<StatusEffects>(e);
+		return Ok(Value::Int(fx.IsSome() ? fx.Unwrap()->Level(id) : 0));
 	});
 	vm.RegisterNamespacedNative("entity", "sound", 2, 2, [this, &reg, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
 		TRY(e, entityArg(args, "entity.sound"));

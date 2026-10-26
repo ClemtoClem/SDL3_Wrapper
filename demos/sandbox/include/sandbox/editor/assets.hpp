@@ -266,7 +266,7 @@ public:
 	AssetBrowserPanel(const AssetBrowserPanel &) = delete;
 	AssetBrowserPanel &operator=(const AssetBrowserPanel &) = delete;
 
-	void Build(ecs::Entity page);
+	void Build(ui::Widget page);
 
 	/// Détruit les ressources hors de l'arbre d'interface (vignettes 3D).
 	void Teardown();
@@ -352,7 +352,7 @@ private:
 
 	void Refresh();
 
-	void SetEnabled(ecs::Entity button, bool enabled);
+	void SetEnabled(ui::Widget button, bool enabled);
 
 	void RefreshCrumbs();
 
@@ -375,7 +375,7 @@ private:
 	void BuildMenus();
 	void BuildDialogs();
 	void OpenMenu(float x, float y, bool onFolderRow);
-	[[nodiscard]] ecs::Entity MenuItem(const char *text, const char *shortcut, std::function<void()> action);
+	[[nodiscard]] ui::Widget MenuItem(const char *text, const char *shortcut, std::function<void()> action);
 	void OnDrop(const String &folder, int64_t draggedIndex);
 	void ApplyNameDialog(const String &text);
 	void Report(const AssetOpReport &report, const char *verb);
@@ -385,11 +385,11 @@ private:
 
 	void RefreshGrid();
 
-	void AddTile(ecs::Entity row, size_t index);
+	void AddTile(ui::Widget row, size_t index);
 
 	/// Aperçu réel : la texture elle-même, ou le modèle rendu dans un petit
 	/// viewport 3D à la demande (un seul rendu, cf. UiViewport3D::continuous).
-	bool AddPreview(ecs::Entity frame, const AssetEntry &entry, float size);
+	bool AddPreview(ui::Widget frame, const AssetEntry &entry, float size);
 
 	/// Racine de scène de la vignette d'un modèle, chargée une fois puis
 	/// gardée en cache pour toute la session (les vignettes sont recréées à
@@ -434,14 +434,14 @@ private:
 	float m_gridWidth = 0.f;
 	float m_clock = 0.f;
 	bool m_dirty = true;
-	ecs::Entity m_page{}, m_back{}, m_forward{}, m_up{}, m_crumbs{}, m_search{}, m_tree{}, m_grid{}, m_info{};
-	ecs::Entity m_newFolderButton{}, m_renameButton{}, m_duplicateButton{}, m_deleteButton{};
-	std::vector<ecs::Entity> m_tiles; ///< une par entrée, même ordre que m_entries
-	std::vector<ecs::Entity> m_popups;
-	ecs::Entity m_menuInstance{}, m_menuBrowse{};
-	ecs::Entity m_menu{}, m_menuOpen{}, m_menuNewFolder{}, m_menuRename{}, m_menuDuplicate{}, m_menuCut{},
+	ui::Widget m_page{}, m_back{}, m_forward{}, m_up{}, m_crumbs{}, m_search{}, m_tree{}, m_grid{}, m_info{};
+	ui::Widget m_newFolderButton{}, m_renameButton{}, m_duplicateButton{}, m_deleteButton{};
+	std::vector<ui::Widget> m_tiles; ///< une par entrée, même ordre que m_entries
+	std::vector<ui::Widget> m_popups;
+	ui::Widget m_menuInstance{}, m_menuBrowse{};
+	ui::Widget m_menu{}, m_menuOpen{}, m_menuNewFolder{}, m_menuRename{}, m_menuDuplicate{}, m_menuCut{},
 		m_menuPaste{}, m_menuDelete{}, m_menuSelectAll{};
-	ecs::Entity m_nameModal{}, m_nameTitle{}, m_nameInput{}, m_confirmModal{}, m_confirmText{}, m_confirmTitle{};
+	ui::Widget m_nameModal{}, m_nameTitle{}, m_nameInput{}, m_confirmModal{}, m_confirmText{}, m_confirmTitle{};
 	std::unordered_map<String, std::unique_ptr<render3d::Object3D>> m_thumbnailRoots;
 	std::unordered_map<String, math::FAABB> m_thumbnailBounds;
 };

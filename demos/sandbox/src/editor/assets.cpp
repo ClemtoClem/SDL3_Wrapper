@@ -548,17 +548,17 @@ AssetBrowserPanel::~AssetBrowserPanel() {
 	ClearThumbnails();
 }
 
-void AssetBrowserPanel::Build(ecs::Entity page) {
+void AssetBrowserPanel::Build(ui::Widget page) {
 	m_model.SetProject(&m_ctx.runtime.GetProject());
 	m_model.SetProjectDirectory(m_ctx.runtime.ProjectDirectory());
 	m_page = page;
-	const ui::UiTheme &theme = m_ctx.Theme();
+	const ui::Palette &theme = m_ctx.Theme();
 
 	// ── Barre : ← → ↑ · fil d'Ariane · recherche · + ≡ ────────────────────
-	ui::WidgetBuilder bar = m_ctx.factory.Row();
-	bar.Pad(0.f);
-	bar.Gap(2.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(page);
-	ecs::Entity barEntity = bar.Spawn();
+	ui::WidgetBuilder bar = ui::Row();
+	bar.Padding(0.f);
+	bar.Gap(2.f).GrowWidth().AlignItems(ui::Align::Center);
+	ui::Widget barEntity = page.Append(bar);
 	m_back = kit::IconButton(m_ctx, barEntity, ui::MaterialIcons::ARROW_BACK, String("Précédent"), [this] {
 		if (m_model.Back())
 			MarkDirty();
@@ -571,10 +571,10 @@ void AssetBrowserPanel::Build(ecs::Entity page) {
 		if (m_model.Up())
 			MarkDirty();
 	});
-	ui::WidgetBuilder crumbs = m_ctx.factory.Row();
-	crumbs.Pad(0.f);
-	crumbs.Gap(0.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Clip().Parent(barEntity);
-	m_crumbs = crumbs.Spawn();
+	ui::WidgetBuilder crumbs = ui::Row();
+	crumbs.Padding(0.f);
+	crumbs.Gap(0.f).GrowWidth().AlignItems(ui::Align::Center).Clip();
+	m_crumbs = barEntity.Append(crumbs);
 	m_search = kit::SearchField(m_ctx, barEntity, String("Filtrer…"), [this](const String &text) {
 		m_filter = text;
 		MarkDirty();
@@ -598,42 +598,42 @@ void AssetBrowserPanel::Build(ecs::Entity page) {
 									 [this] { BeginDelete(); });
 
 	// ── Corps : arbre des dossiers | grille ─────────────────────────────
-	ui::WidgetBuilder body = m_ctx.factory.Row();
-	body.Pad(0.f);
-	body.Gap(0.f).GrowW().GrowH().Parent(page);
-	ecs::Entity bodyEntity = body.Spawn();
+	ui::WidgetBuilder body = ui::Row();
+	body.Padding(0.f);
+	body.Gap(0.f).GrowWidth().GrowHeight();
+	ui::Widget bodyEntity = page.Append(body);
 
-	ui::WidgetBuilder tree = m_ctx.factory.Column();
-	tree.Gap(1.f).Pad(math::Sides{2.f, 4.f}).W(ui::Dimension::Px(170.f)).GrowH().Scrollable().Clip();
-	tree.Bg(kit::PaletteOf(m_ctx).toolbar).Parent(bodyEntity);
-	m_tree = tree.Spawn();
+	ui::WidgetBuilder tree = ui::Column();
+	tree.Gap(1.f).Padding(math::Sides{2.f, 4.f}).Width(170.f).GrowHeight().Scrollable();
+	tree.Background(kit::PaletteOf(m_ctx).toolbar);
+	m_tree = bodyEntity.Append(tree);
 
-	ui::WidgetBuilder right = m_ctx.factory.Column();
-	right.Gap(0.f).Pad(0.f).GrowW().GrowH().Parent(bodyEntity);
-	ecs::Entity rightEntity = right.Spawn();
+	ui::WidgetBuilder right = ui::Column();
+	right.Gap(0.f).Padding(0.f).GrowWidth().GrowHeight();
+	ui::Widget rightEntity = bodyEntity.Append(right);
 
-	ui::WidgetBuilder grid = m_ctx.factory.Column();
-	grid.Gap(TILE_GAP).Pad(math::Sides{8.f, 6.f}).GrowW().GrowH().Scrollable().Clip().Parent(rightEntity);
+	ui::WidgetBuilder grid = ui::Column();
+	grid.Gap(TILE_GAP).Padding(math::Sides{8.f, 6.f}).GrowWidth().GrowHeight().Scrollable();
 	// Clic droit dans le vide de la grille : menu du dossier courant.
-	grid.OnContextMenu([this](float x, float y) { OpenMenu(x, y, false); });
-	m_grid = grid.Spawn();
+	grid.OnContextMenu([this](sdl3::FPoint p) { OpenMenu(p.x, p.y, false); });
+	m_grid = rightEntity.Append(grid);
 
-	ui::WidgetBuilder footer = m_ctx.factory.Row();
-	footer.Gap(8.f).Pad(math::Sides{8.f, 2.f}).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(rightEntity);
-	ecs::Entity footerEntity = footer.Spawn();
-	ui::WidgetBuilder info = m_ctx.factory.Label(String());
-	info.GrowW().HAuto().FontSize(12.f).TextColor(theme.muted).TextEllipsis().Parent(footerEntity);
-	m_info = info.Spawn();
+	ui::WidgetBuilder footer = ui::Row();
+	footer.Gap(8.f).Padding(math::Sides{8.f, 2.f}).GrowWidth().AlignItems(ui::Align::Center);
+	ui::Widget footerEntity = rightEntity.Append(footer);
+	ui::WidgetBuilder info = ui::Label(String());
+	info.GrowWidth().FontSize(12.f).Color(theme.muted).Ellipsis();
+	m_info = footerEntity.Append(info);
 	(void)kit::Glyph(m_ctx, footerEntity, ui::MaterialIcons::VIEW_QUILT, theme.muted, 14.f);
-	ui::WidgetBuilder zoom = m_ctx.factory.Slider(MIN_TILE, MAX_TILE, m_tileSize);
-	zoom.Size(110.f, 14.f).Tooltip(String("Taille des vignettes")).Parent(footerEntity);
+	ui::WidgetBuilder zoom = ui::Slider(MIN_TILE, MAX_TILE, m_tileSize);
+	zoom.Size(110.f, 14.f).Tooltip(String("Taille des vignettes"));
 	zoom.OnChange([this](float value) {
 		if (sdl3::Abs(value - m_tileSize) >= 4.f) {
 			m_tileSize = value;
 			MarkDirty();
 		}
 	});
-	(void)zoom.Spawn();
+	footerEntity.Append(zoom);
 
 	BuildMenus();
 	BuildDialogs();
@@ -642,22 +642,22 @@ void AssetBrowserPanel::Build(ecs::Entity page) {
 
 void AssetBrowserPanel::Teardown() {
 	ClearThumbnails();
-	for (ecs::Entity popup : m_popups)
+	for (ui::Widget popup : m_popups)
 		if (popup.Valid())
-			ui::DespawnTree(m_ctx.registry, popup);
+			ui::Widget(popup).Destroy();
 	m_popups.clear();
 	m_tiles.clear();
-	m_page = m_tree = m_grid = m_crumbs = m_info = m_search = ecs::Entity{};
-	m_newFolderButton = m_renameButton = m_duplicateButton = m_deleteButton = ecs::Entity{};
-	m_menu = m_nameModal = m_nameInput = m_nameTitle = m_confirmModal = m_confirmText = m_confirmTitle = ecs::Entity{};
+	m_page = m_tree = m_grid = m_crumbs = m_info = m_search = ui::Widget();
+	m_newFolderButton = m_renameButton = m_duplicateButton = m_deleteButton = ui::Widget();
+	m_menu = m_nameModal = m_nameInput = m_nameTitle = m_confirmModal = m_confirmText = m_confirmTitle = ui::Widget();
 }
 
 void AssetBrowserPanel::Tick(float dt) {
 	m_clock += dt;
 	if (!m_grid.Valid())
 		return;
-	if (auto computed = m_ctx.registry.GetComponent<ui::UiComputed>(m_grid); computed.IsSome()) {
-		const float width = computed.Unwrap()->screen.w;
+	{
+		const float width = m_grid.Bounds().w;
 		if (width > 0.f && ColumnsFor(width) != ColumnsFor(m_gridWidth)) {
 			m_gridWidth = width;
 			m_dirty = true;
@@ -859,71 +859,52 @@ void AssetBrowserPanel::OnDrop(const String &folder, int64_t draggedIndex) {
 
 void AssetBrowserPanel::BuildDialogs() {
 	// Nom (nouveau dossier, renommer).
-	ui::WidgetBuilder title = m_ctx.factory.Label(String("Nom"));
-	title.FontSize(15.f).Bold().GrowW().HAuto();
-	ui::WidgetBuilder input = m_ctx.factory.Input();
-	input.GrowW().H(ui::Dimension::Px(28.f)).OnSubmit([this](const String &text) { ApplyNameDialog(text); });
-	ui::WidgetBuilder ok = m_ctx.factory.Button(String("Valider"));
-	ok.WAuto().HAuto().OnClick([this] {
-		if (auto field = m_ctx.registry.GetComponent<ui::UiInput>(m_nameInput); field.IsSome())
-			ApplyNameDialog(field.Unwrap()->text);
-	});
-	ui::WidgetBuilder cancel = m_ctx.factory.Button(String("Annuler"));
-	cancel.WAuto().HAuto().OnClick([this] {
-		m_ctx.gui.CloseModal(m_nameModal);
-		m_ctx.gui.ClearKeyboardFocus(); // le champ caché ne doit pas garder le clavier
+	ui::WidgetBuilder title = ui::Label(String("Nom"));
+	title.FontSize(15.f).Bold().GrowWidth().Ref(m_nameTitle);
+	ui::WidgetBuilder input = ui::Input();
+	input.GrowWidth().Height(28.f).Ref(m_nameInput).OnSubmit([this](const String &text) { ApplyNameDialog(text); });
+	ui::WidgetBuilder ok = ui::Button(String("Valider"));
+	ok.OnClick([this] { ApplyNameDialog(m_nameInput.Text()); });
+	ui::WidgetBuilder cancel = ui::Button(String("Annuler"));
+	cancel.OnClick([this] {
+		m_nameModal.Close();
+		m_ctx.gui.ClearFocus(); // le champ caché ne doit pas garder le clavier
 		m_menuFolder = NONE;
 	});
-	ui::WidgetBuilder buttons = m_ctx.factory.Row();
-	buttons.Pad(0.f);
-	buttons.Gap(8.f).GrowW().HAuto().Justify(ui::Justify::End).Children(std::move(cancel), std::move(ok));
-	ui::WidgetBuilder panel = m_ctx.factory.Panel();
-	panel.Size(420.f, 150.f).Pad(16.f).Gap(12.f).Children(std::move(title), std::move(input), std::move(buttons));
-	m_nameModal = m_ctx.factory.Modal(std::move(panel)).Spawn();
+	ui::WidgetBuilder buttons = ui::Row();
+	buttons.Padding(0.f);
+	buttons.Gap(8.f).GrowWidth().JustifyContent(ui::Justify::End).Children({std::move(cancel), std::move(ok)});
+	ui::WidgetBuilder panel = ui::Panel();
+	panel.Size(420.f, 150.f).Padding(16.f).Gap(12.f).Children({std::move(title), std::move(input), std::move(buttons)});
+	m_nameModal = m_ctx.gui.Mount(ui::Modal(std::move(panel)));
 	m_popups.push_back(m_nameModal);
 
 	// Confirmation de suppression.
-	ui::WidgetBuilder heading = m_ctx.factory.Label(String("Supprimer ?"));
-	heading.FontSize(15.f).Bold().GrowW().HAuto();
-	ui::WidgetBuilder text = m_ctx.factory.Label(String());
-	text.GrowW().H(ui::Dimension::Px(92.f)).FontSize(13.f).TextWrap();
-	ui::WidgetBuilder yes = m_ctx.factory.Button(String("Supprimer"));
-	yes.WAuto().HAuto().Bg(kit::PaletteOf(m_ctx).error).OnClick([this] {
-		m_ctx.gui.CloseModal(m_confirmModal);
-		m_ctx.gui.ClearKeyboardFocus();
+	ui::WidgetBuilder heading = ui::Label(String("Supprimer ?"));
+	heading.FontSize(15.f).Bold().GrowWidth().Ref(m_confirmTitle);
+	ui::WidgetBuilder text = ui::Label(String());
+	text.GrowWidth().Height(92.f).FontSize(13.f).TextWrap().Ref(m_confirmText);
+	ui::WidgetBuilder yes = ui::Button(String("Supprimer"));
+	yes.Background(kit::PaletteOf(m_ctx).error).OnClick([this] {
+		m_confirmModal.Close();
+		m_ctx.gui.ClearFocus();
 		(void)DeleteSelection();
 		m_menuFolder = NONE;
 	});
-	ui::WidgetBuilder no = m_ctx.factory.Button(String("Annuler"));
-	no.WAuto().HAuto().OnClick([this] {
-		m_ctx.gui.CloseModal(m_confirmModal);
-		m_ctx.gui.ClearKeyboardFocus();
+	ui::WidgetBuilder no = ui::Button(String("Annuler"));
+	no.OnClick([this] {
+		m_confirmModal.Close();
+		m_ctx.gui.ClearFocus();
 		m_menuFolder = NONE;
 	});
-	ui::WidgetBuilder confirmButtons = m_ctx.factory.Row();
-	confirmButtons.Pad(0.f);
-	confirmButtons.Gap(8.f).GrowW().HAuto().Justify(ui::Justify::End).Children(std::move(no), std::move(yes));
-	ui::WidgetBuilder confirm = m_ctx.factory.Panel();
-	confirm.Size(480.f, 220.f).Pad(16.f).Gap(10.f).Children(std::move(heading), std::move(text),
-															  std::move(confirmButtons));
-	m_confirmModal = m_ctx.factory.Modal(std::move(confirm)).Spawn();
+	ui::WidgetBuilder confirmButtons = ui::Row();
+	confirmButtons.Padding(0.f);
+	confirmButtons.Gap(8.f).GrowWidth().JustifyContent(ui::Justify::End).Children({std::move(no), std::move(yes)});
+	ui::WidgetBuilder confirm = ui::Panel();
+	confirm.Size(480.f, 220.f).Padding(16.f).Gap(10.f).Children({std::move(heading), std::move(text), std::move(confirmButtons)});
+	m_confirmModal = m_ctx.gui.Mount(ui::Modal(std::move(confirm)));
 	m_popups.push_back(m_confirmModal);
 
-	m_ctx.registry.Query<ui::UiInput, ui::UiParent>([this](ecs::Entity e, ui::UiInput &, ui::UiParent &) {
-		if (ui::IsDescendantOrSelf(m_ctx.registry, e, m_nameModal))
-			m_nameInput = e;
-	});
-	// Les libellés à mettre à jour : le titre de la boîte de nom, le texte
-	// de la confirmation (premiers libellés de chaque panneau).
-	m_ctx.registry.Query<ui::UiLabel, ui::UiParent>([this](ecs::Entity e, ui::UiLabel &label, ui::UiParent &) {
-		if (!m_nameTitle.Valid() && label.text == "Nom" && ui::IsDescendantOrSelf(m_ctx.registry, e, m_nameModal))
-			m_nameTitle = e;
-		if (!m_confirmText.Valid() && label.text.IsEmpty() && ui::IsDescendantOrSelf(m_ctx.registry, e, m_confirmModal))
-			m_confirmText = e;
-		if (!m_confirmTitle.Valid() && label.text == "Supprimer ?" &&
-			ui::IsDescendantOrSelf(m_ctx.registry, e, m_confirmModal))
-			m_confirmTitle = e;
-	});
 }
 
 void AssetBrowserPanel::BeginNewFolder() {
@@ -935,13 +916,8 @@ void AssetBrowserPanel::BeginNewFolder() {
 	}
 	m_nameDialog = NameDialog::NEW_FOLDER;
 	kit::SetLabelText(m_ctx, m_nameTitle, String("Nouveau dossier"));
-	if (auto field = m_ctx.registry.GetComponent<ui::UiInput>(m_nameInput); field.IsSome()) {
-		field.Unwrap()->text = String("Nouveau dossier");
-		field.Unwrap()->cursor = field.Unwrap()->text.size();
-		field.Unwrap()->selectionAnchor = 0;
-		field.Unwrap()->focused = true;
-	}
-	m_ctx.gui.OpenModal(m_nameModal);
+	m_nameModal.Open();
+	m_nameInput.SetText(String("Nouveau dossier")).Focus();
 }
 
 void AssetBrowserPanel::BeginRename() {
@@ -970,13 +946,8 @@ void AssetBrowserPanel::BeginRename() {
 		if (!ext.IsEmpty() && (!first.managed || first.kind == AssetKind::SCRIPT))
 			current = current.Substr(0, current.size() - ext.size());
 	}
-	if (auto field = m_ctx.registry.GetComponent<ui::UiInput>(m_nameInput); field.IsSome()) {
-		field.Unwrap()->text = current;
-		field.Unwrap()->cursor = current.size();
-		field.Unwrap()->selectionAnchor = 0;
-		field.Unwrap()->focused = true;
-	}
-	m_ctx.gui.OpenModal(m_nameModal);
+	m_nameModal.Open();
+	m_nameInput.SetText(current).Focus();
 }
 
 void AssetBrowserPanel::BeginDelete() {
@@ -1003,12 +974,12 @@ void AssetBrowserPanel::BeginDelete() {
 	kit::SetLabelText(m_ctx, m_confirmText, text);
 	kit::SetLabelText(m_ctx, m_confirmTitle,
 					  String::Format("Supprimer %d élément%s ?", int(targets.size()), targets.size() > 1 ? "s" : ""));
-	m_ctx.gui.OpenModal(m_confirmModal);
+	m_confirmModal.Open();
 }
 
 void AssetBrowserPanel::ApplyNameDialog(const String &text) {
-	m_ctx.gui.CloseModal(m_nameModal);
-	m_ctx.gui.ClearKeyboardFocus(); // le champ caché ne doit pas garder le clavier
+	m_nameModal.Close();
+	m_ctx.gui.ClearFocus(); // le champ caché ne doit pas garder le clavier
 	if (text.Trim().IsEmpty()) {
 		m_menuFolder = NONE;
 		return;
@@ -1022,14 +993,14 @@ void AssetBrowserPanel::ApplyNameDialog(const String &text) {
 
 // ── Menu contextuel ──────────────────────────────────────────────────────────
 
-ecs::Entity AssetBrowserPanel::MenuItem(const char *text, const char *shortcut, std::function<void()> action) {
-	ui::WidgetBuilder item = m_ctx.factory.MenuItem(String(text), String(shortcut));
-	item.OnClick(std::move(action)).Parent(m_menu);
-	return item.Spawn();
+ui::Widget AssetBrowserPanel::MenuItem(const char *text, const char *shortcut, std::function<void()> action) {
+	ui::WidgetBuilder item = ui::MenuItem(String(text), String(shortcut));
+	item.OnClick(std::move(action));
+	return m_menu.Append(item);
 }
 
 void AssetBrowserPanel::BuildMenus() {
-	m_menu = m_ctx.factory.ContextMenu();
+	m_menu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_popups.push_back(m_menu);
 	m_menuOpen = MenuItem("Ouvrir", "Entrée", [this] {
 		const std::vector<AssetEntry> selected = SelectedEntries();
@@ -1095,7 +1066,7 @@ void AssetBrowserPanel::OpenMenu(float x, float y, bool onFolderRow) {
 	SetEnabled(m_menuPaste, !m_clipboard.empty() && m_ops->IsWritableFolder(folder));
 	SetEnabled(m_menuDelete, allowed("delete"));
 	SetEnabled(m_menuSelectAll, m_menuFolder.IsNone() && !m_entries.empty());
-	m_ctx.gui.OpenPopupAt(m_menu, sdl3::FPoint{x, y});
+	m_menu.OpenAt(sdl3::FPoint{x, y});
 }
 
 // ── Clavier ──────────────────────────────────────────────────────────────────
@@ -1103,12 +1074,12 @@ void AssetBrowserPanel::OpenMenu(float x, float y, bool onFolderRow) {
 bool AssetBrowserPanel::PointerOver() const {
 	if (!m_page.Valid() || m_ctx.gui.HasOpenModal())
 		return false;
-	auto computed = m_ctx.registry.GetComponent<ui::UiComputed>(m_page);
-	if (computed.IsNone() || computed.Unwrap()->screen.w <= 0.f)
+	const sdl3::FRect bounds = m_page.Bounds();
+	if (bounds.w <= 0.f)
 		return false;
 	float x = 0.f, y = 0.f;
 	(void)SDL_GetMouseState(&x, &y);
-	return computed.Unwrap()->screen.Contains(sdl3::FPoint{x, y});
+	return bounds.Contains(sdl3::FPoint{x, y});
 }
 
 bool AssetBrowserPanel::HandleKey(const sdl3::Event &event) {
@@ -1116,9 +1087,8 @@ bool AssetBrowserPanel::HandleKey(const sdl3::Event &event) {
 		return false;
 	// Saisie en cours (filtre) : les touches sont les siennes. Un bouton qui
 	// a gardé le focus après un clic (une vignette) ne compte pas.
-	const ecs::Entity focus = m_ctx.gui.KeyboardFocus();
-	if (focus.Valid() && (m_ctx.registry.HasComponent<ui::UiInput>(focus) ||
-						  m_ctx.registry.HasComponent<ui::UiInputArea>(focus)))
+	ui::Widget focus = m_ctx.gui.Focused();
+	if (focus.Valid() && focus.Get<ui::TextEditor>().IsSome())
 		return false;
 	// Modificateurs portés par l'ÉVÈNEMENT (pas l'état courant du clavier,
 	// qui peut déjà avoir changé quand l'évènement est traité).
@@ -1258,13 +1228,10 @@ void AssetBrowserPanel::Refresh() {
 	SetEnabled(m_up, m_model.CanUp());
 }
 
-void AssetBrowserPanel::SetEnabled(ecs::Entity button, bool enabled) {
+void AssetBrowserPanel::SetEnabled(ui::Widget button, bool enabled) {
 	if (!button.Valid())
 		return;
-	if (enabled)
-		m_ctx.registry.RemoveComponent<ui::UiDisabled>(button);
-	else if (!m_ctx.registry.HasComponent<ui::UiDisabled>(button))
-		m_ctx.registry.AddComponent(button, ui::UiDisabled{});
+	button.SetEnabled(enabled);
 }
 
 void AssetBrowserPanel::RefreshCrumbs() {
@@ -1274,15 +1241,15 @@ void AssetBrowserPanel::RefreshCrumbs() {
 		if (i > 0)
 			(void)kit::Glyph(m_ctx, m_crumbs, ui::MaterialIcons::CHEVRON_RIGHT, m_ctx.Theme().muted, 14.f);
 		const bool last = i + 1 == crumbs.size();
-		ui::WidgetBuilder crumb = m_ctx.factory.Button(crumbs[i].first);
-		crumb.WAuto().H(ui::Dimension::Px(24.f)).FontSize(13.f).Bg(sdl3::FColor{0.f, 0.f, 0.f, 0.f});
-		crumb.TextColor(last ? m_ctx.Theme().text : m_ctx.Theme().muted).Parent(m_crumbs);
+		ui::WidgetBuilder crumb = ui::Button(crumbs[i].first);
+		crumb.Height(24.f).FontSize(13.f).Background(sdl3::FColor{0.f, 0.f, 0.f, 0.f});
+		crumb.Color(last ? m_ctx.Theme().text : m_ctx.Theme().muted);
 		const String location = crumbs[i].second;
 		crumb.OnClick([this, location] {
 			if (m_model.Navigate(location))
 				MarkDirty();
 		});
-		(void)crumb.Spawn();
+		m_crumbs.Append(crumb);
 	}
 }
 
@@ -1341,16 +1308,17 @@ bool AssetBrowserPanel::IsOnPath(const String &folder, const String &current) {
 void AssetBrowserPanel::AddTreeRow(const AssetEntry &folder, int depth, bool hasChildren, bool open) {
 	const String location = m_model.Canonical(folder.location);
 	const bool current = location == m_model.Location();
-	const ui::UiTheme &theme = m_ctx.Theme();
-	ui::WidgetBuilder row = m_ctx.factory.Selectable(String(), m_treeRowIndex++);
-	row.Gap(2.f).Pad(math::Sides{2.f + float(depth) * 12.f, 1.f, 4.f, 1.f}).GrowW().HAuto().Parent(m_tree);
+	const ui::Palette &theme = m_ctx.Theme();
+	const int rowIndex = m_treeRowIndex++;
+	ui::WidgetBuilder row = ui::Selectable(String(), rowIndex);
+	row.Gap(2.f).Padding(math::Sides{2.f + float(depth) * 12.f, 1.f, 4.f, 1.f}).GrowWidth();
 	row.OnClick([this, location] {
 		if (m_model.Navigate(location))
 			MarkDirty();
 	});
-	row.OnContextMenu([this, folder](float x, float y) {
+	row.OnContextMenu([this, folder](sdl3::FPoint p) {
 		m_menuFolder = Some(folder);
-		OpenMenu(x, y, true);
+		OpenMenu(p.x, p.y, true);
 	});
 	// Déposer des éléments sur un dossier du projet : les y déplacer.
 	if (m_ops->IsWritableFolder(location)) {
@@ -1365,9 +1333,9 @@ void AssetBrowserPanel::AddTreeRow(const AssetEntry &folder, int depth, bool has
 		tip = folder.path.IsValid() ? String::Format("%s — %s", ProjectPathKindName(folder.path.kind), tip.CStr())
 									: folder.name;
 	row.Tooltip(tip);
-	ecs::Entity rowEntity = row.Spawn();
-	if (auto selectable = m_ctx.registry.GetComponent<ui::UiSelectable>(rowEntity); selectable.IsSome())
-		selectable.Unwrap()->selected = current;
+	ui::Widget rowEntity = m_tree.Append(row);
+	if (current)
+		kit::MarkSelected(m_tree, rowIndex);
 	if (hasChildren && depth > 0) {
 		(void)kit::IconButton(m_ctx, rowEntity, open ? ui::MaterialIcons::ARROW_DROP_DOWN : ui::MaterialIcons::ARROW_RIGHT,
 							  String(open ? "Replier" : "Déplier"),
@@ -1377,33 +1345,33 @@ void AssetBrowserPanel::AddTreeRow(const AssetEntry &folder, int depth, bool has
 							  },
 							  16.f, nullptr, theme.muted);
 	} else {
-		ui::WidgetBuilder gap = m_ctx.factory.Row();
-		gap.Pad(0.f);
-		gap.Size(16.f, 16.f).PointerThrough().Parent(rowEntity);
-		(void)gap.Spawn();
+		ui::WidgetBuilder gap = ui::Row();
+		gap.Padding(0.f);
+		gap.Size(16.f, 16.f).PointerThrough();
+		rowEntity.Append(gap);
 	}
 	if (folder.kind == AssetKind::FOLDER)
 		(void)kit::Glyph(m_ctx, rowEntity, open || current ? ui::MaterialIcons::FOLDER_OPEN : ui::MaterialIcons::FOLDER,
 						 kit::Rgb(176, 176, 180), 15.f);
 	else // scène, objet ou nœud parcourus comme des dossiers : leur icône
 		(void)kit::Glyph(m_ctx, rowEntity, IconOf(folder.kind), ColorOf(folder.kind), 15.f);
-	ui::WidgetBuilder label = m_ctx.factory.Label(folder.name);
-	label.GrowW().HAuto().FontSize(13.f).TextEllipsis().PointerThrough().Parent(rowEntity);
-	(void)label.Spawn();
+	ui::WidgetBuilder label = ui::Label(folder.name);
+	label.GrowWidth().FontSize(13.f).Ellipsis().PointerThrough();
+	rowEntity.Append(label);
 }
 
 void AssetBrowserPanel::RefreshGrid() {
 	kit::ClearChildren(m_ctx, m_grid);
 	ClearThumbnails();
-	m_tiles.assign(m_entries.size(), ecs::Entity{});
+	m_tiles.assign(m_entries.size(), ui::Widget());
 	const int columns = ColumnsFor(m_gridWidth > 0.f ? m_gridWidth : 600.f);
-	ecs::Entity row{};
+	ui::Widget row{};
 	for (size_t i = 0; i < m_entries.size(); ++i) {
 		if (i % size_t(columns) == 0) {
-			ui::WidgetBuilder rowBuilder = m_ctx.factory.Row();
-			rowBuilder.Pad(0.f);
-			rowBuilder.Gap(TILE_GAP).WAuto().HAuto().Parent(m_grid);
-			row = rowBuilder.Spawn();
+			ui::WidgetBuilder rowBuilder = ui::Row();
+			rowBuilder.Padding(0.f);
+			rowBuilder.Gap(TILE_GAP);
+			row = m_grid.Append(rowBuilder);
 		}
 		AddTile(row, i);
 	}
@@ -1411,31 +1379,32 @@ void AssetBrowserPanel::RefreshGrid() {
 		(void)kit::Caption(m_ctx, m_grid, m_filter.IsEmpty() ? String("Dossier vide") : String("Aucun résultat"), 13.f);
 }
 
-void AssetBrowserPanel::AddTile(ecs::Entity row, size_t index) {
+void AssetBrowserPanel::AddTile(ui::Widget row, size_t index) {
 	const AssetEntry &entry = m_entries[index];
-	const ui::UiTheme &theme = m_ctx.Theme();
+	const ui::Palette &theme = m_ctx.Theme();
 	const bool selected = IsSelected(entry.location);
 	const float thumb = m_tileSize;
 
-	ui::WidgetBuilder tile = m_ctx.factory.Button(String());
-	tile.Size(thumb + 8.f, thumb + 26.f).Radius(4.f).Tooltip(TooltipOf(entry)).Parent(row);
-	tile.Bg(selected ? kit::PaletteOf(m_ctx).selection : sdl3::FColor{0.f, 0.f, 0.f, 0.f});
+	ui::WidgetBuilder tile = ui::Button(String());
+	tile.Size(thumb + 8.f, thumb + 26.f).BorderRadius(4.f).Tooltip(TooltipOf(entry));
+	tile.Background(selected ? kit::PaletteOf(m_ctx).selection : sdl3::FColor{0.f, 0.f, 0.f, 0.f});
 	tile.OnClick([this, index] { OnTileClick(index); });
 	tile.OnDoubleClick([this, index] { Activate(index); });
-	tile.OnContextMenu([this, index](float x, float y) {
+	tile.OnContextMenu(ui::EventCallback([this, index](const ui::WidgetEvent &event) {
+		event.StopPropagation(); // la grille ouvrirait sinon le menu du dossier
 		// Clic droit hors sélection : il la remplace (comme tout explorateur).
 		if (index < m_entries.size() && !IsSelected(m_entries[index].location))
 			SelectLocations({m_entries[index].location});
-		OpenMenu(x, y, false);
-	});
+		OpenMenu(event.pointer.x, event.pointer.y, false);
+	}));
 	// Glisser : la vignette, ou toute la sélection si elle en fait partie ;
 	// le fantôme dit combien d'éléments partent.
-	tile.DragPayload(String("asset"), int64_t(index), entry.name);
+	tile.DragSource(String("asset"), int64_t(index), entry.name);
 	tile.OnDragStart([this, index] {
 		if (index >= m_entries.size() || index >= m_tiles.size())
 			return;
 		const bool many = IsSelected(m_entries[index].location) && m_selection.size() > 1;
-		if (auto payload = m_ctx.registry.GetComponent<ui::UiDragPayload>(m_tiles[index]); payload.IsSome()) {
+		if (auto payload = m_tiles[index].Get<ui::DragSource>(); payload.IsSome()) {
 			payload.Unwrap()->count = many ? int(m_selection.size()) : 1;
 			payload.Unwrap()->label = many ? String::Format("%d éléments", int(m_selection.size())) : m_entries[index].name;
 		}
@@ -1446,73 +1415,58 @@ void AssetBrowserPanel::AddTile(ecs::Entity row, size_t index) {
 		tile.DropTarget(String("asset"));
 		tile.OnDrop([this, location](int64_t dragged) { OnDrop(location, dragged); });
 	}
-	ecs::Entity tileEntity = tile.Spawn();
+	ui::Widget tileEntity = row.Append(tile);
 	m_tiles[index] = tileEntity;
 
 	// Vignette : aperçu réel pour les modèles et les textures, grande
 	// icône sinon.
-	ui::WidgetBuilder frame = m_ctx.factory.Column();
-	frame.Pad(0.f);
-	frame.Size(thumb, thumb).Absolute().Anchor(ui::Anchor::TopLeft).Offset(4.f, 4.f).Radius(3.f).Clip();
-	frame.Bg(entry.kind == AssetKind::MODEL || entry.kind == AssetKind::TEXTURE ? kit::PaletteOf(m_ctx).well
+	ui::WidgetBuilder frame = ui::Column();
+	frame.Padding(0.f);
+	frame.Size(thumb, thumb).Absolute().Anchor(ui::Anchor::TopLeft).Offset(4.f, 4.f).BorderRadius(3.f).Clip();
+	frame.Background(entry.kind == AssetKind::MODEL || entry.kind == AssetKind::TEXTURE ? kit::PaletteOf(m_ctx).well
 																				  : sdl3::FColor{0.f, 0.f, 0.f, 0.f});
-	frame.PointerThrough().Parent(tileEntity);
-	ecs::Entity frameEntity = frame.Spawn();
+	frame.PointerThrough();
+	ui::Widget frameEntity = tileEntity.Append(frame);
 	if (!AddPreview(frameEntity, entry, thumb)) {
-		ui::WidgetBuilder icon = m_ctx.factory.Icon(IconOf(entry.kind), thumb * 0.62f);
-		icon.Absolute().Anchor(ui::Anchor::Center).Justify(ui::Justify::Center).PointerThrough();
-		icon.TextColor(kit::Readable(m_ctx, ColorOf(entry.kind))).Parent(frameEntity);
-		(void)icon.Spawn();
+		ui::WidgetBuilder icon = ui::Icon(IconOf(entry.kind), thumb * 0.62f);
+		icon.Absolute().Anchor(ui::Anchor::Center).JustifyContent(ui::Justify::Center).PointerThrough();
+		icon.Color(kit::Readable(m_ctx, ColorOf(entry.kind)));
+		frameEntity.Append(icon);
 	}
 	if (entry.kind == AssetKind::SCRIPT) {
 		// Pastille de compilation, comme les coches de la maquette.
-		ui::WidgetBuilder mark = m_ctx.factory.Icon(entry.broken ? ui::MaterialIcons::ERROR : ui::MaterialIcons::CHECK_CIRCLE, 18.f);
+		ui::WidgetBuilder mark = ui::Icon(entry.broken ? ui::MaterialIcons::ERROR : ui::MaterialIcons::CHECK_CIRCLE, 18.f);
 		mark.Absolute().Anchor(ui::Anchor::TopRight).Offset(-2.f, 2.f).PointerThrough();
-		mark.TextColor(entry.broken ? kit::PaletteOf(m_ctx).error : kit::PaletteOf(m_ctx).ok).Parent(frameEntity);
-		(void)mark.Spawn();
+		mark.Color(entry.broken ? kit::PaletteOf(m_ctx).error : kit::PaletteOf(m_ctx).ok);
+		frameEntity.Append(mark);
 	}
 
-	ui::WidgetBuilder name = m_ctx.factory.Label(entry.name);
-	name.Absolute().Anchor(ui::Anchor::BottomLeft).Offset(2.f, -3.f).W(ui::Dimension::Px(thumb + 4.f)).HAuto();
-	name.FontSize(12.f).TextAlign(ui::TextAlign::Center).TextEllipsis().PointerThrough();
-	name.TextColor(theme.text).Parent(tileEntity);
-	(void)name.Spawn();
+	ui::WidgetBuilder name = ui::Label(entry.name);
+	name.Absolute().Anchor(ui::Anchor::BottomLeft).Offset(2.f, -3.f).Width(thumb + 4.f);
+	name.FontSize(12.f).TextAlign(ui::TextAlign::Center).Ellipsis().PointerThrough();
+	name.Color(theme.text);
+	tileEntity.Append(name);
 }
 
-bool AssetBrowserPanel::AddPreview(ecs::Entity frame, const AssetEntry &entry, float size) {
+bool AssetBrowserPanel::AddPreview(ui::Widget frame, const AssetEntry &entry, float size) {
 	if (entry.kind == AssetKind::TEXTURE && m_ctx.renderer) {
-		const String key = String("asset:") + entry.location;
-		auto &pool = m_ctx.gui.RenderSystem().textures;
-		if (pool.find(key) == pool.end()) {
-			auto texture = sdl3::ImgLoadTexture(*m_ctx.renderer, entry.location);
-			if (texture.IsError())
-				return false;
-			pool.insert_or_assign(key, std::move(texture.Value()));
-		}
-		ui::WidgetBuilder image = m_ctx.factory.Image(key, size, size);
-		image.PointerThrough().Parent(frame);
-		const ecs::Entity img = image.Spawn();
-		if (auto component = m_ctx.registry.GetComponent<ui::UiImage>(img); component.IsSome())
-			component.Unwrap()->fit = ui::ImageFit::CONTAIN;
+		ui::WidgetBuilder image = ui::Image(entry.location);
+		image.Size(size, size).ObjectFit(ui::ObjectFit::Contain).PointerThrough();
+		frame.Append(image);
 		return true;
 	}
 	if (entry.kind == AssetKind::MODEL && m_ctx.renderer && entry.location.ToLower().EndsWith(".gltf")) {
 		render3d::Object3D *root = ThumbnailFor(entry.location);
 		if (!root)
 			return false;
-		ui::WidgetBuilder view = m_ctx.factory.Viewport3D(*root, ThumbnailCamera(entry.location));
-		view.Size(size, size).PointerThrough().Parent(frame);
-		ecs::Entity viewEntity = view.Spawn();
-		if (auto viewport = m_ctx.registry.GetComponent<ui::UiViewport3D>(viewEntity); viewport.IsSome()) {
-			ui::UiViewport3D &v = *viewport.Unwrap();
-			v.continuous = false;
-			ui::UiViewport3D::Lighting lighting;
-			lighting.sun.direction = math::FVector3{-0.5f, -0.7f, -0.6f};
-			lighting.sun.intensity = 1.1f;
-			lighting.ambient.color = sdl3::Color{64, 64, 70, 255};
-			lighting.background = sdl3::Color{20, 20, 23, 255};
-			v.lighting = Some(lighting);
-		}
+		ui::ViewportLighting lighting;
+		lighting.sun.direction = math::FVector3{-0.5f, -0.7f, -0.6f};
+		lighting.sun.intensity = 1.1f;
+		lighting.ambient.color = sdl3::Color{64, 64, 70, 255};
+		lighting.background = sdl3::Color{20, 20, 23, 255};
+		ui::WidgetBuilder view = ui::Viewport3D(*root, ThumbnailCamera(entry.location), false, Some(lighting));
+		view.Size(size, size).PointerThrough();
+		frame.Append(view);
 		return true;
 	}
 	return false;

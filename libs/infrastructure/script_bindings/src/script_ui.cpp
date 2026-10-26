@@ -10,14 +10,12 @@ namespace script {
 std::shared_ptr<UiBinding> UiBinding::FromUi(ui::Ui &gui, std::function<ecs::Entity()> rootProvider) {
 	auto binding = std::make_shared<UiBinding>();
 	binding->registry = &gui.World();
-	binding->factory = &gui.Factory();
-	binding->layout = &gui.Layout();
 	binding->root = std::move(rootProvider);
 	return binding;
 }
 
 ecs::Entity UiBinding::Root() const {
-	if (!registry || !factory || !layout || !root)
+	if (!registry || !root)
 		return ecs::Entity{};
 	const ecs::Entity entity = root();
 	return entity.Valid() && registry->IsAlive(entity) ? entity : ecs::Entity{};
@@ -25,11 +23,6 @@ ecs::Entity UiBinding::Root() const {
 
 bool UiBinding::Alive(ecs::Entity entity) const {
 	return registry && entity.Valid() && registry->IsAlive(entity);
-}
-
-void UiBinding::Relayout() const {
-	if (layout)
-		layout->MarkDirty();
 }
 
 void UiBinding::Post(std::function<void()> callback) {
@@ -87,19 +80,19 @@ Result<sdl3::FColor, ScriptError> ParseColor(const Value &v, const char *fn) {
 	return Err(Fail(String::Format("`%s` : couleur attendue (\"#rrggbb\" ou [r, g, b]), trouvé `%s`", fn, v.TypeName())));
 }
 
-Result<ui::Dimension, ScriptError> ParseDimension(const Value &v, const char *fn) {
+Result<ui::Length, ScriptError> ParseDimension(const Value &v, const char *fn) {
 	if (v.IsNumber())
-		return Ok(ui::Dimension::Px(v.AsFloat()));
+		return Ok(ui::Length::Px(v.AsFloat()));
 	if (v.IsString()) {
 		const String &s = v.AsString();
 		if (s == "auto")
-			return Ok(ui::Dimension::Auto());
+			return Ok(ui::Length::Auto());
 		if (s == "grow")
-			return Ok(ui::Dimension::Grow(1.f));
+			return Ok(ui::Length::Fr(1.f));
 		if (s.EndsWith("%")) {
 			Option<double> pct = s.Substr(0, s.GetSize() - 1).TryParseDouble();
 			if (pct.IsSome())
-				return Ok(ui::Dimension::Pct(float(pct.Unwrap()))); // du parent
+				return Ok(ui::Length::Pct(float(pct.Unwrap()))); // du parent
 		}
 	}
 	return Err(Fail(String::Format("`%s` : dimension attendue (pixels, \"auto\", \"grow\", \"50%%\"), trouvé `%s`", fn,
@@ -109,7 +102,7 @@ Result<ui::Dimension, ScriptError> ParseDimension(const Value &v, const char *fn
 Option<ui::Anchor> ParseAnchor(const String &s) {
 	static const std::pair<const char *, ui::Anchor> ANCHORS[] = {
 		{"top_left", ui::Anchor::TopLeft},		 {"top", ui::Anchor::Top},		 {"top_right", ui::Anchor::TopRight},
-		{"left", ui::Anchor::CenterLeft},		 {"center", ui::Anchor::Center}, {"right", ui::Anchor::CenterRight},
+		{"left", ui::Anchor::Left},		 {"center", ui::Anchor::Center}, {"right", ui::Anchor::Right},
 		{"bottom_left", ui::Anchor::BottomLeft}, {"bottom", ui::Anchor::Bottom}, {"bottom_right", ui::Anchor::BottomRight},
 	};
 	for (const auto &[name, anchor] : ANCHORS)
@@ -119,60 +112,30 @@ Option<ui::Anchor> ParseAnchor(const String &s) {
 }
 
 void PushText(WidgetObject &w) {
-	if (!Live(w))
-		return;
-	ecs::ArchetypeRegistry &r = *w.binding->registry;
-	if (auto label = r.GetComponent<ui::UiLabel>(w.entity); label.IsSome())
-		label.Unwrap()->text = w.text;
-	if (auto button = r.GetComponent<ui::UiButton>(w.entity); button.IsSome())
-		button.Unwrap()->text = w.text;
-	if (auto input = r.GetComponent<ui::UiInput>(w.entity); input.IsSome())
-		input.Unwrap()->text = w.text;
-	w.binding->Relayout();
+	if (Live(w))
+		w.binding->WidgetOf(w.entity).SetText(w.text);
 }
 
 void PushValue(WidgetObject &w) {
 	if (!Live(w))
 		return;
-	ecs::ArchetypeRegistry &r = *w.binding->registry;
-	if (auto progress = r.GetComponent<ui::UiProgress>(w.entity); progress.IsSome()) {
-		progress.Unwrap()->min = float(w.min);
-		progress.Unwrap()->max = float(w.max);
-		progress.Unwrap()->value = float(w.value);
-	}
-	if (auto slider = r.GetComponent<ui::UiSlider>(w.entity); slider.IsSome()) {
-		slider.Unwrap()->min = float(w.min);
-		slider.Unwrap()->max = float(w.max);
-		slider.Unwrap()->value = float(w.value);
-	}
-	if (auto toggle = r.GetComponent<ui::UiToggle>(w.entity); toggle.IsSome())
-		toggle.Unwrap()->checked = w.checked;
-	if (auto box = r.GetComponent<ui::UiCheckbox>(w.entity); box.IsSome())
-		box.Unwrap()->checked = w.checked;
+	ui::Widget widget = w.binding->WidgetOf(w.entity);
+	if (widget.Has<ui::Range>())
+		widget.SetRange(float(w.min), float(w.max)).SetValue(float(w.value));
+	if (widget.Has<ui::Check>())
+		widget.SetChecked(w.checked);
 }
 
 void PushVisible(WidgetObject &w) {
-	if (!Live(w))
-		return;
-	ecs::ArchetypeRegistry &r = *w.binding->registry;
-	if (!w.visible && !r.HasComponent<ui::UiHidden>(w.entity))
-		r.AddComponent(w.entity, ui::UiHidden{});
-	else if (w.visible)
-		(void)r.RemoveComponent<ui::UiHidden>(w.entity);
-	w.binding->Relayout();
+	if (Live(w))
+		w.binding->WidgetOf(w.entity).SetVisible(w.visible);
 }
 
-void PushStyle(WidgetObject &w, const std::function<void(ui::UiStyle &)> &edit) {
+void PushStyle(WidgetObject &w, const std::function<void(ui::Widget &)> &edit) {
 	if (!Live(w))
 		return;
-	ecs::ArchetypeRegistry &r = *w.binding->registry;
-	auto style = r.GetOrAddComponent<ui::UiStyle>(w.entity);
-	if (style.IsNone())
-		return;
-	edit(*style.Unwrap());
-	if (!r.HasComponent<ui::UiStyleDirty>(w.entity))
-		r.AddComponent(w.entity, ui::UiStyleDirty{});
-	w.binding->Relayout();
+	ui::Widget widget = w.binding->WidgetOf(w.entity);
+	edit(widget);
 }
 
 void Invoke(Interpreter &vm, const std::weak_ptr<std::atomic<bool>> &alive, const std::shared_ptr<WidgetObject> &w,
@@ -213,11 +176,11 @@ Result<Value, ScriptError> Create(Interpreter &vm, const std::shared_ptr<UiState
 		if (auto error = ApplyOptions(check, opts, fn); error.IsSome())
 			return Err(error.Unwrap());
 	} else {
-		ui::WidgetBuilder builder = spec.make(*binding.factory, *w);
+		ui::WidgetBuilder builder = spec.make(*w);
 		if (auto error = ApplyOptions(builder, opts, fn); error.IsSome())
 			return Err(error.Unwrap());
 		if (!w->name.IsEmpty())
-			builder.Name(w->name);
+			builder.Id(w->name);
 		// Rappels de l'interface : état mis à jour tout de suite, script en file.
 		std::weak_ptr<WidgetObject> weak = w;
 		std::shared_ptr<UiBinding> bindingRef = state->binding;
@@ -270,9 +233,7 @@ Result<Value, ScriptError> Create(Interpreter &vm, const std::shared_ptr<UiState
 				widget->text = text;
 			}
 		});
-		builder.Parent(parentEntity);
-		w->entity = builder.Spawn();
-		binding.Relayout();
+		w->entity = ui::AnyWidget(builder).Build(*binding.registry, parentEntity).Entity();
 		// Garder le widget tant qu'il est affiché (et oublier ceux qui ne le
 		// sont plus : retirés, effacés, calque réinitialisé par l'hôte).
 		std::lock_guard<std::mutex> lock(state->mutex);
@@ -297,10 +258,8 @@ const MapObject * OptionsOf(Args &args, size_t fixedArgs) {
 }
 
 void RemoveTree(WidgetObject &w) {
-	if (Live(w)) {
-		ui::DespawnTree(*w.binding->registry, w.entity);
-		w.binding->Relayout();
-	}
+	if (Live(w))
+		w.binding->WidgetOf(w.entity).Destroy();
 	w.entity = ecs::Entity{};
 	std::vector<std::weak_ptr<WidgetObject>> children;
 	{
@@ -377,9 +336,9 @@ void DefineWidget(TypeBuilder &builder) {
 	builder.Method("show", 0, 0, visibility(0));
 	builder.Method("hide", 0, 0, visibility(1));
 	builder.Method("set_visible", 1, 1, visibility(2));
-	auto styled = [](const char *name, bool color, std::function<void(ui::UiStyle &, sdl3::FColor, float)> edit) {
+	auto styled = [](const char *name, bool color, std::function<void(ui::Widget &, ui::Color, float)> edit) {
 		return [name, color, edit](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
-			sdl3::FColor c{};
+			ui::Color c{};
 			float number = 0.f;
 			if (color) {
 				auto parsed = ParseColor(args[0], name);
@@ -392,15 +351,28 @@ void DefineWidget(TypeBuilder &builder) {
 					return Err(parsed.Error());
 				number = float(parsed.Value());
 			}
-			PushStyle(As<Object>(self), [&](ui::UiStyle &style) { edit(style, c, number); });
+			PushStyle(As<Object>(self), [&](ui::Widget &w) { edit(w, c, number); });
 			return Ok(Value::Host(self));
 		};
 	};
-	builder.Method("set_bg", 1, 1, styled("ui.widget.set_bg", true, [](ui::UiStyle &s, sdl3::FColor c, float) { s.SetBg(c); }));
-	builder.Method("set_color", 1, 1,
-				   styled("ui.widget.set_color", true, [](ui::UiStyle &s, sdl3::FColor c, float) { s.SetTextColor(c); }));
+	builder.Method("set_bg", 1, 1, styled("ui.widget.set_bg", true, [](ui::Widget &w, ui::Color c, float) { w.Background(c); }));
+	builder.Method("set_color", 1, 1, styled("ui.widget.set_color", true, [](ui::Widget &w, ui::Color c, float) { w.Color(c); }));
 	builder.Method("set_font_size", 1, 1,
-				   styled("ui.widget.set_font_size", false, [](ui::UiStyle &s, sdl3::FColor, float v) { s.SetFontSize(v); }));
+				   styled("ui.widget.set_font_size", false, [](ui::Widget &w, ui::Color, float v) { w.FontSize(v); }));
+	// Classes et déclarations CSS (les feuilles de l'hôte s'appliquent).
+	builder.Method("add_class", 1, 1, [](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
+		PushStyle(As<Object>(self), [&](ui::Widget &w) { w.AddClass(args[0].ToDisplayString()); });
+		return Ok(Value::Host(self));
+	});
+	builder.Method("remove_class", 1, 1, [](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
+		PushStyle(As<Object>(self), [&](ui::Widget &w) { w.RemoveClass(args[0].ToDisplayString().View()); });
+		return Ok(Value::Host(self));
+	});
+	builder.Method("set_style", 2, 2, [](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
+		const String property = args[0].ToDisplayString(), value = args[1].ToDisplayString();
+		PushStyle(As<Object>(self), [&](ui::Widget &w) { w.SetProperty(property.View(), value.View()); });
+		return Ok(Value::Host(self));
+	});
 	builder.Method("on_click", 1, 1, [locked](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
 		locked(self, [&](Object &w) {
 			w.onClick = args[0];
@@ -447,8 +419,8 @@ void DefineWidget(TypeBuilder &builder) {
 				return Err(Fail(String::Format("`ui.widget.add` : widget attendu, trouvé `%s`", arg.TypeName())));
 			auto child = std::static_pointer_cast<Object>(arg.AsHost());
 			if (Live(parent) && Live(*child)) {
-				ui::SetParent(*parent.binding->registry, child->entity, parent.entity);
-				parent.binding->Relayout();
+				(void)ecs::SetParent(*parent.binding->registry, child->entity, parent.entity);
+				ui::MarkLayoutDirty(*parent.binding->registry);
 			}
 			std::lock_guard<std::mutex> lock(parent.mutex);
 			parent.children.push_back(child);
@@ -470,16 +442,8 @@ void DefineWidget(TypeBuilder &builder) {
 			if (auto child = weak.lock())
 				RemoveTree(*child);
 		// Sans objet script (enfants créés par l'hôte) : on vide l'entité.
-		if (Live(w)) {
-			std::vector<ecs::Entity> entities;
-			if (auto list = w.binding->registry->GetComponent<ui::UiChildren>(w.entity); list.IsSome())
-				entities = list.Unwrap()->list;
-			for (ecs::Entity entity : entities)
-				ui::DespawnTree(*w.binding->registry, entity);
-			if (auto list = w.binding->registry->GetComponent<ui::UiChildren>(w.entity); list.IsSome())
-				list.Unwrap()->list.clear();
-			w.binding->Relayout();
-		}
+		if (Live(w))
+			w.binding->WidgetOf(w.entity).Clear();
 		return Ok(Value::Host(self));
 	});
 	builder.Method("children", 0, 0, [locked](Interpreter &, const HostRef &self, Args &) -> Result<Value, ScriptError> {
@@ -497,10 +461,7 @@ void DefineWidget(TypeBuilder &builder) {
 		const Object &w = As<Object>(self);
 		if (!Live(w))
 			return Ok(Value::Nil());
-		auto computed = w.binding->registry->GetComponent<ui::UiComputed>(w.entity);
-		if (computed.IsNone())
-			return Ok(Value::Nil());
-		const sdl3::FRect r = computed.Unwrap()->screen;
+		const sdl3::FRect r = w.binding->WidgetOf(w.entity).Bounds();
 		return Ok(Value::List(std::make_shared<ListObject>(
 			std::vector<Value>{Value::Number(r.x), Value::Number(r.y), Value::Number(r.w), Value::Number(r.h)})));
 	});
@@ -621,15 +582,15 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 		};
 	};
 
-	define("column", 0, 1, Spec{"column", [](ui::UiFactory &f, const WidgetObject &) { return f.Column(); }}, nullptr);
-	define("row", 0, 1, Spec{"row", [](ui::UiFactory &f, const WidgetObject &) { return f.Row(); }}, nullptr);
-	define("panel", 0, 1, Spec{"panel", [](ui::UiFactory &f, const WidgetObject &) { return f.Panel(); }}, nullptr);
-	define("label", 1, 2, Spec{"label", [](ui::UiFactory &f, const WidgetObject &w) { return f.Label(w.text); }},
+	define("column", 0, 1, Spec{"column", [](const WidgetObject &) { return ui::Column(); }}, nullptr);
+	define("row", 0, 1, Spec{"row", [](const WidgetObject &) { return ui::Row(); }}, nullptr);
+	define("panel", 0, 1, Spec{"panel", [](const WidgetObject &) { return ui::Panel(); }}, nullptr);
+	define("label", 1, 2, Spec{"label", [](const WidgetObject &w) { return ui::Label(w.text); }},
 		   textArg(0));
-	define("badge", 1, 2, Spec{"badge", [](ui::UiFactory &f, const WidgetObject &w) { return f.Badge(w.text); }},
+	define("badge", 1, 2, Spec{"badge", [](const WidgetObject &w) { return ui::Badge(w.text); }},
 		   textArg(0));
 	// `ui.button(texte[, fn(bouton)][, options])`
-	define("button", 1, 3, Spec{"button", [](ui::UiFactory &f, const WidgetObject &w) { return f.Button(w.text); }},
+	define("button", 1, 3, Spec{"button", [](const WidgetObject &w) { return ui::Button(w.text); }},
 		   [textArg, callbackArg](Interpreter &interp, WidgetObject &w, Args &args) -> Option<ScriptError> {
 			   if (auto error = textArg(0)(interp, w, args); error.IsSome())
 				   return error;
@@ -637,9 +598,7 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 		   });
 	// `ui.progress(valeur[, max][, options])` (min 0)
 	define("progress", 1, 3,
-		   Spec{"progress", [](ui::UiFactory &f, const WidgetObject &w) {
-					return f.Progress(float(w.min), float(w.max), float(w.value));
-				}},
+		   Spec{"progress", [](const WidgetObject &w) { return ui::Progress(float(w.min), float(w.max), float(w.value)); }},
 		   [](Interpreter &, WidgetObject &w, Args &args) -> Option<ScriptError> {
 			   w.value = args[0].AsNumber();
 			   if (args.size() > 1)
@@ -648,9 +607,7 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 		   });
 	// `ui.slider(min, max, valeur[, fn(widget, valeur)][, options])`
 	define("slider", 3, 5,
-		   Spec{"slider", [](ui::UiFactory &f, const WidgetObject &w) {
-					return f.Slider(float(w.min), float(w.max), float(w.value));
-				}},
+		   Spec{"slider", [](const WidgetObject &w) { return ui::Slider(float(w.min), float(w.max), float(w.value)); }},
 		   [callbackArg](Interpreter &interp, WidgetObject &w, Args &args) -> Option<ScriptError> {
 			   w.min = args[0].AsNumber();
 			   w.max = args[1].AsNumber();
@@ -661,25 +618,27 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 		w.checked = !args.empty() && args[0].IsTruthy();
 		return callbackArg(1, false)(interp, w, args);
 	};
-	define("checkbox", 0, 3, Spec{"checkbox", [](ui::UiFactory &f, const WidgetObject &w) { return f.Checkbox(w.checked); }},
+	define("checkbox", 0, 3, Spec{"checkbox", [](const WidgetObject &w) { return ui::Checkbox(String(), w.checked); }},
 		   checkable);
-	define("toggle", 0, 3, Spec{"toggle", [](ui::UiFactory &f, const WidgetObject &w) { return f.Toggle(w.checked); }},
+	define("toggle", 0, 3, Spec{"toggle", [](const WidgetObject &w) { return ui::Switch(w.checked); }},
 		   checkable);
 	// `ui.input(indication[, fn(widget, texte) à la validation][, options])`
 	define("input", 0, 3,
-		   Spec{"input", [](ui::UiFactory &f, const WidgetObject &w) { return f.Input(w.placeholder); }},
+		   Spec{"input", [](const WidgetObject &w) { return ui::Input(w.placeholder); }},
 		   [callbackArg](Interpreter &interp, WidgetObject &w, Args &args) -> Option<ScriptError> {
 			   if (!args.empty())
 				   w.placeholder = args[0].ToDisplayString(); // l'indication n'est pas le texte saisi
 			   return callbackArg(1, false)(interp, w, args);
 		   });
-	define("separator", 0, 1, Spec{"separator", [](ui::UiFactory &f, const WidgetObject &) { return f.Separator(); }},
+	define("separator", 0, 1, Spec{"separator", [](const WidgetObject &) { return ui::Separator(); }},
 		   nullptr);
-	define("spinner", 0, 1, Spec{"spinner", [](ui::UiFactory &f, const WidgetObject &) { return f.Spinner(); }}, nullptr);
+	define("spinner", 0, 1, Spec{"spinner", [](const WidgetObject &) { return ui::Spinner(); }}, nullptr);
 	// `ui.image(clé_de_texture, largeur, hauteur[, options])`
 	define("image", 3, 4,
-		   Spec{"image", [](ui::UiFactory &f, const WidgetObject &w) {
-					return f.Image(w.text, float(w.min), float(w.max));
+		   Spec{"image", [](const WidgetObject &w) {
+					ui::WidgetBuilder image = ui::Image(w.text);
+					image.Size(float(w.min), float(w.max));
+					return image;
 				}},
 		   [](Interpreter &, WidgetObject &w, Args &args) -> Option<ScriptError> {
 			   w.text = args[0].ToDisplayString();
@@ -701,18 +660,9 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 	}, MAIN);
 	// Retire tout ce que le script a mis dans sa racine.
 	vm.RegisterNamespacedNative(ns, String("clear"), 0, 0, [state](Interpreter &, Args &) -> Result<Value, ScriptError> {
-		const UiBinding &ui = *state->binding;
-		const ecs::Entity root = ui.Root();
-		if (ui.Alive(root)) {
-			std::vector<ecs::Entity> children;
-			if (auto list = ui.registry->GetComponent<ui::UiChildren>(root); list.IsSome())
-				children = list.Unwrap()->list;
-			for (ecs::Entity child : children)
-				ui::DespawnTree(*ui.registry, child);
-			if (auto list = ui.registry->GetComponent<ui::UiChildren>(root); list.IsSome())
-				list.Unwrap()->list.clear();
-			ui.Relayout();
-		}
+		const UiBinding &host = *state->binding;
+		if (const ecs::Entity root = host.Root(); host.Alive(root))
+			host.WidgetOf(root).Clear();
 		std::lock_guard<std::mutex> lock(state->mutex);
 		state->named.clear();
 		state->onScreen.clear();
@@ -730,11 +680,11 @@ void InstallUiLibrary(Interpreter &vm, std::shared_ptr<UiBinding> binding) {
 	vm.RegisterNamespacedNative(ns, String("size"), 0, 0, [binding](Interpreter &, Args &) -> Result<Value, ScriptError> {
 		float w = 0.f, h = 0.f;
 		const ecs::Entity root = binding->Root();
-		if (binding->Alive(root))
-			if (auto computed = binding->registry->GetComponent<ui::UiComputed>(root); computed.IsSome()) {
-				w = computed.Unwrap()->screen.w;
-				h = computed.Unwrap()->screen.h;
-			}
+		if (binding->Alive(root)) {
+			const sdl3::FRect r = binding->WidgetOf(root).Bounds();
+			w = r.w;
+			h = r.h;
+		}
 		return Ok(Value::List(std::make_shared<ListObject>(std::vector<Value>{Value::Number(w), Value::Number(h)})));
 	}, MAIN);
 }

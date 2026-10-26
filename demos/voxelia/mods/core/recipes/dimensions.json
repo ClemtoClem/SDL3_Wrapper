@@ -1,0 +1,474 @@
+// Recettes : portails vers les dimensions, équipements tirés de leurs
+// ressources exclusives.
+[
+ {
+  "type": "recipe",
+  "id": "portal_inverted",
+  "category": "magic",
+  "pattern": [
+   "OAO",
+   "AEA",
+   "OAO"
+  ],
+  "key": {
+   "O": "obsidian",
+   "A": "amethyst",
+   "E": "ender_pearl"
+  },
+  "result": {
+   "item": "portal_inverted",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "portal_living",
+  "category": "magic",
+  "pattern": [
+   "OSO",
+   "EGE",
+   "OSO"
+  ],
+  "key": {
+   "O": "obsidian",
+   "S": "magic_seed",
+   "E": "emerald",
+   "G": "ender_pearl"
+  },
+  "result": {
+   "item": "portal_living",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "portal_fragmented",
+  "category": "magic",
+  "pattern": [
+   "OCO",
+   "GEG",
+   "OCO"
+  ],
+  "key": {
+   "O": "obsidian",
+   "C": "clock",
+   "G": "gold_ingot",
+   "E": "ender_eye"
+  },
+  "result": {
+   "item": "portal_fragmented",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "portal_core",
+  "category": "magic",
+  "pattern": [
+   "OBO",
+   "BEB",
+   "OBO"
+  ],
+  "key": {
+   "O": "obsidian",
+   "B": "blaze_rod",
+   "E": "ender_eye"
+  },
+  "result": {
+   "item": "portal_core",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "portal_void",
+  "category": "magic",
+  "pattern": [
+   "OTO",
+   "TNT",
+   "OTO"
+  ],
+  "key": {
+   "O": "obsidian",
+   "T": "ghast_tear",
+   "N": "ender_eye"
+  },
+  "result": {
+   "item": "portal_void",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "portal_return",
+  "category": "magic",
+  "pattern": [
+   "GPG"
+  ],
+  "key": {
+   "G": "glowstone_dust",
+   "P": "ender_pearl"
+  },
+  "result": {
+   "item": "portal_return",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "inversion_boots",
+  "category": "combat",
+  "pattern": [
+   "I I",
+   "G G"
+  ],
+  "key": {
+   "I": "inversion_crystal",
+   "G": "gravity_crystal"
+  },
+  "result": {
+   "item": "inversion_boots",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "gravity_staff",
+  "category": "tools",
+  "pattern": [
+   "  G",
+   " S ",
+   "S  "
+  ],
+  "key": {
+   "G": "gravity_crystal",
+   "S": "stick"
+  },
+  "result": {
+   "item": "gravity_staff",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "zenith_sigil",
+  "category": "magic",
+  "pattern": [
+   "IGI",
+   "GEG",
+   "IGI"
+  ],
+  "key": {
+   "I": "inversion_crystal",
+   "G": "gravity_crystal",
+   "E": "ender_eye"
+  },
+  "result": {
+   "item": "zenith_sigil",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "growth_staff",
+  "category": "tools",
+  "pattern": [
+   "  P",
+   " S ",
+   "S  "
+  ],
+  "key": {
+   "P": "primordial_sap",
+   "S": "stick"
+  },
+  "result": {
+   "item": "growth_staff",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "primordial_planks",
+  "category": "building",
+  "pattern": [
+   "L"
+  ],
+  "key": {
+   "L": "primordial_log"
+  },
+  "result": {
+   "item": "primordial_planks",
+   "count": 4
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "chrono_staff",
+  "category": "tools",
+  "pattern": [
+   "  T",
+   " S ",
+   "S  "
+  ],
+  "key": {
+   "T": "time_fragment",
+   "S": "stick"
+  },
+  "result": {
+   "item": "chrono_staff",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "chrono_sigil",
+  "category": "magic",
+  "pattern": [
+   "TGT",
+   "GCG",
+   "TGT"
+  ],
+  "key": {
+   "T": "time_fragment",
+   "G": "gold_ingot",
+   "C": "clock"
+  },
+  "result": {
+   "item": "chrono_sigil",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "solar_steel_ingot",
+  "kind": "cooking",
+  "category": "materials",
+  "ingredients": [
+   "raw_solar"
+  ],
+  "result": {
+   "item": "solar_steel_ingot",
+   "count": 1
+  },
+  "time": 4
+ },
+ {
+  "type": "recipe",
+  "id": "core_energy_cell",
+  "category": "materials",
+  "pattern": [
+   "EUE",
+   "U U",
+   "EUE"
+  ],
+  "key": {
+   "E": "ember_shard",
+   "U": "unstable_shard"
+  },
+  "result": {
+   "item": "core_energy_cell",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "repair_kit",
+  "category": "tools",
+  "pattern": [
+   "III",
+   "RER",
+   "III"
+  ],
+  "key": {
+   "I": "iron_ingot",
+   "R": "redstone",
+   "E": "ember_shard"
+  },
+  "result": {
+   "item": "repair_kit",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "energy_extractor",
+  "category": "tools",
+  "pattern": [
+   " I ",
+   "IGI",
+   " S "
+  ],
+  "key": {
+   "I": "iron_ingot",
+   "G": "gold_ingot",
+   "S": "stick"
+  },
+  "result": {
+   "item": "energy_extractor",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "solar_steel_pickaxe",
+  "category": "tools",
+  "pattern": [
+   "SSS",
+   " C ",
+   " T "
+  ],
+  "key": {
+   "S": "solar_steel_ingot",
+   "C": "core_energy_cell",
+   "T": "stick"
+  },
+  "result": {
+   "item": "solar_steel_pickaxe",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "solar_steel_helmet",
+  "category": "combat",
+  "pattern": [
+   "SSS",
+   "SCS"
+  ],
+  "key": {
+   "S": "solar_steel_ingot",
+   "C": "core_energy_cell"
+  },
+  "result": {
+   "item": "solar_steel_helmet",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "solar_steel_chestplate",
+  "category": "combat",
+  "pattern": [
+   "SCS",
+   "SSS",
+   "SSS"
+  ],
+  "key": {
+   "S": "solar_steel_ingot",
+   "C": "core_energy_cell"
+  },
+  "result": {
+   "item": "solar_steel_chestplate",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "solar_steel_leggings",
+  "category": "combat",
+  "pattern": [
+   "SSS",
+   "SCS",
+   "S S"
+  ],
+  "key": {
+   "S": "solar_steel_ingot",
+   "C": "core_energy_cell"
+  },
+  "result": {
+   "item": "solar_steel_leggings",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "solar_steel_boots",
+  "category": "combat",
+  "pattern": [
+   "S S",
+   "SCS"
+  ],
+  "key": {
+   "S": "solar_steel_ingot",
+   "C": "core_energy_cell"
+  },
+  "result": {
+   "item": "solar_steel_boots",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "solar_lantern",
+  "category": "tools",
+  "pattern": [
+   " I ",
+   "IEI",
+   " I "
+  ],
+  "key": {
+   "I": "iron_ingot",
+   "E": "ember_shard"
+  },
+  "result": {
+   "item": "solar_lantern",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "titan_sigil",
+  "category": "magic",
+  "pattern": [
+   "SCS",
+   "CEC",
+   "SCS"
+  ],
+  "key": {
+   "S": "solar_steel_ingot",
+   "C": "core_energy_cell",
+   "E": "ender_eye"
+  },
+  "result": {
+   "item": "titan_sigil",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "void_eraser",
+  "category": "tools",
+  "pattern": [
+   " F ",
+   " S ",
+   " S "
+  ],
+  "key": {
+   "F": "void_fragment",
+   "S": "stick"
+  },
+  "result": {
+   "item": "void_eraser",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "void_sigil",
+  "category": "magic",
+  "pattern": [
+   "FOF",
+   "OEO",
+   "FOF"
+  ],
+  "key": {
+   "F": "void_fragment",
+   "O": "obsidian",
+   "E": "ender_eye"
+  },
+  "result": {
+   "item": "void_sigil",
+   "count": 1
+  }
+ }
+]

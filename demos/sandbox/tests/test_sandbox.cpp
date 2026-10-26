@@ -2196,11 +2196,11 @@ TEST(Templates_EveryMenuEntryBuildsTheRightKindOfNode) {
 
 namespace {
 /// Morceaux colorés d'une ligne, sous forme lisible : « let|kw », « 42|num »…
-std::vector<String> Spans(void (*highlight)(const String &, std::vector<ui::UiTextSpan> &), const String &line) {
-	std::vector<ui::UiTextSpan> spans;
+std::vector<String> Spans(void (*highlight)(const String &, std::vector<ui::TextSpan> &), const String &line) {
+	std::vector<ui::TextSpan> spans;
 	highlight(line, spans);
 	std::vector<String> out;
-	for (const ui::UiTextSpan &span : spans)
+	for (const ui::TextSpan &span : spans)
 		out.push_back(line.Substr(span.begin, span.end - span.begin));
 	return out;
 }
@@ -2214,7 +2214,7 @@ TEST(Syntax_ScriptTokensAreColouredWithoutOverlap) {
 	for (size_t i = 0; i < expected.size(); ++i)
 		CHECK_EQ(spans[i], expected[i]);
 
-	std::vector<ui::UiTextSpan> raw;
+	std::vector<ui::TextSpan> raw;
 	kit::syntax::HighlightSled(line, raw);
 	for (size_t i = 1; i < raw.size(); ++i)
 		CHECK(raw[i].begin >= raw[i - 1].end); // triés, disjoints
@@ -2223,12 +2223,12 @@ TEST(Syntax_ScriptTokensAreColouredWithoutOverlap) {
 }
 
 TEST(Syntax_JsonKeysAreTellApartFromStringValues) {
-	std::vector<ui::UiTextSpan> spans;
+	std::vector<ui::TextSpan> spans;
 	const String line("  \"name\": \"Torche\", \"on\": true, \"n\": -2.5e3 }");
 	kit::syntax::HighlightJson(line, spans);
 	auto colorOf = [&](const char *token) {
 		const size_t at = line.Find(token);
-		for (const ui::UiTextSpan &span : spans)
+		for (const ui::TextSpan &span : spans)
 			if (span.begin == at)
 				return span.color;
 		return sdl3::FColor{};
@@ -2242,7 +2242,7 @@ TEST(Syntax_JsonKeysAreTellApartFromStringValues) {
 }
 
 TEST(Syntax_ConsoleLevelsColourTheirPrefix) {
-	std::vector<ui::UiTextSpan> spans;
+	std::vector<ui::TextSpan> spans;
 	kit::syntax::HighlightLog(String("[err   ] boum"), spans);
 	CHECK(spans.size() == 1u);
 	CHECK_EQ(spans[0].end, size_t(13)); // une erreur se colore sur toute la ligne

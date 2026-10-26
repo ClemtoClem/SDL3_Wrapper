@@ -1,0 +1,808 @@
+# Dimensions du mod « core » : leurs mécaniques, écrites en script.
+#
+#   Inversée    gravité variable (courants, failles, bottes, sceptre), Gardien du Zénith
+#   Vivante     écosystème qui envahit les constructions, hostilité ou confiance,
+#               spores, Bâton de croissance, Cœur-Racine
+#   Fragmentée  blocs et ruines qui changent d'époque, anomalies, coffres-forts
+#               temporels (passé → clé → présent), Chronophage
+#   Noyau       chaleur selon la profondeur, minerais instables, machines antiques,
+#               énergie du noyau, cavernes sans lumière, Titan magmatique
+#   Néant       sol friable, instabilité qui croît si l'on s'attarde, zones
+#               d'effacement, portes impossibles, Gomme du Néant, Effaceur
+#
+# Les dimensions elles-mêmes (générateurs, biomes, blocs) sont dans les JSON
+# du mod ; le moteur gère le voyage (portails « portal »), la sauvegarde de
+# chaque dimension et les champs de gravité (« physics.gravityField »).
+
+# ── Outils ──────────────────────────────────────────────────────────────────
+
+fn here() { return world.dimension() }
+
+fn in_dim(name) { return world.dimension() == "core:" .. name }
+
+fn state(key, fallback) {
+    let v = world.data(key)
+    if (v == nil) { return fallback }
+    return v
+}
+
+fn wears(player, item) {
+    for (piece in entity.armor(player)) { if (piece == item) { return true } }
+    return false
+}
+
+fn heat_protection(player) {
+    let n = 0
+    for (piece in entity.armor(player)) {
+        let def = content.get("item", piece)
+        if (def != nil and def.tags != nil) {
+            for (t in def.tags) { if (t == "heat_resistant") { n += 1 } }
+        }
+    }
+    return n
+}
+
+fn holds_light(player) {
+    let held = entity.held(player)
+    if (held == nil) { return false }
+    let def = content.get("item", held)
+    if (def != nil and def.light != nil and def.light > 0) { return true }
+    let block = content.get("block", held)
+    return block != nil and block.graphics != nil and block.graphics.light != nil and block.graphics.light > 0
+}
+
+fn block_tags(id) {
+    let def = content.get("block", id)
+    if (def == nil or def.tags == nil) { return [] }
+    return def.tags
+}
+
+fn has(list, value) {
+    for (v in list) { if (v == value) { return true } }
+    return false
+}
+
+fn eye_ray(player, distance) {
+    let p = entity.pos(player)
+    let f = entity.forward(player)
+    let eye = 1.62
+    if (entity.gravity(player) < 0) { eye = 0.18 }
+    return world.raycast(p.x, p.y + eye, p.z, f.x, f.y, f.z, distance)
+}
+
+fn creative_mode() { return game.mode() == "creative" or game.mode() == "spectator" }
+
+fn notice(player, key, seconds, text) {
+    # Message une fois toutes les `seconds` secondes au plus.
+    let t = entity.prop(player, "notice_" .. key)
+    let now = world.time_here()
+    if (t != nil and now - t < seconds) { return nil }
+    entity.set_prop(player, "notice_" .. key, now)
+    game.say(text)
+}
+
+# Blocs à remettre plus tard (disparitions temporaires).
+let restorations = []
+fn vanish(x, y, z, seconds, replacement) {
+    let b = world.get(x, y, z)
+    if (b == "core:air" or b == "core:bedrock") { return false }
+    push(restorations, {x: x, y: y, z: z, block: b, now: replacement, t: seconds, dim: here()})
+    world.set(x, y, z, replacement)
+    return true
+}
+voxel.system("dimension_restorations", fn(dt) {
+    if (len(restorations) == 0) { return nil }
+    let still = []
+    for (r in restorations) {
+        r.t -= dt
+        if (r.t > 0 or r.dim != here()) { push(still, r); continue }
+        # Seulement si personne n'y a touché entre-temps.
+        if (world.get(r.x, r.y, r.z) == r.now) { world.set(r.x, r.y, r.z, r.block) }
+    }
+    restorations = still
+})
+
+# ── Arrivée dans une dimension ──────────────────────────────────────────────
+
+let lore = {
+    inverted: "Le ciel violet tourne lentement. Les courants lumineux inversent la gravité ; les failles aussi, sans prévenir.",
+    living: "La forêt respire. Ce que vous lui prenez, elle s'en souviendra — ce que vous plantez aussi.",
+    fragmented: "Les époques se chevauchent : un Bâton chronique fait changer d'époque les blocs temporels.",
+    core: "Il fait chaud, et plus encore en descendant. Le noyau s'éteint : réparez ses machines, ou pillez son énergie.",
+    void: "Ne vous attardez pas : le Néant efface ce qui reste trop longtemps au même endroit."
+}
+
+voxel.on("dimension_changed", fn(player, to, from) {
+    let name = to
+    if (to.starts_with("core:")) { name = to.sub(5) }
+    if (lore[name] != nil) { game.say(lore[name]) }
+    entity.set_prop(player, "void_anchor", nil)
+    entity.set_prop(player, "void_t", 0)
+})
+
+# ── Autels des gardiens ─────────────────────────────────────────────────────
+
+fn awaken(actor, x, y, z, altar) {
+    let key = altar.key
+    if (entity.held(actor) != key and not creative_mode()) {
+        let item = content.get("item", key)
+        let label = key
+        if (item != nil and item.displayName != nil) { label = item.displayName }
+        game.say(format("L'autel attend : {}.", label))
+        return nil
+    }
+    let around = world.entities(x, y, z, 64, altar.boss)
+    if (len(around) > 0) {
+        game.say("Le gardien est déjà éveillé.")
+        return nil
+    }
+    if (not creative_mode()) { entity.take(actor, key, 1) }
+    let boss = world.spawn(altar.boss, x + 0.5, y + 2, z + 3.5)
+    game.sound("explosion", x, y, z)
+    let def = content.get("entity", altar.boss)
+    game.say(format("{} s'éveille !", def.displayName))
+}
+
+# ── Utilisation des blocs (autels, époques, machines, portes) ───────────────
+
+voxel.on("block_use", fn(x, y, z, block, actor) {
+    let def = content.get("block", block)
+    if (def != nil and def.altar != nil) {
+        awaken(actor, x, y, z, def.altar)
+        return false
+    }
+    let held = entity.held(actor)
+    # Fragmentée : le Bâton chronique fait changer d'époque.
+    if (held == "core:chrono_staff") {
+        let next = nil
+        if (block == "core:chrono_stone_present") { next = "core:chrono_stone_past" }
+        if (block == "core:chrono_stone_past") { next = "core:chrono_stone_future" }
+        if (block == "core:chrono_stone_future") { next = "core:chrono_stone_present" }
+        if (block == "core:ruined_wall") { next = "core:restored_wall" }
+        if (block == "core:restored_wall") { next = "core:ruined_wall" }
+        if (block == "core:time_vault") {
+            # Le coffre-fort tel qu'il était dans le passé — pour un temps.
+            world.set(x, y, z, "core:time_vault_past")
+            push(restorations, {x: x, y: y, z: z, block: "core:time_vault", now: "core:time_vault_past", t: 60, dim: here()})
+            game.say("Le coffre-fort retrouve son passé… pour une minute. Fouillez-le !")
+            game.sound("teleport", x, y, z)
+            return false
+        }
+        if (next != nil) {
+            world.set(x, y, z, next)
+            game.sound("teleport", x, y, z)
+            return false
+        }
+    }
+    if (block == "core:time_vault_past") {
+        let key = format("vault_{}_{}_{}", x, y, z)
+        if (world.data(key) == true) {
+            game.say("Le coffre du passé est vide : la clé a déjà été prise.")
+        } else {
+            world.set_data(key, true)
+            entity.give(actor, "core:temporal_key", 1)
+            game.say("Une clé temporelle ! Elle ouvre les coffres scellés… du présent.")
+        }
+        return false
+    }
+    if (block == "core:time_vault" or block == "core:sealed_chest") {
+        if (held != "core:temporal_key") {
+            game.say("Scellé. Il faudrait la clé — peut-être dans le passé de ce coffre (Bâton chronique).")
+            return false
+        }
+        entity.take(actor, "core:temporal_key", 1)
+        world.set(x, y, z, "core:time_vault_open")
+        for (loot in [["core:diamond", 2], ["core:time_fragment", 3], ["core:emerald", 4], ["core:gold_ingot", 6]]) {
+            world.drop(loot[0], loot[1], x + 0.5, y + 1.2, z + 0.5)
+        }
+        game.sound("chest_open", x, y, z)
+        game.say("Le coffre s'ouvre : le passé a tenu sa promesse.")
+        return false
+    }
+    # Noyau : réparer une machine, ou en extraire l'énergie.
+    if (block == "core:ancient_machine_broken") {
+        if (held != "core:repair_kit") {
+            game.say("Une machine antique en panne : un nécessaire de réparation la remettrait en marche.")
+            return false
+        }
+        if (not creative_mode()) { entity.take(actor, "core:repair_kit", 1) }
+        world.set(x, y, z, "core:ancient_machine")
+        let energy = math.min(100, state("energy", 100) + 20)
+        world.set_data("energy", energy)
+        let opened = open_seals(x, y, z, 8)
+        game.sound("level_up", x, y, z)
+        game.say(format("La machine repart : le noyau reprend des forces ({} %).", math.floor(energy)))
+        if (opened > 0) { game.say("Des sceaux s'ouvrent dans les halles voisines.") }
+        return false
+    }
+    if (block == "core:ancient_machine" and held == "core:energy_extractor") {
+        world.set(x, y, z, "core:ancient_machine_broken")
+        entity.give(actor, "core:core_energy_cell", 1)
+        let energy = math.max(0, state("energy", 100) - 15)
+        world.set_data("energy", energy)
+        game.sound("fuse", x, y, z)
+        game.say(format("Cellule d'énergie extraite. Le noyau faiblit ({} %).", math.floor(energy)))
+        return false
+    }
+    # Néant : une porte dont l'intérieur est bien plus grand que l'extérieur.
+    if (block == "core:void_door") {
+        enter_pocket(actor, x, y, z)
+        return false
+    }
+    return true
+})
+
+# ── Événements de contact (anomalies, spores, sol friable) ──────────────────
+
+let crumbling = []
+voxel.on("entity_touch_block", fn(e, x, y, z, block, landed) {
+    if (block == "core:void_crumble" and landed) {
+        let key = format("{},{},{}", x, y, z)
+        for (c in crumbling) { if (c.key == key) { return true } }
+        push(crumbling, {key: key, x: x, y: y, z: z, t: 1.5 + math.random(), dim: here()})
+        return true
+    }
+    if (block == "core:anomaly_fast" or block == "core:anomaly_slow" or block == "core:anomaly_frozen") {
+        let def = content.get("block", block)
+        entity.effect(e, def.anomaly.effect, def.anomaly.seconds, def.anomaly.level)
+        return true
+    }
+    if (block == "core:spore_cap") {
+        let cd = entity.prop(e, "spore_cd")
+        if (cd != nil and world.time_here() - cd < 4) { return true }
+        entity.set_prop(e, "spore_cd", world.time_here())
+        let effects = [["slowness", 2, "Les spores alourdissent vos jambes."], ["jump_boost", 3, "Les spores vous rendent léger !"],
+                       ["speed", 2, "Les spores accélèrent votre cœur."], ["poison", 1, "Spores toxiques !"],
+                       ["night_vision", 1, "Les spores aiguisent votre vue."], ["mining_fatigue", 2, "Les spores engourdissent vos bras."]]
+        let pick = effects[math.floor(math.random() * len(effects))]
+        entity.effect(e, pick[0], 10, pick[1])
+        if (len(entity.players()) > 0 and e == entity.players()[0]) { game.say(pick[2]) }
+        return true
+    }
+    return true
+})
+voxel.system("void_crumbling", fn(dt) {
+    if (len(crumbling) == 0) { return nil }
+    let still = []
+    for (c in crumbling) {
+        c.t -= dt
+        if (c.t > 0 and c.dim == here()) { push(still, c); continue }
+        if (c.dim == here() and world.get(c.x, c.y, c.z) == "core:void_crumble") {
+            world.set(c.x, c.y, c.z, "core:air")
+            game.sound("sand_dug", c.x + 0.5, c.y + 0.5, c.z + 0.5)
+        }
+    }
+    crumbling = still
+})
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Inversée
+# ═════════════════════════════════════════════════════════════════════════════
+
+fn flip_gravity(e, message) {
+    entity.set_gravity(e, 0 - entity.gravity(e))
+    let p = entity.pos(e)
+    game.sound("ghost", p.x, p.y + 1, p.z)
+    if (message != nil) { game.say(message) }
+}
+
+fn use_gravity_staff(player, item) {
+    flip_gravity(player, nil)
+}
+
+# Bottes d'inversion : accroupi + saut → au plafond ; accroupi 2 s → retour au sol.
+voxel.system("inversion_boots", fn(dt) {
+    for (p in entity.players()) {
+        if (not wears(p, "core:inversion_boots")) { continue }
+        let body = entity.body(p)
+        let cd = entity.prop(p, "boots_cd")
+        if (cd == nil) { cd = 0 }
+        cd -= dt
+        entity.set_prop(p, "boots_cd", cd)
+        if (cd > 0) { continue }
+        if (body.gravity > 0 and body.sneaking and body.jumping) {
+            entity.set_gravity(p, -1)
+            entity.set_prop(p, "boots_cd", 0.8)
+            entity.set_prop(p, "boots_hold", 0)
+            continue
+        }
+        if (body.gravity < 0 and body.sneaking) {
+            let hold = entity.prop(p, "boots_hold")
+            if (hold == nil) { hold = 0 }
+            hold += dt
+            entity.set_prop(p, "boots_hold", hold)
+            if (hold > 2) {
+                entity.set_gravity(p, 1)
+                entity.set_prop(p, "boots_cd", 0.8)
+                entity.set_prop(p, "boots_hold", 0)
+            }
+        } else {
+            entity.set_prop(p, "boots_hold", 0)
+        }
+    }
+})
+
+# Garde-fou : tomber vers le haut sans fin ramène la gravité vers le bas.
+voxel.system("inverted_sky_limit", fn(dt) {
+    if (not in_dim("inverted")) { return nil }
+    for (p in entity.players()) {
+        if (entity.gravity(p) < 0 and entity.pos(p).y > 240) {
+            entity.set_gravity(p, 1)
+            notice(p, "sky_limit", 10, "Trop haut : la gravité vous rattrape.")
+        }
+    }
+})
+
+# Faille instable : inverse périodiquement la gravité alentour.
+voxel.behavior("rift_pulse", fn(e, params, dt) {
+    let t = timer(e, "pulse", dt)
+    if (t > 0) { return true }
+    entity.set_prop(e, "pulse", 6 + math.random() * 6)
+    let p = entity.pos(e)
+    for (player in world.entities(p.x, p.y, p.z, 12, "player")) {
+        flip_gravity(player, "La faille vibre : la gravité s'inverse !")
+    }
+    return true
+})
+
+# Gardien du Zénith : retourne la gravité de sa cible pendant le combat.
+voxel.behavior("zenith_gravity", fn(e, params, dt) {
+    let t = timer(e, "flip", dt)
+    if (t > 0) { return nil }
+    entity.set_prop(e, "flip", 7)
+    let target = entity.nearest_player(e, 40)
+    if (target == nil) { return nil }
+    flip_gravity(target, "Le Gardien du Zénith renverse le ciel !")
+    # Et il entraîne les débris : quelques blocs qui tombent autour de la cible.
+    let p = entity.pos(target)
+    for (i in range(0, 4)) {
+        world.set(math.floor(p.x) + math.floor(math.random() * 9) - 4, math.floor(p.y) + 8, math.floor(p.z) + math.floor(math.random() * 9) - 4, "core:sand")
+    }
+    return nil
+})
+
+voxel.on("entity_died", fn(e, kind) {
+    if (kind == "core:zenith_guardian") { game.say("Le Gardien du Zénith s'effondre. Le ciel se calme.") }
+    if (kind == "core:root_heart_boss") {
+        game.say("Le Cœur-Racine se tait. La forêt vous reconnaît.")
+        world.set_data("hostility", -30)
+    }
+    if (kind == "core:chronophage") { game.say("Le Chronophage se dissout dans toutes les époques à la fois.") }
+    if (kind == "core:magma_titan") {
+        game.say("Le Titan magmatique s'éteint : son feu nourrit le noyau.")
+        world.set_data("energy", math.min(100, state("energy", 100) + 40))
+    }
+    if (kind == "core:eraser") { game.say("L'Effaceur s'efface lui-même.") }
+    return true
+})
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Vivante
+# ═════════════════════════════════════════════════════════════════════════════
+
+fn hostility() { return state("hostility", 0) }
+
+fn add_hostility(amount) {
+    let before = hostility()
+    let after = math.max(-60, math.min(120, before + amount))
+    world.set_data("hostility", after)
+    if (before < 20 and after >= 20) { game.say("La forêt vous observe… Les scarabées deviennent nerveux.") }
+    if (before < 40 and after >= 40) { game.say("La forêt devient hostile ! Des rôdeurs épineux sortent des fourrés.") }
+    if (before < 80 and after >= 80) { game.say("La forêt entière se dresse contre vous.") }
+    if (before > -15 and after <= -15) { game.say("La forêt vous accorde sa confiance : elle vous soigne quand vous foulez sa mousse.") }
+    if (before <= 0 and after > 0 and before < -15) { game.say("La forêt doute de vous.") }
+}
+
+voxel.on("block_broken", fn(x, y, z, block, actor) {
+    if (in_dim("living")) {
+        let tags = block_tags(block)
+        if (has(tags, "living")) {
+            let amount = 0.4
+            if (block == "core:primordial_sap_block") { amount = 3 }
+            if (has(tags, "logs")) { amount = 1 }
+            add_hostility(amount)
+        }
+        if (block == "core:root_heart") {
+            game.say("Le cœur des racines se brise… quelque chose s'éveille sous la forêt !")
+            world.spawn("core:root_heart_boss", x + 0.5, y + 1, z + 0.5)
+            add_hostility(20)
+        }
+    }
+    if (in_dim("core")) {
+        if (block == "core:unstable_ore" and not entity.sneaking(actor) and not creative_mode()) {
+            game.say("Le minerai instable explose ! (Accroupissez-vous pour l'extraire avec précaution.)")
+            explode(nil, x + 0.5, y + 0.5, z + 0.5, 2.5, 8)
+        }
+        if (has(block_tags(block), "molten") and not creative_mode()) {
+            let held = entity.held(actor)
+            let def = nil
+            if (held != nil) { def = content.get("item", held) }
+            if (def == nil or def.tags == nil or not has(def.tags, "heat_resistant")) {
+                entity.damage(actor, 3)
+                game.say("Brûlant ! Il faut un outil en acier solaire.")
+                return false
+            }
+        }
+    }
+    return true
+})
+
+voxel.on("block_placed", fn(x, y, z, block, actor) {
+    if (in_dim("living") and (block.ends_with("sapling") or block == "core:glow_fern" or block == "core:lumen_flower")) {
+        add_hostility(-2)
+    }
+    return true
+})
+
+fn use_growth_staff(player, item) {
+    let hit = eye_ray(player, 8)
+    if (hit == nil) { return nil }
+    let options = ["jungle_tree", "mahogany_tree", "oak_tree"]
+    let pick = options[math.floor(math.random() * len(options))]
+    world.structure(pick, hit.x, hit.y + 1, hit.z)
+    game.sound("teleport", hit.x, hit.y, hit.z)
+    if (in_dim("living")) { add_hostility(-3) }
+}
+
+# Écosystème : les plantes poussent et envahissent les constructions
+# délaissées (plus vite si la forêt est hostile) ; la mousse soigne qui a
+# gagné sa confiance.
+let invadable = {"core:planks": "core:mossy_cobblestone", "core:cobble": "core:mossy_cobblestone",
+                 "core:stone_bricks": "core:mossy_stone_bricks", "core:bricks": "core:mossy_cobblestone",
+                 "core:primordial_planks": "core:living_moss", "core:glass": "core:creeping_vine"}
+let living_timer = 0
+voxel.system("living_ecosystem", fn(dt) {
+    if (not in_dim("living")) { return nil }
+    living_timer -= dt
+    if (living_timer > 0) { return nil }
+    living_timer = 2
+    let h = hostility()
+    for (p in entity.players()) {
+        let pos = entity.pos(p)
+        let samples = 14 + math.max(0, math.floor(h / 4))
+        for (i in range(0, samples)) {
+            # Constructions délaissées : à l'écart du joueur (10 à 24 blocs).
+            let a = math.random() * 6.283
+            let d = 10 + math.random() * 14
+            let x = math.floor(pos.x + math.cos(a) * d)
+            let z = math.floor(pos.z + math.sin(a) * d)
+            let y = math.floor(pos.y) + math.floor(math.random() * 9) - 4
+            let b = world.get(x, y, z)
+            if (invadable[b] != nil) {
+                let living = 0
+                for (n in [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, -1, 0]]) {
+                    let nb = world.get(x + n[0], y + n[1], z + n[2])
+                    if (has(block_tags(nb), "living")) { living += 1 }
+                }
+                if (living > 0) {
+                    world.set(x, y, z, invadable[b])
+                    if (world.get(x, y + 1, z) == "core:air" and math.random() < 0.5) { world.set(x, y + 1, z, "core:creeping_vine") }
+                }
+            } else if (b == "core:living_moss" and world.get(x, y + 1, z) == "core:air" and math.random() < 0.25) {
+                if (h > 50 and math.random() < 0.5) { world.set(x, y + 1, z, "core:thorn_bush") }
+                else { world.set(x, y + 1, z, "core:glow_fern") }
+            }
+        }
+        # Confiance : la mousse soigne.
+        if (h <= -15) {
+            let under = world.get(math.floor(pos.x), math.floor(pos.y) - 1, math.floor(pos.z))
+            if (under == "core:living_moss" or under == "core:living_mycelium") { entity.effect(p, "regeneration", 3, 1) }
+        }
+    }
+    # Avec le temps, la forêt oublie un peu.
+    if (h > 0) { world.set_data("hostility", math.max(0, h - 0.05)) }
+})
+
+# Faune évolutive : neutre tant que la forêt l'est, agressive au-delà d'un seuil.
+voxel.behavior("living_temper", fn(e, params, dt) {
+    if (hostility() < params.threshold) {
+        let player = entity.nearest_player(e, 5)
+        if (player != nil and hostility() < 0) { return nil }   # confiance : il vous laisse approcher
+        return nil
+    }
+    let target = entity.nearest_player(e, params.range)
+    if (target == nil or creative_mode()) { return nil }
+    go_toward(e, entity.pos(target), params.speed)
+    melee(e, target, params, dt)
+    return true
+})
+
+# Cœur-Racine : enracine sa cible, fait surgir des épines et des rôdeurs.
+voxel.behavior("root_heart_powers", fn(e, params, dt) {
+    let t = timer(e, "roots", dt)
+    if (t > 0) { return nil }
+    entity.set_prop(e, "roots", 6)
+    let target = entity.nearest_player(e, 32)
+    if (target == nil) { return nil }
+    let p = entity.pos(target)
+    entity.effect(target, "slowness", 4, 3)
+    for (i in range(0, 8)) {
+        let a = i * 0.785
+        let x = math.floor(p.x + math.cos(a) * 3)
+        let z = math.floor(p.z + math.sin(a) * 3)
+        let y = math.floor(p.y)
+        if (world.get(x, y, z) == "core:air") { world.set(x, y, z, "core:thorn_bush") }
+    }
+    if (math.random() < 0.4) { world.spawn("core:thorn_stalker", p.x + 3, p.y + 1, p.z + 3) }
+    game.say("Des racines jaillissent autour de vous !")
+    return nil
+})
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Fragmentée
+# ═════════════════════════════════════════════════════════════════════════════
+
+# Fragment temporel : répare les ruines alentour (leur forme passée).
+fn use_time_fragment(player, item) {
+    let p = entity.pos(player)
+    let fixed = 0
+    for (dx in range(-5, 6)) {
+        for (dy in range(-3, 6)) {
+            for (dz in range(-5, 6)) {
+                let x = math.floor(p.x) + dx
+                let y = math.floor(p.y) + dy
+                let z = math.floor(p.z) + dz
+                if (world.get(x, y, z) == "core:ruined_wall") {
+                    world.set(x, y, z, "core:restored_wall")
+                    fixed += 1
+                }
+            }
+        }
+    }
+    if (fixed == 0) {
+        game.say("Aucune ruine à réparer ici.")
+        return nil
+    }
+    if (not creative_mode()) { entity.take(player, "core:time_fragment", 1) }
+    game.sound("level_up", p.x, p.y, p.z)
+    game.say(format("{} bloc(s) retrouvent leur forme d'antan.", fixed))
+}
+voxel.on("item_use", fn(actor, item) {
+    if (item == "core:time_fragment") { use_time_fragment(actor, item); return false }
+    return true
+})
+
+# Chronophage : vieillit les blocs autour de sa cible et fait disparaître
+# des pans de l'arène pour quelques secondes.
+voxel.behavior("chronophage_aging", fn(e, params, dt) {
+    let t = timer(e, "aging", dt)
+    if (t > 0) { return nil }
+    entity.set_prop(e, "aging", 5)
+    let target = entity.nearest_player(e, 40)
+    if (target == nil) { return nil }
+    let p = entity.pos(target)
+    let gone = 0
+    for (dx in range(-4, 5)) {
+        for (dz in range(-4, 5)) {
+            if (math.random() < 0.35 and (dx * dx + dz * dz) > 2) {
+                if (vanish(math.floor(p.x) + dx, math.floor(p.y) - 1, math.floor(p.z) + dz, 4, "core:air")) { gone += 1 }
+            }
+        }
+    }
+    if (gone > 0) { game.say("Le Chronophage dévore le temps : le sol s'efface !") }
+    entity.effect(target, "slowness", 3, 2)
+    return nil
+})
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Noyau
+# ═════════════════════════════════════════════════════════════════════════════
+
+fn open_seals(cx, cy, cz, r) {
+    let opened = 0
+    for (dx in range(0 - r, r + 1)) {
+        for (dy in range(-3, 6)) {
+            for (dz in range(0 - r, r + 1)) {
+                if (world.get(cx + dx, cy + dy, cz + dz) == "core:core_seal") {
+                    world.set(cx + dx, cy + dy, cz + dz, "core:air")
+                    opened += 1
+                }
+            }
+        }
+    }
+    return opened
+}
+
+let core_timer = 0
+let energy_timer = 0
+voxel.system("core_dimension", fn(dt) {
+    if (not in_dim("core")) { return nil }
+    # Le noyau perd son énergie, lentement.
+    energy_timer -= dt
+    if (energy_timer <= 0) {
+        energy_timer = 10
+        let before = state("energy", 100)
+        let after = math.max(0, before - 0.25)
+        world.set_data("energy", after)
+        if (before > 50 and after <= 50) { game.say("Le soleil du noyau pâlit (50 %).") }
+        if (before > 20 and after <= 20) { game.say("Le noyau vacille : la chaleur devient erratique (20 %).") }
+        if (before > 0 and after <= 0) { game.say("Le noyau s'est éteint. Les cavernes plongent dans l'ombre.") }
+    }
+    core_timer -= dt
+    if (core_timer > 0) { return nil }
+    core_timer = 1
+    let energy = state("energy", 100)
+    for (p in entity.players()) {
+        let pos = entity.pos(p)
+        # Chaleur : plus on descend, plus elle monte (un noyau mourant est instable).
+        let heat = math.max(0, math.min(1, (40 - pos.y) / 70)) * (1.5 - energy / 200)
+        let protection = heat_protection(p)
+        if (heat > 0.3 and protection < 2 and entity.has_effect(p, "fire_resistance") == 0 and not creative_mode()) {
+            entity.damage(p, heat * 3)
+            notice(p, "heat", 30, "La chaleur est insoutenable : l'armure en acier solaire vous en protégerait.")
+        }
+        # Cavernes sans lumière (et noyau éteint) : l'obscurité, sauf lumière en main.
+        let dark = world.biome(pos.x, pos.z) == "core:core_dark_caves" or energy < 10
+        if (dark and not holds_light(p)) {
+            entity.effect(p, "darkness", 2, 1)
+            notice(p, "dark", 40, "Il fait noir comme dans un four : une lanterne solaire en main éclairerait la caverne.")
+        }
+    }
+})
+
+# Titan magmatique : éruptions autour de sa cible.
+voxel.behavior("titan_eruption", fn(e, params, dt) {
+    let t = timer(e, "eruption", dt)
+    if (t > 0) { return nil }
+    entity.set_prop(e, "eruption", 6)
+    let target = entity.nearest_player(e, 40)
+    if (target == nil) { return nil }
+    let p = entity.pos(target)
+    for (i in range(0, 5)) {
+        let x = math.floor(p.x) + math.floor(math.random() * 11) - 5
+        let z = math.floor(p.z) + math.floor(math.random() * 11) - 5
+        let y = world.ground(x, z, math.floor(p.y) + 4, math.floor(p.y) - 6)
+        if (y != nil) { vanish(x, y, z, 8, "core:magma_vent") }
+    }
+    for (victim in world.entities(p.x, p.y, p.z, 5, "player")) {
+        entity.damage(victim, 4, e)
+        entity.impulse(victim, 0, 7, 0)
+    }
+    if (math.random() < 0.5) { world.spawn("core:magma_crawler", p.x + 2, p.y + 1, p.z + 2) }
+    game.sound("explosion", p.x, p.y, p.z)
+    return nil
+})
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Néant
+# ═════════════════════════════════════════════════════════════════════════════
+
+fn use_void_eraser(player, item) {
+    let hit = eye_ray(player, 8)
+    if (hit == nil) { return nil }
+    if (hit.block == "core:bedrock" or has(block_tags(hit.block), "altar") or has(block_tags(hit.block), "portal")) {
+        game.say("Même le Néant n'efface pas cela.")
+        return nil
+    }
+    world.set(hit.x, hit.y, hit.z, "core:air")
+    game.sound("ghost", hit.x, hit.y, hit.z)
+}
+
+# Porte impossible : une salle immense derrière une porte d'un bloc.
+fn enter_pocket(actor, x, y, z) {
+    let back = world.data(format("pocket_back_{}_{}_{}", x, y, z))
+    if (back != nil) {
+        entity.set_pos(actor, back[0], back[1], back[2])
+        game.say("Vous ressortez… la porte n'a toujours qu'un bloc de large.")
+        return nil
+    }
+    let key = format("pocket_{}_{}_{}", x, y, z)
+    let room = world.data(key)
+    if (room == nil) {
+        # Une salle de 23 × 9 × 23 très loin, au-dessus des îles.
+        let ox = x + 40000
+        let oy = 200
+        let oz = z
+        for (dx in range(-11, 12)) {
+            for (dz in range(-11, 12)) {
+                for (dy in range(0, 10)) {
+                    let edge = dx == -11 or dx == 11 or dz == -11 or dz == 11 or dy == 0 or dy == 9
+                    let b = "core:air"
+                    if (edge) {
+                        b = "core:monolith_stone"
+                        if (dy == 9 and (dx % 4 == 0) and (dz % 4 == 0)) { b = "core:void_beacon" }
+                        if ((dy == 3 or dy == 6) and (dx == -11 or dx == 11) and (dz % 3 == 0)) { b = "core:void_runes" }
+                    }
+                    world.set(ox + dx, oy + dy, oz + dz, b)
+                }
+            }
+        }
+        world.set(ox, oy + 1, oz + 9, "core:void_door")
+        world.set(ox + 6, oy + 1, oz - 6, "core:void_altar")
+        world.drop("core:void_fragment", 3, ox, oy + 1.5, oz)
+        room = [ox + 0.5, oy + 1, oz + 0.5]
+        world.set_data(key, room)
+        world.set_data(format("pocket_back_{}_{}_{}", ox, oy + 1, oz + 9), [x + 0.5, y + 1, z + 1.5])
+    }
+    entity.set_pos(actor, room[0], room[1], room[2])
+    game.say("Vous entrez… la salle est infiniment plus grande que la porte.")
+}
+
+# Instabilité : plus on reste au même endroit, plus le Néant le défait.
+let void_timer = 0
+voxel.system("void_instability", fn(dt) {
+    if (not in_dim("void")) { return nil }
+    void_timer -= dt
+    if (void_timer > 0) { return nil }
+    void_timer = 2
+    for (p in entity.players()) {
+        let pos = entity.pos(p)
+        let anchor = entity.prop(p, "void_anchor")
+        let t = entity.prop(p, "void_t")
+        if (t == nil) { t = 0 }
+        if (anchor == nil or (anchor[0] - pos.x) * (anchor[0] - pos.x) + (anchor[1] - pos.z) * (anchor[1] - pos.z) > 400) {
+            entity.set_prop(p, "void_anchor", [pos.x, pos.z])
+            t = 0
+        }
+        t += 2
+        entity.set_prop(p, "void_t", t)
+        if (t == 26) { game.say("Le Néant se resserre autour de vous… Partez avant qu'il n'efface tout.") }
+        if (t > 25 and not creative_mode()) {
+            let count = 1 + math.floor((t - 25) / 10)
+            let reach = 3 + math.min(6, math.floor((t - 25) / 8))
+            for (i in range(0, count)) {
+                let a = math.random() * 6.283
+                let d = 2 + math.random() * reach
+                let x = math.floor(pos.x + math.cos(a) * d)
+                let z = math.floor(pos.z + math.sin(a) * d)
+                let y = math.floor(pos.y) - 1 - math.floor(math.random() * 3)
+                if (t > 70 or d > 2.5) { vanish(x, y, z, 1000000, "core:air") }
+            }
+            if (t > 40 and math.random() < 0.2) { world.spawn("core:void_watcher", pos.x + 10, pos.y + 1, pos.z) }
+        }
+        # Zones d'effacement : outils, gestes et jambes perdent leur efficacité.
+        if (world.biome(pos.x, pos.z) == "core:void_erasure") {
+            entity.effect(p, "mining_fatigue", 3, 2)
+            entity.effect(p, "slowness", 3, 1)
+            notice(p, "erasure", 30, "Zone d'effacement : vos outils et vos jambes vous obéissent mal.")
+        }
+    }
+})
+
+# Observateur : vous regarde à distance… jusqu'à ce que vous vous attardiez.
+voxel.behavior("watch", fn(e, params, dt) {
+    let target = entity.nearest_player(e, 32)
+    if (target == nil) { return nil }
+    let me = entity.pos(e)
+    let them = entity.pos(target)
+    let dx = them.x - me.x
+    let dz = them.z - me.z
+    let d = math.max(0.01, math.sqrt(dx * dx + dz * dz))
+    entity.look(e, math.atan2(dx, dz))
+    let lingering = entity.prop(target, "void_t")
+    if (lingering != nil and lingering > 60 and not creative_mode()) {
+        go_toward(e, them, 3.4)
+        melee(e, target, {damage: 4}, dt)
+        return true
+    }
+    if (d < 12) { entity.move(e, 0 - dx / d, 0 - dz / d, 2.5) }
+    else if (d > 20) { entity.move(e, dx / d, dz / d, 2.0) }
+    else { entity.move(e, 0, 0) }
+    return true
+})
+
+# L'Effaceur : détruit l'arène autour de lui, anneau après anneau.
+voxel.behavior("eraser_powers", fn(e, params, dt) {
+    let t = timer(e, "erase", dt)
+    if (t > 0) { return nil }
+    entity.set_prop(e, "erase", 3)
+    let ring = entity.prop(e, "ring")
+    if (ring == nil) { ring = 3 }
+    let target = entity.nearest_player(e, 40)
+    if (target == nil) { return nil }
+    let p = entity.pos(target)
+    let center = entity.pos(e)
+    let y = math.floor(p.y) - 1
+    for (i in range(0, 24)) {
+        let a = i * 0.2618
+        vanish(math.floor(center.x + math.cos(a) * ring), y, math.floor(center.z + math.sin(a) * ring), 1000000, "core:air")
+    }
+    ring += 1
+    if (ring > 12) { ring = 3 }
+    entity.set_prop(e, "ring", ring)
+    if (math.random() < 0.3) {
+        entity.set_pos(e, p.x + 6, p.y + 3, p.z)
+        game.say("L'Effaceur se déplace en effaçant l'espace entre vous !")
+    }
+    return nil
+})

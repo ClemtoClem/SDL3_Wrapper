@@ -1,0 +1,14 @@
+{
+ "id": "backrooms",
+ "name": "Backrooms",
+ "version": "1.0.0",
+ "description": "Des salles jaunes sans fin, des néons qui bourdonnent, et quelques sorties. On s'y réveille après être mort étouffé.",
+ "dependencies": [
+  "core"
+ ],
+ "category": "dimension",
+ "tags": [
+  "dimension",
+  "horreur"
+ ]
+}

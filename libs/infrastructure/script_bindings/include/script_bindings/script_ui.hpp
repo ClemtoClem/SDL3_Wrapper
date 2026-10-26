@@ -12,13 +12,16 @@
  *   let barre = ui.progress(0, 1, {parent: menu, w: 300})
  *   barre.value = 0.5                     # (ou barre.set_value(0.5))
  *
- * Options communes (dernier argument, facultatif) : parent, name, w, h
- * (pixels, "auto", "grow", "50%"), grow, pad, gap, bg, color, border,
- * radius, font_size, bold, align (start|center|end|stretch), justify
- * (start|center|end|between), text_align (left|center|right), anchor
- * (top_left, top, …, center, …, bottom_right), offset [x, y], absolute,
- * fixed, hidden, pointer_through. Couleurs : "#rrggbb", "#rrggbbaa" ou
- * [r, g, b(, a)] (0–1, ou 0–255 si une composante dépasse 1).
+ * Options communes (dernier argument, facultatif) : parent, name (id CSS),
+ * class, style (déclarations CSS), w, h (pixels, "auto", "grow", "50%"),
+ * grow, grow_h, pad (nombre ou [horizontal, vertical]), gap, bg, color,
+ * border, radius, font_size, bold, italic, align
+ * (start|center|end|stretch), justify (start|center|end|between),
+ * text_align (left|center|right), anchor (top_left, top, …, center, …,
+ * bottom_right), offset [x, y], absolute, fixed, hidden, pointer_through.
+ * Couleurs : "#rrggbb", "#rrggbbaa" ou [r, g, b(, a)] (0–1, ou 0–255 si une
+ * composante dépasse 1). Les widgets sont des widgets ui:: ordinaires : les
+ * feuilles CSS de l'hôte les stylent par type, classe ou id.
  *
  * SANS ÉCRAN (hôte sans fenêtre, tests), les widgets restent des objets
  * ordinaires : texte, valeur et rappels fonctionnent, `w.click()` simule un
@@ -44,8 +47,6 @@ namespace script {
 /// Ce que l'hôte fournit au script pour construire son interface.
 struct UiBinding {
 	ecs::ArchetypeRegistry *registry = nullptr;
-	ui::UiFactory *factory = nullptr;
-	ui::LayoutSystem *layout = nullptr;
 	/// Conteneur des widgets du script ; entité invalide : pas d'écran pour
 	/// l'instant (les widgets créés alors restent des objets sans affichage).
 	std::function<ecs::Entity()> root;
@@ -55,7 +56,9 @@ struct UiBinding {
 	[[nodiscard]] ecs::Entity Root() const;
 	[[nodiscard]] bool Live() const { return Root().Valid(); }
 	[[nodiscard]] bool Alive(ecs::Entity entity) const;
-	void Relayout() const;
+	[[nodiscard]] ui::Widget WidgetOf(ecs::Entity entity) const {
+		return registry ? ui::Widget(*registry, entity) : ui::Widget();
+	}
 
 	/// Rappels du script en attente (cf. en-tête) ; exécutés par Flush().
 	void Post(std::function<void()> callback);
@@ -110,46 +113,43 @@ struct UiState {
 
 [[nodiscard]] Result<sdl3::FColor, ScriptError> ParseColor(const Value &v, const char *fn);
 
-[[nodiscard]] Result<ui::Dimension, ScriptError> ParseDimension(const Value &v, const char *fn);
+[[nodiscard]] Result<ui::Length, ScriptError> ParseDimension(const Value &v, const char *fn);
 
 [[nodiscard]] Option<ui::Anchor> ParseAnchor(const String &s);
 
 /// Constructeur factice : valide les options d'un widget créé SANS écran
 /// (mêmes erreurs qu'avec écran, rien n'est construit).
 struct NullBuilder {
-	template <typename... A> NullBuilder &W(A &&...) { return *this; }
-	template <typename... A> NullBuilder &H(A &&...) { return *this; }
-	template <typename... A> NullBuilder &GrowW(A &&...) { return *this; }
-	template <typename... A> NullBuilder &GrowH(A &&...) { return *this; }
-	template <typename... A> NullBuilder &Pad(A &&...) { return *this; }
+	template <typename... A> NullBuilder &Width(A &&...) { return *this; }
+	template <typename... A> NullBuilder &Height(A &&...) { return *this; }
+	template <typename... A> NullBuilder &Grow(A &&...) { return *this; }
+	template <typename... A> NullBuilder &Padding(A &&...) { return *this; }
 	template <typename... A> NullBuilder &Gap(A &&...) { return *this; }
-	template <typename... A> NullBuilder &Bg(A &&...) { return *this; }
-	template <typename... A> NullBuilder &TextColor(A &&...) { return *this; }
+	template <typename... A> NullBuilder &Background(A &&...) { return *this; }
+	template <typename... A> NullBuilder &Color(A &&...) { return *this; }
 	template <typename... A> NullBuilder &BorderColor(A &&...) { return *this; }
-	template <typename... A> NullBuilder &Radius(A &&...) { return *this; }
+	template <typename... A> NullBuilder &BorderWidth(A &&...) { return *this; }
+	template <typename... A> NullBuilder &BorderRadius(A &&...) { return *this; }
 	template <typename... A> NullBuilder &FontSize(A &&...) { return *this; }
 	template <typename... A> NullBuilder &Bold(A &&...) { return *this; }
 	template <typename... A> NullBuilder &Italic(A &&...) { return *this; }
 	template <typename... A> NullBuilder &Absolute(A &&...) { return *this; }
 	template <typename... A> NullBuilder &Anchor(A &&...) { return *this; }
-	template <typename... A> NullBuilder &Align(A &&...) { return *this; }
-	template <typename... A> NullBuilder &Justify(A &&...) { return *this; }
+	template <typename... A> NullBuilder &AlignItems(A &&...) { return *this; }
+	template <typename... A> NullBuilder &JustifyContent(A &&...) { return *this; }
 	template <typename... A> NullBuilder &TextAlign(A &&...) { return *this; }
 	template <typename... A> NullBuilder &Offset(A &&...) { return *this; }
 	template <typename... A> NullBuilder &Fixed(A &&...) { return *this; }
 	template <typename... A> NullBuilder &Hidden(A &&...) { return *this; }
 	template <typename... A> NullBuilder &PointerThrough(A &&...) { return *this; }
-	template <typename... A> NullBuilder &WAuto(A &&...) { return *this; }
-	template <typename... A> NullBuilder &HAuto(A &&...) { return *this; }
+	template <typename... A> NullBuilder &Class(A &&...) { return *this; }
+	template <typename... A> NullBuilder &ApplyStyle(A &&...) { return *this; }
 };
 
 /// Applique les options de mise en forme au constructeur de widget.
 template <typename Builder>
 [[nodiscard]] Option<ScriptError> ApplyOptions(Builder &b, const MapObject *opts, const char *fn) {
-	bool hasW = false, hasH = false;
 	for (const auto &[key, v] : opts ? opts->Snapshot() : std::vector<std::pair<String, Value>>{}) {
-		hasW = hasW || key == "w" || key == "grow";
-		hasH = hasH || key == "h" || key == "grow_h";
 		auto fail = [&](const ScriptError &e) { return Some(e); };
 		if (key == "parent" || key == "name")
 			continue; // traités par l'appelant
@@ -158,21 +158,18 @@ template <typename Builder>
 			if (d.IsError())
 				return fail(d.Error());
 			if (key == "w")
-				b.W(d.Value());
+				b.Width(d.Value());
 			else
-				b.H(d.Value());
-		} else if (key == "grow") {
-			const float weight = v.IsNumber() ? v.AsFloat() : 1.f;
+				b.Height(d.Value());
+		} else if (key == "grow" || key == "grow_h") {
+			// Croissance sur l'axe principal du parent (colonne : hauteur).
 			if (v.IsTruthy())
-				b.GrowW(weight);
-		} else if (key == "grow_h") {
-			if (v.IsTruthy())
-				b.GrowH(v.IsNumber() ? v.AsFloat() : 1.f);
+				b.Grow(v.IsNumber() ? v.AsFloat() : 1.f);
 		} else if (key == "pad") {
 			if (v.IsNumber())
-				b.Pad(v.AsFloat());
+				b.Padding(v.AsFloat());
 			else if (v.IsList() && v.AsList() && v.AsList()->Size() == 2)
-				b.Pad(math::Sides{v.AsList()->At(0).Unwrap().AsFloat(), v.AsList()->At(1).Unwrap().AsFloat()});
+				b.Padding(v.AsList()->At(0).Unwrap().AsFloat(), v.AsList()->At(1).Unwrap().AsFloat());
 		} else if (key == "gap") {
 			b.Gap(v.AsFloat());
 		} else if (key == "bg" || key == "color" || key == "border") {
@@ -180,19 +177,23 @@ template <typename Builder>
 			if (c.IsError())
 				return fail(c.Error());
 			if (key == "bg")
-				b.Bg(c.Value());
+				b.Background(c.Value());
 			else if (key == "color")
-				b.TextColor(c.Value());
+				b.Color(c.Value());
 			else
-				b.BorderColor(c.Value());
+				b.BorderColor(c.Value()).BorderWidth(1.f);
 		} else if (key == "radius") {
-			b.Radius(v.AsFloat());
+			b.BorderRadius(v.AsFloat());
 		} else if (key == "font_size") {
 			b.FontSize(v.AsFloat());
 		} else if (key == "bold") {
 			b.Bold(v.IsTruthy());
 		} else if (key == "italic") {
 			b.Italic(v.IsTruthy());
+		} else if (key == "class") {
+			b.Class(v.ToDisplayString());
+		} else if (key == "style") {
+			b.ApplyStyle(ui::Style(v.ToDisplayString().View()));
 		} else if (key == "align" || key == "justify" || key == "text_align" || key == "anchor") {
 			const String s = v.ToDisplayString();
 			if (key == "anchor") {
@@ -201,15 +202,15 @@ template <typename Builder>
 					return Some(Fail(String::Format("`%s` : ancre `%s` inconnue", fn, s.CStr())));
 				b.Absolute().Anchor(anchor.Unwrap());
 			} else if (key == "align") {
-				b.Align(s == "center" ? ui::CrossAlign::Center
-						: s == "end"  ? ui::CrossAlign::End
-						: s == "stretch" ? ui::CrossAlign::Stretch
-										 : ui::CrossAlign::Start);
+				b.AlignItems(s == "center"	  ? ui::Align::Center
+							 : s == "end"	  ? ui::Align::End
+							 : s == "stretch" ? ui::Align::Stretch
+											  : ui::Align::Start);
 			} else if (key == "justify") {
-				b.Justify(s == "center" ? ui::Justify::Center
-						  : s == "end"	? ui::Justify::End
-						  : s == "between" ? ui::Justify::SpaceBetween
-										   : ui::Justify::Start);
+				b.JustifyContent(s == "center"	  ? ui::Justify::Center
+								 : s == "end"	  ? ui::Justify::End
+								 : s == "between" ? ui::Justify::SpaceBetween
+												  : ui::Justify::Start);
 			} else {
 				b.TextAlign(s == "center" ? ui::TextAlign::Center
 							: s == "right" ? ui::TextAlign::Right
@@ -234,16 +235,6 @@ template <typename Builder>
 			return Some(Fail(String::Format("`%s` : option `%s` inconnue", fn, key.CStr())));
 		}
 	}
-	// Sans taille donnée, un widget prend celle de son CONTENU, recalculée à
-	// chaque mise en page (un texte qui s'allonge, une colonne qui gagne un
-	// enfant). Il faut le dire explicitement : un widget sans taille déclarée
-	// garderait sinon la taille de sa première mise en page (cf.
-	// LayoutSystem::Pass::SizeVals). Un widget ancré s'aligne aussi par sa
-	// taille (le coin qui correspond à l'ancre).
-	if (!hasW)
-		b.WAuto();
-	if (!hasH)
-		b.HAuto();
 	return NONE;
 }
 
@@ -255,7 +246,7 @@ void PushValue(WidgetObject &w);
 
 void PushVisible(WidgetObject &w);
 
-void PushStyle(WidgetObject &w, const std::function<void(ui::UiStyle &)> &edit);
+void PushStyle(WidgetObject &w, const std::function<void(ui::Widget &)> &edit);
 
 /// Appelle `fn(widget[, valeur])` — les erreurs, sans appelant pour les
 /// recevoir, passent par Interpreter::ReportError.
@@ -268,7 +259,7 @@ void Invoke(Interpreter &vm, const std::weak_ptr<std::atomic<bool>> &alive, cons
 /// construit (absent sans écran).
 struct Spec {
 	const char *kind;
-	std::function<ui::WidgetBuilder(ui::UiFactory &, const WidgetObject &)> make;
+	std::function<ui::WidgetBuilder(const WidgetObject &)> make;
 };
 
 [[nodiscard]] Result<Value, ScriptError> Create(Interpreter &vm, const std::shared_ptr<UiState> &state,

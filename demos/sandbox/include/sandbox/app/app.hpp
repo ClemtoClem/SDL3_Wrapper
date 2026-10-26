@@ -133,24 +133,6 @@ private:
 
 	void InstallWindowedHooks(Runtime &runtime, EditorUi &editorUi);
 
-	/// Ouvre la police d'icônes. Elle est RENDUE à l'appelant sans être
-	/// enregistrée, pour deux raisons distinctes qui se sont chacune payées
-	/// d'un plantage :
-	///
-	///  - `RenderSystem::RegisterFont` mémorise un POINTEUR vers la police ;
-	///    l'enregistrer ici viserait la variable locale de cette fonction,
-	///    qui meurt dès le `return` (le déplacement vers l'appelant change
-	///    l'adresse) — use-after-return à la première icône dessinée ;
-	///  - une `sdl3::Font` doit être détruite AVANT le `TtfContext` qui l'a
-	///    vue naître ; une variable statique (détruite à la toute fin du
-	///    processus) ne l'assure pas, une locale de l'appelant déclarée après
-	///    son `TtfContext`, si.
-	///
-	/// Chargement « au mieux » : sans police d'icônes, l'interface reste
-	/// entièrement utilisable (les boutons d'outils perdent leur glyphe),
-	/// donc un échec ne doit pas empêcher l'application de démarrer.
-	[[nodiscard]] static Option<sdl3::Font> OpenIconFont();
-
 	// ── Captures d'écran ─────────────────────────────────────────────────────
 
 	/// Les demandes de `--screenshot=N:CHEMIN` dont l'image est arrivée.
@@ -165,7 +147,7 @@ private:
 	/// Affiche une barre de progression pendant qu'un fil secondaire force la
 	/// compilation des pipelines GPU. Rend `false` si l'utilisateur a fermé la
 	/// fenêtre entre-temps (sortie propre, sans construire l'interface).
-	[[nodiscard]] bool RunLoadingScreen(ui::Ui &gui, ecs::ArchetypeRegistry &registry, sdl3::Renderer &renderer,
+	[[nodiscard]] bool RunLoadingScreen(ui::Ui &gui, sdl3::Renderer &renderer,
 										render3d::Canvas &canvas, Runtime &runtime);
 
 	[[nodiscard]] int Fail(String message);

@@ -96,8 +96,8 @@ public:
 	/// applicatif vit dans `Runtime` : rien n'est perdu.
 	void Rebuild();
 
-	/// Détruit l'arbre d'interface ET les popups, racines indépendantes (cf.
-	/// UiFactory::Menu) qui survivraient sinon à chaque reconstruction.
+	/// Détruit l'arbre d'interface ET les popups montés à la racine (menus
+	/// contextuels, dialogues) qui survivraient sinon à chaque reconstruction.
 	void Teardown();
 
 	// ── Thème ────────────────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ public:
 	/// posée (reconstruire ici doublerait l'interface au `Build()` suivant).
 	bool SetTheme(const String &name);
 
-	[[nodiscard]] static Option<ui::UiTheme> ThemeByName(const String &name);
+	[[nodiscard]] static Option<ui::Palette> ThemeByName(const String &name);
 
 	// ── Vue 3D ───────────────────────────────────────────────────────────────
 
@@ -142,7 +142,7 @@ public:
 	// zéro à chaque scène jouée et disparaît à la fin de la partie.
 
 	/// Vue qui porte le jeu en ce moment.
-	[[nodiscard]] ecs::Entity GameViewport() const { return m_runMode ? m_runViewport : m_viewport; }
+	[[nodiscard]] ui::Widget GameViewport() const { return m_runMode ? m_runViewport : m_viewport; }
 
 	/// Crée le calque s'il manque, ou le rattache à la vue courante.
 	void EnsureGameOverlay();
@@ -197,7 +197,7 @@ public:
 	/// projet, puis ressources.
 	[[nodiscard]] String ResolveAsset(const String &path) const;
 
-	void Spawn2DLayer(ecs::Entity viewport, bool runView);
+	void Spawn2DLayer(ui::Widget viewport, bool runView);
 
 	void Draw2DLayer(sdl3::Renderer &ren, sdl3::FRect r, bool runView);
 
@@ -302,35 +302,30 @@ private:
 
 	/// Poignée entre deux panneaux. `before` : la poignée SUIT `target` (la
 	/// tirer vers la droite/le bas l'agrandit) ; sinon elle le PRÉCÈDE et le
-	/// rétrécit (colonne de droite, rangée du bas — cf. ui::ResolveResizeDrag,
-	/// qui applique le signe opposé au panneau « après »).
-	ecs::Entity ResizeHandle(ecs::Entity parent, ui::Orientation orient, ecs::Entity target, bool before, float minSize,
+	/// rétrécit (colonne de droite, rangée du bas — cf. ui::ResizeHandle::after).
+	ui::Widget ResizeHandle(ui::Widget parent, ui::Orientation orient, ui::Widget target, bool before, float minSize,
 							 float maxSize);
-
-	/// Place le DERNIER enfant de `parent` (la poignée qu'on vient d'ajouter)
-	/// juste avant `anchor` : une poignée « après » doit précéder son panneau.
-	void MoveBefore(ecs::Entity parent, ecs::Entity anchor);
 
 	// ── Barre de menus ───────────────────────────────────────────────────────
 
 	[[nodiscard]] ui::WidgetBuilder MenuAction(const char *text, const char *shortcut, std::function<void()> action);
 
-	void AddItem(ecs::Entity menu, const char *text, const char *shortcut, std::function<void()> action);
+	void AddItem(ui::Widget menu, const char *text, const char *shortcut, std::function<void()> action);
 	/// Pose une instance d'objet sous la sélection du document ouvert.
 	void PlaceObject(const String &objectName);
 
-	void BuildMenuBar(ecs::Entity parent);
+	void BuildMenuBar(ui::Widget parent);
 
 	/// Menus ≡ des panneaux.
 	void BuildDockMenus();
 
-	void OpenMenu(ecs::Entity menu, float x, float y) { m_ctx.gui.OpenPopupAt(menu, sdl3::FPoint{x - 180.f, y}); }
+	void OpenMenu(ui::Widget menu, float x, float y) { menu.OpenAt(sdl3::FPoint{x - 180.f, y}); }
 
 	// ── Vue 3D : barre d'outils, superpositions ──────────────────────────────
 
-	void BuildViewportPage(ecs::Entity page);
+	void BuildViewportPage(ui::Widget page);
 
-	void AddToolbarSeparator(ecs::Entity parent);
+	void AddToolbarSeparator(ui::Widget parent);
 
 	// ── Modélisation à la SketchUp (modeling_ui.cpp) ─────────────────────────
 	//
@@ -350,8 +345,8 @@ public:
 private:
 	/// Vrai si l'évènement est pris par la session (clic gauche, saisie…).
 	bool HandleModelingEvent(const sdl3::Event &event);
-	void BuildModelingOverlay(ecs::Entity viewport);
-	void BuildModelingMenu(ecs::Entity bar);
+	void BuildModelingOverlay(ui::Widget viewport);
+	void BuildModelingMenu(ui::Widget bar);
 	void DrawModelingLayer(sdl3::Renderer &ren, sdl3::FRect r);
 	/// Palette, consignes et mesure à jour (appelé à chaque image).
 	void RefreshModelingUi();
@@ -376,7 +371,7 @@ private:
 
 	enum class SceneTool : uint8_t { SELECT, GIZMO, TAPE };
 	enum class NavTool : uint8_t { NONE, ORBIT, PAN };
-	void BuildViewportTools(ecs::Entity bar);
+	void BuildViewportTools(ui::Widget bar);
 	void RefreshViewportTools();
 	void SetSceneTool(SceneTool tool);
 	void SetNavTool(NavTool tool);
@@ -400,7 +395,7 @@ private:
 
 	SceneTool m_sceneTool = SceneTool::GIZMO;
 	NavTool m_navTool = NavTool::NONE;
-	ecs::Entity m_sketchMenu{};
+	ui::Widget m_sketchMenu{};
 	bool m_pickingSketchFace = false;
 	/// Mètre de scène : premier nœud et ses points, distance mesurée.
 	scene::NodeId m_tapeFirst{};
@@ -424,13 +419,13 @@ private:
 	/// (et leurs poignées).
 	void ToggleMaximized();
 
-	[[nodiscard]] ecs::Entity Previous(ecs::Entity entity) const;
+	[[nodiscard]] ui::Widget Previous(ui::Widget entity) const;
 
 	/// Recherche « aller à » : premier nœud dont le nom contient le texte.
 	void GoToNode(const String &text);
 
 	/// Aspect et caméra d'un viewport ; rend l'aspect (0 si pas encore mis en page).
-	float UpdateViewportCamera(ecs::Entity entity);
+	float UpdateViewportCamera(ui::Widget entity);
 
 	// ── Mode Jeu plein écran ─────────────────────────────────────────────────
 
@@ -454,7 +449,7 @@ private:
 
 	// ── Console, profileur, scènes ───────────────────────────────────────────
 
-	void BuildConsolePage(ecs::Entity page);
+	void BuildConsolePage(ui::Widget page);
 
 	void RefreshConsole();
 
@@ -468,12 +463,14 @@ private:
 	void RefreshObjectList();
 	/// Choix du sélecteur de document de la vue : sous-menus Scènes et Objets.
 	[[nodiscard]] std::vector<ui::ComboCategory> DocumentChoices() const;
+	/// Sélecteur de document (reconstruit quand la liste change).
+	[[nodiscard]] ui::WidgetBuilder DocumentCombo();
 
 	// ── Barre d'état ─────────────────────────────────────────────────────────
 
-	void BuildStatusBar(ecs::Entity parent);
+	void BuildStatusBar(ui::Widget parent);
 
-	ecs::Entity StatusLabel(ecs::Entity parent, const char *text, float width);
+	ui::Widget StatusLabel(ui::Widget parent, const char *text, float width);
 
 	void RefreshStatusBar();
 
@@ -543,7 +540,7 @@ private:
 	void BuildStartPage();
 
 	/// Une ligne cliquable « Nom — chemin » qui ouvre le projet.
-	void SpawnProjectButton(ecs::Entity parent, const files::ProjectEntry &project);
+	void SpawnProjectButton(ui::Widget parent, const files::ProjectEntry &project);
 
 	/// Ouvre le projet de `path` ; vrai en cas de succès (l'interface est
 	/// reconstruite à l'image suivante).
@@ -640,7 +637,7 @@ private:
 	bool m_rebuildRequested = false;
 	DialogKind m_dialogKind = DialogKind::NEW_PROJECT;
 	String m_dialogKey; ///< SAVE_SCRIPT_AS : le script visé
-	ecs::Entity m_dialog{}, m_dialogInput{}, m_dialogError{};
+	ui::Widget m_dialog{}, m_dialogInput{}, m_dialogError{};
 	std::mutex m_browseMutex;
 	Option<String> m_browseResult = NONE;
 	String m_sceneName;
@@ -654,13 +651,13 @@ private:
 	bool m_maximized = false;
 	bool m_runMode = false;
 	int m_shownGizmoMode = -1;
-	ecs::Entity m_modelInfo{}, m_modelHint{}, m_modelMeasure{};
+	ui::Widget m_modelInfo{}, m_modelHint{}, m_modelMeasure{};
 	/// Boutons propres à la modélisation (dessin, gomme, peinture, terminer)
 	/// et à la scène (magnétisme, jouer, plein écran, cadrer) : la barre de
 	/// la vue montre l'un OU l'autre jeu (cf. RefreshViewportTools).
-	std::vector<std::pair<modeling::ToolKind, ecs::Entity>> m_modelToolButtons;
-	std::vector<ecs::Entity> m_modelOnlyButtons, m_sceneOnlyButtons;
-	ecs::Entity m_selectButton{}, m_tapeButton{}, m_orbitButton{}, m_panButton{};
+	std::vector<std::pair<modeling::ToolKind, ui::Widget>> m_modelToolButtons;
+	std::vector<ui::Widget> m_modelOnlyButtons, m_sceneOnlyButtons;
+	ui::Widget m_selectButton{}, m_tapeButton{}, m_orbitButton{}, m_panButton{};
 	int m_shownToolKey = -1; ///< bouton surligné (cf. RefreshViewportTools)
 	int m_shownToolMode = -1; ///< 0 scène, 1 modélisation
 	int m_shownModelTool = -1;
@@ -668,20 +665,20 @@ private:
 	/// palette) ; l'éclairage du monde revient en quittant la modélisation.
 	bool m_modelingLight = false;
 	int m_shownModelingLight = -1;
-	ecs::Entity m_modelLightButton{};
+	ui::Widget m_modelLightButton{};
 	bool m_shownModeling = true; ///< vrai : force la première mise à jour
 	String m_shownModelHint, m_shownModelMeasure;
 	bool m_shownSnap = false;
 	bool m_shownPlaying = true;
 	std::vector<float> m_fpsHistory;
-	std::vector<ecs::Entity> m_menuPopups;
+	std::vector<ui::Widget> m_menuPopups;
 
-	ecs::Entity m_root{}, m_body{}, m_bottomRow{}, m_rightColumn{}, m_leftHandle{};
-	ecs::Entity m_viewport{}, m_playIcon{}, m_playBadge{}, m_sceneCombo{}, m_snapButton{};
-	ecs::Entity m_gameOverlay{}; ///< racine de l'interface des scripts de jeu (cf. EnsureGameOverlay)
-	ecs::Entity m_gizmoButtons[3]{};
+	ui::Widget m_root{}, m_body{}, m_bottomRow{}, m_rightColumn{}, m_leftHandle{};
+	ui::Widget m_viewport{}, m_playIcon{}, m_playBadge{}, m_sceneCombo{}, m_sceneComboSlot{}, m_snapButton{};
+	ui::Widget m_gameOverlay{}; ///< racine de l'interface des scripts de jeu (cf. EnsureGameOverlay)
+	ui::Widget m_gizmoButtons[3]{};
 	// ── Espace de travail 2D ──
-	ecs::Entity m_workspaceButtons[2]{}, m_axesGizmo{}, m_projectionLabel{};
+	ui::Widget m_workspaceButtons[2]{}, m_axesGizmo{}, m_projectionLabel{};
 	bool m_view2d = false;
 	bool m_shownView2d = true; ///< force le premier surlignage
 	Canvas2DRenderer m_renderer2d;
@@ -697,25 +694,26 @@ private:
 		Transform2D parentToPixels;
 	};
 	Option<Drag2D> m_drag2d;
-	ecs::Entity m_sceneListPage{}, m_objectListPage{}, m_profilerPage{}, m_console{};
-	ecs::Entity m_treeMenu{}, m_documentsMenu{}, m_inspectorMenu{}, m_assetsMenu{};
-	ecs::Entity m_runRoot{}, m_runViewport{}, m_runPanel{};
+	ui::Widget m_sceneListPage{}, m_objectListPage{}, m_profilerPage{}, m_console{};
+	ui::Widget m_treeMenu{}, m_documentsMenu{}, m_inspectorMenu{}, m_assetsMenu{};
+	ui::Widget m_runRoot{}, m_runViewport{}, m_runPanel{};
 	/// Encart « MODE TEST » : en-tête (poignée de déplacement, ✕) construit
 	/// une fois, corps (état des scripts) reconstruit périodiquement — un
 	/// clic sur ✕ ne doit pas tomber entre deux reconstructions.
-	ecs::Entity m_runPanelHeader{}, m_runPanelClose{}, m_runPanelBody{};
+	ui::Widget m_runPanelHeader{}, m_runPanelClose{}, m_runPanelBody{};
 	/// Décalage depuis le coin bas-droit de la vue, gardé d'une session à
 	/// l'autre (l'utilisateur l'a posé là où il ne gêne pas son jeu).
 	sdl3::FPoint m_runPanelOffset{-16.f, -16.f};
 	bool m_draggingRunPanel = false;
-	ecs::Entity m_statusFps{}, m_statusNodes{}, m_statusBodies{}, m_statusScene{}, m_statusMode{}, m_statusGizmo{};
-	ecs::Entity m_statusMessageLabel{};
+	ui::Widget m_statusFps{}, m_statusNodes{}, m_statusBodies{}, m_statusScene{}, m_statusMode{}, m_statusGizmo{};
+	ui::Widget m_statusMessageLabel{};
 	sdl3::Window *m_window = nullptr;
 	void BuildWindowTitleBar();
 	void AttachWindowChrome();
 	ui::TitleBarWidgets m_titleBar;
-	ecs::Entity m_statusBar{}, m_statusGrip{};
+	ui::Widget m_statusBar{}, m_statusGrip{};
 	ui::WindowChrome m_chrome;
+	ui::StyleSheetPtr m_editorSheet; ///< feuille de l'éditeur (cf. kit::EditorCss)
 };
 
 } // namespace sandbox

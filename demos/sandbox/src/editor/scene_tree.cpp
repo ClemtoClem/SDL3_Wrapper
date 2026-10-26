@@ -7,45 +7,45 @@ namespace sandbox {
 
 // ── SceneTreePanel ───────────────────────────────────────────────────────────
 
-void SceneTreePanel::Build(ecs::Entity page) {
+void SceneTreePanel::Build(ui::Widget page) {
 	// ── Barre : recherche · + · ≡ ──────────────────────────────────────
-	ui::WidgetBuilder bar = m_ctx.factory.Row();
-	bar.Pad(0.f);
-	bar.Gap(2.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(page);
-	ecs::Entity barEntity = bar.Spawn();
+	ui::WidgetBuilder bar = ui::Row();
+	bar.Padding(0.f);
+	bar.Gap(2.f).GrowWidth().AlignItems(ui::Align::Center);
+	ui::Widget barEntity = page.Append(bar);
 	m_search = kit::SearchField(m_ctx, barEntity, String("Rechercher un nœud"), [this](const String &text) {
 		m_filter = text.Trim();
 		MarkDirty();
 	});
 	m_addButton = kit::IconButton(m_ctx, barEntity, ui::MaterialIcons::ADD, String("Créer un nœud enfant"), [this] {
 		m_contextTarget = m_ctx.runtime.SelectedId();
-		if (auto computed = m_ctx.registry.GetComponent<ui::UiComputed>(m_addButton); computed.IsSome()) {
-			const sdl3::FRect r = computed.Unwrap()->screen;
-			m_ctx.gui.OpenPopupAt(m_createMenu, sdl3::FPoint{r.x, r.y + r.h});
+		if (ui::Widget(m_addButton)) {
+			const sdl3::FRect r = ui::Widget(m_addButton).Bounds();
+			m_createMenu.OpenAt(sdl3::FPoint{r.x, r.y + r.h});
 		}
 	});
 	m_optionsButton = kit::IconButton(m_ctx, barEntity, ui::MaterialIcons::MENU, String("Options de l'arbre"), [this] {
-		if (auto computed = m_ctx.registry.GetComponent<ui::UiComputed>(m_optionsButton); computed.IsSome()) {
-			const sdl3::FRect r = computed.Unwrap()->screen;
-			m_ctx.gui.OpenPopupAt(m_optionsMenu, sdl3::FPoint{r.x, r.y + r.h});
+		if (ui::Widget(m_optionsButton)) {
+			const sdl3::FRect r = ui::Widget(m_optionsButton).Bounds();
+			m_optionsMenu.OpenAt(sdl3::FPoint{r.x, r.y + r.h});
 		}
 	});
 
 	// ── Scènes du projet : un clic ouvre la scène ──────────────────────
-	ui::WidgetBuilder strip = m_ctx.factory.Column();
-	strip.Gap(0.f).Pad(math::Sides{0.f, 2.f}).GrowW().HAuto().Parent(page);
-	m_sceneStrip = strip.Spawn();
+	ui::WidgetBuilder strip = ui::Column();
+	strip.Gap(0.f).Padding(math::Sides{0.f, 2.f}).GrowWidth();
+	m_sceneStrip = page.Append(strip);
 
 	// ── Liste ──────────────────────────────────────────────────────────
-	ui::WidgetBuilder list = m_ctx.factory.Column();
-	list.Gap(0.f).Pad(math::Sides{0.f, 2.f}).GrowW().GrowH().Scrollable().Clip().Parent(page);
+	ui::WidgetBuilder list = ui::Column();
+	list.Gap(0.f).Padding(math::Sides{0.f, 2.f}).GrowWidth().GrowHeight().Scrollable();
 	// Clic droit dans le VIDE de la liste : créer à la racine.
-	list.OnContextMenu([this](float x, float y) {
+	list.OnContextMenu([this](sdl3::FPoint p) {
 		const SceneDesc *scene = m_ctx.runtime.ActiveDocument();
 		if (scene)
-			OpenContextMenu(scene->tree.Root(), x, y);
+			OpenContextMenu(scene->tree.Root(), p.x, p.y);
 	});
-	m_list = list.Spawn();
+	m_list = page.Append(list);
 
 	BuildMenus();
 	BuildRenameDialog();
@@ -54,12 +54,12 @@ void SceneTreePanel::Build(ecs::Entity page) {
 }
 
 void SceneTreePanel::Teardown() {
-	for (ecs::Entity popup : m_popups)
+	for (ui::Widget popup : m_popups)
 		if (popup.Valid())
-			ui::DespawnTree(m_ctx.registry, popup);
+			ui::Widget(popup).Destroy();
 	m_popups.clear();
-	m_list = m_search = m_sceneStrip = m_sceneRows = ecs::Entity{};
-	m_ghost = m_ghostIcon = m_ghostLabel = m_ghostAction = m_dropLine = m_dropBox = m_dropBoxInvalid = ecs::Entity{};
+	m_list = m_search = m_sceneStrip = m_sceneRows = ui::Widget();
+	m_ghost = m_ghostIcon = m_ghostLabel = m_ghostAction = m_dropLine = m_dropBox = m_dropBoxInvalid = ui::Widget();
 	m_dragSource = m_dropTarget = scene::NodeId{};
 	m_dropZone = DropZone::NONE;
 }
@@ -108,9 +108,9 @@ void SceneTreePanel::OpenContextMenu(scene::NodeId target, float x, float y) {
 	const SceneDesc *scene = m_ctx.runtime.ActiveDocument();
 	const bool isRoot = scene && target == scene->tree.Root();
 	// Sur la racine, seules les créations ont un sens.
-	for (ecs::Entity item : m_nodeOnlyItems)
+	for (ui::Widget item : m_nodeOnlyItems)
 		kit::SetHidden(m_ctx, item, isRoot);
-	m_ctx.gui.OpenPopupAt(m_contextMenu, sdl3::FPoint{x, y});
+	m_contextMenu.OpenAt(sdl3::FPoint{x, y});
 }
 
 Option<scene::NodeId> SceneTreePanel::CreateNode(const String &key, scene::NodeId parent) {
@@ -145,34 +145,26 @@ void SceneTreePanel::BeginRename(scene::NodeId id) {
 	if (!node)
 		return;
 	m_renameTarget = id;
-	if (auto input = m_ctx.registry.GetComponent<ui::UiInput>(m_renameInput); input.IsSome()) {
-		input.Unwrap()->text = node->name;
-		input.Unwrap()->cursor = node->name.size();
-		input.Unwrap()->selectionAnchor = 0;
-		input.Unwrap()->focused = true;
-	}
-	m_ctx.gui.OpenModal(m_renameModal);
+	m_renameModal.Open();
+	m_renameInput.SetText(node->name).Focus();
 }
 
 Option<sdl3::FRect> SceneTreePanel::RowRect(scene::NodeId id) const {
 	for (const RowRef &row : m_rows) {
 		if (row.node != id)
 			continue;
-		auto computed = m_ctx.registry.GetComponent<ui::UiComputed>(row.entity);
-		if (computed.IsSome() && computed.Unwrap()->screen.h > 0.f)
-			return Some(computed.Unwrap()->screen);
+		const sdl3::FRect r = row.entity.Bounds();
+		if (r.h > 0.f)
+			return Some(r);
 	}
 	return NONE;
 }
 
 bool SceneTreePanel::OpenCreateSubmenu() {
-	auto trigger = m_ctx.registry.GetComponent<ui::UiComputed>(m_createTrigger);
-	if (trigger.IsNone() || trigger.Unwrap()->screen.w <= 0.f)
+	const sdl3::FRect r = m_createSubmenu.Bounds();
+	if (!m_contextMenu.IsOpen() || r.w <= 0.f)
 		return false;
-	const sdl3::FRect r = trigger.Unwrap()->screen;
-	m_ctx.gui.OpenPopupAt(m_createSubmenu, sdl3::FPoint{r.x + r.w, r.y});
-	if (auto state = m_ctx.registry.GetComponent<ui::UiPopupState>(m_createSubmenu); state.IsSome())
-		state.Unwrap()->trigger = m_createTrigger;
+	m_createSubmenu.OpenAt(sdl3::FPoint{r.x + r.w, r.y});
 	return true;
 }
 
@@ -246,7 +238,7 @@ void SceneTreePanel::AddRow(const SceneDesc &scene, scene::NodeId id, int depth,
 	const scene::Node *node = scene.tree.Get(id);
 	if (!node)
 		return;
-	const ui::UiTheme &theme = m_ctx.Theme();
+	const ui::Palette &theme = m_ctx.Theme();
 	const bool isRoot = id == scene.tree.Root();
 	// Instance d'objet : référence (icône d'objet) ; nœud généré : contenu
 	// de l'objet, grisé, ni déplaçable ni renommable ici.
@@ -260,32 +252,33 @@ void SceneTreePanel::AddRow(const SceneDesc &scene, scene::NodeId id, int depth,
 		look = kit::NodeLook{ui::MaterialIcons::CATEGORY, kit::Rgb(232, 176, 92), "Instance"};
 	const bool dimmed = !isRoot && (!scene.tree.IsVisibleInTree(id) || node->locked || generated);
 
-	ui::WidgetBuilder row = m_ctx.factory.Selectable(String(), index);
-	row.GrowW().HAuto().Gap(4.f).Pad(math::Sides{4.f + float(depth) * 14.f, 1.f, 6.f, 1.f}).Parent(m_list);
+	ui::WidgetBuilder row = ui::Selectable(String(), index);
+	row.GrowWidth().Gap(4.f).Padding(math::Sides{4.f + float(depth) * 14.f, 1.f, 6.f, 1.f});
 	row.OnClick([this, id, isRoot] {
 		if (!isRoot)
 			(void)m_ctx.runtime.Select(id);
 	});
-	row.OnContextMenu([this, id, isRoot](float x, float y) {
+	row.OnContextMenu(ui::EventCallback([this, id, isRoot](const ui::WidgetEvent &event) {
+		event.StopPropagation(); // la liste ouvrirait sinon le menu de la racine
 		if (!isRoot)
 			(void)m_ctx.runtime.Select(id);
-		OpenContextMenu(id, x, y);
-	});
+		OpenContextMenu(id, event.pointer.x, event.pointer.y);
+	}));
 	if (!generated) {
 		row.DropTarget(String("node"), false); // indicateur propre (avant / après / dans)
 		row.OnDrop([this, id](int64_t payload) { OnDrop(uint32_t(payload), id); });
 	}
 	if (!isRoot && !generated)
-		row.DragPayload(String("node"), int64_t(id.index));
+		row.DragSource(String("node"), int64_t(id.index)); // fantôme propre (cf. UpdateDragFeedback)
 	String tip = scene.tree.PathOf(id);
 	if (instance)
 		tip += String::Format("\nInstance de l'objet « %s » : son contenu suit l'objet", objects::SourceOf(*node).CStr());
 	if (generated)
 		tip += String("\nContenu d'une instance d'objet : modifiez l'objet pour le changer");
 	row.Tooltip(tip);
-	ecs::Entity rowEntity = row.Spawn();
-	if (auto selectable = m_ctx.registry.GetComponent<ui::UiSelectable>(rowEntity); selectable.IsSome())
-		selectable.Unwrap()->selected = m_ctx.runtime.SelectedId() == id;
+	ui::Widget rowEntity = m_list.Append(row);
+	if (m_ctx.runtime.SelectedId() == id)
+		kit::MarkSelected(m_list, index);
 
 	// Flèche (ou retrait de même largeur, pour garder les icônes alignées).
 	if (!flat && !node->children.empty() && !isRoot) {
@@ -294,18 +287,17 @@ void SceneTreePanel::AddRow(const SceneDesc &scene, scene::NodeId id, int depth,
 							  String(expanded ? "Replier" : "Déplier"),
 							  [this, id, expanded] { SetExpanded(id, !expanded); }, 18.f, nullptr, theme.muted);
 	} else {
-		ui::WidgetBuilder gap = m_ctx.factory.Row();
-		gap.Pad(0.f);
-		gap.Size(18.f, 18.f).PointerThrough().Parent(rowEntity);
-		(void)gap.Spawn();
+		ui::WidgetBuilder gap = ui::Row();
+		gap.Padding(0.f);
+		gap.Size(18.f, 18.f).PointerThrough();
+		rowEntity.Append(gap);
 	}
 
 	(void)kit::Glyph(m_ctx, rowEntity, look.icon, dimmed ? theme.muted : look.color, 16.f);
 
-	ui::WidgetBuilder name = m_ctx.factory.Label(node->name);
-	name.WAuto().HAuto().FontSize(13.f).TextColor(dimmed ? theme.muted : theme.text).PointerThrough();
-	name.Parent(rowEntity);
-	(void)name.Spawn();
+	ui::WidgetBuilder name = ui::Label(node->name);
+	name.FontSize(13.f).Color(dimmed ? theme.muted : theme.text).PointerThrough();
+	rowEntity.Append(name);
 
 	String suffix = instance ? String::Format("(Objet : %s)", objects::SourceOf(*node).CStr())
 							 : String::Format("(%s)", look.label);
@@ -321,9 +313,9 @@ void SceneTreePanel::AddRow(const SceneDesc &scene, scene::NodeId id, int depth,
 	const auto scripted = m_scriptClasses.find(id);
 	if (scripted != m_scriptClasses.end())
 		suffix = String::Format("%s · %s", suffix.CStr(), scripted->second.CStr());
-	ui::WidgetBuilder type = m_ctx.factory.Label(suffix);
-	type.GrowW().HAuto().FontSize(12.f).TextColor(theme.muted).TextEllipsis().PointerThrough().Parent(rowEntity);
-	(void)type.Spawn();
+	ui::WidgetBuilder type = ui::Label(suffix);
+	type.GrowWidth().FontSize(12.f).Color(theme.muted).Ellipsis().PointerThrough();
+	rowEntity.Append(type);
 
 	if (!isRoot && !node->visible)
 		(void)kit::Glyph(m_ctx, rowEntity, ui::MaterialIcons::VISIBILITY_OFF, theme.muted, 13.f);
@@ -442,12 +434,12 @@ void SceneTreePanel::RefreshSceneStrip() {
 	if (!m_sceneStrip.Valid())
 		return;
 	kit::ClearChildren(m_ctx, m_sceneStrip);
-	const ui::UiTheme &theme = m_ctx.Theme();
+	const ui::Palette &theme = m_ctx.Theme();
 	const Project &project = m_ctx.runtime.GetProject();
 
-	ui::WidgetBuilder head = m_ctx.factory.Row();
-	head.Pad(math::Sides{2.f, 1.f}).Gap(2.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(m_sceneStrip);
-	ecs::Entity headEntity = head.Spawn();
+	ui::WidgetBuilder head = ui::Row();
+	head.Padding(math::Sides{2.f, 1.f}).Gap(2.f).GrowWidth().AlignItems(ui::Align::Center);
+	ui::Widget headEntity = m_sceneStrip.Append(head);
 	(void)kit::IconButton(m_ctx, headEntity,
 						  m_scenesExpanded ? ui::MaterialIcons::ARROW_DROP_DOWN : ui::MaterialIcons::ARROW_RIGHT,
 						  String(m_scenesExpanded ? "Masquer les scènes" : "Afficher les scènes"),
@@ -457,9 +449,9 @@ void SceneTreePanel::RefreshSceneStrip() {
 						  },
 						  18.f, nullptr, theme.muted);
 	// Les objets réutilisables ont leur propre onglet (« Objets ») : ici, les scènes.
-	ui::WidgetBuilder title = m_ctx.factory.Label(String::Format("Scènes du projet (%d)", int(project.Fs().ListScenes().size())));
-	title.GrowW().HAuto().FontSize(12.f).TextColor(theme.muted).TextEllipsis().PointerThrough().Parent(headEntity);
-	(void)title.Spawn();
+	ui::WidgetBuilder title = ui::Label(String::Format("Scènes du projet (%d)", int(project.Fs().ListScenes().size())));
+	title.GrowWidth().FontSize(12.f).Color(theme.muted).Ellipsis().PointerThrough();
+	headEntity.Append(title);
 	if (!m_scenesExpanded)
 		return;
 
@@ -467,8 +459,8 @@ void SceneTreePanel::RefreshSceneStrip() {
 	for (const String &sceneName : project.Fs().ListScenes()) {
 		const SceneDesc &scene = *project.Fs().FindScene(SceneRef{sceneName});
 		const bool current = m_ctx.runtime.ActivePath() == ProjectPath::Scene(scene.name);
-		ui::WidgetBuilder row = m_ctx.factory.Selectable(String(), index++);
-		row.GrowW().HAuto().Gap(6.f).Pad(math::Sides{22.f, 2.f, 6.f, 2.f}).Parent(m_sceneStrip);
+		ui::WidgetBuilder row = ui::Selectable(String(), index++);
+		row.GrowWidth().Gap(6.f).Padding(math::Sides{22.f, 2.f, 6.f, 2.f});
 		row.Tooltip(scene.description.IsEmpty() ? scene.name : scene.description);
 		row.OnClick([this, name = scene.name] {
 			const SceneDesc *now = m_ctx.runtime.ActiveDocument();
@@ -477,22 +469,22 @@ void SceneTreePanel::RefreshSceneStrip() {
 			if (m_ctx.runtime.OpenScene(SceneRef{name}))
 				Status(String::Format("Scène ouverte : %s", name.CStr()));
 		});
-		ecs::Entity rowEntity = row.Spawn();
-		if (auto selectable = m_ctx.registry.GetComponent<ui::UiSelectable>(rowEntity); selectable.IsSome())
-			selectable.Unwrap()->selected = current;
+		ui::Widget rowEntity = m_sceneStrip.Append(row);
+		if (current)
+			kit::MarkSelected(m_sceneStrip, index - 1);
 		(void)kit::Glyph(m_ctx, rowEntity, ui::MaterialIcons::LAYERS, kit::Rgb(126, 172, 232), 15.f);
-		ui::WidgetBuilder name = m_ctx.factory.Label(scene.name);
-		name.WAuto().HAuto().FontSize(13.f).PointerThrough().Parent(rowEntity);
-		(void)name.Spawn();
-		ui::WidgetBuilder count = m_ctx.factory.Label(String::Format("(%d)", int(scene.NodeCount())));
-		count.GrowW().HAuto().FontSize(12.f).TextColor(theme.muted).TextEllipsis().PointerThrough().Parent(rowEntity);
-		(void)count.Spawn();
+		ui::WidgetBuilder name = ui::Label(scene.name);
+		name.FontSize(13.f).PointerThrough();
+		rowEntity.Append(name);
+		ui::WidgetBuilder count = ui::Label(String::Format("(%d)", int(scene.NodeCount())));
+		count.GrowWidth().FontSize(12.f).Color(theme.muted).Ellipsis().PointerThrough();
+		rowEntity.Append(count);
 	}
 	// Filet entre les scènes et l'arbre de la scène active.
-	ui::WidgetBuilder rule = m_ctx.factory.Row();
-	rule.Pad(0.f);
-	rule.GrowW().H(ui::Dimension::Px(1.f)).Bg(kit::PaletteOf(m_ctx).separator).PointerThrough().Parent(m_sceneStrip);
-	(void)rule.Spawn();
+	ui::WidgetBuilder rule = ui::Row();
+	rule.Padding(0.f);
+	rule.GrowWidth().Height(1.f).Background(kit::PaletteOf(m_ctx).separator).PointerThrough();
+	m_sceneStrip.Append(rule);
 }
 
 // ── Retour visuel du glisser-déposer ─────────────────────────────────────────
@@ -500,26 +492,26 @@ void SceneTreePanel::RefreshSceneStrip() {
 void SceneTreePanel::BuildDragFeedback() {
 	const kit::Palette palette = kit::PaletteOf(m_ctx);
 	// Fantôme : une étiquette flottante qui suit la souris.
-	ui::WidgetBuilder ghost = m_ctx.factory.Row();
-	ghost.Fixed().Hidden().OverlayOrder(900).PointerThrough();
-	ghost.Pad(math::Sides{8.f, 4.f}).Gap(6.f).WAuto().HAuto().Align(ui::CrossAlign::Center).Radius(5.f);
-	ghost.Bg(sdl3::FColor{palette.selection.r, palette.selection.g, palette.selection.b, 0.88f});
+	ui::WidgetBuilder ghost = ui::Row();
+	ghost.Fixed().Hidden().ZIndex(900).PointerThrough();
+	ghost.Padding(math::Sides{8.f, 4.f}).Gap(6.f).AlignItems(ui::Align::Center).BorderRadius(5.f);
+	ghost.Background(sdl3::FColor{palette.selection.r, palette.selection.g, palette.selection.b, 0.88f});
 	ghost.BorderColor(sdl3::FColor{1.f, 1.f, 1.f, 0.35f});
-	m_ghost = ghost.Spawn();
+	m_ghost = m_ctx.gui.Mount(ghost);
 	m_popups.push_back(m_ghost);
 	// Trait d'insertion (avant / après) et cadre (enfant de).
-	ui::WidgetBuilder line = m_ctx.factory.Row();
-	line.Fixed().Hidden().OverlayOrder(899).PointerThrough().Pad(0.f).Size(10.f, 3.f).Radius(1.5f);
-	line.Bg(sdl3::FColor{0.45f, 0.72f, 1.f, 1.f}); // plus clair que la sélection : lisible sur elle aussi
-	m_dropLine = line.Spawn();
+	ui::WidgetBuilder line = ui::Row();
+	line.Fixed().Hidden().ZIndex(899).PointerThrough().Padding(0.f).Size(10.f, 3.f).BorderRadius(1.5f);
+	line.Background(sdl3::FColor{0.45f, 0.72f, 1.f, 1.f}); // plus clair que la sélection : lisible sur elle aussi
+	m_dropLine = m_ctx.gui.Mount(line);
 	m_popups.push_back(m_dropLine);
 	// Deux cadres aux couleurs fixes : « dans ce nœud » et « impossible ici ».
 	auto makeBox = [&](sdl3::FColor color) {
-		ui::WidgetBuilder box = m_ctx.factory.Row();
-		box.Fixed().Hidden().OverlayOrder(899).PointerThrough().Pad(0.f).Size(10.f, 10.f).Radius(3.f);
-		box.Bg(sdl3::FColor{color.r, color.g, color.b, 0.22f});
-		box.BorderColor(color, 2.f);
-		ecs::Entity e = box.Spawn();
+		ui::WidgetBuilder box = ui::Row();
+		box.Fixed().Hidden().ZIndex(899).PointerThrough().Padding(0.f).Size(10.f, 10.f).BorderRadius(3.f);
+		box.Background(sdl3::FColor{color.r, color.g, color.b, 0.22f});
+		box.BorderColor(color).BorderWidth(2.f);
+		ui::Widget e = m_ctx.gui.Mount(box);
 		m_popups.push_back(e);
 		return e;
 	};
@@ -528,27 +520,21 @@ void SceneTreePanel::BuildDragFeedback() {
 }
 
 void SceneTreePanel::HideDragFeedback() {
-	for (ecs::Entity e : {m_ghost, m_dropLine, m_dropBox, m_dropBoxInvalid})
-		if (e.Valid() && !m_ctx.registry.HasComponent<ui::UiHidden>(e))
-			kit::SetHidden(m_ctx, e, true);
+	for (ui::Widget e : {m_ghost, m_dropLine, m_dropBox, m_dropBoxInvalid})
+		if (e.Valid() && e.IsVisible())
+			e.Hide();
 	m_dragSource = m_dropTarget = scene::NodeId{};
 	m_dropZone = DropZone::NONE;
 }
 
 namespace {
 
-void PlaceFixed(UiContext &ctx, ecs::Entity e, float x, float y, Option<sdl3::FPoint> size) {
-	if (auto rect = ctx.registry.GetComponent<ui::UiRect>(e); rect.IsSome()) {
-		rect.Unwrap()->anchor = ui::Anchor::TopLeft;
-		rect.Unwrap()->offset = {x, y};
-	}
+void PlaceFixed(ui::Widget e, float x, float y, Option<sdl3::FPoint> size) {
+	e.Left(x).Top(y);
 	if (size.IsSome())
-		if (auto item = ctx.registry.GetComponent<ui::UiItem>(e); item.IsSome()) {
-			item.Unwrap()->width = ui::Dimension::Px(size.Value().x);
-			item.Unwrap()->height = ui::Dimension::Px(size.Value().y);
-		}
-	if (ctx.registry.HasComponent<ui::UiHidden>(e))
-		kit::SetHidden(ctx, e, false);
+		e.Size(size.Value().x, size.Value().y);
+	if (!e.IsVisible())
+		e.Show();
 }
 
 } // namespace
@@ -556,18 +542,19 @@ void PlaceFixed(UiContext &ctx, ecs::Entity e, float x, float y, Option<sdl3::FP
 void SceneTreePanel::UpdateDragFeedback() {
 	if (!m_ghost.Valid())
 		return;
-	// Le glissé est celui de la bibliothèque ui:: (UiDragPayload sur la
-	// ligne source, UiDropTarget survolé) : on ne fait que le MONTRER.
+	// Le glissé est celui de la bibliothèque ui:: (DragSource sur la ligne
+	// source, DropTarget survolé) : on ne fait que le MONTRER.
+	const Option<ui::PayloadDrag> drag = ui::ActivePayloadDrag(m_ctx.registry);
 	scene::NodeId source, target;
-	for (const RowRef &row : m_rows) {
-		if (auto payload = m_ctx.registry.GetComponent<ui::UiDragPayload>(row.entity);
-			payload.IsSome() && payload.Unwrap()->dragging)
-			source = row.node;
-		if (auto drop = m_ctx.registry.GetComponent<ui::UiDropTarget>(row.entity); drop.IsSome() && drop.Unwrap()->hovered)
-			target = row.node;
-	}
+	if (drag.IsSome())
+		for (const RowRef &row : m_rows) {
+			if (row.entity.Entity() == drag.Value().source)
+				source = row.node;
+			if (row.entity.Entity() == drag.Value().hovered)
+				target = row.node;
+		}
 	if (!source.Valid()) {
-		if (m_dragSource.Valid() || !m_ctx.registry.HasComponent<ui::UiHidden>(m_ghost))
+		if (m_dragSource.Valid() || m_ghost.IsVisible())
 			HideDragFeedback();
 		return;
 	}
@@ -575,7 +562,7 @@ void SceneTreePanel::UpdateDragFeedback() {
 	const scene::Node *node = scene ? scene->tree.Get(source) : nullptr;
 	if (!node)
 		return;
-	const sdl3::FPoint pointer = Pointer();
+	const sdl3::FPoint pointer = drag.Value().pointer;
 
 	// Contenu du fantôme : construit au début du glissé seulement.
 	if (source != m_dragSource) {
@@ -583,13 +570,12 @@ void SceneTreePanel::UpdateDragFeedback() {
 		kit::ClearChildren(m_ctx, m_ghost);
 		const kit::NodeLook look = kit::LookOf(*node);
 		(void)kit::Glyph(m_ctx, m_ghost, look.icon, look.color, 15.f);
-		ui::WidgetBuilder label = m_ctx.factory.Label(node->name);
-		label.WAuto().HAuto().FontSize(13.f).Bold().PointerThrough().Parent(m_ghost);
-		m_ghostLabel = label.Spawn();
-		ui::WidgetBuilder action = m_ctx.factory.Label(String());
-		action.WAuto().HAuto().FontSize(12.f).TextColor(sdl3::FColor{1.f, 1.f, 1.f, 0.75f}).PointerThrough();
-		action.Parent(m_ghost);
-		m_ghostAction = action.Spawn();
+		ui::WidgetBuilder label = ui::Label(node->name);
+		label.FontSize(13.f).Bold().PointerThrough();
+		m_ghostLabel = m_ghost.Append(label);
+		ui::WidgetBuilder action = ui::Label(String());
+		action.FontSize(12.f).Color(sdl3::FColor{1.f, 1.f, 1.f, 0.75f}).PointerThrough();
+		m_ghostAction = m_ghost.Append(action);
 	}
 
 	m_dropTarget = target;
@@ -615,7 +601,7 @@ void SceneTreePanel::UpdateDragFeedback() {
 			break;
 	}
 	kit::SetLabelText(m_ctx, m_ghostAction, action);
-	PlaceFixed(m_ctx, m_ghost, pointer.x + 16.f, pointer.y + 8.f, NONE);
+	PlaceFixed(m_ghost, pointer.x + 16.f, pointer.y + 8.f, NONE);
 
 	// Indicateur sur la ligne cible.
 	const RowRef *row = RowOf(target);
@@ -625,13 +611,13 @@ void SceneTreePanel::UpdateDragFeedback() {
 		const sdl3::FRect r = rect.Value();
 		const float indent = 22.f + float(row->depth) * 14.f; // alignée sur l'icône : on voit le niveau
 		const float y = m_dropZone == DropZone::BEFORE ? r.y - 1.5f : r.y + r.h - 1.5f;
-		PlaceFixed(m_ctx, m_dropLine, r.x + indent, y, Some(sdl3::FPoint{sdl3::Max(20.f, r.w - indent - 4.f), 3.f}));
+		PlaceFixed(m_dropLine, r.x + indent, y, Some(sdl3::FPoint{sdl3::Max(20.f, r.w - indent - 4.f), 3.f}));
 		kit::SetHidden(m_ctx, m_dropBox, true);
 		kit::SetHidden(m_ctx, m_dropBoxInvalid, true);
 	} else if (hasRect && (m_dropZone == DropZone::INSIDE || m_dropZone == DropZone::INVALID)) {
 		const sdl3::FRect r = rect.Value();
 		const bool invalid = m_dropZone == DropZone::INVALID;
-		PlaceFixed(m_ctx, invalid ? m_dropBoxInvalid : m_dropBox, r.x + 1.f, r.y, Some(sdl3::FPoint{r.w - 2.f, r.h}));
+		PlaceFixed(invalid ? m_dropBoxInvalid : m_dropBox, r.x + 1.f, r.y, Some(sdl3::FPoint{r.w - 2.f, r.h}));
 		kit::SetHidden(m_ctx, invalid ? m_dropBox : m_dropBoxInvalid, true);
 		kit::SetHidden(m_ctx, m_dropLine, true);
 	} else {
@@ -641,10 +627,8 @@ void SceneTreePanel::UpdateDragFeedback() {
 	}
 
 	// Défilement automatique près des bords de la liste.
-	auto list = m_ctx.registry.GetComponent<ui::UiComputed>(m_list);
-	auto listRect = m_ctx.registry.GetComponent<ui::UiRect>(m_list);
-	if (list.IsSome() && listRect.IsSome()) {
-		const sdl3::FRect l = list.Unwrap()->screen;
+	{
+		const sdl3::FRect l = m_list.Bounds();
 		constexpr float EDGE = 28.f, STEP = 9.f;
 		float delta = 0.f;
 		if (pointer.y < l.y + EDGE && pointer.y >= l.y - EDGE)
@@ -652,50 +636,34 @@ void SceneTreePanel::UpdateDragFeedback() {
 		else if (pointer.y > l.y + l.h - EDGE && pointer.y <= l.y + l.h + EDGE)
 			delta = STEP;
 		if (delta != 0.f) {
-			ui::UiRect &rr = *listRect.Unwrap();
-			rr.scroll.y = sdl3::Clamp(rr.scroll.y + delta, 0.f, rr.MaxScroll().y);
+			const sdl3::FPoint offset = m_list.ScrollOffset();
+			m_list.ScrollTo(sdl3::FPoint{offset.x, offset.y + delta});
 		}
 	}
-	m_ctx.gui.Layout().MarkDirty();
 }
 
 void SceneTreePanel::ScrollToSelection() {
 	const scene::NodeId selected = m_ctx.runtime.SelectedId();
-	auto list = m_ctx.registry.GetComponent<ui::UiComputed>(m_list);
-	auto rect = m_ctx.registry.GetComponent<ui::UiRect>(m_list);
-	if (!selected.Valid() || list.IsNone() || rect.IsNone()) {
-		m_scrollToSelection = false;
-		return;
-	}
-	for (const RowRef &row : m_rows) {
-		if (row.node != selected)
+	for (RowRef &row : m_rows) {
+		if (!selected.Valid() || row.node != selected)
 			continue;
-		auto computed = m_ctx.registry.GetComponent<ui::UiComputed>(row.entity);
-		if (computed.IsNone() || computed.Unwrap()->screen.h <= 0.f)
+		if (row.entity.Bounds().h <= 0.f)
 			return; // pas encore mise en page : on réessaiera à l'image suivante
-		const sdl3::FRect view = list.Unwrap()->screen;
-		const sdl3::FRect line = computed.Unwrap()->screen;
-		ui::UiRect &r = *rect.Unwrap();
-		if (line.y < view.y)
-			r.scroll.y -= view.y - line.y + 4.f;
-		else if (line.y + line.h > view.y + view.h)
-			r.scroll.y += line.y + line.h - (view.y + view.h) + 4.f;
-		r.ClampScroll();
-		m_ctx.gui.Layout().MarkDirty();
+		row.entity.ScrollIntoView();
 		break;
 	}
 	m_scrollToSelection = false;
 }
 
-ecs::Entity SceneTreePanel::Item(ecs::Entity menu, const char *text, const char *shortcut, std::function<void()> action) {
-	ui::WidgetBuilder item = m_ctx.factory.MenuItem(String(text), String(shortcut));
-	item.OnClick(std::move(action)).Parent(menu);
-	return item.Spawn();
+ui::Widget SceneTreePanel::Item(ui::Widget menu, const char *text, const char *shortcut, std::function<void()> action) {
+	ui::WidgetBuilder item = ui::MenuItem(String(text), String(shortcut));
+	item.OnClick(std::move(action));
+	return menu.Append(item);
 }
 
-void SceneTreePanel::AddCreateEntries(ecs::Entity menu) {
+void SceneTreePanel::AddCreateEntries(ui::Widget menu) {
 	for (const char *category : {"3D", "Lumière", "Logique"}) {
-		ecs::Entity sub = m_ctx.factory.SubMenu(menu, String(category));
+		ui::Widget sub = menu.Append(ui::SubMenu(String(category)));
 		m_popups.push_back(sub);
 		for (const NodeTemplate &entry : NODE_TEMPLATES) {
 			if (String(entry.category) != category)
@@ -714,14 +682,11 @@ void SceneTreePanel::AddCreateEntries(ecs::Entity menu) {
 
 void SceneTreePanel::BuildMenus() {
 	// Menu contextuel d'une ligne.
-	m_contextMenu = m_ctx.factory.ContextMenu();
+	m_contextMenu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_popups.push_back(m_contextMenu);
-	ecs::Entity create = m_ctx.factory.SubMenu(m_contextMenu, String("Créer un nœud enfant"));
+	ui::Widget create = m_contextMenu.Append(ui::SubMenu(String("Créer un nœud enfant")));
 	m_popups.push_back(create);
 	m_createSubmenu = create;
-	if (auto children = m_ctx.registry.GetComponent<ui::UiChildren>(m_contextMenu);
-		children.IsSome() && !children.Unwrap()->list.empty())
-		m_createTrigger = children.Unwrap()->list.front();
 	AddCreateEntries(create);
 	m_nodeOnlyItems.clear();
 	m_nodeOnlyItems.push_back(Item(m_contextMenu, "Dupliquer", "Ctrl+D", [this] {
@@ -777,12 +742,12 @@ void SceneTreePanel::BuildMenus() {
 	}));
 
 	// Menu du bouton + (création seule).
-	m_createMenu = m_ctx.factory.ContextMenu();
+	m_createMenu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_popups.push_back(m_createMenu);
 	AddCreateEntries(m_createMenu);
 
 	// Menu ≡ de l'arbre.
-	m_optionsMenu = m_ctx.factory.ContextMenu();
+	m_optionsMenu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_popups.push_back(m_optionsMenu);
 	(void)Item(m_optionsMenu, "Tout déplier", "", [this] { ExpandAll(true); });
 	(void)Item(m_optionsMenu, "Tout replier", "", [this] { ExpandAll(false); });
@@ -791,33 +756,26 @@ void SceneTreePanel::BuildMenus() {
 }
 
 void SceneTreePanel::BuildRenameDialog() {
-	ui::WidgetBuilder title = m_ctx.factory.Label(String("Renommer le nœud"));
-	title.FontSize(15.f).Bold().WAuto().HAuto();
-	ui::WidgetBuilder input = m_ctx.factory.Input();
-	input.GrowW().H(ui::Dimension::Px(28.f)).OnSubmit([this](const String &text) { ApplyRename(text); });
-	ui::WidgetBuilder ok = m_ctx.factory.Button(String("Renommer"));
-	ok.WAuto().HAuto().OnClick([this] {
-		if (auto field = m_ctx.registry.GetComponent<ui::UiInput>(m_renameInput); field.IsSome())
-			ApplyRename(field.Unwrap()->text);
-	});
-	ui::WidgetBuilder cancel = m_ctx.factory.Button(String("Annuler"));
-	cancel.WAuto().HAuto().OnClick([this] { m_ctx.gui.CloseModal(m_renameModal); });
-	ui::WidgetBuilder buttons = m_ctx.factory.Row();
-	buttons.Pad(0.f);
-	buttons.Gap(8.f).GrowW().HAuto().Justify(ui::Justify::End).Children(std::move(cancel), std::move(ok));
-	ui::WidgetBuilder panel = m_ctx.factory.Panel();
-	panel.Size(380.f, 150.f).Pad(16.f).Gap(12.f).Children(std::move(title), std::move(input), std::move(buttons));
-	m_renameModal = m_ctx.factory.Modal(std::move(panel)).Spawn();
+	ui::WidgetBuilder title = ui::Label(String("Renommer le nœud"));
+	title.FontSize(15.f).Bold();
+	ui::WidgetBuilder input = ui::Input();
+	input.GrowWidth().Height(28.f).Ref(m_renameInput).OnSubmit([this](const String &text) { ApplyRename(text); });
+	ui::WidgetBuilder ok = ui::Button(String("Renommer"));
+	ok.OnClick([this] { ApplyRename(m_renameInput.Text()); });
+	ui::WidgetBuilder cancel = ui::Button(String("Annuler"));
+	cancel.OnClick([this] { m_renameModal.Close(); });
+	ui::WidgetBuilder buttons = ui::Row();
+	buttons.Padding(0.f);
+	buttons.Gap(8.f).GrowWidth().JustifyContent(ui::Justify::End).Children({std::move(cancel), std::move(ok)});
+	ui::WidgetBuilder panel = ui::Panel();
+	panel.Size(380.f, 150.f).Padding(16.f).Gap(12.f).Children({std::move(title), std::move(input), std::move(buttons)});
+	m_renameModal = m_ctx.gui.Mount(ui::Modal(std::move(panel)));
 	m_popups.push_back(m_renameModal);
-	m_ctx.registry.Query<ui::UiInput, ui::UiParent>([this](ecs::Entity e, ui::UiInput &, ui::UiParent &) {
-		if (ui::IsDescendantOrSelf(m_ctx.registry, e, m_renameModal))
-			m_renameInput = e;
-	});
 }
 
 void SceneTreePanel::ApplyRename(const String &text) {
 	const String name = text.Trim();
-	m_ctx.gui.CloseModal(m_renameModal);
+	m_renameModal.Close();
 	if (name.IsEmpty() || !m_renameTarget.Valid())
 		return;
 	if (m_ctx.runtime.RenameNode(m_renameTarget, name)) {

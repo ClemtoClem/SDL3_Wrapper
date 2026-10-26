@@ -266,7 +266,7 @@ temps réel dans le build par défaut**. Build rapide, dans un dossier séparé
 - Race préexistante non corrigée : la boîte « Codes de triche » modifie
   `ActionReplay::cheats` depuis le fil principal pendant que le fil
   d'émulation les applique (le mutex d'`ActionReplay` est privé).
-- `sdl3::GamepadButton::Start` : seule valeur non MAJUSCULE de l'énumération.
+- `sdl3::GamepadButton::START` : seule valeur non MAJUSCULE de l'énumération.
 
 ## Commandes
 

@@ -109,6 +109,10 @@ bool TextureAtlas::Contains(const String &id) const { return m_rects.contains(id
 namespace {
 
 constexpr float AO_LEVELS[4] = {0.45f, 0.65f, 0.83f, 1.f};
+/// Lumière du ciel selon le nombre de blocs opaques au-dessus.
+constexpr float SKY_LEVELS[8] = {1.f, 0.82f, 0.64f, 0.5f, 0.38f, 0.3f, 0.24f, 0.2f};
+constexpr int PADDED = CHUNK_SIZE + 2;
+size_t CoverIndex(int x, int y, int z) { return size_t(((y + 1) * PADDED + (z + 1)) * PADDED + (x + 1)); }
 
 int NormalAxis(Face f) { return f == Face::EAST || f == Face::WEST ? 0 : f == Face::TOP || f == Face::BOTTOM ? 1 : 2; }
 
@@ -279,7 +283,7 @@ void ChunkMesher::EmitBox(MeshBuffer &out, const Box &box, const BlockRender &re
 	}
 }
 
-void ChunkMesher::EmitCross(MeshBuffer &out, const BlockRender &render, const math::FVector3 &o) const {
+void ChunkMesher::EmitCross(MeshBuffer &out, const BlockRender &render, const math::FVector3 &o, float light) const {
 	const TextureAtlas::Rect &rect = render.faces[size_t(Face::SOUTH)];
 	const math::FVector2 uvs[4] = {{rect.u0, rect.v1}, {rect.u1, rect.v1}, {rect.u1, rect.v0}, {rect.u0, rect.v0}};
 	const float a = 0.15f, b = 0.85f;
@@ -297,13 +301,13 @@ void ChunkMesher::EmitCross(MeshBuffer &out, const BlockRender &render, const ma
 		}
 		const math::FVector3 n = (q[1] - q[0]).Cross(q[3] - q[0]).Normalize();
 		const std::array<uint8_t, 4> &tint = render.tintFaces ? render.tinted : render.tint;
-		PushQuad(out, front, uvs, n, tint, {1.f, 1.f, 1.f, 1.f});
-		PushQuad(out, back, backUv, n * -1.f, tint, {1.f, 1.f, 1.f, 1.f});
+		PushQuad(out, front, uvs, n, tint, {light, light, light, light});
+		PushQuad(out, back, backUv, n * -1.f, tint, {light, light, light, light});
 	}
 }
 
 void ChunkMesher::EmitModel(MeshBuffer &out, const String &model, const BlockRender &render, const math::FVector3 &offset,
-							uint8_t param, const String &mod, bool normalize) const {
+							uint8_t param, const String &mod, bool normalize, float light) const {
 	if (!m_assets) {
 		EmitBox(out, Box{}, render, offset, {}, {});
 		return;
@@ -340,6 +344,8 @@ void ChunkMesher::EmitModel(MeshBuffer &out, const String &model, const BlockRen
 				const math::FVector2 uv = src < mesh.uvs.size() ? mesh.uvs[src] : math::FVector2{0.f, 0.f};
 				v.uv = {rect.u0 + (rect.u1 - rect.u0) * std::clamp(uv.x, 0.f, 1.f), rect.v0 + (rect.v1 - rect.v0) * std::clamp(uv.y, 0.f, 1.f)};
 				v.color = render.tintFaces ? render.tinted : render.tint;
+				for (int c = 0; c < 3; ++c)
+					v.color[size_t(c)] = uint8_t(float(v.color[size_t(c)]) * light);
 				out.vertices.push_back(v);
 				out.indices.push_back(base + uint32_t(remap.size()));
 				remap.push_back(src);
@@ -357,6 +363,48 @@ void ChunkMesher::EmitModel(MeshBuffer &out, const String &model, const BlockRen
 			for (uint32_t k : {0u, 2u, 1u})
 				out.indices.push_back(base + front + t + k);
 	}
+}
+
+void ChunkMesher::SkyCover(const World &world, const ChunkPos &cp, std::vector<uint8_t> &cover) const {
+	cover.assign(size_t(PADDED * PADDED * PADDED), 0);
+	const BlockPos origin = cp.Origin();
+	ChunkGenerator *generator = world.Generator();
+	auto opaque = [&](BlockId id) { return id < m_blocks.size() && m_blocks[id].opaqueCube; };
+	for (int dz = -1; dz <= 1; ++dz)
+		for (int dx = -1; dx <= 1; ++dx) {
+			const int cx = cp.x + dx, cz = cp.z + dz;
+			// Chunks chargés d'affilée au-dessus de celui-ci (16 au plus).
+			int topCy = cp.y + 1;
+			while (topCy - cp.y <= 16 && world.GetChunk({cx, topCy, cz}))
+				++topCy;
+			const bool unknownAbove = !world.GetChunk({cx, topCy, cz});
+			const int topY = topCy * CHUNK_SIZE - 1;
+			const int x0 = dx < 0 ? CHUNK_SIZE - 1 : 0, x1 = dx > 0 ? 0 : CHUNK_SIZE - 1;
+			const int z0 = dz < 0 ? CHUNK_SIZE - 1 : 0, z1 = dz > 0 ? 0 : CHUNK_SIZE - 1;
+			for (int lz = z0; lz <= z1; ++lz)
+				for (int lx = x0; lx <= x1; ++lx) {
+					const int px = dx * CHUNK_SIZE + lx, pz = dz * CHUNK_SIZE + lz; // coordonnées bordées (-1..16)
+					int count = 0;
+					// Au-delà des chunks chargés : l'estimation du générateur.
+					if (unknownAbove && generator)
+						if (Option<int> e = generator->SkyCover(origin.x + px, origin.z + pz); e.IsSome() && e.Unwrap() > topY)
+							count = std::min(255, e.Unwrap() - topY);
+					const Chunk *chunk = nullptr;
+					int chunkY = INT32_MAX;
+					for (int y = topY; y >= origin.y - 1; --y) {
+						if (y < origin.y + CHUNK_SIZE + 1)
+							cover[CoverIndex(px, y - origin.y, pz)] = uint8_t(std::min(count, 255));
+						const int cy = FloorDiv(y, CHUNK_SIZE);
+						if (cy != chunkY) {
+							chunkY = cy;
+							chunk = world.GetChunk({cx, cy, cz});
+						}
+						if (chunk && !(chunk->IsUniform() && chunk->UniformBlock() == AIR) &&
+							opaque(chunk->Get(lx, FloorMod(y, CHUNK_SIZE), lz)))
+							++count;
+					}
+				}
+		}
 }
 
 ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
@@ -403,10 +451,23 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 		}
 		return columnColors[i][size_t(kind - 1)];
 	};
-	// Un voisin NON chargé cache les faces (pas de murs visibles au bord du monde chargé).
+	// Un voisin NON chargé cache les faces (pas de murs visibles au bord du monde chargé)…
 	auto occludes = [&](int x, int y, int z) {
 		const int i = Padded::Index(x, y, z);
 		return !pad.loaded[size_t(i)] || render(pad.ids[size_t(i)]).opaqueCube;
+	};
+	// …mais n'assombrit pas les coins : l'occlusion ne compte que les blocs
+	// réels (le chunk sera refait quand son voisin arrivera).
+	auto shades = [&](int x, int y, int z) {
+		const int i = Padded::Index(x, y, z);
+		return pad.loaded[size_t(i)] && render(pad.ids[size_t(i)]).opaqueCube;
+	};
+	// Lumière du ciel.
+	std::vector<uint8_t> cover;
+	if (options.skyLight)
+		SkyCover(world, cp, cover);
+	auto sky = [&](int x, int y, int z) {
+		return cover.empty() ? 1.f : SKY_LEVELS[std::min<int>(cover[CoverIndex(x, y, z)], 7)];
 	};
 	for (int y = 0; y < CHUNK_SIZE; ++y)
 		for (int z = 0; z < CHUNK_SIZE; ++z)
@@ -450,7 +511,8 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 					};
 					auto ao = [&](Face f, const math::FVector3 *corners) {
 						std::array<float, 4> levels{1.f, 1.f, 1.f, 1.f};
-						if (r.translucent || !options.ambientOcclusion)
+						const bool occlusion = !r.translucent && options.ambientOcclusion;
+						if (!occlusion && cover.empty())
 							return levels;
 						const BlockPos n = FaceNormal(f);
 						const int axis = NormalAxis(f);
@@ -460,11 +522,32 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 							s[t1] = Get(corners[k], t1) > 0.5f ? 1 : -1;
 							s[t2] = Get(corners[k], t2) > 0.5f ? 1 : -1;
 							const int qx = x + n.x, qy = y + n.y, qz = z + n.z;
-							const bool side1 = occludes(qx + (t1 == 0 ? s[0] : 0), qy + (t1 == 1 ? s[1] : 0), qz + (t1 == 2 ? s[2] : 0));
-							const bool side2 = occludes(qx + (t2 == 0 ? s[0] : 0), qy + (t2 == 1 ? s[1] : 0), qz + (t2 == 2 ? s[2] : 0));
-							const bool corner = occludes(qx + s[0], qy + s[1], qz + s[2]);
-							const int level = side1 && side2 ? 0 : 3 - int(side1) - int(side2) - int(corner);
-							levels[size_t(k)] = AO_LEVELS[std::clamp(level, 0, 3)];
+							const int ax = qx + (t1 == 0 ? s[0] : 0), ay = qy + (t1 == 1 ? s[1] : 0), az = qz + (t1 == 2 ? s[2] : 0);
+							const int bx = qx + (t2 == 0 ? s[0] : 0), by = qy + (t2 == 1 ? s[1] : 0), bz = qz + (t2 == 2 ? s[2] : 0);
+							const bool side1 = shades(ax, ay, az), side2 = shades(bx, by, bz);
+							const bool corner = shades(qx + s[0], qy + s[1], qz + s[2]);
+							if (occlusion) {
+								const int level = side1 && side2 ? 0 : 3 - int(side1) - int(side2) - int(corner);
+								levels[size_t(k)] = AO_LEVELS[std::clamp(level, 0, 3)];
+							}
+							if (!cover.empty()) {
+								// Moyenne des cellules libres autour du sommet (lissage).
+								float sum = sky(qx, qy, qz);
+								int samples = 1;
+								if (!side1) {
+									sum += sky(ax, ay, az);
+									++samples;
+								}
+								if (!side2) {
+									sum += sky(bx, by, bz);
+									++samples;
+								}
+								if (!corner && !(side1 && side2)) {
+									sum += sky(qx + s[0], qy + s[1], qz + s[2]);
+									++samples;
+								}
+								levels[size_t(k)] *= sum / float(samples);
+							}
 						}
 						return levels;
 					};
@@ -481,15 +564,18 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 							const BlockPos n = BlockPos{x, y, z}.Neighbor(f);
 							return occludes(n.x, n.y, n.z);
 						};
-						EmitBox(out, b, r, offset, cull, {});
+						const float light = sky(x, y, z);
+						EmitBox(out, b, r, offset, cull, [light](Face, const math::FVector3 *) {
+							return std::array<float, 4>{light, light, light, light};
+						});
 					}
 				} else if (r.shape == ShapeKind::CROSS) {
 					// Densité de végétation : une partie des plantes seulement.
 					if (options.crossDensity >= 1.f ||
 						float(HashPosition(0x9e37u, origin.x + x, origin.y + y, origin.z + z, 3) % 1000u) < options.crossDensity * 1000.f)
-						EmitCross(out, r, offset);
+						EmitCross(out, r, offset, sky(x, y, z));
 				} else if (r.shape == ShapeKind::MODEL) {
-					EmitModel(out, def.shape.model, r, offset, param, def.mod, true);
+					EmitModel(out, def.shape.model, r, offset, param, def.mod, true, sky(x, y, z));
 				}
 			}
 	(void)origin;

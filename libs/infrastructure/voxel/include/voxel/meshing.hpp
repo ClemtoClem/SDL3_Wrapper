@@ -10,7 +10,9 @@
  *    pixels transparents écartés par le shader) et TRANSLUCIDE (eau, verre,
  *    glace : mélangés, dessinés après). Faces cachées par un bloc opaque
  *    retirées, faces entre deux blocs translucides identiques retirées,
- *    occlusion ambiante par sommet (coins assombris), nodebox orientées
+ *    occlusion ambiante par sommet (coins assombris), lumière du CIEL par
+ *    sommet (assombrie par les blocs opaques au-dessus, sur toute la hauteur
+ *    chargée — estimée par le générateur au-delà), nodebox orientées
  *    (param), plantes en croix, modèles .obj/.b3d/json, eau abaissée sous
  *    l'air.
  *  - Formes isolées (entités, objets au sol, blocs qui tombent) : même code.
@@ -81,6 +83,7 @@ public:
 	/// Options de rendu (réglages graphiques).
 	struct Options {
 		bool ambientOcclusion = true;
+		bool skyLight = true;     ///< grottes et surplombs assombris (cf. DimensionDef::skyLight)
 		float crossDensity = 1.f; ///< part des plantes en croix affichées (0..1)
 	};
 	Options options;
@@ -108,9 +111,12 @@ private:
 
 	void EmitBox(MeshBuffer &out, const Box &box, const BlockRender &render, const math::FVector3 &offset,
 				 const std::function<bool(Face)> &cull, const std::function<std::array<float, 4>(Face, const math::FVector3 *)> &ao) const;
-	void EmitCross(MeshBuffer &out, const BlockRender &render, const math::FVector3 &offset) const;
+	void EmitCross(MeshBuffer &out, const BlockRender &render, const math::FVector3 &offset, float light = 1.f) const;
 	void EmitModel(MeshBuffer &out, const String &model, const BlockRender &render, const math::FVector3 &offset, uint8_t param,
-				   const String &mod, bool normalize) const;
+				   const String &mod, bool normalize, float light = 1.f) const;
+	/// Couverture de chaque cellule du chunk bordé : nombre de blocs opaques
+	/// au-dessus (plafonné à 255), sur les chunks chargés puis estimé.
+	void SkyCover(const World &world, const ChunkPos &cp, std::vector<uint8_t> &cover) const;
 
 	const ContentRegistry &m_content;
 	const TextureAtlas &m_atlas;

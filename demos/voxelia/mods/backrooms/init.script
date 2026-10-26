@@ -1,0 +1,59 @@
+# Mod « backrooms » : ambiance sonore de chaque niveau et messages.
+# La dimension (world.json) reçoit les joueurs morts de suffocation
+# (« enterOnDeath ») ; les portes d'ascenseur sous un panneau EXIT ramènent
+# au monde ordinaire.
+
+let level_sounds = {
+    level_lobby: "backrooms:backrooms_amb_city",
+    level_hotel: "backrooms:backrooms_amb_hotel",
+    level_hospital: "backrooms:backrooms_amb_hospital",
+    level_parking: "backrooms:backrooms_amb_parking",
+    level_pool: "backrooms:backrooms_amb_pool"
+}
+let details = ["backrooms:backrooms_creak", "backrooms:backrooms_ligh_buzz", "backrooms:backrooms_ventilation",
+               "backrooms:backrooms_ventilation_motor", "backrooms:backrooms_drip"]
+
+let ambience = 4
+let detail = 9
+
+fn in_backrooms() { return world.dimension() == "backrooms:backrooms" }
+
+voxel.on("dimension_changed", fn(player, to, from) {
+    if (to == "backrooms:backrooms") {
+        game.say("Vous vous réveillez sur une moquette humide. Le néon grésille. Cherchez une porte d'ascenseur sous un panneau EXIT.")
+        ambience = 1
+    }
+    if (from == "backrooms:backrooms") {
+        game.say("Les portes se referment derrière vous. L'air est de nouveau respirable.")
+    }
+})
+
+voxel.system("backrooms_ambience", fn(dt) {
+    if (not in_backrooms()) { return nil }
+    let players = entity.players()
+    if (len(players) == 0) { return nil }
+    let p = entity.pos(players[0])
+    ambience -= dt
+    detail -= dt
+    if (ambience <= 0) {
+        ambience = 25 + math.random() * 20
+        let biome = world.biome(p.x, p.z)
+        if (biome != nil and biome.starts_with("backrooms:")) {
+            let sound = level_sounds[biome.sub(10)]
+            if (sound != nil) { game.ambient(sound, 0.6) }
+        }
+    }
+    if (detail <= 0) {
+        detail = 6 + math.random() * 12
+        let sound = details[math.floor(math.random() * len(details))]
+        game.sound(sound, p.x + math.random() * 16 - 8, p.y + 2, p.z + math.random() * 16 - 8)
+    }
+})
+
+voxel.on("portal_used", fn(player, to) {
+    if (in_backrooms()) {
+        let p = entity.pos(player)
+        game.sound("backrooms:backrooms_elevator_ding", p.x, p.y + 1, p.z)
+    }
+    return true
+})

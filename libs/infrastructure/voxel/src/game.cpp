@@ -9,6 +9,7 @@
 #include <cmath>
 #include <map>
 #include <sstream>
+#include <tuple>
 
 #include <ecs/events.hpp>
 #include <ecs/relations.hpp>
@@ -184,14 +185,58 @@ Result<bool, String> Game::OpenWorld(const String &name, Option<uint32_t> seed, 
 	m_metadata.mods.clear();
 	for (const ModInfo &mod : m_mods.mods)
 		m_metadata.mods.push_back({mod.id, mod.version});
-	WorldSettings settings{m_metadata.name, m_metadata.seed, m_metadata.generator, m_metadata.settings};
+	// Le monde s'ouvre dans la dimension ordinaire ; le joueur rejoint la sienne
+	// (JoinPlayer) s'il était ailleurs.
+	CreateWorld(m_content.DefaultDimension());
+	Result<size_t, String> entities = m_save->LoadEntities(m_registry);
+	if (entities.IsError())
+		LogLine(String("[erreur] ") + entities.Error());
+	for (const String &w : m_save->Warnings())
+		LogLine(String("[sauvegarde] ") + w);
+	LogLine(String::Format("Monde « %s » (graine %u, générateur %s)", m_metadata.name.CStr(), m_metadata.seed,
+						   m_metadata.generator.CStr()));
+	return Ok(true);
+}
+
+// ── Dimensions ───────────────────────────────────────────────────────────────
+
+namespace {
+
+uint32_t HashText(const String &text) {
+	uint32_t h = 2166136261u; // FNV-1a
+	for (size_t i = 0; i < text.GetSize(); ++i) {
+		h ^= uint8_t(text.CStr()[i]);
+		h *= 16777619u;
+	}
+	return h;
+}
+
+} // namespace
+
+bool Game::IsDefaultDimension(const String &dimension) const {
+	return dimension.IsEmpty() || dimension == m_content.DefaultDimension();
+}
+
+const DimensionDef *Game::CurrentDimensionDef() const {
+	return m_dimension.IsEmpty() ? nullptr : m_content.FindDimension(m_dimension);
+}
+
+void Game::CreateWorld(const String &dimension) {
+	m_dimension = dimension;
+	const DimensionDef *def = CurrentDimensionDef();
+	const bool overworld = IsDefaultDimension(dimension);
+	// Le monde ordinaire garde les clés de sauvegarde d'origine.
+	m_save->SetDimension(overworld ? String() : dimension);
+	const String generator = def && !def->generator.IsEmpty() ? def->generator : m_metadata.generator;
+	const uint32_t seed = overworld ? m_metadata.seed : m_metadata.seed ^ HashText(dimension);
+	WorldSettings settings{m_metadata.name, seed, generator, m_metadata.settings};
 	m_world = std::make_unique<World>(m_content, settings);
 	m_world->SetStorage(m_save.get());
-	auto terrain = MakeGenerator(m_content, m_metadata.generator, m_metadata.seed, m_scripts->Generator());
-	if (m_metadata.generator.IsEmpty())
+	auto terrain = MakeGenerator(m_content, generator, seed, m_scripts->Generator());
+	if (overworld && m_metadata.generator.IsEmpty())
 		m_metadata.generator = terrain->Definition().id;
-	// Réglages de génération choisis à la création du monde.
-	if (NodePtr g = json::At(m_metadata.settings, "generation"); g && g->IsObject()) {
+	// Réglages de génération choisis à la création du monde (monde ordinaire).
+	if (NodePtr g = json::At(m_metadata.settings, "generation"); overworld && g && g->IsObject()) {
 		GenerationTuning tuning;
 		tuning.relief = float(json::Num(g, "relief", 1.0));
 		tuning.caves = float(json::Num(g, "caves", 1.0));
@@ -206,14 +251,234 @@ Result<bool, String> Game::OpenWorld(const String &name, Option<uint32_t> seed, 
 		if (m_scripts->HasHandlers("chunk_generated"))
 			(void)m_scripts->Emit("chunk_generated", {Value::Int(p.x), Value::Int(p.y), Value::Int(p.z)});
 	});
-	Result<size_t, String> entities = m_save->LoadEntities(m_registry);
-	if (entities.IsError())
-		LogLine(String("[erreur] ") + entities.Error());
-	for (const String &w : m_save->Warnings())
-		LogLine(String("[sauvegarde] ") + w);
-	LogLine(String::Format("Monde « %s » (graine %u, générateur %s)", m_metadata.name.CStr(), m_metadata.seed,
-						   m_metadata.generator.CStr()));
+	m_physics.gravity = m_baseGravity * (def ? def->gravity : 1.f);
+	m_dimensionEnter = m_metadata.playTime;
+	++m_worldSerial;
+}
+
+NodePtr Game::DimensionData(const String &dimension) {
+	const String id = dimension.IsEmpty() ? (m_dimension.IsEmpty() ? String("default") : m_dimension) : dimension;
+	if (!m_metadata.settings || !m_metadata.settings->IsObject())
+		m_metadata.settings = dataio::Node::MakeObject();
+	NodePtr all = json::At(m_metadata.settings, "dimensions");
+	if (!all || !all->IsObject()) {
+		all = dataio::Node::MakeObject();
+		m_metadata.settings->Set("dimensions", all);
+	}
+	NodePtr data = all->Has(id) ? all->Get(id) : nullptr;
+	if (!data || !data->IsObject()) {
+		data = dataio::Node::MakeObject();
+		all->Set(id, data);
+	}
+	return data;
+}
+
+math::FVector3 Game::EyePosition(ecs::Entity e) {
+	auto t = m_registry.GetComponent<Transform>(e);
+	if (t.IsNone())
+		return {0.f, 0.f, 0.f};
+	auto body = m_registry.GetComponent<PhysicsBody>(e);
+	const bool inverted = body.IsSome() && body.Unwrap()->gravityDirection < 0.f;
+	return t.Unwrap()->position + math::FVector3{0.f, inverted ? 1.8f - EYE_HEIGHT : EYE_HEIGHT, 0.f};
+}
+
+math::FVector3 Game::DimensionSpawn() {
+	if (IsDefaultDimension(m_dimension))
+		return SpawnPoint();
+	NodePtr data = DimensionData();
+	if (NodePtr known = json::At(data, "spawn"); known && known->IsArray() && known->GetSize() == 3) {
+		const math::FVector3 p = json::Vec3(data, "spawn");
+		const BlockPos b = BlockPos::FromWorld(p);
+		if (StandableY(b.x, b.z, b.y + 1, b.y - 8).IsSome())
+			return p;
+	}
+	const math::FVector3 p = FindSpawn();
+	NodePtr v = dataio::Node::MakeArray();
+	v->Push(json::MakeNum(p.x));
+	v->Push(json::MakeNum(p.y));
+	v->Push(json::MakeNum(p.z));
+	data->Set("spawn", v);
+	return p;
+}
+
+void Game::PlaceArrivalPortal(const DimensionDef &def, const math::FVector3 &spawn) {
+	NodePtr data = DimensionData();
+	if (json::Bool(data, "arrivalPortal", false))
+		return;
+	const BlockDef *portal = m_content.FindBlock(def.arrivalPortal);
+	if (!portal)
+		return;
+	// Deux blocs de portail à trois pas, posés sur un socle si le sol manque.
+	const BlockPos base = BlockPos::FromWorld(spawn + math::FVector3{3.f, 0.f, 0.f});
+	const BlockDef *frame = m_content.FindBlock(json::Str(def.raw, "arrival.frame"));
+	if (!m_world->BlockAt(base + BlockPos{0, -1, 0}).solid && frame)
+		(void)m_world->SetBlock(base + BlockPos{0, -1, 0}, frame->numeric, 0, ChangeCause::SCRIPT);
+	(void)m_world->SetBlock(base, portal->numeric, 0, ChangeCause::SCRIPT);
+	(void)m_world->SetBlock(base + BlockPos{0, 1, 0}, portal->numeric, 0, ChangeCause::SCRIPT);
+	if (frame)
+		(void)m_world->SetBlock(base + BlockPos{0, 2, 0}, frame->numeric, 0, ChangeCause::SCRIPT);
+	data->Set("arrivalPortal", json::MakeBool(true));
+}
+
+void Game::SettlePlayer(ecs::Entity e) {
+	auto t = m_registry.GetComponent<Transform>(e);
+	if (t.IsNone())
+		return;
+	(void)m_world->UpdateLoadedArea({BlockPos::FromWorld(t.Unwrap()->position)}, 2, 2, 200);
+	math::FVector3 &p = t.Unwrap()->position;
+	auto blocked = [&](const math::FVector3 &feet) {
+		std::vector<Box> boxes;
+		CollectBlockBoxes(*m_world, Box::AtFeet(feet, {0.6f, 1.8f, 0.6f}), boxes);
+		const Box body = Box::AtFeet(feet, {0.6f, 1.8f, 0.6f});
+		return std::any_of(boxes.begin(), boxes.end(), [&](const Box &b) { return b.Intersects(body); });
+	};
+	for (int i = 0; i < 64 && blocked(p); ++i)
+		p.y = std::floor(p.y) + 1.f;
+	t.Unwrap()->previous = p;
+}
+
+Result<bool, String> Game::TravelTo(ecs::Entity player, const String &dimension, Option<math::FVector3> at) {
+	if (!m_world)
+		return Err(String("aucun monde ouvert"));
+	const String target = dimension.IsEmpty() ? m_content.DefaultDimension() : dimension;
+	if (!target.IsEmpty() && !m_content.FindDimension(target))
+		return Err(String::Format("dimension inconnue « %s »", target.CStr()));
+	if (!m_registry.HasComponent<Player>(player))
+		return Err(String("seul un joueur change de dimension"));
+	if (m_inTick) {
+		m_travels.push_back(PendingTravel{player, target, at});
+		return Ok(true);
+	}
+	DoTravel(player, target, at, true);
 	return Ok(true);
+}
+
+void Game::DoTravel(ecs::Entity player, const String &target, Option<math::FVector3> at, bool remember) {
+	auto t = m_registry.GetComponent<Transform>(player);
+	auto pl = m_registry.GetComponent<Player>(player);
+	if (t.IsNone() || pl.IsNone())
+		return;
+	const String from = m_dimension;
+	if (target != m_dimension) {
+		if (remember) {
+			pl.Unwrap()->returnDimension = from;
+			pl.Unwrap()->returnPosition = t.Unwrap()->position;
+		}
+		// L'autre dimension : tout ce qui vit ici est enregistré puis retiré.
+		(void)m_world->SaveModifiedChunks();
+		if (Result<bool, String> r = m_save->SaveEntities(m_registry); r.IsError())
+			LogLine(String("[sauvegarde] ") + r.Error());
+		std::vector<ecs::Entity> gone;
+		m_registry.Query<Transform>([&](ecs::Entity e, Transform &) {
+			if (!m_registry.HasComponent<Player>(e))
+				gone.push_back(e);
+		});
+		for (ecs::Entity e : gone)
+			if (m_registry.IsAlive(e))
+				(void)ecs::DespawnRecursive(m_registry, e);
+		m_world.reset();
+		CreateWorld(target);
+		if (Result<size_t, String> loaded = m_save->LoadEntities(m_registry); loaded.IsError())
+			LogLine(String("[erreur] ") + loaded.Error());
+		t = m_registry.GetComponent<Transform>(player);
+		pl = m_registry.GetComponent<Player>(player);
+	}
+	const DimensionDef *def = CurrentDimensionDef();
+	const math::FVector3 arrival = at.IsSome() ? at.Unwrap() : DimensionSpawn();
+	t.Unwrap()->position = t.Unwrap()->previous = arrival;
+	pl.Unwrap()->dimension = IsDefaultDimension(target) ? String() : target;
+	pl.Unwrap()->portalCooldown = true;
+	pl.Unwrap()->portalTime = 0.f;
+	if (auto v = m_registry.GetComponent<Velocity>(player); v.IsSome())
+		v.Unwrap()->linear = {0.f, 0.f, 0.f};
+	if (auto body = m_registry.GetComponent<PhysicsBody>(player); body.IsSome()) {
+		body.Unwrap()->gravityDirection = 1.f;
+		body.Unwrap()->fallDistance = 0.f;
+	}
+	SettlePlayer(player);
+	if (def && at.IsNone() && !def->arrivalPortal.IsEmpty())
+		PlaceArrivalPortal(*def, arrival);
+	if (target != from) {
+		DimensionData()->Set("visited", json::MakeBool(true));
+		ecs::EventsOf<DimensionChanged>(m_registry).Send(DimensionChanged{player, from, target});
+		(void)m_scripts->Emit("dimension_changed", {m_scripts->EntityValue(player), Value::Str(target), Value::Str(from)});
+		if (def) {
+			Message(String::Format("Vous entrez dans : %s", def->displayName.CStr()), String("event"));
+			if (!def->music.IsEmpty())
+				PlaySound(def->music, arrival, 1.f, false);
+		}
+		LogLine(String::Format("[dimension] %s → %s", from.IsEmpty() ? "?" : from.CStr(), target.CStr()));
+	}
+}
+
+void Game::StepPortals(float dt) {
+	std::vector<PendingTravel> requests;
+	m_registry.Query<Player, Transform, Collider>([&](ecs::Entity e, Player &player, Transform &t, Collider &c) {
+		// Bloc traversé (pieds, puis milieu du corps).
+		const BlockDef *portal = nullptr;
+		for (float h : {0.1f, c.size.y * 0.5f}) {
+			const BlockDef &def = m_world->BlockAt(BlockPos::FromWorld(t.position + math::FVector3{0.f, h, 0.f}));
+			if (!def.IsAir() && json::Has(def.raw, "portal.dimension"))
+				portal = &def;
+			// Champ de gravité (« physics.gravityField » : 1 normal, -1 inversé).
+			if (const double field = json::Num(def.raw, "physics.gravityField", 0.0); field != 0.0)
+				if (auto body = m_registry.GetComponent<PhysicsBody>(e); body.IsSome() && !body.Unwrap()->flies)
+					body.Unwrap()->gravityDirection = field < 0.0 ? -1.f : 1.f;
+		}
+		if (!portal) {
+			player.portalTime = 0.f;
+			player.portalCooldown = false; // sorti du portail d'arrivée
+			return;
+		}
+		if (player.portalCooldown)
+			return;
+		player.portalTime += dt;
+		if (player.portalTime < float(json::Num(portal->raw, "portal.delay", 1.0)))
+			return;
+		player.portalTime = 0.f;
+		const String to = json::Str(portal->raw, "portal.dimension");
+		if (to == "@return") {
+			// Retour d'où l'on vient (sinon : le monde ordinaire).
+			if (!player.returnDimension.IsEmpty() || !IsDefaultDimension(m_dimension))
+				requests.push_back(PendingTravel{e, player.returnDimension.IsEmpty() ? m_content.DefaultDimension() : player.returnDimension,
+												 player.returnDimension.IsEmpty() ? Option<math::FVector3>(NONE)
+																				  : Option<math::FVector3>(Some(player.returnPosition))});
+			return;
+		}
+		requests.push_back(PendingTravel{e, ContentRegistry::Qualify(to, portal->mod), NONE});
+	});
+	for (const PendingTravel &r : requests) {
+		if (!m_scripts->Emit("portal_used", {m_scripts->EntityValue(r.player), Value::Str(r.dimension)}))
+			continue;
+		if (Result<bool, String> ok = TravelTo(r.player, r.dimension, r.at); ok.IsError())
+			LogLine(String("[portail] ") + ok.Error());
+	}
+}
+
+Option<int> Game::LoadedGround(int x, int z, int top, int bottom) const {
+	if (!m_world)
+		return NONE;
+	int freeAbove = 0;
+	for (int y = top; y >= bottom; --y) {
+		const BlockPos p{x, y, z};
+		if (!m_world->IsLoaded(p)) {
+			freeAbove = 0;
+			continue;
+		}
+		const BlockDef &def = m_world->BlockAt(p);
+		if (def.fluid) {
+			freeAbove = 0;
+			continue;
+		}
+		if (!def.solid) {
+			++freeAbove;
+			continue;
+		}
+		if (freeAbove >= 2)
+			return Some(y);
+		freeAbove = 0;
+	}
+	return NONE;
 }
 
 Result<bool, String> Game::Save() {
@@ -253,10 +518,19 @@ void Game::Tick(float dt) {
 	m_metadata.playTime += double(dt);
 	if (Rule("daylightCycle"))
 		m_metadata.gameTime += double(dt);
+	m_inTick = true;
 	m_schedule.Update(m_registry, dt);
+	m_inTick = false;
+	// Voyages demandés pendant le pas (portails, morts, scripts) : le monde
+	// n'est remplacé qu'ici, aucun système n'est en train de le parcourir.
+	for (const PendingTravel &travel : std::exchange(m_travels, {}))
+		if (m_registry.IsAlive(travel.player))
+			DoTravel(travel.player, travel.dimension, travel.at, true);
 }
 
 float Game::DayFraction() const noexcept {
+	if (const DimensionDef *def = CurrentDimensionDef(); def && !def->dayCycle)
+		return def->fixedTime;
 	const double day = std::max(1.0, double(m_options.dayLength));
 	const double f = std::fmod(m_metadata.gameTime / day, 1.0);
 	return float(f < 0.0 ? f + 1.0 : f);
@@ -276,6 +550,7 @@ void Game::InstallSystems() {
 					  [this](ecs::Entity e, BehaviorState &s, float dt) { return m_scripts->RunBehavior(e, s, dt); });
 	}, 0);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "physics", [this](ecs::SystemContext &c) { StepPhysics(m_registry, *m_world, c.dt, m_physics); }, 10);
+	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "portals", [this](ecs::SystemContext &c) { StepPortals(c.dt); }, 15);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "falling_blocks", [this](ecs::SystemContext &) { StepFallingBlocks(); }, 20);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "items", [this](ecs::SystemContext &c) { StepItems(c.dt); }, 30);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "health", [this](ecs::SystemContext &c) { StepHealth(c.dt); }, 40);
@@ -401,25 +676,27 @@ void Game::StepHealth(float dt) {
 	// Chutes : dégâts au-delà d'une vitesse d'impact.
 	const float threshold = float(m_content.ConfigNum("physics.fallDamageSpeed", 13.0));
 	std::vector<std::pair<ecs::Entity, float>> falls;
-	std::vector<std::pair<ecs::Entity, float>> burns;
+	std::vector<std::tuple<ecs::Entity, float, String>> burns;
 	ecs::EventsOf<BlockContact>(m_registry).Read(m_contactCursor, [&](const BlockContact &c) {
 		if (c.landed && c.impactSpeed > threshold && Rule("fallDamage"))
 			falls.push_back({c.entity, (c.impactSpeed - threshold) * 1.2f});
 		// Bloc qui blesse au contact (lave, cactus…) : « gameplay.damagePerSecond ».
 		if (const float dps = float(json::Num(m_content.Block(c.id).raw, "gameplay.damagePerSecond", 0.0)); dps > 0.f)
-			burns.push_back({c.entity, dps * dt * 4.f});
+			burns.push_back({c.entity, dps * dt * 4.f, json::Str(m_content.Block(c.id).raw, "gameplay.damageCause", "contact")});
 	});
 	for (const auto &[e, amount] : falls)
 		if (m_registry.IsAlive(e))
-			Damage(e, amount);
-	for (const auto &[e, amount] : burns)
+			Damage(e, amount, ecs::Entity{}, String("fall"));
+	for (const auto &[e, amount, cause] : burns)
 		if (m_registry.IsAlive(e))
-			Damage(e, amount);
+			Damage(e, amount, ecs::Entity{}, cause);
 	std::vector<ecs::Entity> dead;
 	m_registry.Query<Health, Transform>([&](ecs::Entity e, Health &h, Transform &t) {
 		h.invulnerable = std::max(0.f, h.invulnerable - dt);
-		if (t.position.y < -300.f)
+		if (t.position.y < -300.f || t.position.y > 1200.f) {
 			h.current = 0.f; // tombé hors du monde
+			h.lastCause = String("void");
+		}
 		if (h.IsDead())
 			dead.push_back(e);
 	});
@@ -470,7 +747,7 @@ math::FVector3 Game::FindSpawn() {
 	// Seuls les générateurs « noise » et « flat » savent estimer la hauteur
 	// du sol ; un générateur scripté ne le sait pas.
 	const auto *terrain = dynamic_cast<TerrainGenerator *>(gen);
-	if (terrain && terrain->Definition().kind == "script")
+	if (terrain && terrain->Definition().kind != "noise" && terrain->Definition().kind != "flat")
 		terrain = nullptr;
 	if (terrain) {
 		// Hauteur estimée par le générateur : ne sert qu'à choisir et
@@ -494,7 +771,9 @@ math::FVector3 Game::FindSpawn() {
 		// Générateur sans estimation (script : îles flottantes…) : on
 		// génère des colonnes de chunks entières, en anneaux autour de
 		// l'origine, et l'on garde l'endroit le plus proche du centre.
-		constexpr int SCAN_TOP = 192, SCAN_BOTTOM = -64, MAX_RING = 6;
+		const DimensionDef *dim = CurrentDimensionDef();
+		const int SCAN_TOP = dim ? dim->spawnTop : 192, SCAN_BOTTOM = dim ? dim->spawnBottom : -64;
+		constexpr int MAX_RING = 6;
 		for (int ring = 0; ring <= MAX_RING; ++ring) {
 			Option<math::FVector3> best = NONE;
 			float bestDistance = 0.f;
@@ -558,7 +837,8 @@ ecs::Entity Game::JoinPlayer(const String &name) {
 		visual.Unwrap()->rig.model = m_content.ConfigStr("player.model");
 		visual.Unwrap()->skin = m_content.ConfigStr("player.skin");
 	}
-	if (!m_save->LoadPlayer(m_registry, e)) {
+	const bool known = m_save->LoadPlayer(m_registry, e);
+	if (!known) {
 		// Premier passage : équipement de départ (configuration des mods).
 		if (NodePtr kit = json::At(m_content.Config(), "player.starterKit"); kit && kit->IsArray())
 			for (size_t i = 0; i < kit->GetSize(); ++i) {
@@ -569,11 +849,25 @@ ecs::Entity Game::JoinPlayer(const String &name) {
 					(void)inv.Unwrap()->inventory.Add(m_content, item, count);
 			}
 	} else if (auto t = m_registry.GetComponent<Transform>(e); t.IsSome()) {
+		// Enregistré dans une autre dimension : on l'y ramène, à sa place.
+		auto pl = m_registry.GetComponent<Player>(e);
+		const String saved = pl.IsSome() ? pl.Unwrap()->dimension : String();
+		if (!IsDefaultDimension(saved) && m_content.FindDimension(saved)) {
+			const math::FVector3 where = t.Unwrap()->position;
+			const float gravity = m_registry.GetComponent<PhysicsBody>(e).IsSome() ? m_registry.GetComponent<PhysicsBody>(e).Unwrap()->gravityDirection : 1.f;
+			DoTravel(e, saved, Some(where), false);
+			if (auto body = m_registry.GetComponent<PhysicsBody>(e); body.IsSome())
+				body.Unwrap()->gravityDirection = gravity;
+			t = m_registry.GetComponent<Transform>(e);
+		} else if (pl.IsSome()) {
+			pl.Unwrap()->dimension = String(); // dimension disparue (mod retiré) : monde ordinaire
+		}
 		// Joueur enregistré en pleine chute dans le vide (aucun sol sous lui) :
 		// ramené au point d'apparition plutôt que de recommencer à tomber.
 		const BlockPos p = BlockPos::FromWorld(t.Unwrap()->position);
-		if (StandableY(p.x, p.z, p.y + 1, p.y - 256).IsNone()) {
-			t.Unwrap()->position = t.Unwrap()->previous = SpawnPoint();
+		const bool inverted = m_registry.GetComponent<PhysicsBody>(e).IsSome() && m_registry.GetComponent<PhysicsBody>(e).Unwrap()->gravityDirection < 0.f;
+		if (!inverted && StandableY(p.x, p.z, p.y + 1, p.y - 256).IsNone()) {
+			t.Unwrap()->position = t.Unwrap()->previous = DimensionSpawn();
 			if (auto v = m_registry.GetComponent<Velocity>(e); v.IsSome())
 				v.Unwrap()->linear = {0.f, 0.f, 0.f};
 		}
@@ -586,19 +880,7 @@ ecs::Entity Game::JoinPlayer(const String &name) {
 		m_localPlayer = e;
 	// Le terrain autour du joueur, tout de suite (pas d'attente à l'arrivée),
 	// puis la première place libre au-dessus (pas né dans un arbre).
-	if (auto t = m_registry.GetComponent<Transform>(e); t.IsSome()) {
-		(void)m_world->UpdateLoadedArea({BlockPos::FromWorld(t.Unwrap()->position)}, 2, 2, 200);
-		math::FVector3 &p = t.Unwrap()->position;
-		auto blocked = [&](const math::FVector3 &feet) {
-			std::vector<Box> boxes;
-			CollectBlockBoxes(*m_world, Box::AtFeet(feet, {0.6f, 1.8f, 0.6f}), boxes);
-			const Box body = Box::AtFeet(feet, {0.6f, 1.8f, 0.6f});
-			return std::any_of(boxes.begin(), boxes.end(), [&](const Box &b) { return b.Intersects(body); });
-		};
-		for (int i = 0; i < 64 && blocked(p); ++i)
-			p.y = std::floor(p.y) + 1.f;
-		t.Unwrap()->previous = p;
-	}
+	SettlePlayer(e);
 	SetMode(m_mode); // vol du spectateur…
 	(void)m_scripts->Emit("player_join", {m_scripts->EntityValue(e)});
 	Message(String::Format("%s a rejoint la partie", name.CStr()));
@@ -620,7 +902,7 @@ ecs::Entity Game::DropItem(const ItemStack &stack, const math::FVector3 &positio
 	return SpawnDroppedItem(m_registry, m_content, stack, position, velocity);
 }
 
-void Game::Damage(ecs::Entity target, float amount, ecs::Entity source) {
+void Game::Damage(ecs::Entity target, float amount, ecs::Entity source, const String &cause) {
 	auto h = m_registry.GetComponent<Health>(target);
 	if (h.IsNone() || h.Unwrap()->invulnerable > 0.f || amount <= 0.f)
 		return;
@@ -650,6 +932,7 @@ void Game::Damage(ecs::Entity target, float amount, ecs::Entity source) {
 	h.Unwrap()->current -= amount;
 	h.Unwrap()->invulnerable = 0.4f;
 	h.Unwrap()->hurtTime = 0.f;
+	h.Unwrap()->lastCause = !cause.IsEmpty() ? cause : source.Valid() ? String("attack") : String("generic");
 	if (source.Valid())
 		h.Unwrap()->lastAttacker = source;
 	if (isPlayer)
@@ -715,14 +998,40 @@ void Game::Kill(ecs::Entity target) {
 		}
 		if (auto fx = m_registry.GetComponent<StatusEffects>(target); fx.IsSome())
 			fx.Unwrap()->list.clear();
-		// Un joueur réapparaît (inventaire conservé, à la manière d'un mode simple).
-		if (auto h = m_registry.GetComponent<Health>(target); h.IsSome())
+		// Un joueur réapparaît (inventaire conservé, à la manière d'un mode
+		// simple) : dans le monde ordinaire, ou dans la dimension qui accueille
+		// les morts de cette cause (« enterOnDeath » : les backrooms pour la
+		// suffocation…).
+		String cause;
+		if (auto h = m_registry.GetComponent<Health>(target); h.IsSome()) {
+			cause = h.Unwrap()->lastCause;
 			h.Unwrap()->current = h.Unwrap()->max;
-		if (auto tr = m_registry.GetComponent<Transform>(target); tr.IsSome())
-			tr.Unwrap()->position = tr.Unwrap()->previous = SpawnPoint();
+			h.Unwrap()->lastCause = String();
+		}
+		String destination = m_content.DefaultDimension();
+		const DimensionDef *through = nullptr;
+		for (const DimensionDef *d : m_content.Dimensions())
+			if (!cause.IsEmpty() && std::find(d->enterOnDeath.begin(), d->enterOnDeath.end(), cause) != d->enterOnDeath.end()) {
+				destination = d->id;
+				through = d;
+				break;
+			}
 		if (auto v = m_registry.GetComponent<Velocity>(target); v.IsSome())
 			v.Unwrap()->linear = {0.f, 0.f, 0.f};
-		Message(String("Vous êtes mort."));
+		if (auto body = m_registry.GetComponent<PhysicsBody>(target); body.IsSome())
+			body.Unwrap()->gravityDirection = 1.f;
+		if (destination == m_dimension || destination.IsEmpty()) {
+			if (auto tr = m_registry.GetComponent<Transform>(target); tr.IsSome())
+				tr.Unwrap()->position = tr.Unwrap()->previous = destination.IsEmpty() ? SpawnPoint() : DimensionSpawn();
+		} else {
+			(void)TravelTo(target, destination);
+		}
+		if (through)
+			Message(String::Format(cause == "suffocation" ? "Vous suffoquez… et vous réveillez ailleurs : %s." : "Vous vous réveillez ailleurs : %s.",
+								   through->displayName.CStr()), String("event"));
+		else
+			Message(String("Vous êtes mort."));
+		(void)m_scripts->Emit("player_respawn", {m_scripts->EntityValue(target), Value::Str(cause), Value::Str(destination)});
 		return;
 	}
 	if (kind.IsSome() && kind.Unwrap()->def) {
@@ -767,8 +1076,7 @@ Option<BlockHit> Game::TargetBlock(ecs::Entity actor) {
 		return NONE;
 	auto player = m_registry.GetComponent<Player>(actor);
 	const float reach = player.IsSome() ? player.Unwrap()->reach : 5.f;
-	const math::FVector3 eye = t.Unwrap()->position + math::FVector3{0.f, EYE_HEIGHT, 0.f};
-	return RaycastBlocks(*m_world, eye, t.Unwrap()->Forward(), reach);
+	return RaycastBlocks(*m_world, EyePosition(actor), t.Unwrap()->Forward(), reach);
 }
 
 Option<EntityHit> Game::TargetEntity(ecs::Entity actor) {
@@ -777,8 +1085,7 @@ Option<EntityHit> Game::TargetEntity(ecs::Entity actor) {
 		return NONE;
 	auto player = m_registry.GetComponent<Player>(actor);
 	const float reach = player.IsSome() ? player.Unwrap()->reach : 5.f;
-	const math::FVector3 eye = t.Unwrap()->position + math::FVector3{0.f, EYE_HEIGHT, 0.f};
-	Option<EntityHit> hit = RaycastEntities(m_registry, eye, t.Unwrap()->Forward(), reach, actor);
+	Option<EntityHit> hit = RaycastEntities(m_registry, EyePosition(actor), t.Unwrap()->Forward(), reach, actor);
 	// Un bloc plus proche masque l'entité.
 	if (Option<BlockHit> block = TargetBlock(actor); hit.IsSome() && block.IsSome() && block.Value().distance < hit.Value().distance)
 		return NONE;
@@ -795,6 +1102,11 @@ float Game::BreakTime(ecs::Entity actor, const BlockPos &pos) {
 	if (const ItemStack *held = HeldItem(actor); held && !held->IsEmpty())
 		if (const ItemDef *item = m_content.FindItem(held->item); item && item->tool && item->tool->kind == def.preferredTool)
 			time /= std::max(0.1f, item->tool->speed);
+	// Effets : fatigue (zones d'effacement du Néant…) et célérité.
+	if (auto fx = m_registry.GetComponent<StatusEffects>(actor); fx.IsSome()) {
+		time *= 1.f + 1.5f * float(fx.Unwrap()->Level("mining_fatigue"));
+		time /= 1.f + 0.3f * float(fx.Unwrap()->Level("haste"));
+	}
 	return time;
 }
 
@@ -1116,7 +1428,12 @@ Result<bool, String> Game::Trade(ecs::Entity player, const String &giveItem, int
 void Game::StepSurvival(float dt) {
 	const bool peaceful = m_difficulty == Difficulty::PEACEFUL;
 	const bool regenRule = Rule("naturalRegeneration");
-	std::vector<std::pair<ecs::Entity, float>> hurts;
+	struct Hurt {
+		ecs::Entity e;
+		float amount;
+		const char *cause;
+	};
+	std::vector<Hurt> hurts;
 	m_registry.Query<Player, Survival, Health, Transform>([&](ecs::Entity e, Player &, Survival &s, Health &h, Transform &t) {
 		h.hurtTime += dt;
 		auto intent = m_registry.GetComponent<MoveIntent>(e);
@@ -1154,16 +1471,24 @@ void Game::StepSurvival(float dt) {
 			const float floor = m_difficulty == Difficulty::EASY ? 10.f : m_difficulty == Difficulty::NORMAL ? 1.f : 0.f;
 			if (s.starveTimer > 4.f && h.current > floor) {
 				s.starveTimer = 0.f;
-				hurts.push_back({e, 1.f});
+				hurts.push_back({e, 1.f, "starvation"});
 			}
 		}
-		// Souffle sous l'eau.
-		const BlockPos head = BlockPos::FromWorld(t.position + math::FVector3{0.f, EYE_HEIGHT, 0.f});
-		if (m_world->BlockAt(head).fluid && !m_options.creative) {
-			s.air = std::max(0.f, s.air - dt);
+		// Souffle : sous l'eau (noyade), la tête dans un bloc plein ou dans
+		// des sables mouvants (suffocation, deux fois plus rapide).
+		const bool inverted = body.IsSome() && body.Unwrap()->gravityDirection < 0.f;
+		const BlockPos head = BlockPos::FromWorld(t.position + math::FVector3{0.f, inverted ? 1.8f - EYE_HEIGHT : EYE_HEIGHT, 0.f});
+		const BlockDef &headBlock = m_world->BlockAt(head);
+		const bool drowning = headBlock.fluid;
+		const bool suffocating = m_world->IsLoaded(head) && !headBlock.fluid &&
+								 ((headBlock.solid && headBlock.collision == CollisionKind::FULL_CUBE) || headBlock.sinking > 0.f) &&
+								 !(body.IsSome() && (body.Unwrap()->noclip || body.Unwrap()->flies));
+		s.suffocating = suffocating && !m_options.creative;
+		if ((drowning || suffocating) && !m_options.creative) {
+			s.air = std::max(0.f, s.air - dt * (suffocating ? 2.f : 1.f));
 			if (s.air <= 0.f && (s.drownTimer += dt) > 1.f) {
 				s.drownTimer = 0.f;
-				hurts.push_back({e, 2.f});
+				hurts.push_back({e, 2.f, suffocating ? "suffocation" : "drowning"});
 			}
 		} else {
 			s.air = std::min(s.maxAir, s.air + dt * 4.f);
@@ -1194,10 +1519,11 @@ void Game::StepSurvival(float dt) {
 		if (auto body = m_registry.GetComponent<PhysicsBody>(e); body.IsSome() && m_registry.HasComponent<Player>(e))
 			body.Unwrap()->jumpSpeed = float(m_content.ConfigNum("player.jumpSpeed", 8.4)) * (1.f + 0.15f * float(fx.Level("jump_boost")));
 	});
-	for (const auto &[e, amount] : hurts)
+	for (const auto &[e, amount, cause] : hurts)
 		if (auto h = m_registry.GetComponent<Health>(e); h.IsSome()) {
 			h.Unwrap()->current -= amount;
 			h.Unwrap()->hurtTime = 0.f;
+			h.Unwrap()->lastCause = String(cause);
 			if (auto t = m_registry.GetComponent<Transform>(e); t.IsSome())
 				PlaySound(m_content.ConfigStr("sounds.hurt"), t.Unwrap()->position);
 		}
@@ -1596,6 +1922,28 @@ void Game::InstallCommands() {
 		const BiomeDef *biome = g.GetWorld().Generator() ? g.GetWorld().Generator()->BiomeAt(b.x, b.z) : nullptr;
 		return Ok(String::Format("%.1f %.1f %.1f — chunk %s — biome %s", double(p.x), double(p.y), double(p.z), ChunkOf(b).ToString().CStr(),
 								 biome ? biome->id.CStr() : "?"));
+	});
+	RegisterCommand("dimension", "/dimension [id]", "va dans une dimension (sans argument : la dimension actuelle)",
+					[](Game &g, ecs::Entity e, const std::vector<String> &a) -> Result<String, String> {
+		if (a.empty()) {
+			const DimensionDef *d = g.CurrentDimensionDef();
+			return Ok(String::Format("dimension : %s", d ? d->displayName.CStr() : g.CurrentDimension().CStr()));
+		}
+		String id = a[0];
+		if (!id.Contains(":")) // nom court : celui de n'importe quel mod
+			for (const DimensionDef *d : g.Content().Dimensions())
+				if (d->id.EndsWith((String(":") + id).CStr()))
+					id = d->id;
+		Result<bool, String> r = g.TravelTo(e, id);
+		if (r.IsError())
+			return Err(r.Error());
+		return Ok(String::Format("en route vers %s", id.CStr()));
+	});
+	RegisterCommand("dimensions", "/dimensions", "dimensions connues", [](Game &g, ecs::Entity, const std::vector<String> &) -> Result<String, String> {
+		String out;
+		for (const DimensionDef *d : g.Content().Dimensions())
+			out += String::Format("%s%s — %s\n", d->id == g.CurrentDimension() ? "▶ " : "  ", d->id.CStr(), d->displayName.CStr());
+		return Ok(out.IsEmpty() ? String("aucune dimension") : out);
 	});
 	RegisterCommand("heal", "/heal", "soigne complètement", [](Game &g, ecs::Entity e, const std::vector<String> &) -> Result<String, String> {
 		if (auto h = g.Registry().GetComponent<Health>(e); h.IsSome())

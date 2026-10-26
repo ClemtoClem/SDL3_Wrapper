@@ -1,101 +1,103 @@
 // Définitions de ui/viewport3d.hpp
+#include <ui/systems.hpp>
 #include <ui/viewport3d.hpp>
 
 namespace ui {
 
-// ── Viewport3DSystem ─────────────────────────────────────────────────────────
+WidgetBuilder Viewport3D(render3d::Object3D &root, render3d::Camera camera, bool continuous,
+						 Option<ViewportLighting> lighting) {
+	WidgetBuilder b("viewport3d");
+	render3d::Object3D *rootPtr = &root;
+	// L'état GPU n'est pas copiable : construit à la matérialisation.
+	b.SetExpand([rootPtr, camera, continuous, lighting](WidgetSpec &s) {
+		s.components.push_back([rootPtr, camera, continuous, lighting](ecs::ArchetypeRegistry &w, ecs::Entity e) {
+			Viewport3DState v;
+			v.root = rootPtr;
+			v.camera = camera;
+			v.continuous = continuous;
+			v.lighting = lighting;
+			w.AddComponent(e, std::move(v));
+		});
+	});
+	return b;
+}
 
-void Viewport3DSystem::Update(ecs::ArchetypeRegistry &world, render3d::Canvas &canvas, IUiRenderBackend &ren) {
-	std::vector<ecs::Entity> entities = world.EntitiesWith<UiViewport3D>();
+void RequestViewportRender(Widget view) {
+	if (auto v = view.Get<Viewport3DState>(); v.IsSome())
+		v.Unwrap()->needsRender = true;
+}
 
-	for (ecs::Entity e : entities) {
-		auto vp = world.GetComponent<UiViewport3D>(e);
-		if (vp.IsNone())
-			continue; // parti entre la collecte et ici (despawn applicatif) : ignore-le simplement
-		UiViewport3D &v = *vp.Unwrap();
+namespace {
+
+void RenderViewports(ecs::ArchetypeRegistry &world, Context &ctx) {
+	if (!ctx.canvas3d || !ctx.renderer)
+		return;
+	render3d::Canvas &canvas = *ctx.canvas3d;
+	for (ecs::Entity e : world.EntitiesWith<Viewport3DState>()) {
+		auto vp = world.GetComponent<Viewport3DState>(e);
+		auto rect = world.GetComponent<Rect>(e);
+		if (vp.IsNone() || rect.IsNone() || !rect.Unwrap()->visible)
+			continue; // masqué (onglet inactif…) : aucun rendu 3D inutile
+		Viewport3DState &v = *vp.Unwrap();
 		if (!v.root)
-			continue; // widget spawné sans racine de scène : rien à dessiner
-		// Masqué (onglet inactif, panneau caché, mode plein écran qui
-		// cache l'interface) : sa mise en page est figée, son image
-		// invisible — la rendre quand même coûtait un rendu 3D complet
-		// par image pour rien.
-		if (IsHiddenRecursive(world, e))
 			continue;
-
-		auto computed = world.GetComponent<UiComputed>(e);
-		if (computed.IsNone())
-			continue; // pas encore passé par LayoutSystem une seule fois
-
-		uint32_t w = uint32_t(sdl3::Max(0.f, computed.Unwrap()->screen.w));
-		uint32_t h = uint32_t(sdl3::Max(0.f, computed.Unwrap()->screen.h));
+		const sdl3::FRect box = rect.Unwrap()->content;
+		const uint32_t w = uint32_t(math::Max(0.f, box.w)), h = uint32_t(math::Max(0.f, box.h));
 		if (w == 0 || h == 0)
-			continue; // widget replié/masqué ce frame : pas de taille à rendre
-
-		// Rendu à la demande : rien à refaire tant que ni le contenu ni la
-		// taille n'ont changé.
-		if (!v.continuous && !v.needsRender && v.displayTexture.IsSome() && v.textureWidth == w &&
-			v.textureHeight == h)
 			continue;
-
-		auto sized = v.target.EnsureSize(canvas.Device(), w, h, VIEWPORT3D_COLOR_FORMAT, VIEWPORT3D_DEPTH_FORMAT);
-		if (!sized)
-			continue; // best-effort (cf. en-tête du fichier) : échec GPU, on garde la texture précédente
-
+		if (!v.continuous && !v.needsRender && v.displayTexture.IsSome() && v.textureWidth == w && v.textureHeight == h)
+			continue;
+		if (!v.target.EnsureSize(canvas.Device(), w, h, VIEWPORT3D_COLOR_FORMAT, VIEWPORT3D_DEPTH_FORMAT))
+			continue;
 		bool rendered = false;
 		if (v.lighting.IsSome()) {
-			// Éclairage propre : celui du Canvas est sauvegardé, remplacé
-			// le temps de ce rendu, puis restauré à l'identique.
-			const render3d::DirectionalLight savedSun = canvas.Directional();
-			const render3d::AmbientLight savedAmbient = canvas.Ambient();
-			const sdl3::Color savedBackground = canvas.BackgroundColor();
-			const std::vector<render3d::PointLight> savedPoints = canvas.ActivePointLights();
-			const std::vector<render3d::SpotLight> savedSpots = canvas.ActiveSpotLights();
+			const render3d::DirectionalLight sun = canvas.Directional();
+			const render3d::AmbientLight ambient = canvas.Ambient();
+			const sdl3::Color background = canvas.BackgroundColor();
+			const std::vector<render3d::PointLight> points = canvas.ActivePointLights();
+			const std::vector<render3d::SpotLight> spots = canvas.ActiveSpotLights();
 			canvas.SetLighting(v.lighting.Value().sun, v.lighting.Value().ambient);
 			canvas.SetBackgroundColor(v.lighting.Value().background);
 			canvas.SetLights({}, {});
 			rendered = bool(render3d::RenderObjectToTexture(canvas, *v.root, v.camera, v.target, v.pixels));
-			canvas.SetLighting(savedSun, savedAmbient);
-			canvas.SetBackgroundColor(savedBackground);
-			canvas.SetLights(savedPoints, savedSpots);
+			canvas.SetLighting(sun, ambient);
+			canvas.SetBackgroundColor(background);
+			canvas.SetLights(points, spots);
 		} else {
 			rendered = bool(render3d::RenderObjectToTexture(canvas, *v.root, v.camera, v.target, v.pixels));
 		}
 		if (!rendered)
 			continue;
 		v.needsRender = false;
-
-		// Pas de sdl3::Renderer réel sous ce backend (futur backend
-		// non-SDL) : rien de plus à faire, RenderSystem::DrawWidget
-		// sautera simplement le blit tant que displayTexture reste NONE.
-		sdl3::Renderer *nativeRenderer = ren.NativeRenderer();
-		if (!nativeRenderer)
-			continue;
-
-		bool needsCreate = v.displayTexture.IsNone() || v.textureWidth != w || v.textureHeight != h;
-		if (needsCreate) {
-			// `PixelFormat::RGBA32`, PAS le défaut `RGBA8888` : les pixels
-			// téléchargés depuis la cible GPU sont en R8G8B8A8_UNORM,
-			// c'est-à-dire l'ordre LITTÉRAL [R,G,B,A] en mémoire, alors
-			// que RGBA8888 est un format PACKED dont l'ordre mémoire sur
-			// little-endian est l'inverse ([A,B,G,R]). Le défaut faisait
-			// donc échanger le rouge et le bleu dans TOUT widget
-			// Viewport3D — un fond bleu nuit ressortait brun-rouge, et un
-			// cube bleu s'affichait rouge. Le même piège est documenté en
-			// long sur `Renderer::ReadPixels` (render.hpp) : RGBA32 est
-			// l'alias qui garantit [R,G,B,A] quelle que soit
-			// l'endianness. Trouvé en construisant
-			// sandbox/, dont la vitrine de matériaux rend
-			// l'inversion évidente à l'œil.
-			auto created = sdl3::Texture::Create(*nativeRenderer, int(w), int(h), sdl3::PixelFormat::RGBA32);
+		if (v.displayTexture.IsNone() || v.textureWidth != w || v.textureHeight != h) {
+			// RGBA32 : ordre mémoire [R,G,B,A] des pixels téléchargés (RGBA8888
+			// est un format empaqueté, inversé sur une machine petit-boutiste).
+			auto created = sdl3::Texture::Create(*ctx.renderer, int(w), int(h), sdl3::PixelFormat::RGBA32);
 			if (!created)
-				continue; // best-effort : réessaiera au prochain frame
+				continue;
 			v.displayTexture = Some(std::move(created.Value()));
 			v.textureWidth = w;
 			v.textureHeight = h;
 		}
-		// Pixels contigus, 4 octets par pixel : pitch = largeur * 4.
-		v.displayTexture->Update(v.pixels.data(), int(w) * 4);
+		(void)v.displayTexture.Value().Update(v.pixels.data(), int(w) * 4);
 	}
+}
+
+void DrawViewport(ecs::ArchetypeRegistry &world, Context &ctx, ecs::Entity e, const Rect &rect, const ComputedStyle &) {
+	auto vp = world.GetComponent<Viewport3DState>(e);
+	if (vp.IsNone() || vp.Unwrap()->displayTexture.IsNone())
+		return;
+	ctx.painter.Image(vp.Unwrap()->displayTexture.Value(), rect.content, ObjectFit::Fill);
+}
+
+} // namespace
+
+void RegisterViewport3DExtension(Context &ctx) {
+	Extension ext;
+	ext.name = "viewport3d";
+	ext.prepare = RenderViewports;
+	ext.draw = DrawViewport;
+	RegisterExtension(ctx, std::move(ext));
 }
 
 } // namespace ui

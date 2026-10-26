@@ -41,7 +41,7 @@ struct CodeDocument {
 	scene::NodeId node;  ///< COMPONENT_JSON : le nœud
 	String component;    ///< COMPONENT_JSON : le type (vide = propriétés libres)
 	String title;
-	ecs::Entity page{}, area{}, status{}, cursor{};
+	ui::Widget page{}, area{}, status{}, cursor{};
 	String saved;        ///< texte au dernier enregistrement
 	bool readOnly = false;
 };
@@ -60,12 +60,12 @@ public:
 
 	[[nodiscard]] kit::DockPanel &Dock() noexcept { return m_dock; }
 
-	void Build(ecs::Entity parent, const std::function<void(ui::WidgetBuilder &)> &size);
+	void Build(ui::Widget parent, const std::function<void(ui::WidgetBuilder &)> &size);
 
 	void Teardown() { m_documents.clear(); }
 
 	/// Page 0 : la vue 3D (non fermable) — l'éditeur y met son contenu.
-	ecs::Entity AddViewportPage(const String &title) { return m_dock.AddPage(title, false, false, 0.f); }
+	ui::Widget AddViewportPage(const String &title) { return m_dock.AddPage(title, false, false, 0.f); }
 
 	// ── Ouverture ────────────────────────────────────────────────────────────
 

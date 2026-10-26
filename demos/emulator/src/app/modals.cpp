@@ -34,23 +34,6 @@ constexpr const char *ROM_DIRECTORIES[] = {"assets/roms", "."};
 	return out;
 }
 
-/// Masque toutes les pages d'un Tabview sauf `shown` — le widget ne gère la
-/// visibilité qu'au CHANGEMENT d'onglet, pas pour les pages ajoutées après sa
-/// création.
-void ShowOnlyTab(ecs::ArchetypeRegistry &world, ecs::Entity tabview, size_t shown = 0) {
-	auto children = world.GetComponent<ui::UiChildren>(tabview);
-	if (children.IsNone())
-		return;
-	std::vector<ecs::Entity> pages = children.Unwrap()->list;
-	for (size_t i = 0; i < pages.size(); ++i) {
-		const bool hidden = world.HasComponent<ui::UiHidden>(pages[i]);
-		if (i != shown && !hidden)
-			world.AddComponent(pages[i], ui::UiHidden{});
-		else if (i == shown && hidden)
-			world.RemoveComponent<ui::UiHidden>(pages[i]);
-	}
-}
-
 /// Onglet ouvert par la prochaine construction de la fenêtre de configuration,
 /// et message à y afficher : changer de fichier de configuration la
 /// reconstruit (ses autres onglets montraient les valeurs de l'ancien).
@@ -58,45 +41,24 @@ int g_configTab = 0;
 String g_pathsNotice;
 constexpr int PATHS_TAB = 3;
 
-[[nodiscard]] ecs::Entity SpawnLabel(Application &app, ecs::Entity parent, const String &text, float size = 13.f,
-									 bool muted = false) {
-	ui::WidgetBuilder label = app.Factory().Label(text);
-	label.FontSize(size).TextColor(muted ? Application::TEXT_MUTED() : Application::TEXT_PRIMARY()).WAuto().HAuto();
-	label.Parent(parent);
-	return label.Spawn();
+ui::Widget SpawnLabel(ui::Widget parent, const String &text, float size = 13.f, bool muted = false) {
+	ui::WidgetBuilder label = ui::Label(text);
+	label.FontSize(size).Class(muted ? "muted" : "primary");
+	return parent.Append(label);
 }
 
-[[nodiscard]] ecs::Entity SpawnRow(Application &app, ecs::Entity parent, float gap = 8.f) {
-	ui::WidgetBuilder row = app.Factory().Row();
-	row.GrowW().HAuto().Gap(gap).Align(ui::CrossAlign::Center).Parent(parent);
-	return row.Spawn();
+ui::Widget SpawnRow(ui::Widget parent, float gap = 8.f) { return parent.Append(ui::Row().Class("dialog-row").Gap(gap)); }
+
+void SpawnButton(ui::Widget parent, const char *text, std::function<void()> action) {
+	parent.Append(ui::Button(text).OnClick(std::move(action)));
 }
 
-void SpawnButton(Application &app, ecs::Entity parent, const char *text, std::function<void()> action) {
-	ui::WidgetBuilder button = app.Factory().Button(String(text));
-	button.WAuto().H(ui::Dimension::Px(28.f)).FontSize(13.f).Parent(parent).OnClick(std::move(action));
-	(void)button.Spawn();
-}
+/// Texte explicatif sur toute la largeur, replié à la ligne.
+void SpawnNote(ui::Widget page, const String &text) { page.Append(ui::Label(text).Class("note")); }
 
-[[nodiscard]] String InputText(Application &app, ecs::Entity input) {
-	if (auto field = app.World().GetComponent<ui::UiInput>(input); field.IsSome())
-		return field.Unwrap()->text;
-	return String();
-}
-
-/// Texte explicatif sur toute la largeur, replié à la ligne (un libellé
-/// ordinaire garde une seule ligne et déborde de la fenêtre).
-void SpawnNote(Application &app, ecs::Entity page, const String &text) {
-	ui::WidgetBuilder note = app.Factory().Label(text);
-	note.FontSize(12.f).TextColor(Application::TEXT_MUTED()).GrowW().HAuto().TextWrap().Parent(page);
-	(void)note.Spawn();
-}
-
-void SetInputText(Application &app, ecs::Entity input, const String &text) {
-	if (auto field = app.World().GetComponent<ui::UiInput>(input); field.IsSome()) {
-		field.Unwrap()->text = text;
-		field.Unwrap()->cursor = field.Unwrap()->selectionAnchor = text.GetSize();
-	}
+/// Champ de saisie d'un chemin, prérempli.
+ui::Widget SpawnPathField(ui::Widget page, const String &value, const char *placeholder) {
+	return page.Append(ui::Input(placeholder, value).Class("field"));
 }
 
 // ── ROMs ─────────────────────────────────────────────────────────────────────
@@ -139,9 +101,8 @@ struct RomPreview {
 	return String::Format("%llu octets", static_cast<unsigned long long>(bytes));
 }
 
-ecs::Entity BuildRomBrowser(Application &app) {
+ui::Widget BuildRomBrowser(Application &app) {
 	Application::ModalFrame frame = app.BeginModal("ROMs", 940.f, 580.f);
-	ui::UiFactory &f = app.Factory();
 
 	// assets/roms est parcouru avec tous ses sous-dossiers ; le dossier
 	// courant seul (le parcourir récursivement balaierait tout le projet).
@@ -154,14 +115,10 @@ ecs::Entity BuildRomBrowser(Application &app) {
 	auto previews = std::make_shared<std::vector<RomPreview>>(roms->size());
 	auto selected = std::make_shared<int>(-1);
 
-	ui::WidgetBuilder columns = f.Row();
-	columns.GrowW().GrowH().Gap(12.f).Parent(frame.body);
-	ecs::Entity columnsEntity = columns.Spawn();
+	ui::Widget columns = frame.body.Append(ui::Row().Grow().FillWidth().Gap(12.f).AlignItems(ui::Align::Stretch));
 
 	// ── Colonne gauche : liste ──────────────────────────────────────────────
-	ui::WidgetBuilder left = f.Column();
-	left.W(ui::Dimension::Px(400.f)).GrowH().Gap(8.f).Parent(columnsEntity);
-	ecs::Entity leftEntity = left.Spawn();
+	ui::Widget leftEntity = columns.Append(ui::Column().Width(400.f).Gap(8.f));
 
 	// Liste groupée par console : une ligne d'en-tête par groupe, puis ses
 	// ROMs (déjà triées par console puis par nom). `rowToRom` associe chaque
@@ -189,45 +146,39 @@ ecs::Entity BuildRomBrowser(Application &app) {
 																   BaseNameOf(candidate.path).CStr()));
 		rowToRom->push_back(int(i));
 	}
-	(void)SpawnLabel(app, leftEntity,
+	(void)SpawnLabel(leftEntity,
 					 String::Format("%d ROM(s) — GBC %d · GBA %d · NDS %d — dont %d dans une archive", int(roms->size()),
-									perSystem[0], perSystem[1], perSystem[2], int(archived)), 12.f, true);
+									perSystem[0], perSystem[1], perSystem[2], int(archived)),
+					 12.f, true);
 	if (!problems.empty())
-		(void)SpawnLabel(app, leftEntity, String::Format("%d archive(s) illisible(s) : %s", int(problems.size()),
-														 problems.front().Truncate(60).CStr()), 12.f, true);
+		(void)SpawnLabel(leftEntity,
+						 String::Format("%d archive(s) illisible(s) : %s", int(problems.size()),
+										problems.front().Truncate(60).CStr()),
+						 12.f, true);
 	if (items.empty())
 		items.push_back(String("(aucune ROM dans assets/roms et ses sous-dossiers : utilisez Parcourir…)"));
 
 	// ── Colonne droite : informations ───────────────────────────────────────
-	ui::WidgetBuilder preview = f.Column();
-	preview.GrowW().GrowH().Bg(Application::ROW_BG()).Radius(4.f).Pad(12.f).Gap(8.f).Scrollable().Clip();
-	preview.Parent(columnsEntity);
-	ecs::Entity previewEntity = preview.Spawn();
+	ui::Widget previewEntity =
+		columns.Append(ui::Column().Class("card").Grow().Padding(12.f).Gap(8.f).Overflow(ui::Overflow::Auto));
 
-	ecs::Entity header = SpawnRow(app, previewEntity, 12.f);
-	ui::WidgetBuilder icon = f.Image(String(ICON_TEXTURE_KEY), 64.f, 64.f);
-	icon.Parent(header);
-	(void)icon.Spawn();
-	ecs::Entity title = SpawnLabel(app, header, "Sélectionnez une ROM", 16.f);
-	ecs::Entity subtitle = SpawnLabel(app, previewEntity, "", 12.f, true);
+	ui::Widget header = SpawnRow(previewEntity, 12.f);
+	header.Append(ui::Image(ICON_TEXTURE_KEY).Size(64.f, 64.f));
+	ui::Widget title = SpawnLabel(header, "Sélectionnez une ROM", 16.f);
+	ui::Widget subtitle = SpawnLabel(previewEntity, "", 12.f, true);
 
 	// Deux libellés multi-lignes côte à côte (clés / valeurs) : les lignes
 	// restent alignées et le rappel de sélection ne fait que changer deux
 	// textes — aucune entité créée ou détruite pendant le rappel.
-	ui::WidgetBuilder table = f.Row();
-	table.GrowW().HAuto().Gap(12.f).Parent(previewEntity);
-	ecs::Entity tableEntity = table.Spawn();
-	ui::WidgetBuilder keys = f.Label("");
-	keys.FontSize(12.f).TextColor(Application::TEXT_MUTED()).W(ui::Dimension::Px(110.f)).HAuto().Parent(tableEntity);
-	ecs::Entity keysEntity = keys.Spawn();
-	ecs::Entity valuesEntity = SpawnLabel(app, tableEntity, "", 12.f);
+	ui::Widget tableEntity = previewEntity.Append(ui::Row().FillWidth().Gap(12.f).AlignItems(ui::Align::Start));
+	ui::Widget keysEntity = tableEntity.Append(ui::Label("").Class("muted").Width(110.f));
+	ui::Widget valuesEntity = SpawnLabel(tableEntity, "", 12.f);
 
-	auto &textures = app.Gui().RenderSystem().textures;
-	textures.erase(ICON_TEXTURE_KEY);
+	app.Gui().GetTextures().Remove(ICON_TEXTURE_KEY);
 
 	auto show = [&app, roms, previews, keysEntity, valuesEntity, title, subtitle](int index) {
-		auto &pool = app.Gui().RenderSystem().textures;
-		pool.erase(ICON_TEXTURE_KEY);
+		ui::Textures &pool = app.Gui().GetTextures();
+		pool.Remove(ICON_TEXTURE_KEY);
 		const RomCandidate &candidate = (*roms)[size_t(index)];
 		RomPreview &info = (*previews)[size_t(index)];
 		if (!info.loaded) {
@@ -301,17 +252,15 @@ ecs::Entity BuildRomBrowser(Application &app) {
 				auto texture = sdl3::Texture::CreateFromSurface(app.Renderer(), surface.Value());
 				if (texture.IsOk()) {
 					(void)texture.Value().SetScaleMode(SDL_SCALEMODE_NEAREST);
-					pool[String(ICON_TEXTURE_KEY)] = std::move(texture).Unwrap();
+					pool.Add(ICON_TEXTURE_KEY, std::move(texture).Unwrap());
 				}
 			}
 		}
 	};
 
 	// Ligne 0 = en-tête du premier groupe : la première ROM est en ligne 1.
-	ui::WidgetBuilder list = f.Listbox(items, roms->empty() ? -1 : 1);
-	list.GrowW().GrowH().Parent(leftEntity);
-	list.OnChange([roms, rowToRom, selected, show](float index) {
-		const int row = int(index);
+	ui::WidgetBuilder list = ui::ListBox(items, roms->empty() ? -1 : 1);
+	list.FillWidth().Grow().OnSelect([roms, rowToRom, selected, show](int row) {
 		if (row < 0 || row >= int(rowToRom->size()))
 			return;
 		const int rom = (*rowToRom)[size_t(row)];
@@ -320,18 +269,18 @@ ecs::Entity BuildRomBrowser(Application &app) {
 		*selected = rom;
 		show(rom);
 	});
-	(void)list.Spawn();
+	leftEntity.Append(list);
 
-	ecs::Entity buttons = SpawnRow(app, leftEntity);
-	SpawnButton(app, buttons, "Jouer", [&app, roms, selected] {
+	ui::Widget buttons = SpawnRow(leftEntity);
+	SpawnButton(buttons, "Jouer", [&app, roms, selected] {
 		if (*selected < 0 || *selected >= int(roms->size()))
 			return;
 		RomCandidate candidate = (*roms)[size_t(*selected)];
 		app.CloseModal();
 		app.Post([&app, candidate] { (void)app.SwitchToGame(candidate.path, candidate.entry); });
 	});
-	SpawnButton(app, buttons, "Parcourir…", [&app] { OpenRomFileDialog(app); });
-	SpawnButton(app, buttons, "Actualiser", [&app] { app.OpenModal("roms"); });
+	SpawnButton(buttons, "Parcourir…", [&app] { OpenRomFileDialog(app); });
+	SpawnButton(buttons, "Actualiser", [&app] { app.OpenModal("roms"); });
 
 	// Première ROM présélectionnée : la boîte montre d'emblée ce qu'elle sait
 	// lire (et `--open=roms` capture un panneau rempli).
@@ -391,13 +340,13 @@ struct StateSlot {
 	return slots;
 }
 
-ecs::Entity BuildSaveManager(Application &app) {
+ui::Widget BuildSaveManager(Application &app) {
 	Application::ModalFrame frame = app.BeginModal("États sauvegardés", 600.f, 440.f);
 	auto slots = std::make_shared<std::vector<StateSlot>>(FindStateSlots());
 	auto selected = std::make_shared<int>(-1);
 
 	const String directory = Settings::getStateDirectory();
-	SpawnNote(app, frame.body,
+	SpawnNote(frame.body,
 			  String::Format("F5 en jeu pour sauvegarder, F9 pour recharger — dossier : %s",
 							 directory.IsEmpty() ? "à côté des ROMs" : directory.CStr()));
 	std::vector<String> items;
@@ -405,12 +354,10 @@ ecs::Entity BuildSaveManager(Application &app) {
 		items.push_back(BaseNameOf(slot.rom));
 	if (items.empty())
 		items.push_back(String("(aucun état sauvegardé)"));
-	ui::WidgetBuilder list = app.Factory().Listbox(items, -1);
-	list.GrowW().GrowH().Parent(frame.body).OnChange([selected](float index) { *selected = int(index); });
-	(void)list.Spawn();
+	frame.body.Append(ui::ListBox(items, -1).FillWidth().Grow().OnSelect([selected](int index) { *selected = index; }));
 
-	ecs::Entity buttons = SpawnRow(app, frame.body);
-	SpawnButton(app, buttons, "Reprendre", [&app, slots, selected] {
+	ui::Widget buttons = SpawnRow(frame.body);
+	SpawnButton(buttons, "Reprendre", [&app, slots, selected] {
 		if (*selected < 0 || *selected >= int(slots->size()))
 			return;
 		// L'état d'une ROM d'archive porte le nom de la ROM, à côté de
@@ -428,13 +375,13 @@ ecs::Entity BuildSaveManager(Application &app) {
 				app.Session()->RequestQuickLoad();
 		});
 	});
-	SpawnButton(app, buttons, "Supprimer", [&app, slots, selected] {
+	SpawnButton(buttons, "Supprimer", [&app, slots, selected] {
 		if (*selected < 0 || *selected >= int(slots->size()))
 			return;
 		(void)sdl3::filesystem::Remove((*slots)[size_t(*selected)].file);
 		app.OpenModal("saves"); // reconstruit la liste
 	});
-	SpawnButton(app, buttons, "Changer de dossier…", [&app] {
+	SpawnButton(buttons, "Changer de dossier…", [&app] {
 		g_configTab = PATHS_TAB;
 		app.OpenModal("config");
 	});
@@ -456,7 +403,7 @@ String GamepadButtonName(sdl3::GamepadButton button) {
 		return "Nord (Y)";
 	case GB::BACK:
 		return "Select";
-	case GB::Start:
+	case GB::START:
 		return "Start";
 	case GB::LEFT_SHOULDER:
 		return "L";
@@ -505,39 +452,33 @@ constexpr std::array<ButtonSpot, BTN_COUNT> PAD_LAYOUT = {{
 	{BTN_START, "Start", 240.f, 205.f, 60.f, 26.f},
 }};
 
-void BuildControlsPage(Application &app, ecs::Entity page) {
-	ui::UiFactory &f = app.Factory();
+void BuildControlsPage(Application &app, ui::Widget page) {
 	auto capturing = std::make_shared<int>(-1);
 
-	ecs::Entity columns = SpawnRow(app, page, 16.f);
-	ui::WidgetBuilder diagram = f.Column();
-	diagram.Size(460.f, 250.f).Parent(columns);
-	ecs::Entity diagramEntity = diagram.Spawn();
-	ui::WidgetBuilder body = f.Canvas([](sdl3::Renderer &renderer, sdl3::FRect area) {
-		(void)renderer.SetDrawColor(sdl3::FColor(sdl3::Color{200, 200, 205, 255}));
-		(void)renderer.FillRoundedRect(sdl3::FRect{area.x, area.y + 20.f, area.w, area.h - 40.f}, sdl3::Corners(24.f));
-		(void)renderer.SetDrawColor(sdl3::FColor(sdl3::Color{70, 74, 80, 255}));
-		(void)renderer.FillRoundedRect(sdl3::FRect{area.x + 150.f, area.y + 60.f, 160.f, 110.f}, sdl3::Corners(6.f));
-	});
-	body.GrowW().GrowH().Parent(diagramEntity);
-	(void)body.Spawn();
-	for (const ButtonSpot &spot : PAD_LAYOUT) {
-		ui::WidgetBuilder button = f.Button(String(spot.label));
-		button.Absolute().Anchor(ui::Anchor::TopLeft).Offset(spot.x, spot.y).Size(spot.w, spot.h).FontSize(12.f);
-		button.Parent(diagramEntity).OnClick([capturing, index = spot.button] { *capturing = index; });
-		(void)button.Spawn();
-	}
+	ui::Widget columns = SpawnRow(page, 16.f);
+	ui::Widget diagramEntity = columns.Append(ui::Stack().Size(460.f, 250.f));
+	diagramEntity.Append(ui::Canvas([](ui::Painter &painter, const sdl3::FRect &area) {
+		painter.FillRoundedRect(sdl3::FRect{area.x, area.y + 20.f, area.w, area.h - 40.f}, math::Corners(24.f),
+								ui::Rgba(200, 200, 205));
+		painter.FillRoundedRect(sdl3::FRect{area.x + 150.f, area.y + 60.f, 160.f, 110.f}, math::Corners(6.f),
+								ui::Rgba(70, 74, 80));
+	}).Fill());
+	for (const ButtonSpot &spot : PAD_LAYOUT)
+		diagramEntity.Append(ui::Button(spot.label)
+								 .Absolute()
+								 .Offset(spot.x, spot.y)
+								 .Size(spot.w, spot.h)
+								 .FontSize(12.f)
+								 .Padding(0.f)
+								 .OnClick([capturing, index = spot.button] { *capturing = index; }));
 
-	ui::WidgetBuilder legend = f.Column();
-	legend.GrowW().Gap(3.f).Parent(columns);
-	ecs::Entity legendEntity = legend.Spawn();
-	ecs::Entity prompt =
-		SpawnLabel(app, legendEntity, "Cliquez un bouton du schéma, puis appuyez sur une touche ou un bouton de manette.",
-				   12.f, true);
-	auto bindingLabels = std::make_shared<std::array<ecs::Entity, BTN_COUNT>>();
+	ui::Widget legendEntity = columns.Append(ui::Column().Grow().Gap(3.f));
+	ui::Widget prompt = legendEntity.Append(
+		ui::Label("Cliquez un bouton du schéma, puis appuyez sur une touche ou un bouton de manette.").Class("note"));
+	auto bindingLabels = std::make_shared<std::array<ui::Widget, BTN_COUNT>>();
 	for (int button = 0; button < BTN_COUNT; ++button)
-		(*bindingLabels)[size_t(button)] = SpawnLabel(
-			app, legendEntity, String::Format("%s → %s", ButtonName(button), BindingLabel(app, button).CStr()), 12.f);
+		(*bindingLabels)[size_t(button)] =
+			SpawnLabel(legendEntity, String::Format("%s → %s", ButtonName(button), BindingLabel(app, button).CStr()), 12.f);
 
 	app.AddModalTick([&app, capturing, bindingLabels, prompt] {
 		for (int button = 0; button < BTN_COUNT; ++button)
@@ -566,93 +507,65 @@ void BuildControlsPage(Application &app, ecs::Entity page) {
 	});
 }
 
-void BuildVideoPage(Application &app, ecs::Entity page) {
-	ui::UiFactory &f = app.Factory();
-	(void)SpawnLabel(app, page, "Disposition des écrans NDS", 14.f);
-	(void)SpawnLabel(app, page, "Les sessions GBA et GBC n'ont qu'un écran. Raccourci : R.", 12.f, true);
-	bool vertical = Settings::getScreenLayout() != 0;
-	ecs::Entity row = SpawnRow(app, page, 24.f);
-	ui::WidgetBuilder horizontal = f.Radio("layout", "Côte à côte (écran tactile à droite)", !vertical);
-	horizontal.Parent(row).OnToggle([](bool checked) {
+void BuildVideoPage(Application &app, ui::Widget page) {
+	(void)SpawnLabel(page, "Disposition des écrans NDS", 14.f);
+	(void)SpawnLabel(page, "Les sessions GBA et GBC n'ont qu'un écran. Raccourci : R.", 12.f, true);
+	const bool vertical = Settings::getScreenLayout() != 0;
+	ui::Widget row = SpawnRow(page, 24.f);
+	row.Append(ui::Radio("Côte à côte (écran tactile à droite)", "layout", !vertical).OnToggle([](bool checked) {
 		if (checked)
 			Settings::setScreenLayout(0);
-	});
-	(void)horizontal.Spawn();
-	ui::WidgetBuilder stacked = f.Radio("layout", "Empilés (écran tactile en bas)", vertical);
-	stacked.Parent(row).OnToggle([](bool checked) {
+	}));
+	row.Append(ui::Radio("Empilés (écran tactile en bas)", "layout", vertical).OnToggle([](bool checked) {
 		if (checked)
 			Settings::setScreenLayout(1);
-	});
-	(void)stacked.Spawn();
+	}));
 
-	ecs::Entity hudRow = SpawnRow(app, page);
-	ui::WidgetBuilder hud = f.Toggle(app.HudVisible());
-	hud.Parent(hudRow).OnToggle([&app](bool checked) { app.SetHudVisible(checked); });
-	(void)hud.Spawn();
-	(void)SpawnLabel(app, hudRow, "Bandeau de performances au-dessus du jeu");
+	ui::Widget hudRow = SpawnRow(page);
+	hudRow.Append(ui::Switch(app.HudVisible()).OnToggle([&app](bool checked) { app.SetHudVisible(checked); }));
+	(void)SpawnLabel(hudRow, "Bandeau de performances au-dessus du jeu");
 }
 
-void BuildSystemPage(Application &app, ecs::Entity page) {
-	ui::UiFactory &f = app.Factory();
-	(void)SpawnLabel(app, page, "Démarrage (pris en compte au prochain lancement d'une ROM)", 14.f);
+void BuildSystemPage(Application &app, ui::Widget page) {
+	(void)SpawnLabel(page, "Démarrage (pris en compte au prochain lancement d'une ROM)", 14.f);
+	auto option = [&page](bool on, const char *text, std::function<void(bool)> apply) {
+		ui::Widget row = SpawnRow(page);
+		row.Append(ui::Switch(on).OnToggle(std::move(apply)));
+		(void)SpawnLabel(row, text);
+	};
+	option(Settings::getDirectBoot() != 0, "Boot direct (saute l'écran du BIOS / firmware)",
+		   [](bool checked) { Settings::setDirectBoot(checked ? 1 : 0); });
+	option(Settings::getArm7Hle() != 0,
+		   "ARM7 en HLE — expérimental : ni son ni jeux du commerce (inutile sans BIOS : le BIOS HLE suffit)",
+		   [](bool checked) { Settings::setArm7Hle(checked ? 1 : 0); });
+	option(Settings::getVerboseLog() != 0, "Journal détaillé du cœur (très coûteux, pour le débogage)",
+		   [](bool checked) { Settings::setVerboseLog(checked ? 1 : 0); });
 
-	ecs::Entity bootRow = SpawnRow(app, page);
-	ui::WidgetBuilder direct = f.Toggle(Settings::getDirectBoot() != 0);
-	direct.Parent(bootRow).OnToggle([](bool checked) { Settings::setDirectBoot(checked ? 1 : 0); });
-	(void)direct.Spawn();
-	(void)SpawnLabel(app, bootRow, "Boot direct (saute l'écran du BIOS / firmware)");
-
-	ecs::Entity hleRow = SpawnRow(app, page);
-	ui::WidgetBuilder hle = f.Toggle(Settings::getArm7Hle() != 0);
-	hle.Parent(hleRow).OnToggle([](bool checked) { Settings::setArm7Hle(checked ? 1 : 0); });
-	(void)hle.Spawn();
-	(void)SpawnLabel(app, hleRow, "ARM7 en HLE — expérimental : ni son ni jeux du commerce (inutile sans BIOS : le BIOS HLE suffit)");
-
-	ecs::Entity verboseRow = SpawnRow(app, page);
-	ui::WidgetBuilder verbose = f.Toggle(Settings::getVerboseLog() != 0);
-	verbose.Parent(verboseRow).OnToggle([](bool checked) { Settings::setVerboseLog(checked ? 1 : 0); });
-	(void)verbose.Spawn();
-	(void)SpawnLabel(app, verboseRow, "Journal détaillé du cœur (très coûteux, pour le débogage)");
-
-	(void)SpawnLabel(app, page, "Fichiers système", 14.f);
+	(void)SpawnLabel(page, "Fichiers système", 14.f);
 	for (const String &path : {Settings::getNdsBios9Path(), Settings::getNdsBios7Path(), Settings::getFirmwarePath(),
 							   Settings::getGbaBiosPath()})
-		(void)SpawnLabel(app, page,
+		(void)SpawnLabel(page,
 						 String::Format("[%s] %s", sdl3::filesystem::PathInfo(path).IsSome() ? "présent" : "absent",
 										path.CStr()),
 						 12.f, true);
 
-	(void)SpawnLabel(app, page, "Journal fichier (Entrée pour appliquer, vide = désactivé)", 14.f);
-	ui::WidgetBuilder logPath = f.Input("(désactivé)");
-	logPath.GrowW().H(ui::Dimension::Px(28.f)).Parent(page).OnSubmit([&app](const String &text) {
+	(void)SpawnLabel(page, "Journal fichier (Entrée pour appliquer, vide = désactivé)", 14.f);
+	page.Append(ui::Input("(désactivé)", Settings::getLogFilePath()).Class("field").OnSubmit([&app](const String &text) {
 		String path = text;
 		app.Post([&app, path] { app.SetLogFilePath(path); });
-	});
-	ecs::Entity logPathEntity = logPath.Spawn();
-	if (auto field = app.World().GetComponent<ui::UiInput>(logPathEntity); field.IsSome())
-		field.Unwrap()->text = Settings::getLogFilePath();
+	}));
 }
 
-/// Champ de saisie d'un chemin, prérempli. Rend l'entité du champ.
-[[nodiscard]] ecs::Entity SpawnPathField(Application &app, ecs::Entity page, const String &value,
-										 const char *placeholder) {
-	ui::WidgetBuilder input = app.Factory().Input(String(placeholder));
-	input.GrowW().H(ui::Dimension::Px(28.f)).Parent(page);
-	ecs::Entity entity = input.Spawn();
-	SetInputText(app, entity, value);
-	return entity;
-}
-
-void BuildPathsPage(Application &app, ecs::Entity page) {
+void BuildPathsPage(Application &app, ui::Widget page) {
 	// ── Dossier des états ────────────────────────────────────────────────
-	(void)SpawnLabel(app, page, "Dossier des états sauvegardés (F5 / F9)", 14.f);
-	SpawnNote(app, page,
+	(void)SpawnLabel(page, "Dossier des états sauvegardés (F5 / F9)", 14.f);
+	SpawnNote(page,
 			  String::Format("Vide = à côté de chaque ROM. Défaut : %s. Pris en compte au prochain lancement "
 							 "d'une ROM ; enregistré dans le fichier de configuration.",
 							 Settings::DEFAULT_STATE_DIRECTORY));
-	ecs::Entity stateInput = SpawnPathField(app, page, Settings::getStateDirectory(), "(à côté des ROMs)");
-	ecs::Entity stateButtons = SpawnRow(app, page);
-	ecs::Entity stateStatus = SpawnLabel(app, page, String(), 12.f, true);
+	ui::Widget stateInput = SpawnPathField(page, Settings::getStateDirectory(), "(à côté des ROMs)");
+	ui::Widget stateButtons = SpawnRow(page);
+	ui::Widget stateStatus = SpawnLabel(page, String(), 12.f, true);
 	auto applyStateDirectory = [&app, stateStatus](const String &raw) {
 		const String directory = raw.Trim();
 		if (!directory.IsEmpty() && !sdl3::filesystem::CreateDirectory(directory)) {
@@ -663,37 +576,36 @@ void BuildPathsPage(Application &app, ecs::Entity page) {
 		app.SetLabel(stateStatus, directory.IsEmpty() ? String("États enregistrés à côté de chaque ROM.")
 													  : String::Format("États enregistrés dans %s", directory.CStr()));
 	};
-	SpawnButton(app, stateButtons, "Appliquer",
-				[&app, stateInput, applyStateDirectory] { applyStateDirectory(InputText(app, stateInput)); });
-	SpawnButton(app, stateButtons, "Parcourir…", [&app, stateInput, applyStateDirectory] {
+	SpawnButton(stateButtons, "Appliquer", [stateInput, applyStateDirectory] { applyStateDirectory(stateInput.Text()); });
+	SpawnButton(stateButtons, "Parcourir…", [&app, stateInput, applyStateDirectory] {
 		sdl3::dialog::ShowOpenFolder(
 			[&app, stateInput, applyStateDirectory](const sdl3::DialogResult &result, int) {
 				if (!result.Ok())
 					return;
 				String path = result.First();
-				app.Post([&app, stateInput, applyStateDirectory, path] {
-					SetInputText(app, stateInput, path);
+				app.Post([stateInput, applyStateDirectory, path]() mutable {
+					stateInput.SetText(path);
 					applyStateDirectory(path);
 				});
 			},
 			app.Window(), Settings::getStateDirectory());
 	});
-	SpawnButton(app, stateButtons, "Par défaut", [&app, stateInput, applyStateDirectory] {
-		SetInputText(app, stateInput, String(Settings::DEFAULT_STATE_DIRECTORY));
+	SpawnButton(stateButtons, "Par défaut", [stateInput, applyStateDirectory]() mutable {
+		stateInput.SetText(String(Settings::DEFAULT_STATE_DIRECTORY));
 		applyStateDirectory(String(Settings::DEFAULT_STATE_DIRECTORY));
 	});
-	SpawnButton(app, stateButtons, "Voir les états", [&app] { app.OpenModal("saves"); });
+	SpawnButton(stateButtons, "Voir les états", [&app] { app.OpenModal("saves"); });
 
 	// ── Fichier de configuration ─────────────────────────────────────────
-	(void)SpawnLabel(app, page, "Fichier de configuration", 14.f);
-	SpawnNote(app, page,
+	(void)SpawnLabel(page, "Fichier de configuration", 14.f);
+	SpawnNote(page,
 			  String::Format("Retenu pour les prochains lancements (--config=CHEMIN reste prioritaire). "
 							 "Fichier existant : ses réglages sont chargés ; sinon, les réglages actuels y "
 							 "sont écrits. Défaut : %s.",
 							 Settings::DEFAULT_CONFIG_PATH));
-	ecs::Entity configInput = SpawnPathField(app, page, Settings::getFilename(), Settings::DEFAULT_CONFIG_PATH);
-	ecs::Entity configButtons = SpawnRow(app, page);
-	ecs::Entity configStatus = SpawnLabel(app, page, g_pathsNotice, 12.f, true);
+	ui::Widget configInput = SpawnPathField(page, Settings::getFilename(), Settings::DEFAULT_CONFIG_PATH);
+	ui::Widget configButtons = SpawnRow(page);
+	ui::Widget configStatus = SpawnLabel(page, g_pathsNotice, 12.f, true);
 	g_pathsNotice = String();
 	auto useConfigFile = [&app, configStatus](const String &raw) {
 		const String path = raw.Trim().IsEmpty() ? String(Settings::DEFAULT_CONFIG_PATH) : raw.Trim();
@@ -720,51 +632,50 @@ void BuildPathsPage(Application &app, ecs::Entity page) {
 		g_configTab = PATHS_TAB;
 		app.Post([&app] { app.OpenModal("config"); });
 	};
-	SpawnButton(app, configButtons, "Utiliser ce fichier",
-				[&app, configInput, useConfigFile] { useConfigFile(InputText(app, configInput)); });
-	SpawnButton(app, configButtons, "Parcourir…", [&app, configInput, useConfigFile] {
+	SpawnButton(configButtons, "Utiliser ce fichier", [configInput, useConfigFile] { useConfigFile(configInput.Text()); });
+	SpawnButton(configButtons, "Parcourir…", [&app, configInput, useConfigFile] {
 		sdl3::dialog::ShowSaveFile(
 			[&app, configInput, useConfigFile](const sdl3::DialogResult &result, int) {
 				if (!result.Ok())
 					return;
 				String path = result.First();
-				app.Post([&app, configInput, useConfigFile, path] {
-					SetInputText(app, configInput, path);
+				app.Post([configInput, useConfigFile, path]() mutable {
+					configInput.SetText(path);
 					useConfigFile(path);
 				});
 			},
 			app.Window(), {sdl3::DialogFilter{"Réglages", "ini"}, sdl3::DialogFilter{"Tous les fichiers", "*"}},
 			Settings::getFilename());
 	});
-	SpawnButton(app, configButtons, "Par défaut", [&app, configInput, useConfigFile] {
-		SetInputText(app, configInput, String(Settings::DEFAULT_CONFIG_PATH));
+	SpawnButton(configButtons, "Par défaut", [configInput, useConfigFile]() mutable {
+		configInput.SetText(String(Settings::DEFAULT_CONFIG_PATH));
 		useConfigFile(String(Settings::DEFAULT_CONFIG_PATH));
 	});
-	SpawnButton(app, configButtons, "Enregistrer maintenant", [&app, configStatus] {
+	SpawnButton(configButtons, "Enregistrer maintenant", [&app, configStatus] {
 		app.SetLabel(configStatus, Settings::save() ? String::Format("Enregistré : %s", Settings::getFilename().CStr())
 												   : String::Format("Écriture impossible : %s",
 																	Settings::getFilename().CStr()));
 	});
 }
 
-ecs::Entity BuildConfig(Application &app) {
+ui::Widget BuildConfig(Application &app) {
 	Application::ModalFrame frame = app.BeginModal("Configuration", 900.f, 540.f);
 	const int initialTab = g_configTab;
 	g_configTab = 0;
-	ui::WidgetBuilder tabs = app.Factory().Tabview(
-		{String("Contrôles"), String("Vidéo"), String("Système"), String("Chemins")}, initialTab);
-	tabs.GrowW().GrowH().Parent(frame.body);
-	ecs::Entity tabsEntity = tabs.Spawn();
-	auto page = [&app, tabsEntity]() {
-		ui::WidgetBuilder builder = app.Factory().Column();
-		builder.GrowW().GrowH().Pad(8.f).Gap(10.f).Scrollable().Clip().Parent(tabsEntity);
-		return builder.Spawn();
-	};
-	BuildControlsPage(app, page());
-	BuildVideoPage(app, page());
-	BuildSystemPage(app, page());
-	BuildPathsPage(app, page());
-	ShowOnlyTab(app.World(), tabsEntity, size_t(initialTab));
+	// Quatre pages vides, remplies une fois l'onglet construit.
+	std::vector<ui::AnyWidget> pages;
+	for (int i = 0; i < 4; ++i)
+		pages.push_back(ui::Column().Class("config-page").Fill());
+	ui::Widget tabs =
+		frame.body.Append(ui::TabView({"Contrôles", "Vidéo", "Système", "Chemins"}, initialTab).Grow().FillWidth().Children(
+			std::move(pages)));
+	const std::vector<ui::Widget> page = tabs.FindAll(".config-page");
+	if (page.size() == 4) {
+		BuildControlsPage(app, page[0]);
+		BuildVideoPage(app, page[1]);
+		BuildSystemPage(app, page[2]);
+		BuildPathsPage(app, page[3]);
+	}
 	return frame.root;
 }
 
@@ -784,40 +695,30 @@ std::vector<uint32_t> ParseCheatCode(const String &text) {
 	return code;
 }
 
-ecs::Entity BuildCheats(Application &app) {
+ui::Widget BuildCheats(Application &app) {
 	Application::ModalFrame frame = app.BeginModal("Codes de triche (Action Replay)", 520.f, 520.f);
-	ui::UiFactory &f = app.Factory();
 	ActionReplay *cheats = app.Session() ? app.Session()->Cheats() : nullptr;
 	if (!cheats) {
-		(void)SpawnLabel(app, frame.body,
+		(void)SpawnLabel(frame.body,
 						 app.Session() ? "Les codes Action Replay ne concernent que les jeux NDS."
 									   : "Lancez d'abord une ROM NDS, puis rouvrez cette boîte.",
 						 13.f, true);
 		return frame.root;
 	}
 
-	ui::WidgetBuilder list = f.Column();
-	list.GrowW().H(ui::Dimension::Px(250.f)).Gap(4.f).Scrollable().Clip().Parent(frame.body);
-	ecs::Entity listEntity = list.Spawn();
+	ui::Widget listEntity = frame.body.Append(ui::ScrollView().FillWidth().Height(250.f).Gap(4.f));
 	if (cheats->cheats.empty())
-		(void)SpawnLabel(app, listEntity, "Aucun code pour cette ROM.", 12.f, true);
+		(void)SpawnLabel(listEntity, "Aucun code pour cette ROM.", 12.f, true);
 	for (size_t i = 0; i < cheats->cheats.size(); ++i) {
-		ui::WidgetBuilder row = f.Row();
-		row.GrowW().HAuto().Bg(Application::ROW_BG()).Radius(4.f).Pad(6.f).Gap(8.f).Align(ui::CrossAlign::Center);
-		row.Parent(listEntity);
-		ecs::Entity rowEntity = row.Spawn();
-		ui::WidgetBuilder toggle = f.Toggle(cheats->cheats[i].enabled);
-		toggle.Parent(rowEntity).OnToggle([cheats, i](bool checked) {
+		ui::Widget rowEntity = listEntity.Append(ui::Row().Class("card").FillWidth().Gap(8.f));
+		rowEntity.Append(ui::Switch(cheats->cheats[i].enabled).OnToggle([cheats, i](bool checked) {
 			if (i < cheats->cheats.size()) {
 				cheats->cheats[i].enabled = checked;
 				(void)cheats->saveCheats();
 			}
-		});
-		(void)toggle.Spawn();
-		ui::WidgetBuilder name = f.Label(cheats->cheats[i].name);
-		name.FontSize(13.f).TextColor(Application::TEXT_PRIMARY()).GrowW().Parent(rowEntity);
-		(void)name.Spawn();
-		SpawnButton(app, rowEntity, "Supprimer", [&app, cheats, i] {
+		}));
+		rowEntity.Append(ui::Label(cheats->cheats[i].name).Class("primary").Grow());
+		SpawnButton(rowEntity, "Supprimer", [&app, cheats, i] {
 			if (i < cheats->cheats.size()) {
 				cheats->cheats.erase(cheats->cheats.begin() + long(i));
 				(void)cheats->saveCheats();
@@ -826,18 +727,15 @@ ecs::Entity BuildCheats(Application &app) {
 		});
 	}
 
-	(void)SpawnLabel(app, frame.body, "Ajouter un code", 14.f);
-	ui::WidgetBuilder nameInput = f.Input("Nom du code");
-	nameInput.GrowW().H(ui::Dimension::Px(28.f)).Parent(frame.body);
-	ecs::Entity nameEntity = nameInput.Spawn();
-	ui::WidgetBuilder codeInput = f.Input("Mots hexadécimaux séparés par des espaces, ex. 94000130 FFFB0000 …");
-	codeInput.GrowW().H(ui::Dimension::Px(28.f)).Parent(frame.body);
-	ecs::Entity codeEntity = codeInput.Spawn();
+	(void)SpawnLabel(frame.body, "Ajouter un code", 14.f);
+	ui::Widget nameEntity = frame.body.Append(ui::Input("Nom du code").Class("field"));
+	ui::Widget codeEntity =
+		frame.body.Append(ui::Input("Mots hexadécimaux séparés par des espaces, ex. 94000130 FFFB0000 …").Class("field"));
 
-	ecs::Entity buttons = SpawnRow(app, frame.body);
-	SpawnButton(app, buttons, "Ajouter", [&app, cheats, nameEntity, codeEntity] {
-		String name = InputText(app, nameEntity);
-		std::vector<uint32_t> code = ParseCheatCode(InputText(app, codeEntity));
+	ui::Widget buttons = SpawnRow(frame.body);
+	SpawnButton(buttons, "Ajouter", [&app, cheats, nameEntity, codeEntity] {
+		String name = nameEntity.Text();
+		std::vector<uint32_t> code = ParseCheatCode(codeEntity.Text());
 		if (name.IsEmpty() || code.empty())
 			return;
 		ARCheat cheat;
@@ -848,7 +746,7 @@ ecs::Entity BuildCheats(Application &app) {
 		(void)cheats->saveCheats();
 		app.OpenModal("cheats");
 	});
-	SpawnButton(app, buttons, "Importer un fichier .cht…", [&app, cheats] {
+	SpawnButton(buttons, "Importer un fichier .cht…", [&app, cheats] {
 		sdl3::dialog::ShowOpenFile(
 			[&app, cheats](const sdl3::DialogResult &result, int) {
 				if (!result.Ok())
@@ -869,55 +767,50 @@ ecs::Entity BuildCheats(Application &app) {
 
 // ── Réseau ──────────────────────────────────────────────────────────────────
 
-ecs::Entity BuildNetwork(Application &app) {
+ui::Widget BuildNetwork(Application &app) {
 	Application::ModalFrame frame = app.BeginModal("Réseau local", 460.f, 300.f);
-	ui::UiFactory &f = app.Factory();
-	ui::WidgetBuilder address = f.Input("Adresse IP (ex. 127.0.0.1)");
-	address.GrowW().H(ui::Dimension::Px(28.f)).Parent(frame.body);
-	ecs::Entity addressEntity = address.Spawn();
-	ui::WidgetBuilder port = f.Input("Port (ex. 7777)");
-	port.GrowW().H(ui::Dimension::Px(28.f)).Parent(frame.body);
-	ecs::Entity portEntity = port.Spawn();
-	ecs::Entity status = SpawnLabel(app, frame.body, NetStatusText(app.Net().Status()));
+	ui::Widget addressEntity = frame.body.Append(ui::Input("Adresse IP (ex. 127.0.0.1)").Class("field"));
+	ui::Widget portEntity = frame.body.Append(ui::Input("Port (ex. 7777)").Class("field"));
+	ui::Widget status = SpawnLabel(frame.body, NetStatusText(app.Net().Status()));
 
-	auto readPort = [&app, portEntity]() {
-		Option<int64_t> value = InputText(app, portEntity).Trim().TryParseInt();
+	auto readPort = [portEntity]() {
+		Option<int64_t> value = portEntity.Text().Trim().TryParseInt();
 		return (value.IsSome() && value.Unwrap() > 0 && value.Unwrap() < 65536) ? uint16_t(value.Unwrap())
 																				: uint16_t(7777);
 	};
-	ecs::Entity buttons = SpawnRow(app, frame.body);
-	SpawnButton(app, buttons, "Héberger", [&app, readPort] { (void)app.Net().Host(readPort()); });
-	SpawnButton(app, buttons, "Rejoindre", [&app, addressEntity, readPort] {
-		String ip = InputText(app, addressEntity).Trim();
+	ui::Widget buttons = SpawnRow(frame.body);
+	SpawnButton(buttons, "Héberger", [&app, readPort] { (void)app.Net().Host(readPort()); });
+	SpawnButton(buttons, "Rejoindre", [&app, addressEntity, readPort] {
+		String ip = addressEntity.Text().Trim();
 		(void)app.Net().Join(ip.IsEmpty() ? String("127.0.0.1") : ip, readPort());
 	});
-	SpawnButton(app, buttons, "Déconnecter", [&app] { app.Net().Disconnect(); });
+	SpawnButton(buttons, "Déconnecter", [&app] { app.Net().Disconnect(); });
 	app.AddModalTick([&app, status] { app.SetLabel(status, NetStatusText(app.Net().Status())); });
 	return frame.root;
 }
 
 // ── À propos ────────────────────────────────────────────────────────────────
 
-ecs::Entity BuildAbout(Application &app) {
+ui::Widget BuildAbout(Application &app) {
 	Application::ModalFrame frame = app.BeginModal("À propos d'EmulOS", 520.f, 300.f);
-	(void)SpawnLabel(app, frame.body, "EmulOS — emulator", 18.f);
+	(void)SpawnLabel(frame.body, "EmulOS — emulator", 18.f);
 	// Les libellés ne passent pas à la ligne d'eux-mêmes : lignes explicites.
-	(void)SpawnLabel(app, frame.body,
+	(void)SpawnLabel(frame.body,
 					 "Émulateur Nintendo DS et Game Boy Advance (cœur dérivé de NooDS)\n"
 					 "et Game Boy / Game Boy Color, bâti sur le wrapper SDL3/C++23 :\n"
 					 "sdl3:: (fenêtre, rendu, audio, réseau, manettes), ui:: (interface\n"
 					 "retenue sur ECS) et dataio:: (rapport d'exécution JSON).",
 					 13.f, true);
-	(void)SpawnLabel(app, frame.body,
+	(void)SpawnLabel(frame.body,
 					 "F5 sauvegarde · F9 chargement · P pause · R disposition\nF12 capture · Ctrl+O ROMs · Échap quitter",
 					 12.f, true);
-	(void)SpawnLabel(app, frame.body, "Ligne de commande : emulator --help", 12.f, true);
+	(void)SpawnLabel(frame.body, "Ligne de commande : emulator --help", 12.f, true);
 	return frame.root;
 }
 
 } // namespace
 
-ecs::Entity BuildModal(Application &app, const String &name) {
+ui::Widget BuildModal(Application &app, const String &name) {
 	if (name == "roms")
 		return BuildRomBrowser(app);
 	if (name == "saves")
@@ -930,7 +823,7 @@ ecs::Entity BuildModal(Application &app, const String &name) {
 		return BuildNetwork(app);
 	if (name == "about")
 		return BuildAbout(app);
-	return ecs::Entity{};
+	return ui::Widget();
 }
 
 void OpenRomFileDialog(Application &app) {

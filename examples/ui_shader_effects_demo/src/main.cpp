@@ -1,140 +1,115 @@
 /**
- * ui_shader_effects_demo — ui::UiShaderEffect (M23, Phase 4 du plan
- * d'expansion moteur) : quelques panneaux 2D ordinaires, chacun post-traité
- * par un effet shader GPU différent (TINT_SHIFT / GLOW) via
- * ui::ShaderEffectSystem — même intégration que ui::Viewport3D (M22) :
- * sdl3::Renderer (backend 2D normal) + render3d::Canvas (device GPU pour
- * l'effet) enregistrés ensemble sur ui::Ui, coexistence confirmée sans
- * conflit (cf. rapport de tâche M22).
+ * ui_shader_effects_demo — ui::ShaderEffect : quelques panneaux 2D
+ * ordinaires (texte, bouton, curseur), chacun post-traité par un effet GPU
+ * (TINT_SHIFT / GLOW). Le renderer 2D de l'interface et le render3d::Canvas
+ * (device GPU des effets) partagent la même fenêtre.
  *
- * Pipeline (cf. lib/include/ui/shader_effect.hpp pour le détail complet) :
- * chaque widget portant un UiShaderEffect est d'abord dessiné normalement
- * dans une texture cible SDL_Renderer dédiée, relue (Renderer::ReadPixels,
- * M23), envoyée au GPU (UploadSurfaceToGpuTexture, M21), passée par un petit
- * pipeline GPU dédié au preset choisi, puis re-composée dans l'UI 2D via le
- * même DrawImageFit que n'importe quelle image — RenderSystem::DrawWidget
- * blitte alors le résultat POST-TRAITÉ à la place du sous-arbre normal du
- * widget.
+ * Chaque widget portant un ShaderEffect est dessiné dans une texture cible,
+ * relu, envoyé au GPU, passé dans le pipeline de l'effet puis affiché à la
+ * place de son sous-arbre (cf. ui/shader_effect.hpp). Sans GPU, les panneaux
+ * restent dessinés normalement. Les widgets restent interactifs.
  *
- *   make build/bin/ui_shader_effects_demo && ./build/bin/ui_shader_effects_demo
+ *   cpp-maker run ui_shader_effects_demo
  */
 #include <iostream>
 
 #include <core/core.hpp>
+#include <render3d/canvas.hpp>
 #include <sdl3/sdl3.hpp>
 #include <ui/ui.hpp>
 
 static constexpr int WIN_W = 900;
-static constexpr int WIN_H = 420;
-static constexpr float FONT_PT = 14.f;
+static constexpr int WIN_H = 440;
+
+static constexpr const char *EFFECTS_CSS = R"css(
+#samples { gap: 24px; padding: 24px; }
+.sample { gap: 8px; align-items: center; }
+.sample > label { font-size: 15px; }
+.card { width: 180px; height: 180px; padding: 12px; gap: 10px; background-color: #598cd9; border-radius: 10px;
+        justify-content: center; align-items: center; }
+.card.white { background-color: #ffffff; color: #202020; }
+)css";
+
+static ui::WidgetBuilder Card(const char *caption, Option<ui::ShaderEffect> effect, bool white = false) {
+	ui::WidgetBuilder card = ui::Panel().Class("card").Children({
+		ui::Label("Contenu réel"),
+		ui::Button("Bouton"),
+		ui::Slider(0.f, 1.f, 0.5f).Width(140.f),
+	});
+	if (white)
+		card.Class("white");
+	if (effect.IsSome())
+		card.With(effect.Value());
+	return ui::Column().Class("sample").Children({ui::Label(caption), card});
+}
 
 int main() {
-    auto sdl = sdl3::SdlContext::Create(sdl3::init_flags::VIDEO | sdl3::init_flags::EVENTS);
-    if (!sdl) {
-        std::cerr << "SDL init: " << sdl.Error().CStr() << "\n";
-        return 1;
-    }
-    auto ttf = sdl3::TtfContext::Create();
-    if (!ttf) {
-        std::cerr << "TTF init: " << ttf.Error().CStr() << "\n";
-        return 1;
-    }
-    auto fontRes = sdl3::Font::FindLocal({"DejaVuSans", "FreeSans", "Arial"}, FONT_PT);
-    if (!fontRes) {
-        std::cerr << "Font: " << fontRes.Error().CStr() << "\n";
-        return 1;
-    }
-    auto &font = fontRes.Value();
+	auto sdl = sdl3::SdlContext::Create(sdl3::init_flags::VIDEO | sdl3::init_flags::EVENTS);
+	if (!sdl) {
+		std::cerr << "SDL init: " << sdl.Error().CStr() << "\n";
+		return 1;
+	}
+	auto ttf = sdl3::TtfContext::Create();
+	if (!ttf) {
+		std::cerr << "TTF init: " << ttf.Error().CStr() << "\n";
+		return 1;
+	}
+	auto winRes = sdl3::Window::Create(u8"ui:: - effets de shader", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
+	if (!winRes) {
+		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
+		return 1;
+	}
+	auto &window = winRes.Value();
+	auto renRes = sdl3::Renderer::Create(window);
+	if (!renRes) {
+		std::cerr << "Renderer: " << renRes.Error().CStr() << "\n";
+		return 1;
+	}
+	auto &ren = renRes.Value();
+	// Device GPU des effets, sur la même fenêtre que le renderer 2D.
+	auto canvasRes = render3d::Canvas::Create(window, window.GetWidth(), window.GetHeight());
+	if (!canvasRes)
+		std::cerr << "Canvas (effets désactivés) : " << canvasRes.Error().CStr() << "\n";
 
-    auto winRes = sdl3::Window::Create(u8"ui:: - Shader effects demo", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
-    if (!winRes) {
-        std::cerr << "Window: " << winRes.Error().CStr() << "\n";
-        return 1;
-    }
-    auto &window = winRes.Value();
+	ecs::ArchetypeRegistry world;
+	ui::Ui gui(world, window, ren);
+	gui.AddStyleSheet(EFFECTS_CSS);
+	if (canvasRes)
+		gui.Initialize(canvasRes.Value());
 
-    // Renderer (backend 2D de ui::) ET Canvas (device GPU pour les effets
-    // shader) sur la MÊME fenêtre — cf. en-tête du fichier.
-    auto renRes = sdl3::Renderer::Create(window);
-    if (!renRes) {
-        std::cerr << "Renderer: " << renRes.Error().CStr() << "\n";
-        return 1;
-    }
-    auto &ren = renRes.Value();
+	ui::WindowFrame frame;
+	frame.Build(gui, window,
+				{.title = "ui:: - effets de shader", .appIcon = Some(ui::MaterialIcons::AUTO_AWESOME),
+				 .status = canvasRes ? "Référence, TintShift, Glow." : "Pas de device GPU : effets désactivés."});
+	frame.Content().Append(ui::Row().Id("samples").Absolute().Anchor(ui::Anchor::Center).Children({
+		Card("Normal", NONE),
+		Card("TintShift (orange, 0.6)", Some(ui::TintShift(ui::Color{1.f, 0.55f, 0.15f, 1.f}, 0.6f))),
+		Card("Glow (rouge)", Some(ui::GlowEffect(ui::Color{1.f, 0.15f, 0.15f, 1.f}, 0.3f)), true),
+	}));
 
-    auto canvasRes = render3d::Canvas::Create(window, window.GetWidth(), window.GetHeight());
-    if (!canvasRes) {
-        std::cerr << "Canvas::Create: " << canvasRes.Error().CStr() << "\n";
-        return 1;
-    }
-    render3d::Canvas canvas = std::move(canvasRes.Value());
+	bool running = true;
+	uint64_t lastTick = sdl3::GetTicksMS();
+	while (running) {
+		const uint64_t now = sdl3::GetTicksMS();
+		const float dt = float(now - lastTick) / 1000.f;
+		lastTick = now;
+		while (auto ev = sdl3::PollEvent()) {
+			auto &e = ev.Value();
+			if (e.IsQuit() || e.IsKeyDown(SDLK_ESCAPE)) {
+				running = false;
+				break;
+			}
+			gui.HandleEvent(e);
+		}
+		gui.Update(dt);
+		frame.Update();
+		if (frame.CloseRequested())
+			running = false;
 
-    auto engRes = sdl3::TextEngine::Create(ren);
-    if (!engRes) {
-        std::cerr << "TextEngine: " << engRes.Error().CStr() << "\n";
-        return 1;
-    }
-    auto &eng = engRes.Value();
-
-    ecs::ArchetypeRegistry ar;
-    ui::Ui gui(ar, window, ren, ui::UiTheme::Dark());
-    gui.Initialize(canvas); // enregistre le Canvas pour ShaderEffectSystem (M23) — ne touche PAS le backend 2D
-
-    gui.SetTextEngine(eng, font);
-    gui.Layout().measureText = [&font](const String &s, float fs) -> sdl3::FPoint {
-        if (auto sz = font.Measure(s); sz.IsSome())
-            return {float(sz.Unwrap().x) * (fs / FONT_PT), fs * 1.35f};
-        return {float(s.size()) * fs * 0.55f, fs * 1.3f};
-    };
-
-    ui::UiFactory &f = gui.Factory();
-
-    // Encadrement de fenêtre : barre de titre, barre d'état, redimensionnement.
-    ui::WindowFrame frame;
-    frame.Build(gui, window, {.title = "ui:: - effets de shader", .appIcon = Some(ui::MaterialIcons::AUTO_AWESOME),
-                              .status = "Référence, TintShift, Glow."});
-
-    auto root = f.Row();
-    root.Absolute().Anchor(ui::Anchor::Center).Parent(frame.Content()).Gap(24.f).Pad(24.f).WAuto().HAuto().Children(
-        // ── Sans effet (référence) ───────────────────────────────────────
-        f.Column().Gap(8.f).Children(
-            f.Label("Normal").FontSize(15.f),
-            f.Panel().Size(160.f, 160.f).Style(ui::UiStyle{}.SetBg(sdl3::FColor{0.35f, 0.55f, 0.85f, 1.f}))),
-        // ── TINT_SHIFT : teinte le fond vers le orange, force 0.6 ───────────
-        f.Column().Gap(8.f).Children(
-            f.Label("TintShift (orange, 0.6)").FontSize(15.f),
-            f.Panel()
-                .Size(160.f, 160.f)
-                .Style(ui::UiStyle{}.SetBg(sdl3::FColor{0.35f, 0.55f, 0.85f, 1.f}))
-                .TintShiftEffect(sdl3::FColor{1.f, 0.55f, 0.15f, 1.f}, 0.6f)),
-        // ── GLOW : halo rouge depuis le centre ──────────────────────────────
-        f.Column().Gap(8.f).Children(
-            f.Label("Glow (rouge)").FontSize(15.f),
-            f.Panel()
-                .Size(160.f, 160.f)
-                .Style(ui::UiStyle{}.SetBg(sdl3::FColor::WHITE()))
-                .GlowEffect(sdl3::FColor{1.f, 0.15f, 0.15f, 1.f}, 0.3f)));
-    root.Spawn();
-
-    bool running = true;
-    while (running) {
-        while (auto ev = sdl3::PollEvent()) {
-            auto &e = ev.Value();
-            if (e.IsQuit() || e.IsKeyDown(SDLK_ESCAPE)) {
-                running = false;
-                break;
-            }
-            gui.HandleEvent(e);
-        }
-        gui.Tick(0.f);
-        frame.Update();
-        if (frame.CloseRequested())
-            running = false;
-
-        ren.SetDrawColor(sdl3::FColor::UI_APP_BG());
-        ren.Clear();
-        gui.Render();
-        ren.Present();
-    }
-    return 0;
+		ren.SetDrawColor(gui.CurrentPalette().appBg);
+		ren.Clear();
+		gui.Render();
+		ren.Present();
+	}
+	return 0;
 }

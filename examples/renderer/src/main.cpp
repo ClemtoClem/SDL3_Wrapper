@@ -174,12 +174,6 @@ int main() {
 	// barre de titre et la barre d'état sont des widgets ui:: par-dessus.
 	ecs::ArchetypeRegistry ar;
 	ui::Ui gui(ar, window, ren);
-	gui.SetTextEngine(eng, font);
-	gui.Layout().measureText = [&font](const String &s, float fs) -> sdl3::FPoint {
-		if (auto sz = font.Measure(s); sz.IsSome())
-			return {float(sz.Unwrap().x) * (fs / FONT_PT), fs * 1.35f};
-		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
-	};
 	ui::WindowFrame frame;
 	frame.Build(gui, window,
 				{.title = "SDL3 Wrapper - rendu 2D", .appIcon = Some(ui::MaterialIcons::BRUSH),
@@ -330,7 +324,7 @@ int main() {
 		state.sx = sdl3::Clamp(state.sx, 0.f, float(WIN_W) - state.sw);
 		state.sy = sdl3::Clamp(state.sy, 0.f, float(WIN_H) - state.sh);
 
-		gui.Tick(dt);
+		gui.Update(dt);
 		frame.Update();
 		if (frame.CloseRequested())
 			running = false;

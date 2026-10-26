@@ -1,9 +1,10 @@
 /**
- * ui_aero_lists — thème Frutiger Aero, fenêtre borderless : listes/arbres/
- * tableaux/graphes (Phases 4, 6, 7). Selectable multi-sélection, TreeNode
- * imbriqué, Table triable/redimensionnable/réordonnable, PlotLines.
+ * ui_aero_lists — thème Frutiger Aero, fenêtre sans décoration : listes,
+ * arbres, tableaux et graphes. Selectable multi-sélection (Ctrl/Maj+clic),
+ * TreeNode imbriqué, Table triable / redimensionnable / réordonnable,
+ * PlotLines.
  *
- *   make examples && ./build/examples/ui_aero_lists
+ *   cpp-maker run ui_aero_lists
  */
 #include <iostream>
 
@@ -13,7 +14,13 @@
 
 static constexpr int WIN_W = 820;
 static constexpr int WIN_H = 620;
-static constexpr float FONT_PT = 14.f;
+
+static constexpr const char *AERO_CSS = R"css(
+window-frame { background-image: linear-gradient(to bottom, #1d4f8a, #6fa8dc); }
+#content { padding: 16px; gap: 12px; align-items: stretch; }
+#content > column { gap: 10px; }
+selection-list { background-color: #ffffff26; border-radius: 8px; padding: 6px; gap: 2px; }
+)css";
 
 int main() {
 	auto sdl = sdl3::SdlContext::Create(sdl3::init_flags::VIDEO | sdl3::init_flags::EVENTS);
@@ -26,14 +33,8 @@ int main() {
 		std::cerr << "TTF init: " << ttf.Error().CStr() << "\n";
 		return 1;
 	}
-	auto fontRes = sdl3::Font::FindLocal({"DejaVuSans", "FreeSans", "Arial"}, FONT_PT);
-	if (!fontRes) {
-		std::cerr << "Font: " << fontRes.Error().CStr() << "\n";
-		return 1;
-	}
-	auto &font = fontRes.Value();
-
-	auto winRes = sdl3::Window::Create(u8"ui:: Aero - listes", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
+	auto winRes = sdl3::Window::Create(u8"ui:: Aero - listes", WIN_W, WIN_H,
+									   ui::WindowFrame::WINDOW_FLAGS | sdl3::window_flags::TRANSPARENT);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
@@ -45,84 +46,56 @@ int main() {
 		return 1;
 	}
 	auto &ren = renRes.Value();
-	auto engRes = sdl3::TextEngine::Create(ren);
-	if (!engRes) {
-		std::cerr << "TextEngine: " << engRes.Error().CStr() << "\n";
-		return 1;
-	}
-	auto &eng = engRes.Value();
 
-	ecs::ArchetypeRegistry ar;
-	ui::Ui gui(ar, window, ren, ui::UiTheme::Aero());
-	ui::UiFactory &f = gui.Factory();
+	ecs::ArchetypeRegistry world;
+	ui::Ui gui(world, window, ren, ui::Theme::Aero);
+	gui.AddStyleSheet(AERO_CSS);
 
-	gui.SetTextEngine(eng, font);
-	gui.Layout().measureText = [&font](const String &s, float fs) -> sdl3::FPoint {
-		if (auto sz = font.Measure(s); sz.IsSome())
-			return {float(sz.Unwrap().x) * (fs / FONT_PT), fs * 1.35f};
-		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
-	};
-
-	auto desktop = f.Panel();
-	desktop.Anchor(ui::Anchor::TopLeft).W(ui::Dimension::Rpct(100)).H(ui::Dimension::Rpct(100));
-	desktop.Style(ui::UiStyle{}.SetBg(sdl3::FColor::UI_AERO_TITLE_DARK()).SetBgGradient(sdl3::FColor::UI_AERO_TITLE_LIGHT()));
-	desktop.Spawn();
-
-	// Encadrement de fenêtre « verre » : barre de titre sans fond (le dégradé
-	// du bureau reste visible), barre d'état et poignée de redimensionnement.
 	ui::WindowFrame frame;
-	frame.Build(gui, window, {.title = u8"Listes Aero", .appIcon = Some(ui::MaterialIcons::VIEW_LIST),
-							  .status = "Listes sélectionnables et arbre.", .fillTitleBar = false});
+	frame.Build(gui, window,
+				{.title = "Listes Aero", .appIcon = Some(ui::MaterialIcons::VIEW_LIST),
+				 .status = "Listes sélectionnables et arbre.", .fillTitleBar = false});
 
-	auto content = f.Row();
-	content.Gap(12.f).Pad(16.f).GrowW().GrowH().Parent(frame.Content());
-
-	// ── Colonne gauche : Selectable list + TreeNode ─────────────────────────
-	auto leftCol = f.Column();
-	leftCol.Gap(10.f).W(ui::Dimension::Px(220.f)).GrowH();
-
-	auto selList = f.Column();
-	selList.SelectionRoot(true).Gap(2.f).Pad(6.f).GrowW().H(ui::Dimension::Px(160.f));
-	selList.Children(f.Selectable("Pomme", 0), f.Selectable("Banane", 1), f.Selectable("Cerise", 2),
-					 f.Selectable("Datte", 3), f.Selectable("Figue", 4));
-
-	auto tree = f.Column();
-	tree.SelectionRoot(true).Gap(2.f).Pad(6.f).GrowW().GrowH();
-	auto docs = f.TreeNode("Documents", 0, 0);
-	docs.Children(f.Selectable("rapport.pdf", 1), f.Selectable("notes.txt", 2));
-	auto imgs = f.TreeNode("Images", 3, 0);
-	imgs.Children(f.Selectable("photo1.png", 4), f.Selectable("photo2.png", 5));
-	tree.Children(std::move(docs), std::move(imgs));
-
-	leftCol.Children(f.Label("Fruits (Ctrl/Maj+clic) :"), std::move(selList), f.Label("Arborescence :"),
-					 std::move(tree));
-
-	// ── Colonne droite : Table + Plot ───────────────────────────────────────
-	auto rightCol = f.Column();
-	rightCol.Gap(10.f).GrowW().GrowH();
-
-	std::vector<ui::UiTableColumn> cols = {{"Nom", 140.f, 60.f, true}, {"Score", 90.f, 50.f, true},
-										   {"Niveau", 90.f, 50.f, true}};
-	std::vector<std::vector<String>> rows = {{"Alice", "87", "12"}, {"Bob", "64", "9"}, {"Chloé", "95", "15"},
-											 {"David", "72", "10"}};
-	auto table = f.Table(cols, rows, true, true);
-	table.GrowW().H(ui::Dimension::Px(180.f));
-
-	float samples[] = {3.f, 5.f, 2.f, 8.f, 6.f, 9.f, 4.f, 7.f};
-	auto plot = f.PlotLines(samples, "Progression");
-	plot.GrowW().H(ui::Dimension::Px(100.f));
-
-	rightCol.Children(f.Label("Table (tri/redim./glisser une ligne) :"), std::move(table), f.Label("Graphe :"),
-					  std::move(plot));
-
-	content.Children(std::move(leftCol), std::move(rightCol));
-	content.Spawn();
+	const float samples[] = {3.f, 5.f, 2.f, 8.f, 6.f, 9.f, 4.f, 7.f};
+	frame.Content().Append(ui::Row().Id("content").Grow().FillWidth().Children({
+		// ── Colonne gauche : liste sélectionnable + arbre ──
+		ui::Column().Width(220.f).Children({
+			ui::Label("Fruits (Ctrl/Maj+clic) :"),
+			ui::SelectionList(true).FillWidth().Height(160.f).OnSelect([&frame](int i) {
+				frame.SetStatus(String("Fruit sélectionné : ") + String::From(i));
+			}).Children({
+				ui::Selectable("Pomme", 0),
+				ui::Selectable("Banane", 1),
+				ui::Selectable("Cerise", 2),
+				ui::Selectable("Datte", 3),
+				ui::Selectable("Figue", 4),
+			}),
+			ui::Label("Arborescence :"),
+			ui::SelectionList(false).FillWidth().Grow().Children({
+				ui::TreeNode("Documents", 0).Children({ui::TreeNode("rapport.pdf", 1, false),
+													   ui::TreeNode("notes.txt", 2, false)}),
+				ui::TreeNode("Images", 3).Children({ui::TreeNode("photo1.png", 4, false),
+													ui::TreeNode("photo2.png", 5, false)}),
+			}),
+		}),
+		// ── Colonne droite : table + graphe ──
+		ui::Column().Grow().Children({
+			ui::Label("Table (tri / redim. / glisser une ligne) :"),
+			ui::Table({{"Nom", 140.f, 60.f, true}, {"Score", 90.f, 50.f, true}, {"Niveau", 90.f, 50.f, true}},
+					  {{"Alice", "87", "12"}, {"Bob", "64", "9"}, {"Chloé", "95", "15"}, {"David", "72", "10"}},
+					  true, true)
+				.FillWidth()
+				.Height(180.f),
+			ui::Label("Graphe :"),
+			ui::PlotLines(samples, "Progression").FillWidth().Height(140.f),
+		}),
+	}));
 
 	bool running = true;
 	uint64_t lastTick = sdl3::GetTicksMS();
 	while (running) {
-		uint64_t now = sdl3::GetTicksMS();
-		float dt = float(now - lastTick) / 1000.f;
+		const uint64_t now = sdl3::GetTicksMS();
+		const float dt = float(now - lastTick) / 1000.f;
 		lastTick = now;
 
 		while (auto ev = sdl3::PollEvent()) {
@@ -131,21 +104,17 @@ int main() {
 				running = false;
 				break;
 			}
-			if (e.IsKeyDown(SDLK_ESCAPE)) {
-				if (gui.HasOpenModal())
-					gui.HandleEvent(e);
-				else
-					running = false;
-				break;
-			}
-			gui.HandleEvent(e);
+			if (gui.HandleEvent(e))
+				continue;
+			if (e.IsKeyDown(SDLK_ESCAPE))
+				running = false;
 		}
-		gui.Tick(dt);
+		gui.Update(dt);
 		frame.Update();
 		if (frame.CloseRequested())
 			running = false;
 
-		ren.SetDrawColor(sdl3::FColor::UI_WINDOW_BG());
+		ren.SetDrawColor(sdl3::Color{0, 0, 0, 0});
 		ren.Clear();
 		gui.Render();
 		ren.Present();

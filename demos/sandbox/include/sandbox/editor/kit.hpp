@@ -14,11 +14,10 @@
  *  - `DockPanel`       : un panneau à onglets façon éditeur de jeu (bandeau
  *                        d'onglets, bouton ≡, pages empilées).
  *
- * Règle de mise en page de tout ce dossier : un `UiFlow` (Row/Column) a 8 px
- * de marge PAR DÉFAUT, et un conteneur dont le contenu déborde affiche une
- * barre de défilement sans qu'on la demande. Chaque conteneur pose donc sa
- * marge explicitement (souvent `Pad(0.f)`) : un filet de 1 px ou un carré de
- * 8 px avec 16 px de marge déborderait, et dessinerait des barres parasites.
+ * Les couleurs du cadre de l'éditeur (Palette) découlent de la palette du
+ * thème ui:: ; la feuille de style de l'éditeur (EditorCss) en fait des
+ * classes (`.editor-header`, `.editor-toolbar`…), si bien que changer de
+ * thème repeint l'application sans rien reconstruire à la main.
  *
  * Aucune de ces briques ne connaît le document : elles reçoivent des valeurs
  * et rendent des rappels. C'est ce qui les rend réutilisables — et ce qui
@@ -38,12 +37,11 @@ namespace sandbox {
 
 class ModelingSession;
 
-/// Les quatre références qu'utilise chaque panneau.
+/// Les références qu'utilise chaque panneau.
 struct UiContext {
 	Runtime &runtime;
 	ui::Ui &gui;
 	ecs::ArchetypeRegistry &registry;
-	ui::UiFactory &factory;
 	/// Renderer de la fenêtre, pour charger des aperçus d'images — nul tant
 	/// que l'application ne l'a pas fourni (tests, mode sans écran).
 	sdl3::Renderer *renderer = nullptr;
@@ -51,7 +49,7 @@ struct UiContext {
 	/// tant que l'éditeur ne l'a pas fournie.
 	ModelingSession *modeling = nullptr;
 
-	[[nodiscard]] const ui::UiTheme &Theme() const noexcept { return gui.Theme(); }
+	[[nodiscard]] const ui::Palette &Theme() const noexcept { return gui.CurrentPalette(); }
 };
 
 namespace kit {
@@ -97,7 +95,10 @@ struct Palette {
 /// laisser voir ce qu'il y a derrière la fenêtre).
 [[nodiscard]] sdl3::FColor Mix(const sdl3::FColor &a, const sdl3::FColor &b, float t) noexcept;
 
-[[nodiscard]] Palette PaletteOf(const ui::UiTheme &theme);
+[[nodiscard]] Palette PaletteOf(const ui::Palette &theme);
+
+/// Feuille de style de l'éditeur, dérivée de la palette (cf. Palette).
+[[nodiscard]] String EditorCss(const ui::Palette &theme);
 
 [[nodiscard]] inline Palette PaletteOf(const UiContext &ctx) { return PaletteOf(ctx.Theme()); }
 
@@ -135,7 +136,7 @@ struct NodeLook {
 [[nodiscard]] NodeLook LookOf(const scene::Node &node);
 
 // ============================================================================
-// Colorations syntaxiques (fonctions pures, cf. ui::UiSyntaxHighlighter)
+// Colorations syntaxiques (fonctions pures, cf. ui::SyntaxHighlighter)
 // ============================================================================
 
 namespace syntax {
@@ -168,19 +169,19 @@ struct Scheme {
 /// Langage de script de l'éditeur (« Script ») : mots-clés, chaînes, nombres,
 /// commentaires (`#`, `//`), appels de fonction et tables d'API
 /// (`editor.`, `node.`…).
-void HighlightSled(const String &line, std::vector<ui::UiTextSpan> &out);
+void HighlightSled(const String &line, std::vector<ui::TextSpan> &out);
 
 /// JSON : clés (chaîne suivie de `:`), chaînes, nombres, littéraux, accolades.
-void HighlightJson(const String &line, std::vector<ui::UiTextSpan> &out);
+void HighlightJson(const String &line, std::vector<ui::TextSpan> &out);
 
 /// Console : le niveau entre crochets donne la couleur (`[err   ]` en rouge,
 /// `[warn  ]` en orange, `[ok    ]` en vert, `[script]` en cyan) — une erreur
 /// est colorée sur toute sa ligne, c'est elle qu'on cherche des yeux.
-void HighlightLog(const String &line, std::vector<ui::UiTextSpan> &out);
+void HighlightLog(const String &line, std::vector<ui::TextSpan> &out);
 
 /// Coloration adaptée à un nom de fichier (ou de document) : `.json` et
 /// `.gltf` en JSON, tout le reste dans le langage de l'éditeur.
-[[nodiscard]] ui::UiSyntaxHighlighter ForName(const String &name);
+[[nodiscard]] ui::SyntaxHighlighter ForName(const String &name);
 
 } // namespace syntax
 
@@ -188,38 +189,39 @@ void HighlightLog(const String &line, std::vector<ui::UiTextSpan> &out);
 // Petites aides d'arbre d'interface
 // ============================================================================
 
-/// Vide un conteneur. Les entités sont COLLECTÉES avant destruction :
-/// `DespawnTree` modifie la liste d'enfants que l'on parcourrait.
-void ClearChildren(UiContext &ctx, ecs::Entity parent);
+/// Vide un conteneur (et oublie sa ligne sélectionnée, cf. MarkSelected).
+void ClearChildren(UiContext &ctx, ui::Widget parent);
 
-/// Change le fond d'un widget déjà construit (style inline) et relance la
-/// cascade de styles sur lui.
-void SetBackground(UiContext &ctx, ecs::Entity entity, sdl3::FColor color);
+/// Marque la ligne `index` (ui::Selectable) de la liste `list` comme
+/// sélectionnée : état `:selected` de la ligne, sans évènement.
+void MarkSelected(ui::Widget list, int index);
 
-void SetLabelText(UiContext &ctx, ecs::Entity entity, const String &text);
+/// Change le fond d'un widget déjà construit (style inline).
+void SetBackground(UiContext &ctx, ui::Widget widget, sdl3::FColor color);
 
-void SetHidden(UiContext &ctx, ecs::Entity entity, bool hidden);
+void SetLabelText(UiContext &ctx, ui::Widget widget, const String &text);
+
+void SetHidden(UiContext &ctx, ui::Widget widget, bool hidden);
 
 /// Libellé discret (titre de section, légende).
-ecs::Entity Caption(UiContext &ctx, ecs::Entity parent, const String &text, float size = 12.f);
+ui::Widget Caption(UiContext &ctx, ui::Widget parent, const String &text, float size = 12.f);
 
 /// Élément extensible qui pousse la suite d'une rangée vers la droite.
-ecs::Entity Spacer(UiContext &ctx, ecs::Entity parent);
+ui::Widget Spacer(UiContext &ctx, ui::Widget parent);
 
 /// Icône seule, sans interaction (repère visuel d'une ligne).
-ecs::Entity Glyph(UiContext &ctx, ecs::Entity parent, ui::MaterialIcons icon, sdl3::FColor color,
-						 float size = 16.f);
+ui::Widget Glyph(UiContext &ctx, ui::Widget parent, ui::MaterialIcons icon, sdl3::FColor color, float size = 16.f);
 
 /// Bouton d'icône plat (≡, +, ⋮, ←…) : fond transparent au repos, survol
-/// visible. `outIcon` rend l'entité de l'icône pour les boutons dont le
-/// glyphe change (lecture/arrêt).
-ecs::Entity IconButton(UiContext &ctx, ecs::Entity parent, ui::MaterialIcons icon, const String &tooltip,
-							  std::function<void()> action, float size = 24.f, ecs::Entity *outIcon = nullptr,
-							  sdl3::FColor tint = sdl3::FColor{});
+/// visible. `outIcon` rend l'icône pour les boutons dont le glyphe change
+/// (lecture/arrêt).
+ui::Widget IconButton(UiContext &ctx, ui::Widget parent, ui::MaterialIcons icon, const String &tooltip,
+					  std::function<void()> action, float size = 24.f, ui::Widget *outIcon = nullptr,
+					  sdl3::FColor tint = sdl3::FColor{});
 
 /// Champ de recherche avec loupe, rapporte chaque frappe.
-ecs::Entity SearchField(UiContext &ctx, ecs::Entity parent, const String &placeholder,
-							   std::function<void(const String &)> onChange, float width = -1.f);
+ui::Widget SearchField(UiContext &ctx, ui::Widget parent, const String &placeholder,
+					   std::function<void(const String &)> onChange, float width = -1.f);
 
 // ============================================================================
 // PropertyRows — les lignes de l'inspecteur
@@ -236,71 +238,40 @@ public:
 	PropertyRows(UiContext &ctx, float labelWidth = 104.f) : m_ctx(ctx), m_labelWidth(labelWidth) {}
 
 	/// Vecteur à trois composantes, X/Y/Z colorées comme les axes.
-	ecs::Entity Vector3(ecs::Entity page, const char *label, math::FVector3 value, float speed,
-						std::function<void(math::FVector3)> onChange, float minValue = -1.0e5f,
-						float maxValue = 1.0e5f);
+	ui::Widget Vector3(ui::Widget page, const char *label, math::FVector3 value, float speed,
+					   std::function<void(math::FVector3)> onChange, float minValue = -1.0e5f, float maxValue = 1.0e5f);
 
 	/// Vecteur à deux composantes (2D : X, Y).
-	ecs::Entity Vector2(ecs::Entity page, const char *label, math::FVector2 value, float speed,
-						std::function<void(math::FVector2)> onChange, float minValue = -1.0e5f,
-						float maxValue = 1.0e5f);
+	ui::Widget Vector2(ui::Widget page, const char *label, math::FVector2 value, float speed,
+					   std::function<void(math::FVector2)> onChange, float minValue = -1.0e5f, float maxValue = 1.0e5f);
 
-	ecs::Entity Number(ecs::Entity page, const char *label, float value, float minValue, float maxValue, float speed,
-					   std::function<void(float)> onChange, int decimals = 2);
+	ui::Widget Number(ui::Widget page, const char *label, float value, float minValue, float maxValue, float speed,
+					  std::function<void(float)> onChange, int decimals = 2);
 
-	ecs::Entity Slider(ecs::Entity page, const char *label, float value, float minValue, float maxValue,
-					   std::function<void(float)> onChange);
+	ui::Widget Slider(ui::Widget page, const char *label, float value, float minValue, float maxValue,
+					  std::function<void(float)> onChange);
 
-	ecs::Entity Check(ecs::Entity page, const char *label, bool value, std::function<void(bool)> onToggle);
+	ui::Widget Check(ui::Widget page, const char *label, bool value, std::function<void(bool)> onToggle);
 
-	ecs::Entity Choice(ecs::Entity page, const char *label, std::vector<String> items, int selected,
-					   std::function<void(int)> onChange);
+	ui::Widget Choice(ui::Widget page, const char *label, std::vector<String> items, int selected,
+					  std::function<void(int)> onChange);
 
 	/// Texte : validé à l'Entrée (un renommage ne doit pas partir à chaque
 	/// frappe).
-	ecs::Entity Text(ecs::Entity page, const char *label, const String &value, std::function<void(const String &)> onSubmit);
+	ui::Widget Text(ui::Widget page, const char *label, const String &value, std::function<void(const String &)> onSubmit);
 
-	ecs::Entity ReadOnly(ecs::Entity page, const char *label, const String &value);
+	ui::Widget ReadOnly(ui::Widget page, const char *label, const String &value);
 
 	/**
 	 * Couleur : une barre de la couleur (comme dans les maquettes) + la
-	 * pipette qui ouvre le sélecteur complet (teinte, saturation, hexa).
-	 * Le sélecteur est un popup créé à la demande et retenu dans `popups`
-	 * pour être détruit avec la page (c'est une racine indépendante, hors du
-	 * sous-arbre de la page).
+	 * pipette ; l'une et l'autre ouvrent le sélecteur complet (teinte,
+	 * saturation, hexa) dans un popup ancré sous la barre. Le popup fait
+	 * partie de la rangée : il disparaît avec la page.
 	 */
-	ecs::Entity Color(ecs::Entity page, const char *label, sdl3::Color value, std::function<void(sdl3::Color)> onChange,
-					  std::vector<ecs::Entity> &popups) {
-		ecs::Entity row = Row(page, label);
-		ui::WidgetBuilder bar = m_ctx.factory.Button(String());
-		bar.GrowW().H(ui::Dimension::Px(20.f)).Radius(3.f).Bg(FromColor(value)).Tooltip(String("Choisir la couleur"));
-		bar.Parent(row);
-		ecs::Entity barEntity = bar.Spawn();
-
-		UiContext *ctx = &m_ctx;
-		ui::WidgetBuilder picker = m_ctx.factory.ColorPicker(FromColor(value), [ctx, barEntity, onChange](sdl3::FColor c) {
-			c.a = 1.f;
-			SetBackground(*ctx, barEntity, c);
-			onChange(ToColor(c));
-		});
-		picker.OverlayOrder(20);
-		ecs::Entity pickerEntity = picker.Spawn();
-		popups.push_back(pickerEntity);
-
-		auto open = [ctx, barEntity, pickerEntity] {
-			if (auto computed = ctx->registry.GetComponent<ui::UiComputed>(barEntity); computed.IsSome()) {
-				const sdl3::FRect r = computed.Unwrap()->screen;
-				ctx->gui.OpenPopupAt(pickerEntity, sdl3::FPoint{r.x, r.y + r.h + 2.f});
-			}
-		};
-		if (auto callbacks = m_ctx.registry.GetComponent<ui::UiCallbacks>(barEntity); callbacks.IsSome())
-			callbacks.Unwrap()->onClick = open;
-		(void)IconButton(m_ctx, row, ui::MaterialIcons::COLORIZE, String("Sélecteur de couleur"), open, 22.f);
-		return row;
-	}
+	ui::Widget Color(ui::Widget page, const char *label, sdl3::Color value, std::function<void(sdl3::Color)> onChange);
 
 	/// Rangée nue « libellé | … » dans laquelle l'appelant place ses champs.
-	ecs::Entity Row(ecs::Entity page, const char *label);
+	ui::Widget Row(ui::Widget page, const char *label);
 
 private:
 	UiContext &m_ctx;
@@ -316,7 +287,7 @@ private:
  * libre à droite du bandeau (boutons propres au panneau), le bouton ≡ du menu
  * du panneau, puis les pages empilées — seule l'active est visible.
  *
- * Pourquoi pas `ui::UiTabView` : il dessine ses onglets lui-même, sans place
+ * Pourquoi pas `ui::TabView` : il dessine ses onglets lui-même, sans place
  * pour un × par onglet, un menu ≡ ou des boutons dans le bandeau, qui sont
  * justement ce qui fait un panneau d'éditeur (cf. les maquettes).
  */
@@ -326,12 +297,12 @@ public:
 
 	/// Construit le cadre sous `parent`. `size` pose les dimensions (le
 	/// panneau ne décide pas de sa place dans la mise en page).
-	ecs::Entity Build(ecs::Entity parent, const std::function<void(ui::WidgetBuilder &)> &size);
+	ui::Widget Build(ui::Widget parent, const std::function<void(ui::WidgetBuilder &)> &size);
 
 	/// Ajoute une page ; rend le conteneur où placer son contenu. `scroll` :
 	/// contenu défilable (listes, inspecteur) ; sinon la page remplit la zone
 	/// (vue 3D, éditeur de code, qui gèrent leur défilement eux-mêmes).
-	ecs::Entity AddPage(const String &title, bool scroll, bool closable = false, float pad = 6.f);
+	ui::Widget AddPage(const String &title, bool scroll, bool closable = false, float pad = 6.f);
 
 	/// Retire une page (et son contenu).
 	void RemovePage(int index);
@@ -342,10 +313,10 @@ public:
 
 	[[nodiscard]] int Active() const noexcept { return m_active; }
 	[[nodiscard]] int Count() const noexcept { return int(m_pages.size()); }
-	[[nodiscard]] ecs::Entity Page(int index) const;
-	[[nodiscard]] ecs::Entity Frame() const noexcept { return m_frame; }
+	[[nodiscard]] ui::Widget Page(int index) const;
+	[[nodiscard]] ui::Widget Frame() const noexcept { return m_frame; }
 	/// Zone du bandeau, à droite des onglets, pour les boutons du panneau.
-	[[nodiscard]] ecs::Entity HeaderExtra() const noexcept { return m_extra; }
+	[[nodiscard]] ui::Widget HeaderExtra() const noexcept { return m_extra; }
 
 	/// Appelé quand une page devient active (clic d'onglet ou programme).
 	std::function<void(int)> onActivate;
@@ -360,14 +331,14 @@ public:
 private:
 	struct PageInfo {
 		String title;
-		ecs::Entity content{};
+		ui::Widget content;
 		bool closable = false;
 	};
 
 	void RebuildTabs();
 
 	UiContext &m_ctx;
-	ecs::Entity m_frame{}, m_header{}, m_tabs{}, m_extra{}, m_menuButton{}, m_body{};
+	ui::Widget m_frame, m_header, m_tabs, m_extra, m_menuButton, m_body;
 	std::vector<PageInfo> m_pages;
 	int m_active = -1;
 };

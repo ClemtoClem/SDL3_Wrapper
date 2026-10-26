@@ -7,10 +7,12 @@
  *                     mods utilisés, temps de jeu, point d'apparition,
  *                     réglages libres…) — lisible, lu par les menus
  *     world.db        base sql:: (format binaire SQLB, somme de contrôle) :
- *       chunks    (pos PK « x,y,z », x, y, z, data) chunks MODIFIÉS
+ *       chunks    (pos PK « x,y,z » — « dimension|x,y,z » hors du monde
+ *                 ordinaire —, x, y, z, data) chunks MODIFIÉS
  *                 (palette d'identifiants TEXTUELS puis plages répétées —
  *                 un mod ajouté ou retiré ne décale aucun bloc)
  *       entities  (uuid PK, kind, x, y, z, data JSON) entités persistantes
+ *                 (« dimension » dans data : chacune reste dans la sienne)
  *       players   (name PK, data JSON, saved) joueurs
  *       info      (key PK, value) format et version de la base
  *     world.db.bak    base précédente (repli si world.db est illisible)
@@ -66,6 +68,10 @@ public:
 	WorldSave &operator=(const WorldSave &) = delete;
 
 	[[nodiscard]] const String &Directory() const noexcept { return m_dir; }
+	/// Dimension dont les chunks et les entités sont lus et écrits (vide :
+	/// le monde ordinaire, clés d'origine).
+	void SetDimension(const String &dimension) { m_dimension = dimension; }
+	[[nodiscard]] const String &Dimension() const noexcept { return m_dimension; }
 	[[nodiscard]] bool Exists() const;
 
 	/// Lit world.json (migré si besoin) et ouvre world.db ; NONE : nouveau
@@ -89,9 +95,10 @@ public:
 	[[nodiscard]] std::vector<uint8_t> EncodeChunk(const Chunk &chunk) const;
 	bool DecodeChunk(const std::vector<uint8_t> &bytes, Chunk &chunk);
 
-	/// Entités persistantes et joueurs.
+	/// Entités persistantes de la dimension courante (celles des autres
+	/// dimensions restent dans la base) et joueurs.
 	Result<bool, String> SaveEntities(ecs::ArchetypeRegistry &registry);
-	/// Recrée les entités enregistrées ; rend leur nombre.
+	/// Recrée les entités enregistrées de la dimension courante ; rend leur nombre.
 	Result<size_t, String> LoadEntities(ecs::ArchetypeRegistry &registry);
 	Result<bool, String> SavePlayer(ecs::ArchetypeRegistry &registry, ecs::Entity player);
 	/// Applique l'état enregistré au joueur ; faux s'il n'existe pas encore.
@@ -110,6 +117,7 @@ public:
 
 private:
 	[[nodiscard]] String DatabasePath() const;
+	[[nodiscard]] String ChunkKey(const ChunkPos &p) const;
 	/// Charge world.db (ou world.db.bak, ou une base neuve) une seule fois.
 	Result<bool, String> OpenDatabase();
 	void CreateSchema(sql::Database &db) const;
@@ -118,6 +126,7 @@ private:
 
 	const ContentRegistry &m_content;
 	String m_dir;
+	String m_dimension;
 	sql::Database m_db;
 	bool m_dbOpen = false;
 	bool m_dirty = false;

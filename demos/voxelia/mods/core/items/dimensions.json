@@ -1,0 +1,622 @@
+// Objets des dimensions : ressources exclusives, équipements, sceaux des
+// gardiens (cf. scripts/dimensions.script).
+[
+ {
+  "type": "texture",
+  "id": "icon_gravity_crystal",
+  "compose": "core:items/amethyst^colorize(170,110,255,0.4)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_inversion_crystal",
+  "compose": "core:items/diamond^colorize(230,80,255,0.6)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_inversion_boots",
+  "compose": "core:items/diamond_boots^colorize(170,80,255,0.6)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_gravity_staff",
+  "compose": "core:items/blaze_rod^colorize(170,110,255,0.6)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_zenith_sigil",
+  "compose": "core:items/ender_eye^colorize(170,80,255,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_zenith_heart",
+  "compose": "core:items/nether_star^colorize(170,80,255,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_primordial_sap",
+  "compose": "core:items/honeycomb^colorize(255,200,60,0.3)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_growth_staff",
+  "compose": "core:items/stick^colorize(80,220,120,0.6)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_glow_fruit",
+  "compose": "core:items/apple^colorize(150,255,160,0.6)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_spore_powder",
+  "compose": "core:items/glowstone_dust^colorize(220,60,200,0.6)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_root_seed",
+  "compose": "core:items/nether_star^colorize(80,200,90,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_time_fragment",
+  "compose": "core:items/quartz^colorize(240,200,90,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_chrono_staff",
+  "compose": "core:items/blaze_rod^colorize(240,210,90,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_temporal_key",
+  "compose": "core:items/gold_nugget^colorize(120,200,230,0.4)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_chrono_sigil",
+  "compose": "core:items/ender_eye^colorize(240,200,90,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_chrono_core",
+  "compose": "core:items/nether_star^colorize(240,200,90,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_raw_solar",
+  "compose": "core:items/gold_nugget^colorize(255,140,40,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_solar_steel",
+  "compose": "core:items/iron_ingot^colorize(255,150,50,0.45)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_ember_shard",
+  "compose": "core:items/blaze_powder"
+ },
+ {
+  "type": "texture",
+  "id": "icon_unstable_shard",
+  "compose": "core:items/redstone^colorize(255,60,30,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_energy_cell",
+  "compose": "core:items/glowstone_dust^colorize(255,170,60,0.4)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_energy_extractor",
+  "compose": "core:items/iron_pickaxe^colorize(255,170,60,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_repair_kit",
+  "compose": "core:items/iron_ingot^colorize(140,120,90,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_solar_pickaxe",
+  "compose": "core:items/diamond_pickaxe^colorize(255,150,50,0.55)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_solar_helmet",
+  "compose": "core:items/diamond_helmet^colorize(255,150,50,0.55)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_solar_chestplate",
+  "compose": "core:items/diamond_chestplate^colorize(255,150,50,0.55)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_solar_leggings",
+  "compose": "core:items/diamond_leggings^colorize(255,150,50,0.55)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_solar_boots",
+  "compose": "core:items/diamond_boots^colorize(255,150,50,0.55)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_solar_lantern",
+  "compose": "core:items/glowstone_dust^colorize(255,220,120,0.3)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_titan_sigil",
+  "compose": "core:items/ender_eye^colorize(255,90,30,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_titan_core",
+  "compose": "core:items/nether_star^colorize(255,90,30,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_void_fragment",
+  "compose": "core:items/prismarine_shard^grayscale()^colorize(70,50,130,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_void_eraser",
+  "compose": "core:items/diamond_shovel^grayscale()^colorize(70,50,130,0.5)"
+ },
+ {
+  "type": "texture",
+  "id": "icon_void_sigil",
+  "compose": "core:items/ender_eye^grayscale()"
+ },
+ {
+  "type": "texture",
+  "id": "icon_eraser_core",
+  "compose": "core:items/nether_star^grayscale()"
+ },
+ {
+  "type": "item",
+  "id": "gravity_crystal",
+  "displayName": "Cristal gravitationnel",
+  "icon": "icon_gravity_crystal",
+  "tags": [
+   "gems",
+   "inverted"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "inversion_crystal",
+  "displayName": "Cristal d'inversion",
+  "icon": "icon_inversion_crystal",
+  "tags": [
+   "gems",
+   "inverted"
+  ],
+  "description": "Ressource exclusive de la Dimension Inversée."
+ },
+ {
+  "type": "item",
+  "id": "inversion_boots",
+  "displayName": "Bottes d'inversion",
+  "icon": "icon_inversion_boots",
+  "tags": [
+   "armor",
+   "feet",
+   "inverted"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "feet",
+   "points": 3,
+   "durability": 400
+  },
+  "description": "Accroupi + saut : on se colle au plafond ; accroupi deux secondes : on retombe."
+ },
+ {
+  "type": "tool",
+  "id": "gravity_staff",
+  "displayName": "Sceptre gravitationnel",
+  "icon": "icon_gravity_staff",
+  "tags": [
+   "tools",
+   "inverted"
+  ],
+  "maxStack": 1,
+  "tool": {
+   "kind": "staff",
+   "speed": 1,
+   "durability": 120,
+   "damage": 2,
+   "level": 0
+  },
+  "onUse": "use_gravity_staff",
+  "description": "Clic droit : inverse votre gravité."
+ },
+ {
+  "type": "item",
+  "id": "zenith_sigil",
+  "displayName": "Sceau du Zénith",
+  "icon": "icon_zenith_sigil",
+  "tags": [
+   "sigil"
+  ],
+  "description": "À poser sur l'Autel du Zénith pour éveiller son Gardien."
+ },
+ {
+  "type": "item",
+  "id": "zenith_heart",
+  "displayName": "Cœur du Zénith",
+  "icon": "icon_zenith_heart",
+  "tags": [
+   "trophy"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "primordial_sap",
+  "displayName": "Sève primordiale",
+  "icon": "icon_primordial_sap",
+  "tags": [
+   "living"
+  ],
+  "description": "Ressource exclusive de la Dimension Vivante."
+ },
+ {
+  "type": "tool",
+  "id": "growth_staff",
+  "displayName": "Bâton de croissance",
+  "icon": "icon_growth_staff",
+  "tags": [
+   "tools",
+   "living"
+  ],
+  "maxStack": 1,
+  "tool": {
+   "kind": "staff",
+   "speed": 1,
+   "durability": 60,
+   "damage": 1,
+   "level": 0
+  },
+  "onUse": "use_growth_staff",
+  "description": "Clic droit sur le sol : fait pousser une structure végétale (et apaise la forêt)."
+ },
+ {
+  "type": "item",
+  "id": "glow_fruit_item",
+  "displayName": "Fruit lumineux",
+  "icon": "icon_glow_fruit",
+  "tags": [
+   "food"
+  ],
+  "food": 5,
+  "saturation": 6,
+  "effects": [
+   {
+    "id": "night_vision",
+    "seconds": 60,
+    "chance": 1
+   }
+  ]
+ },
+ {
+  "type": "item",
+  "id": "spore_powder",
+  "displayName": "Poudre de spores",
+  "icon": "icon_spore_powder",
+  "tags": [
+   "living"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "root_seed",
+  "displayName": "Graine du Cœur-Racine",
+  "icon": "icon_root_seed",
+  "tags": [
+   "trophy"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "time_fragment",
+  "displayName": "Fragment temporel",
+  "icon": "icon_time_fragment",
+  "tags": [
+   "chrono"
+  ],
+  "description": "Ressource exclusive de la Dimension Fragmentée : clic droit pour réparer les ruines alentour."
+ },
+ {
+  "type": "tool",
+  "id": "chrono_staff",
+  "displayName": "Bâton chronique",
+  "icon": "icon_chrono_staff",
+  "tags": [
+   "tools",
+   "chrono"
+  ],
+  "maxStack": 1,
+  "tool": {
+   "kind": "staff",
+   "speed": 1,
+   "durability": 200,
+   "damage": 2,
+   "level": 0
+  },
+  "description": "Clic droit sur un bloc temporel : il change d'époque."
+ },
+ {
+  "type": "item",
+  "id": "temporal_key",
+  "displayName": "Clé temporelle",
+  "icon": "icon_temporal_key",
+  "tags": [
+   "chrono"
+  ],
+  "maxStack": 1
+ },
+ {
+  "type": "item",
+  "id": "chrono_sigil",
+  "displayName": "Sceau chronophage",
+  "icon": "icon_chrono_sigil",
+  "tags": [
+   "sigil"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "chrono_core",
+  "displayName": "Noyau chronique",
+  "icon": "icon_chrono_core",
+  "tags": [
+   "trophy"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "raw_solar",
+  "displayName": "Minerai solaire brut",
+  "icon": "icon_raw_solar",
+  "tags": [
+   "core"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "solar_steel_ingot",
+  "displayName": "Lingot d'acier solaire",
+  "icon": "icon_solar_steel",
+  "tags": [
+   "core",
+   "ingots"
+  ],
+  "description": "Ressource exclusive de la Dimension du Noyau."
+ },
+ {
+  "type": "item",
+  "id": "ember_shard",
+  "displayName": "Éclat de braise",
+  "icon": "icon_ember_shard",
+  "tags": [
+   "core",
+   "fuel"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "unstable_shard",
+  "displayName": "Éclat instable",
+  "icon": "icon_unstable_shard",
+  "tags": [
+   "core"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "core_energy_cell",
+  "displayName": "Cellule d'énergie du noyau",
+  "icon": "icon_energy_cell",
+  "tags": [
+   "core"
+  ]
+ },
+ {
+  "type": "tool",
+  "id": "energy_extractor",
+  "displayName": "Extracteur d'énergie",
+  "icon": "icon_energy_extractor",
+  "tags": [
+   "tools",
+   "core"
+  ],
+  "maxStack": 1,
+  "tool": {
+   "kind": "tool",
+   "speed": 1,
+   "durability": 20,
+   "damage": 1,
+   "level": 0
+  },
+  "description": "Sur une machine en marche : une cellule d'énergie… au prix de l'énergie du noyau."
+ },
+ {
+  "type": "item",
+  "id": "repair_kit",
+  "displayName": "Nécessaire de réparation",
+  "icon": "icon_repair_kit",
+  "tags": [
+   "core"
+  ],
+  "description": "Sur une machine antique en panne : la répare (et rend de l'énergie au noyau)."
+ },
+ {
+  "type": "tool",
+  "id": "solar_steel_pickaxe",
+  "displayName": "Pioche en acier solaire",
+  "icon": "icon_solar_pickaxe",
+  "tags": [
+   "tools",
+   "heat_resistant",
+   "pickaxes"
+  ],
+  "maxStack": 1,
+  "tool": {
+   "kind": "pickaxe",
+   "speed": 9,
+   "durability": 2400,
+   "damage": 6,
+   "level": 4
+  }
+ },
+ {
+  "type": "item",
+  "id": "solar_steel_helmet",
+  "displayName": "Casque en acier solaire",
+  "icon": "icon_solar_helmet",
+  "tags": [
+   "armor",
+   "head",
+   "heat_resistant"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "head",
+   "points": 3,
+   "durability": 600
+  }
+ },
+ {
+  "type": "item",
+  "id": "solar_steel_chestplate",
+  "displayName": "Plastron en acier solaire",
+  "icon": "icon_solar_chestplate",
+  "tags": [
+   "armor",
+   "chest",
+   "heat_resistant"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "chest",
+   "points": 8,
+   "durability": 800
+  }
+ },
+ {
+  "type": "item",
+  "id": "solar_steel_leggings",
+  "displayName": "Jambières en acier solaire",
+  "icon": "icon_solar_leggings",
+  "tags": [
+   "armor",
+   "legs",
+   "heat_resistant"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "legs",
+   "points": 6,
+   "durability": 700
+  }
+ },
+ {
+  "type": "item",
+  "id": "solar_steel_boots",
+  "displayName": "Bottes en acier solaire",
+  "icon": "icon_solar_boots",
+  "tags": [
+   "armor",
+   "feet",
+   "heat_resistant"
+  ],
+  "maxStack": 1,
+  "armor": {
+   "slot": "feet",
+   "points": 3,
+   "durability": 600
+  }
+ },
+ {
+  "type": "item",
+  "id": "solar_lantern",
+  "displayName": "Lanterne solaire",
+  "icon": "icon_solar_lantern",
+  "tags": [
+   "light"
+  ],
+  "light": 15,
+  "maxStack": 1,
+  "description": "Tenue en main, elle éclaire les cavernes sans lumière."
+ },
+ {
+  "type": "item",
+  "id": "titan_sigil",
+  "displayName": "Sceau du Titan",
+  "icon": "icon_titan_sigil",
+  "tags": [
+   "sigil"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "titan_core",
+  "displayName": "Noyau du Titan",
+  "icon": "icon_titan_core",
+  "tags": [
+   "trophy"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "void_fragment",
+  "displayName": "Fragment du Néant",
+  "icon": "icon_void_fragment",
+  "tags": [
+   "void"
+  ],
+  "description": "Ressource exclusive de la Dimension du Néant."
+ },
+ {
+  "type": "tool",
+  "id": "void_eraser",
+  "displayName": "Gomme du Néant",
+  "icon": "icon_void_eraser",
+  "tags": [
+   "tools",
+   "void"
+  ],
+  "maxStack": 1,
+  "tool": {
+   "kind": "eraser",
+   "speed": 1,
+   "durability": 64,
+   "damage": 1,
+   "level": 0
+  },
+  "onUse": "use_void_eraser",
+  "description": "Clic droit : efface le bloc visé (même le plus dur)."
+ },
+ {
+  "type": "item",
+  "id": "void_sigil",
+  "displayName": "Sceau de l'Effaceur",
+  "icon": "icon_void_sigil",
+  "tags": [
+   "sigil"
+  ]
+ },
+ {
+  "type": "item",
+  "id": "eraser_core",
+  "displayName": "Noyau de l'Effaceur",
+  "icon": "icon_eraser_core",
+  "tags": [
+   "trophy"
+  ]
+ }
+]

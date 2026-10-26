@@ -1,0 +1,1563 @@
+// Blocs des dimensions (portails, terrains, minerais, autels, champs de
+// gravité, anomalies) et sables mouvants du monde ordinaire. Textures
+// composées depuis celles du pack (« a^colorize(r,g,b,part) »…).
+[
+ {
+  "id": "portal_inverted",
+  "displayName": "Portail inversé",
+  "tags": [
+   "portal"
+  ],
+  "graphics": {
+   "texture": "core:nether_portal^frame(0,32)^resize(16,16)^colorize(170,80,255,0.65)",
+   "material": "TRANSLUCENT",
+   "light": 11
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.0
+  },
+  "physics": {
+   "solid": false
+  },
+  "portal": {
+   "dimension": "core:inverted",
+   "delay": 1.2
+  }
+ },
+ {
+  "id": "portal_living",
+  "displayName": "Portail vivant",
+  "tags": [
+   "portal"
+  ],
+  "graphics": {
+   "texture": "core:nether_portal^frame(0,32)^resize(16,16)^colorize(60,220,110,0.65)",
+   "material": "TRANSLUCENT",
+   "light": 11
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.0
+  },
+  "physics": {
+   "solid": false
+  },
+  "portal": {
+   "dimension": "core:living",
+   "delay": 1.2
+  }
+ },
+ {
+  "id": "portal_fragmented",
+  "displayName": "Portail fragmenté",
+  "tags": [
+   "portal"
+  ],
+  "graphics": {
+   "texture": "core:nether_portal^frame(0,32)^resize(16,16)^colorize(240,200,90,0.65)",
+   "material": "TRANSLUCENT",
+   "light": 11
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.0
+  },
+  "physics": {
+   "solid": false
+  },
+  "portal": {
+   "dimension": "core:fragmented",
+   "delay": 1.2
+  }
+ },
+ {
+  "id": "portal_core",
+  "displayName": "Portail du Noyau",
+  "tags": [
+   "portal"
+  ],
+  "graphics": {
+   "texture": "core:nether_portal^frame(0,32)^resize(16,16)^colorize(255,110,30,0.65)",
+   "material": "TRANSLUCENT",
+   "light": 11
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.0
+  },
+  "physics": {
+   "solid": false
+  },
+  "portal": {
+   "dimension": "core:core",
+   "delay": 1.2
+  }
+ },
+ {
+  "id": "portal_void",
+  "displayName": "Portail du Néant",
+  "tags": [
+   "portal"
+  ],
+  "graphics": {
+   "texture": "core:nether_portal^frame(0,32)^resize(16,16)^colorize(40,40,60,0.65)",
+   "material": "TRANSLUCENT",
+   "light": 11
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.0
+  },
+  "physics": {
+   "solid": false
+  },
+  "portal": {
+   "dimension": "core:void",
+   "delay": 1.2
+  }
+ },
+ {
+  "id": "portal_return",
+  "displayName": "Portail de retour",
+  "tags": [
+   "portal"
+  ],
+  "graphics": {
+   "texture": "core:nether_portal^frame(0,32)^resize(16,16)^colorize(200,230,255,0.65)",
+   "material": "TRANSLUCENT",
+   "light": 11
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.0
+  },
+  "physics": {
+   "solid": false
+  },
+  "portal": {
+   "dimension": "@return",
+   "delay": 1.2
+  }
+ },
+ {
+  "id": "quicksand",
+  "displayName": "Sables mouvants",
+  "tags": [
+   "terrain",
+   "granular"
+  ],
+  "graphics": {
+   "texture": "core:sand^colorize(150,120,70,0.35)"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "shovel",
+   "drops": "core:sand"
+  },
+  "physics": {
+   "solid": false,
+   "sinking": 0.55
+  }
+ },
+ {
+  "id": "inverted_grass",
+  "displayName": "Herbe inversée",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:crystal_grass^colorize(150,80,230,0.55)",
+    "bottom": "core:crystal_dirt^colorize(90,50,120,0.5)",
+    "side": "core:crystal_grass_side^colorize(150,80,230,0.5)"
+   }
+  },
+  "sounds": "core:grass",
+  "gameplay": {
+   "hardness": 1.2,
+   "tool": "shovel",
+   "drops": "core:inverted_soil"
+  }
+ },
+ {
+  "id": "inverted_soil",
+  "displayName": "Terre inversée",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "texture": "core:crystal_dirt^colorize(90,50,120,0.5)"
+  },
+  "sounds": "core:dirt",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "shovel"
+  }
+ },
+ {
+  "id": "inverted_stone",
+  "displayName": "Pierre inversée",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:end_stone^colorize(120,80,170,0.55)"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "inverted_debris",
+  "displayName": "Débris en apesanteur",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:end_stone^colorize(60,30,90,0.6)"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "inverted_bricks",
+  "displayName": "Briques du Zénith",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:end_stone_bricks^colorize(130,90,200,0.4)"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "gravity_crystal_block",
+  "displayName": "Bloc de cristal gravitationnel",
+  "tags": [
+   "crystal"
+  ],
+  "graphics": {
+   "texture": "core:crystal_block_purple",
+   "light": 9
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe",
+   "drops": "core:gravity_crystal"
+  }
+ },
+ {
+  "id": "gravity_crystal_ore",
+  "displayName": "Minerai de cristal gravitationnel",
+  "tags": [
+   "ore"
+  ],
+  "graphics": {
+   "texture": "core:amethyst_ore^colorize(160,90,255,0.4)",
+   "light": 4
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": "core:gravity_crystal"
+  }
+ },
+ {
+  "id": "inversion_crystal_ore",
+  "displayName": "Minerai de cristal d'inversion",
+  "tags": [
+   "ore"
+  ],
+  "graphics": {
+   "texture": "core:diamond_ore^colorize(230,80,255,0.6)",
+   "light": 6
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 6,
+   "tool": "pickaxe",
+   "drops": "core:inversion_crystal"
+  }
+ },
+ {
+  "id": "inverted_flower",
+  "displayName": "Lys renversé",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:crystal_lily_flower_small",
+   "material": "CUTOUT",
+   "light": 4
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "void_lily",
+  "displayName": "Lys stellaire",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:allium^colorize(180,90,255,0.4)",
+   "material": "CUTOUT",
+   "light": 2
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "inverted_tall_grass",
+  "displayName": "Herbe flottante",
+  "tags": [
+   "plant",
+   "replaceable"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:crystal_grass_1",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "gravity_field_up",
+  "displayName": "Courant ascendant",
+  "tags": [
+   "gravity",
+   "field"
+  ],
+  "graphics": {
+   "texture": "core:floating_crystal_animated^frame(0,7)^colorize(170,110,255,0.65)^opacity(0.3)",
+   "material": "TRANSPARENT",
+   "light": 6
+  },
+  "gameplay": {
+   "hardness": -1,
+   "drops": "",
+   "replaceable": true,
+   "selectable": false
+  },
+  "physics": {
+   "solid": false,
+   "gravityField": -1
+  }
+ },
+ {
+  "id": "gravity_field_down",
+  "displayName": "Courant descendant",
+  "tags": [
+   "gravity",
+   "field"
+  ],
+  "graphics": {
+   "texture": "core:floating_crystal_animated^frame(0,7)^colorize(110,230,160,0.65)^opacity(0.3)",
+   "material": "TRANSPARENT",
+   "light": 6
+  },
+  "gameplay": {
+   "hardness": -1,
+   "drops": "",
+   "replaceable": true,
+   "selectable": false
+  },
+  "physics": {
+   "solid": false,
+   "gravityField": 1
+  }
+ },
+ {
+  "id": "zenith_altar",
+  "displayName": "Autel du Zénith",
+  "tags": [
+   "altar"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:end_portal_frame_top^colorize(170,90,255,0.5)",
+    "bottom": "core:end_stone",
+    "side": "core:end_portal_frame_side^colorize(170,90,255,0.4)"
+   },
+   "light": 7
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": -1
+  },
+  "altar": {
+   "boss": "core:zenith_guardian",
+   "key": "core:zenith_sigil"
+  }
+ },
+ {
+  "id": "living_moss",
+  "displayName": "Mousse vivante",
+  "tags": [
+   "terrain",
+   "living"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:moss_block",
+    "bottom": "core:dirt",
+    "side": "core:dirt^(core:moss_block^crop(0,0,16,5))"
+   }
+  },
+  "sounds": "core:grass",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "shovel",
+   "drops": "core:living_soil"
+  }
+ },
+ {
+  "id": "living_soil",
+  "displayName": "Humus primordial",
+  "tags": [
+   "terrain",
+   "living"
+  ],
+  "graphics": {
+   "texture": "core:dirt^colorize(70,50,40,0.4)"
+  },
+  "sounds": "core:dirt",
+  "gameplay": {
+   "hardness": 0.9,
+   "tool": "shovel"
+  }
+ },
+ {
+  "id": "living_mycelium",
+  "displayName": "Mycélium lumineux",
+  "tags": [
+   "terrain",
+   "living"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:mycelium_top^colorize(80,170,200,0.5)",
+    "bottom": "core:dirt",
+    "side": "core:mycelium_side^colorize(80,170,200,0.4)"
+   },
+   "light": 3
+  },
+  "sounds": "core:grass",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "shovel",
+   "drops": "core:living_soil"
+  }
+ },
+ {
+  "id": "primordial_log",
+  "displayName": "Bois primordial",
+  "tags": [
+   "logs",
+   "living"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:sequoia_tree_top",
+    "bottom": "core:sequoia_tree_top",
+    "side": "core:sequoia_tree_side^colorize(110,70,140,0.3)"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 4,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "primordial_planks",
+  "displayName": "Planches primordiales",
+  "tags": [
+   "planks"
+  ],
+  "graphics": {
+   "texture": "core:sequoia_wood"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "primordial_leaves",
+  "displayName": "Feuillage primordial",
+  "tags": [
+   "leaves",
+   "living"
+  ],
+  "graphics": {
+   "texture": "core:leaves_magic",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0.3,
+   "drops": {
+    "item": "core:glow_fern",
+    "chance": 0.05
+   }
+  }
+ },
+ {
+  "id": "primordial_sap_block",
+  "displayName": "Sève primordiale figée",
+  "tags": [
+   "living"
+  ],
+  "graphics": {
+   "texture": "core:amber_block^colorize(255,190,60,0.4)",
+   "light": 10
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe",
+   "drops": "core:primordial_sap"
+  }
+ },
+ {
+  "id": "glow_fruit",
+  "displayName": "Fruit lumineux",
+  "tags": [
+   "living"
+  ],
+  "graphics": {
+   "texture": "core:glowstone^colorize(150,255,160,0.5)",
+   "light": 13
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0.4,
+   "drops": "core:glow_fruit_item"
+  }
+ },
+ {
+  "id": "root_heart",
+  "displayName": "Cœur des racines",
+  "tags": [
+   "living",
+   "boss"
+  ],
+  "graphics": {
+   "texture": "core:redstone_block^colorize(200,40,60,0.3)",
+   "light": 8
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 12,
+   "tool": "axe",
+   "drops": ""
+  }
+ },
+ {
+  "id": "glow_fern",
+  "displayName": "Fougère luisante",
+  "tags": [
+   "plant",
+   "living"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:koru",
+   "material": "CUTOUT",
+   "light": 7
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "lumen_flower",
+  "displayName": "Fleur de lumen",
+  "tags": [
+   "plant",
+   "living"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:glowflower",
+   "material": "CUTOUT",
+   "light": 11
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "spore_cap",
+  "displayName": "Champignon à spores",
+  "tags": [
+   "plant",
+   "living",
+   "spores"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:red_mushroom^colorize(220,60,200,0.4)",
+   "material": "CUTOUT",
+   "light": 3
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "creeping_vine",
+  "displayName": "Liane rampante",
+  "tags": [
+   "plant",
+   "living",
+   "climbable"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:dense_vine_1",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false,
+   "climbable": true
+  }
+ },
+ {
+  "id": "giant_mushroom_stem",
+  "displayName": "Pied de champignon géant",
+  "tags": [
+   "living"
+  ],
+  "graphics": {
+   "texture": "core:mushroom_stem"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "spore_cap_block",
+  "displayName": "Chapeau sporifère",
+  "tags": [
+   "living",
+   "spores"
+  ],
+  "graphics": {
+   "texture": "core:red_mushroom_block^colorize(200,60,220,0.4)",
+   "light": 5
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "glow_mushroom",
+  "displayName": "Champignon luminescent",
+  "tags": [
+   "plant",
+   "living"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:glowshroom",
+   "material": "CUTOUT",
+   "light": 9
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "thorn_bush",
+  "displayName": "Buisson d’épines",
+  "tags": [
+   "plant",
+   "living"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:bush_branch^colorize(120,60,40,0.3)",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0,
+   "damagePerSecond": 1,
+   "damageCause": "thorns"
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "magmacobble_block",
+  "displayName": "Roche volcanique",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:magmacobble",
+   "light": 4
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "giant_fern",
+  "displayName": "Fougère arborescente",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:large_fern_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "ruined_wall",
+  "displayName": "Mur en ruine",
+  "tags": [
+   "stone",
+   "ruined"
+  ],
+  "graphics": {
+   "texture": "core:cracked_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "restored_wall",
+  "displayName": "Mur restauré",
+  "tags": [
+   "stone",
+   "restored"
+  ],
+  "graphics": {
+   "texture": "core:chiseled_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "time_vault",
+  "displayName": "Coffre-fort temporel (présent)",
+  "tags": [
+   "vault"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:chest_top^colorize(120,200,230,0.3)",
+    "bottom": "core:chest_top",
+    "side": "core:chest_front^colorize(120,200,230,0.3)"
+   },
+   "light": 3
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": -1
+  }
+ },
+ {
+  "id": "time_vault_past",
+  "displayName": "Coffre-fort temporel (passé)",
+  "tags": [
+   "vault"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:chest_top^colorize(240,200,90,0.4)",
+    "bottom": "core:chest_top",
+    "side": "core:chest_front^colorize(240,200,90,0.4)"
+   },
+   "light": 10
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": -1
+  }
+ },
+ {
+  "id": "time_vault_open",
+  "displayName": "Coffre-fort temporel (ouvert)",
+  "tags": [
+   "vault"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:chest_top^darken(0.4)",
+    "bottom": "core:chest_top",
+    "side": "core:chest_front^darken(0.4)"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "sealed_chest",
+  "displayName": "Coffre scellé",
+  "tags": [
+   "vault"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:chest_top^colorize(90,90,110,0.5)",
+    "bottom": "core:chest_top",
+    "side": "core:chest_front^colorize(90,90,110,0.5)"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": -1
+  }
+ },
+ {
+  "id": "future_pavement",
+  "displayName": "Dalle du futur",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:light_gray_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "future_concrete",
+  "displayName": "Béton du futur",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:gray_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "future_glass",
+  "displayName": "Verre du futur",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:cyan_stained_glass",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "pickaxe",
+   "drops": ""
+  }
+ },
+ {
+  "id": "future_lamp",
+  "displayName": "Lampe du futur",
+  "tags": [
+   "light"
+  ],
+  "graphics": {
+   "texture": "core:sea_lantern",
+   "light": 15
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "chrono_stone_present",
+  "displayName": "Pierre temporelle (présent)",
+  "tags": [
+   "stone",
+   "chrono"
+  ],
+  "graphics": {
+   "texture": "core:quartz_block_lines^colorize(120,160,220,0.4)"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "chrono_stone_past",
+  "displayName": "Pierre temporelle (passé)",
+  "tags": [
+   "stone",
+   "chrono"
+  ],
+  "graphics": {
+   "texture": "core:quartz_block_lines^colorize(200,160,90,0.5)"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "chrono_stone_future",
+  "displayName": "Pierre temporelle (futur)",
+  "tags": [
+   "stone",
+   "chrono"
+  ],
+  "graphics": {
+   "texture": "core:quartz_block_lines^colorize(90,220,230,0.5)",
+   "light": 5
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "anomaly_fast",
+  "displayName": "Anomalie : temps accéléré",
+  "tags": [
+   "anomaly"
+  ],
+  "graphics": {
+   "texture": "core:glass^colorize(255,220,80,0.7)^opacity(0.45)",
+   "material": "TRANSLUCENT",
+   "light": 6
+  },
+  "gameplay": {
+   "hardness": -1,
+   "drops": "",
+   "selectable": false,
+   "replaceable": true
+  },
+  "physics": {
+   "solid": false
+  },
+  "anomaly": {
+   "effect": "speed",
+   "seconds": 6,
+   "level": 3
+  }
+ },
+ {
+  "id": "anomaly_slow",
+  "displayName": "Anomalie : temps ralenti",
+  "tags": [
+   "anomaly"
+  ],
+  "graphics": {
+   "texture": "core:glass^colorize(80,160,255,0.7)^opacity(0.45)",
+   "material": "TRANSLUCENT",
+   "light": 6
+  },
+  "gameplay": {
+   "hardness": -1,
+   "drops": "",
+   "selectable": false,
+   "replaceable": true
+  },
+  "physics": {
+   "solid": false
+  },
+  "anomaly": {
+   "effect": "slowness",
+   "seconds": 6,
+   "level": 3
+  }
+ },
+ {
+  "id": "anomaly_frozen",
+  "displayName": "Anomalie : temps figé",
+  "tags": [
+   "anomaly"
+  ],
+  "graphics": {
+   "texture": "core:glass^colorize(220,240,255,0.7)^opacity(0.45)",
+   "material": "TRANSLUCENT",
+   "light": 6
+  },
+  "gameplay": {
+   "hardness": -1,
+   "drops": "",
+   "selectable": false,
+   "replaceable": true
+  },
+  "physics": {
+   "solid": false
+  },
+  "anomaly": {
+   "effect": "slowness",
+   "seconds": 6,
+   "level": 7
+  }
+ },
+ {
+  "id": "chrono_altar",
+  "displayName": "Autel chronophage",
+  "tags": [
+   "altar"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:end_portal_frame_top^colorize(230,190,90,0.5)",
+    "bottom": "core:end_stone",
+    "side": "core:end_portal_frame_side^colorize(230,190,90,0.4)"
+   },
+   "light": 7
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": -1
+  },
+  "altar": {
+   "boss": "core:chronophage",
+   "key": "core:chrono_sigil"
+  }
+ },
+ {
+  "id": "time_crystal_ore",
+  "displayName": "Minerai de cristal temporel",
+  "tags": [
+   "ore"
+  ],
+  "graphics": {
+   "texture": "core:diamond_ore^colorize(240,200,90,0.6)",
+   "light": 5
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": "core:time_fragment"
+  }
+ },
+ {
+  "id": "core_ash",
+  "displayName": "Cendre du noyau",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "texture": "core:ash_block"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shovel"
+  }
+ },
+ {
+  "id": "core_basalt",
+  "displayName": "Basalte",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:netherrack^colorize(40,30,30,0.6)"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "core_stone",
+  "displayName": "Roche du noyau",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:netherrack^colorize(120,60,40,0.4)"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "ember_crystal",
+  "displayName": "Cristal de braise",
+  "tags": [
+   "crystal"
+  ],
+  "graphics": {
+   "texture": "core:crystal_block_orange",
+   "light": 13
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe",
+   "drops": "core:ember_shard"
+  }
+ },
+ {
+  "id": "magma_vent",
+  "displayName": "Évent de magma",
+  "tags": [
+   "molten"
+  ],
+  "graphics": {
+   "texture": "core:magma",
+   "light": 12
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe",
+   "damagePerSecond": 1.5,
+   "damageCause": "heat"
+  }
+ },
+ {
+  "id": "ancient_bronze",
+  "displayName": "Bronze antique",
+  "tags": [
+   "metal"
+  ],
+  "graphics": {
+   "texture": "core:pyrite_block_forged"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "ancient_machine_broken",
+  "displayName": "Machine antique (en panne)",
+  "tags": [
+   "machine"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:piston_top",
+    "bottom": "core:piston_bottom",
+    "side": "core:observer_front^colorize(120,90,60,0.5)"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": -1
+  }
+ },
+ {
+  "id": "ancient_machine",
+  "displayName": "Machine antique (en marche)",
+  "tags": [
+   "machine"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:piston_top",
+    "bottom": "core:piston_bottom",
+    "side": "core:observer_front^colorize(255,170,60,0.3)"
+   },
+   "light": 15
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": -1
+  }
+ },
+ {
+  "id": "core_altar",
+  "displayName": "Autel du Titan",
+  "tags": [
+   "altar"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:end_portal_frame_top^colorize(255,90,30,0.5)",
+    "bottom": "core:end_stone",
+    "side": "core:end_portal_frame_side^colorize(255,90,30,0.4)"
+   },
+   "light": 7
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": -1
+  },
+  "altar": {
+   "boss": "core:magma_titan",
+   "key": "core:titan_sigil"
+  }
+ },
+ {
+  "id": "core_shadow_rock",
+  "displayName": "Roche d'ombre",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:black_concrete^(core:stone^opacity(0.3))"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "shadow_moss",
+  "displayName": "Mousse d'ombre",
+  "tags": [
+   "plant"
+  ],
+  "shape": "cross",
+  "graphics": {
+   "texture": "core:shadow_shroom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:plant",
+  "gameplay": {
+   "hardness": 0
+  },
+  "physics": {
+   "solid": false
+  }
+ },
+ {
+  "id": "core_metal_floor",
+  "displayName": "Plancher des forges",
+  "tags": [
+   "metal"
+  ],
+  "graphics": {
+   "texture": "core:iron_block^colorize(140,90,60,0.4)"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "core_seal",
+  "displayName": "Sceau des forges",
+  "tags": [
+   "seal"
+  ],
+  "graphics": {
+   "texture": "core:pyriteblock_brick^colorize(200,80,40,0.4)",
+   "light": 2
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": -1
+  }
+ },
+ {
+  "id": "solar_ore",
+  "displayName": "Minerai solaire",
+  "tags": [
+   "ore"
+  ],
+  "graphics": {
+   "texture": "core:gold_ore^colorize(255,150,40,0.5)",
+   "light": 8
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 6,
+   "tool": "pickaxe",
+   "drops": "core:raw_solar"
+  }
+ },
+ {
+  "id": "unstable_ore",
+  "displayName": "Minerai instable",
+  "tags": [
+   "ore",
+   "unstable"
+  ],
+  "graphics": {
+   "texture": "core:redstone_ore^colorize(255,60,30,0.5)",
+   "light": 6
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": "core:unstable_shard"
+  }
+ },
+ {
+  "id": "ember_ore",
+  "displayName": "Minerai de braise",
+  "tags": [
+   "ore"
+  ],
+  "graphics": {
+   "texture": "core:coal_ore^colorize(255,120,40,0.5)",
+   "light": 5
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": "core:ember_shard"
+  }
+ },
+ {
+  "id": "void_crumble",
+  "displayName": "Sol friable",
+  "tags": [
+   "terrain",
+   "crumbling"
+  ],
+  "graphics": {
+   "texture": "core:black_concrete_powder^colorize(40,40,60,0.3)"
+  },
+  "sounds": "core:sand",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "shovel",
+   "drops": ""
+  }
+ },
+ {
+  "id": "void_stone",
+  "displayName": "Pierre du Néant",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:black_concrete^(core:end_stone^opacity(0.15))"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "monolith_stone",
+  "displayName": "Pierre de monolithe",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:obsidian"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 30,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "void_runes",
+  "displayName": "Runes du Néant",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:blue_crying_obsidian",
+   "light": 5
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 30,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "void_beacon",
+  "displayName": "Fanal du Néant",
+  "tags": [
+   "light"
+  ],
+  "graphics": {
+   "texture": "core:beacon",
+   "light": 15
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "void_door",
+  "displayName": "Porte impossible",
+  "tags": [
+   "door"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:obsidian",
+    "bottom": "core:obsidian",
+    "side": "core:door_umbran_lower^colorize(60,40,120,0.4)"
+   },
+   "light": 4
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": -1
+  }
+ },
+ {
+  "id": "void_altar",
+  "displayName": "Autel de l'Effaceur",
+  "tags": [
+   "altar"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:end_portal_frame_top^colorize(80,80,140,0.5)",
+    "bottom": "core:end_stone",
+    "side": "core:end_portal_frame_side^colorize(80,80,140,0.4)"
+   },
+   "light": 7
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": -1
+  },
+  "altar": {
+   "boss": "core:eraser",
+   "key": "core:void_sigil"
+  }
+ },
+ {
+  "id": "void_shard_block",
+  "displayName": "Éclat de Néant",
+  "tags": [
+   "stone"
+  ],
+  "graphics": {
+   "texture": "core:obsidian^colorize(70,60,110,0.3)"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "erased_ground",
+  "displayName": "Sol effacé",
+  "tags": [
+   "terrain",
+   "erased"
+  ],
+  "graphics": {
+   "texture": "core:white_concrete^(core:end_stone^opacity(0.2))^grayscale()"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 0.5,
+   "tool": "shovel",
+   "drops": ""
+  }
+ },
+ {
+  "id": "void_fragment_ore",
+  "displayName": "Minerai de Néant",
+  "tags": [
+   "ore"
+  ],
+  "graphics": {
+   "texture": "core:diamond_ore^grayscale()^colorize(60,40,120,0.4)",
+   "light": 4
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 8,
+   "tool": "pickaxe",
+   "drops": "core:void_fragment"
+  }
+ }
+]

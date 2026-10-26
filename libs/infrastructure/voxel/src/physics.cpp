@@ -234,7 +234,7 @@ Option<BlockHit> RaycastBlocks(const World &world, const math::FVector3 &origin,
 	float t = 0.f;
 	for (int guard = 0; guard < 4096 && t <= maxDistance; ++guard) {
 		const BlockDef &def = world.BlockAt(cell);
-		const bool candidate = !def.IsAir() && def.shape.kind != ShapeKind::NONE && (includeFluids || !def.fluid) &&
+		const bool candidate = !def.IsAir() && def.shape.kind != ShapeKind::NONE && def.selectable && (includeFluids || !def.fluid) &&
 							   (!filter || filter(def));
 		if (candidate) {
 			Option<BlockHit> best = NONE;
@@ -289,6 +289,23 @@ void StepPhysics(ecs::ArchetypeRegistry &registry, const World &world, float dt,
 		body.onClimbable = medium.climbable || feet.climbable;
 		if (feet.fluid || (!feet.IsAir() && !feet.solid))
 			blockContacts.Send(BlockContact{e, BlockPos::FromWorld(t.position), feet.numeric, false, 0.f});
+		const float gdir = body.gravityDirection < 0.f ? -1.f : 1.f;
+		// Sables mouvants : enfoncement lent, presque aucune prise.
+		const float sinking = std::max(medium.sinking, feet.sinking);
+		body.inSinking = sinking > 0.f && !body.flies && !body.noclip;
+		// Pris dans un bloc plein (sable tombé sur la tête, téléporté dans un
+		// mur…) : immobilisé jusqu'à ce que le bloc soit cassé.
+		const float headOffset = gdir > 0.f ? c.size.y * 0.85f : c.size.y * 0.15f;
+		const BlockPos headCell = BlockPos::FromWorld(t.position + math::FVector3{0.f, headOffset, 0.f});
+		const BlockDef &head = world.BlockAt(headCell);
+		body.trapped = !body.noclip && !body.flies && world.IsLoaded(headCell) && head.solid && !head.fluid &&
+					   head.collision == CollisionKind::FULL_CUBE && registry.HasComponent<Player>(e);
+		if (body.trapped) {
+			v.linear = {0.f, 0.f, 0.f};
+			body.onGround = true;
+			body.fallDistance = 0.f;
+			return;
+		}
 
 		// Intention de déplacement → accélération horizontale.
 		MoveIntent intent;
@@ -297,7 +314,7 @@ void StepPhysics(ecs::ArchetypeRegistry &registry, const World &world, float dt,
 			intent = *registry.GetComponent<MoveIntent>(e).Unwrap();
 		const float wishLength = std::min(1.f, std::hypot(intent.wish.x, intent.wish.z));
 		const float speed = (hasIntent ? intent.speed : 0.f) * (intent.sprint ? 1.3f : 1.f) * (intent.sneak ? 0.35f : 1.f) *
-							(body.inFluid ? (1.f - body.fluidViscosity * 0.6f) : 1.f);
+							(body.inFluid ? (1.f - body.fluidViscosity * 0.6f) : 1.f) * (body.inSinking ? 0.15f : 1.f);
 		math::FVector3 target{0.f, 0.f, 0.f};
 		if (wishLength > 1e-4f)
 			target = math::FVector3{intent.wish.x, 0.f, intent.wish.z} * (speed / std::max(std::hypot(intent.wish.x, intent.wish.z), 1e-6f) * wishLength);
@@ -314,19 +331,27 @@ void StepPhysics(ecs::ArchetypeRegistry &registry, const World &world, float dt,
 		if (body.flies) {
 			const float vertical = intent.jump ? speed : intent.descend ? -speed : 0.f;
 			v.linear.y += (vertical - v.linear.y) * std::min(1.f, 8.f * dt);
+		} else if (body.inSinking) {
+			// On s'enfonce ; en se débattant (saut), on remonte lentement tant
+			// que les yeux sont à l'air — la tête prise, il est trop tard.
+			const BlockPos eyes = BlockPos::FromWorld(t.position + math::FVector3{0.f, gdir > 0.f ? c.size.y * 0.9f : c.size.y * 0.1f, 0.f});
+			const bool submerged = world.BlockAt(eyes).sinking > 0.f;
+			v.linear.y = (intent.jump && !submerged ? sinking * 1.6f : -sinking) * gdir;
+			v.linear.x *= std::max(0.f, 1.f - 6.f * dt);
+			v.linear.z *= std::max(0.f, 1.f - 6.f * dt);
 		} else if (body.onClimbable && (intent.jump || intent.wish.Length() > 0.1f)) {
-			v.linear.y = intent.descend || intent.sneak ? -2.f : 2.5f;
+			v.linear.y = (intent.descend || intent.sneak ? -2.f : 2.5f) * gdir;
 		} else {
 			float g = settings.gravity * body.gravityScale;
 			if (body.inFluid)
 				g *= 1.f - settings.fluidBuoyancy;
-			v.linear.y = std::max(v.linear.y - g * dt, -settings.terminalVelocity);
+			v.linear.y = std::clamp(v.linear.y - g * dt * gdir, -settings.terminalVelocity, settings.terminalVelocity);
 			if (body.inFluid) {
 				v.linear.y *= std::max(0.f, 1.f - body.fluidViscosity * 4.f * dt);
 				if (intent.jump && body.swims)
-					v.linear.y = std::min(v.linear.y + 30.f * dt, 3.f);
+					v.linear.y = gdir > 0.f ? std::min(v.linear.y + 30.f * dt, 3.f) : std::max(v.linear.y - 30.f * dt, -3.f);
 			} else if (intent.jump && body.onGround) {
-				v.linear.y = body.jumpSpeed;
+				v.linear.y = body.jumpSpeed * gdir;
 			}
 		}
 		if (body.drag > 0.f) {
@@ -340,26 +365,31 @@ void StepPhysics(ecs::ArchetypeRegistry &registry, const World &world, float dt,
 			t.position = t.position + v.linear * dt;
 			return;
 		}
-		const float stepHeight = intent.sneak ? 0.f : body.stepHeight;
+		// Gravité inversée : pas de montée de marche (elle suppose le sol en bas).
+		const float stepHeight = intent.sneak || gdir < 0.f ? 0.f : body.stepHeight;
 		const MoveResult moved = MoveBox(world, box, v.linear * dt, stepHeight, body.onGround);
 		t.position = {box.Center().x, box.min.y, box.Center().z};
 		const bool wasOnGround = body.onGround;
-		body.onGround = moved.landed;
+		// « Sol » : du côté où tire la gravité.
+		const bool landed = gdir > 0.f ? moved.landed : moved.hitY && v.linear.y > 0.f;
+		body.onGround = landed;
 		body.hitWall = moved.hitX || moved.hitZ;
-		body.hitCeiling = moved.hitY && v.linear.y > 0.f;
+		body.hitCeiling = moved.hitY && !landed;
 		if (moved.hitX)
 			v.linear.x = -v.linear.x * body.bounciness;
 		if (moved.hitZ)
 			v.linear.z = -v.linear.z * body.bounciness;
-		const float impact = moved.landed ? -v.linear.y : 0.f;
+		const float impact = landed ? std::fabs(v.linear.y) : 0.f;
 		if (moved.hitY) {
-			v.linear.y = v.linear.y < -1.f ? -v.linear.y * body.bounciness : 0.f;
+			v.linear.y = landed && std::fabs(v.linear.y) > 1.f ? -v.linear.y * body.bounciness : 0.f;
 			if (std::fabs(v.linear.y) < 0.5f)
 				v.linear.y = 0.f;
 		}
-		// Sol : bloc sous les pieds (glissance, événements d'atterrissage).
+		// Sol : bloc sous les pieds (ou au-dessus de la tête, gravité
+		// inversée) — glissance, événements d'atterrissage.
 		if (body.onGround) {
-			const BlockPos below = BlockPos::FromWorld(t.position - math::FVector3{0.f, 0.05f, 0.f});
+			const BlockPos below = gdir > 0.f ? BlockPos::FromWorld(t.position - math::FVector3{0.f, 0.05f, 0.f})
+											  : BlockPos::FromWorld(t.position + math::FVector3{0.f, c.size.y + 0.05f, 0.f});
 			const BlockDef &ground = world.BlockAt(below);
 			body.groundBlock = ground.numeric;
 			body.groundSlipperiness = ground.slipperiness;
@@ -370,8 +400,8 @@ void StepPhysics(ecs::ArchetypeRegistry &registry, const World &world, float dt,
 			}
 		} else {
 			body.groundSlipperiness = 0.f;
-			if (moved.moved.y < 0.f && !body.inFluid)
-				body.fallDistance -= moved.moved.y;
+			if (moved.moved.y * gdir < 0.f && !body.inFluid && !body.inSinking)
+				body.fallDistance += std::fabs(moved.moved.y);
 			else if (body.inFluid)
 				body.fallDistance = 0.f;
 		}

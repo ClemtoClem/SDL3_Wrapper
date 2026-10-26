@@ -19,14 +19,11 @@ forbid_pkg_config = ["sdl3", "sdl3-ttf", "sdl3-image", "sdl3-mixer", "sdl3-net",
 
 [workspace]
 modules = [
-    # Niveau A — Foundation (aucune dépendance à SDL)
     "libs/foundation/core",
     "libs/foundation/math",
     "libs/foundation/jobs",
     "libs/foundation/events",
     "libs/foundation/diagnostics",
-
-    # Niveau B — Infrastructure et moteurs
     "libs/infrastructure/sdl3",
     "libs/infrastructure/platform",
     "libs/infrastructure/ecs",
@@ -44,14 +41,10 @@ modules = [
     "libs/infrastructure/voxel",
     "libs/infrastructure/net",
     "libs/infrastructure/sql",
-
-    # Niveau C — Application
     "libs/application/scene",
     "demos/emulator",
     "demos/sandbox",
-    "demos/voxelgame",
-
-    # Exemples (un exécutable par module : cpp-maker run <nom>)
+    "demos/voxelia",
     "examples/adhoc_chat_demo",
     "examples/platform_app",
     "examples/audio_patchbay",
@@ -70,8 +63,6 @@ modules = [
     "examples/ui_shader_effects_demo",
     "examples/ui_showcase",
     "examples/ui_viewport3d_demo",
-
-    # Tests d'intégration entre modules (aucune source)
     "tests/integration",
 ]
 

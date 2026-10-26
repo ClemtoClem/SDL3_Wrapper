@@ -1,0 +1,204 @@
+// Dimensions du mod « core » : un monde chacune, dans la même sauvegarde,
+// générées à l'arrivée puis chunk par chunk autour du joueur. On y entre
+// par des portails (blocs « portal ») ; la mort par suffocation mène aux
+// backrooms (mod « backrooms »).
+[
+ {
+  "type": "dimension",
+  "id": "overworld",
+  "displayName": "Monde ordinaire",
+  "description": "Le monde où tout commence.",
+  "color": [
+   110,
+   170,
+   90
+  ]
+ },
+ {
+  "type": "dimension",
+  "id": "inverted",
+  "displayName": "Dimension Inversée",
+  "description": "Un ciel violet sombre, des îles flottantes et des ruines qui défient la gravité.",
+  "generator": "inverted",
+  "color": [
+   150,
+   90,
+   220
+  ],
+  "sky": {
+   "color": [
+    58,
+    26,
+    88
+   ],
+   "fog": [
+    90,
+    50,
+    130
+   ],
+   "sun": false,
+   "clouds": false
+  },
+  "time": {
+   "cycle": false,
+   "fixed": 0.42
+  },
+  "light": {
+   "ambient": 0.85,
+   "sky": false
+  },
+  "physics": {
+   "gravity": 0.85
+  },
+  "spawn": {
+   "top": 120,
+   "bottom": 30
+  },
+  "arrival": {
+   "portal": "portal_return",
+   "frame": "inverted_bricks"
+  },
+  "music": "music_cave"
+ },
+ {
+  "type": "dimension",
+  "id": "living",
+  "displayName": "Dimension Vivante",
+  "description": "Une jungle extraterrestre qui grandit, se défend et se souvient de vous.",
+  "generator": "living",
+  "color": [
+   60,
+   200,
+   110
+  ],
+  "sky": {
+   "color": [
+    40,
+    90,
+    70
+   ],
+   "fog": [
+    60,
+    130,
+    90
+   ],
+   "sun": true,
+   "clouds": false
+  },
+  "time": {
+   "cycle": true
+  },
+  "light": {
+   "ambient": 0.9
+  },
+  "spawn": {
+   "top": 140,
+   "bottom": 40
+  },
+  "arrival": {
+   "portal": "portal_return",
+   "frame": "primordial_planks"
+  }
+ },
+ {
+  "type": "dimension",
+  "id": "fragmented",
+  "displayName": "Dimension Fragmentée",
+  "description": "Plusieurs époques y coexistent : préhistoire, Moyen Âge et futur en ruine.",
+  "generator": "fragmented",
+  "color": [
+   220,
+   190,
+   90
+  ],
+  "sky": {
+   "fromBiome": true
+  },
+  "time": {
+   "cycle": true
+  },
+  "spawn": {
+   "top": 140,
+   "bottom": 40
+  },
+  "arrival": {
+   "portal": "portal_return",
+   "frame": "chrono_stone_present"
+  }
+ },
+ {
+  "type": "dimension",
+  "id": "core",
+  "displayName": "Dimension du Noyau",
+  "description": "Des cavernes immenses autour d'un soleil artificiel mourant.",
+  "generator": "core",
+  "color": [
+   240,
+   110,
+   40
+  ],
+  "sky": {
+   "color": [
+    40,
+    14,
+    6
+   ],
+   "sun": false,
+   "clouds": false
+  },
+  "time": {
+   "cycle": false,
+   "fixed": 0.5
+  },
+  "light": {
+   "ambient": 0.8,
+   "sky": false
+  },
+  "spawn": {
+   "top": 70,
+   "bottom": -40
+  },
+  "arrival": {
+   "portal": "portal_return",
+   "frame": "ancient_bronze"
+  }
+ },
+ {
+  "type": "dimension",
+  "id": "void",
+  "displayName": "Dimension du Néant",
+  "description": "Un ciel noir sans étoiles, des îles en miettes et des monolithes qui observent.",
+  "generator": "void",
+  "color": [
+   130,
+   130,
+   150
+  ],
+  "sky": {
+   "color": [
+    6,
+    6,
+    10
+   ],
+   "sun": false,
+   "clouds": false,
+   "stars": false
+  },
+  "time": {
+   "cycle": false,
+   "fixed": 0.5
+  },
+  "light": {
+   "ambient": 0.7,
+   "sky": false
+  },
+  "spawn": {
+   "top": 120,
+   "bottom": 0
+  },
+  "arrival": {
+   "portal": "portal_return",
+   "frame": "monolith_stone"
+  }
+ }
+]

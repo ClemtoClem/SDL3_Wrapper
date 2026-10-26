@@ -323,6 +323,103 @@ inline void StopTextInput(SDL_Window *win) noexcept { SDL_StopTextInput(win); }
 } // namespace keyboard
 
 // ============================================================================
+// Mouse buttons & button gestures
+// ============================================================================
+
+/// Boutons de souris (valeurs SDL_BUTTON_*).
+enum class MouseButton : uint8_t {
+    Left = SDL_BUTTON_LEFT,
+    Middle = SDL_BUTTON_MIDDLE,
+    Right = SDL_BUTTON_RIGHT,
+    X1 = SDL_BUTTON_X1,
+    X2 = SDL_BUTTON_X2,
+};
+
+/// Geste reconnu sur un bouton quelconque (souris, manette, joystick,
+/// clavier, stylet) — la reconnaissance elle-même (comptage des clics,
+/// délai d'appui long) est faite par le consommateur (cf. ui::Trigger).
+enum class ButtonEvent : uint8_t {
+    Press,       ///< enfoncement
+    Release,     ///< relâchement
+    Clic,        ///< enfoncement puis relâchement sur la même cible
+    DoubleClic,  ///< second clic rapproché
+    MultiClicks, ///< N-ième clic rapproché (N donné par le paramètre)
+    Hold,        ///< maintenu enfoncé (durée en ms donnée par le paramètre, 500 par défaut)
+    Repeat,      ///< répétition automatique pendant l'appui (touche maintenue)
+};
+
+/// Famille de bouton d'un évènement d'entrée.
+enum class ButtonSource : uint8_t { Mouse, Key, Gamepad, Joystick, Finger, Pen };
+
+struct Event;
+
+/// Évènement de bouton normalisé, quelle que soit sa source.
+struct ButtonInput {
+    ButtonSource source = ButtonSource::Mouse;
+    int code = 0;              ///< MouseButton, Key (keycode), GamepadButton, n° de bouton…
+    bool down = false;
+    bool repeat = false;       ///< répétition automatique (touche maintenue)
+    FPoint position{};         ///< position fenêtre (souris, doigt, stylet)
+    uint16_t mods = 0;         ///< Keymod au moment de l'évènement
+    uint64_t timestampMs = 0;
+    uint64_t device = 0;       ///< souris / clavier / joystick / doigt
+};
+
+/// Lit un évènement de bouton (souris, touche, manette, joystick, doigt,
+/// stylet) ; NONE pour tout autre évènement.
+[[nodiscard]] Option<ButtonInput> ReadButton(const Event &ev) noexcept;
+
+/// Geste reconnu par ButtonGestureTracker.
+struct ButtonGesture {
+    ButtonEvent gesture = ButtonEvent::Press;
+    int param = 0; ///< nombre de clics (Clic/DoubleClic/MultiClicks), durée en ms (Hold)
+};
+
+/// Reconnaissance des gestes de bouton (clics multiples, appui long),
+/// indépendante de toute interface : on lui donne les appuis/relâchements,
+/// elle rend les gestes. `sameTarget` permet à l'appelant d'annuler un clic
+/// (relâché ailleurs) ou d'interrompre une série (cible différente).
+class ButtonGestureTracker {
+public:
+    uint64_t multiClickMs = 400; ///< intervalle maximal entre deux clics d'une série
+    float slop = 6.f;            ///< déplacement maximal (px) pour rester un clic
+    uint64_t holdMs = 500;       ///< durée d'appui long par défaut
+
+    /// Gestes produits par un appui ou un relâchement : Press / Repeat, ou
+    /// Release puis Clic (+ DoubleClic au 2e, + MultiClicks au N-ième).
+    [[nodiscard]] std::vector<ButtonGesture> Feed(const ButtonInput &in, bool sameTarget = true);
+    /// Le pointeur a bougé pendant l'appui de ce bouton (au-delà de `slop`, plus de clic).
+    void Move(ButtonSource source, int code, FPoint position) noexcept;
+    /// Durée d'appui (ms) des boutons tenus à l'instant `nowMs`.
+    struct Held {
+        ButtonSource source;
+        int code;
+        uint64_t heldMs;
+        bool moved;
+    };
+    [[nodiscard]] std::vector<Held> Update(uint64_t nowMs) const;
+    /// Nombre de clics de la série en cours pour ce bouton.
+    [[nodiscard]] int ClickCount(ButtonSource source, int code) const noexcept;
+    [[nodiscard]] bool IsDown(ButtonSource source, int code) const noexcept;
+    void Reset() noexcept { m_states.clear(); }
+
+private:
+    struct State {
+        ButtonSource source;
+        int code;
+        bool down = false;
+        bool moved = false;
+        uint64_t pressMs = 0;
+        FPoint pressPos{};
+        uint64_t lastClickMs = 0;
+        FPoint lastClickPos{};
+        int clicks = 0;
+    };
+    State &StateOf(ButtonSource source, int code);
+    std::vector<State> m_states;
+};
+
+// ============================================================================
 // Mouse state
 // ============================================================================
 
@@ -431,7 +528,7 @@ enum class GamepadButton : int {
     NORTH = SDL_GAMEPAD_BUTTON_NORTH,
     BACK = SDL_GAMEPAD_BUTTON_BACK,
     GUIDE = SDL_GAMEPAD_BUTTON_GUIDE,
-    Start = SDL_GAMEPAD_BUTTON_START,
+    START = SDL_GAMEPAD_BUTTON_START,
     LEFT_STICK = SDL_GAMEPAD_BUTTON_LEFT_STICK,
     RIGHT_STICK = SDL_GAMEPAD_BUTTON_RIGHT_STICK,
     LEFT_SHOULDER = SDL_GAMEPAD_BUTTON_LEFT_SHOULDER,

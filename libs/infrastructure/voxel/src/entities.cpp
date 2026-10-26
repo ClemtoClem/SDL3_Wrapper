@@ -11,6 +11,23 @@ namespace voxel {
 
 namespace {
 
+Health MakeHealth(float max) {
+	Health h;
+	h.current = h.max = max;
+	return h;
+}
+
+Player MakePlayer(const String &name) {
+	Player p;
+	p.name = name;
+	return p;
+}
+
+} // namespace
+
+
+namespace {
+
 float Param(const BehaviorState &s, const char *key, float fallback) { return float(json::Num(s.params, key, fallback)); }
 
 float YawTowards(const math::FVector3 &from, const math::FVector3 &to) { return std::atan2(to.x - from.x, to.z - from.z); }
@@ -57,7 +74,7 @@ ecs::Entity SpawnFromDef(ecs::ArchetypeRegistry &registry, const EntityDef &def,
 	for (const BehaviorRef &b : def.behaviors)
 		behaviors.list.push_back(BehaviorState{b.id, b.params});
 	const ecs::Entity e = registry.SpawnBundle(t, Velocity{}, collider, body, intent, EntityKind{def.id, def.kind, &def},
-											   Health{def.health, def.health, 0.f}, visual,
+											   MakeHealth(def.health), visual,
 											   Properties{def.raw ? def.raw->Clone() : dataio::Node::MakeObject()},
 											   SoundEmitter{def.sounds, 3.f}, behaviors);
 	if (def.persistent)
@@ -77,7 +94,7 @@ ecs::Entity SpawnPlayer(ecs::ArchetypeRegistry &registry, const String &name, co
 	Visual visual;
 	visual.visible = false; // vue à la première personne
 	const ecs::Entity e = registry.SpawnBundle(t, Velocity{}, collider, body, MoveIntent{}, EntityKind{PLAYER_KIND, "player", nullptr},
-											   Health{20.f, 20.f, 0.f}, visual, Player{name}, InventoryComponent{Inventory{36}}, Survival{},
+											   MakeHealth(20.f), visual, MakePlayer(name), InventoryComponent{Inventory{36}}, Survival{},
 											   StatusEffects{}, Equipment{},
 											   Named{name}, Properties{dataio::Node::MakeObject()});
 	ecs::EventsOf<ecs::EntitySpawned>(registry).Send({e});

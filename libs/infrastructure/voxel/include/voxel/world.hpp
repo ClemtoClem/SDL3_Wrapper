@@ -15,6 +15,10 @@
  *    chaque chunk porte une RÉVISION (le maillage d'affichage se reconstruit
  *    quand elle change ; une modification au bord d'un chunk fait aussi
  *    avancer les voisins, dont les faces visibles changent).
+ *  - Un chunk qui ARRIVE (ou un bloc qui change d'opacité) fait avancer la
+ *    révision de ses voisins et des chunks en dessous : leurs faces au bord,
+ *    leur occlusion et leur lumière du ciel (cf. meshing.hpp) sont recalculées
+ *    au fil du déplacement du joueur.
  *  - Les blocs qui tombent (sable…) et ceux qui exigent un support sont
  *    signalés à la simulation (`TakeUnstableBlocks`).
  */
@@ -92,6 +96,9 @@ public:
 	[[nodiscard]] virtual int SurfaceHeight(int /*x*/, int /*z*/) const { return 0; }
 	/// Biome d'une colonne (nullptr : aucun).
 	[[nodiscard]] virtual const BiomeDef *BiomeAt(int /*x*/, int /*z*/) const { return nullptr; }
+	/// Hauteur estimée sous laquelle la colonne est couverte (terrain, voûte)
+	/// quand les chunks au-dessus ne sont pas chargés ; NONE : ciel ouvert.
+	[[nodiscard]] virtual Option<int> SkyCover(int /*x*/, int /*z*/) const { return NONE; }
 };
 
 /// Stockage persistant des chunks modifiés (cf. save.hpp).
@@ -173,6 +180,11 @@ public:
 private:
 	void CheckStability(const BlockPos &p);
 	void TouchNeighbors(const BlockPos &p);
+	/// Chunk arrivé : ses six voisins (faces au bord, occlusion) et, s'il
+	/// contient des blocs, les chunks en dessous (lumière du ciel).
+	void TouchAround(const ChunkPos &p, bool below);
+	/// Les chunks chargés sous `p` (colonnes 3 × 3) : lumière du ciel à revoir.
+	void TouchBelow(const ChunkPos &p);
 
 	const ContentRegistry &m_content;
 	WorldSettings m_settings;

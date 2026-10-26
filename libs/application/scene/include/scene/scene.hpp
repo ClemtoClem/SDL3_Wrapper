@@ -11,7 +11,7 @@
  *  - type_registry.hpp : catalogue des types de nœuds (extensible) ;
  *  - packed.hpp   : scène réutilisable (PackedScene) et instanciation.
  *
- * À ne pas confondre avec : `ui::Scene` (une PAGE d'interface) et le graphe
+ * À ne pas confondre avec : `ui::SceneManager` (des PAGES d'interface) et le graphe
  * `render3d::Object3D` (la scène de RENDU, pilotée depuis celle-ci).
  */
 #include "node.hpp"

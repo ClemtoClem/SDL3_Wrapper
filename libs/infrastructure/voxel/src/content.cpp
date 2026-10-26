@@ -98,6 +98,7 @@ const char *DefKindName(DefKind kind) noexcept {
 	case DefKind::SHADER: return "shader";
 	case DefKind::BEHAVIOR: return "behavior";
 	case DefKind::CONFIG: return "config";
+	case DefKind::DIMENSION: return "dimension";
 	}
 	return "?";
 }
@@ -373,6 +374,8 @@ Result<String, String> ContentRegistry::Load(const NodePtr &definition, const Lo
 		loaded = LoadBehavior(def, ctx);
 	else if (type == "config")
 		loaded = LoadConfig(def, ctx);
+	else if (type == "dimension")
+		loaded = LoadDimension(def, ctx);
 	else
 		return Err(String::Format("%s : type de définition inconnu « %s »", ctx.source.CStr(), type.CStr()));
 	if (loaded.IsError())
@@ -429,6 +432,8 @@ Result<String, String> ContentRegistry::LoadBlock(const NodePtr &def, const Load
 	b.climbable = json::Bool(def, "physics.climbable", b.HasTag("climbable"));
 	b.fluid = json::Bool(def, "physics.fluid", b.HasTag("fluid"));
 	b.viscosity = float(json::Num(def, "physics.viscosity", b.fluid ? 0.5 : 0.0));
+	b.sinking = std::max(0.f, float(json::Num(def, "physics.sinking", 0.0)));
+	b.selectable = json::Bool(def, "gameplay.selectable", true);
 	b.requiresSupport = json::Bool(def, "physics.structural.requiresSupport", false);
 	b.supportStrength = float(json::Num(def, "physics.structural.supportStrength", 0.0));
 	b.falling = json::Bool(def, "simulation.falling.enabled", false);
@@ -619,6 +624,7 @@ Result<String, String> ContentRegistry::LoadBiome(const NodePtr &def, const Load
 	b.id = Qualify(json::Str(def, "id"), ctx.mod);
 	b.mod = ctx.mod;
 	b.displayName = json::Str(def, "displayName", b.id);
+	b.dimension = Ref(def, "dimension", ctx.mod);
 	b.temperature = float(json::Num(def, "climate.temperature", json::Num(def, "temperature", 0.5)));
 	b.humidity = float(json::Num(def, "climate.humidity", json::Num(def, "humidity", 0.5)));
 	b.heightBase = float(json::Num(def, "terrain.height", 64.0));
@@ -635,6 +641,8 @@ Result<String, String> ContentRegistry::LoadBiome(const NodePtr &def, const Load
 			Decoration deco;
 			deco.block = Ref(d, "block", ctx.mod);
 			deco.structure = Ref(d, "structure", ctx.mod);
+			deco.feature = json::Str(d, "feature");
+			deco.params = d;
 			deco.chance = float(json::Num(d, "chance", 0.0));
 			deco.onBlocks = RefList(d, "on", ctx.mod);
 			b.decorations.push_back(deco);
@@ -700,6 +708,39 @@ Result<String, String> ContentRegistry::LoadStructure(const NodePtr &def, const 
 	s.raw = def;
 	m_structures.Put(s);
 	return Ok(s.id);
+}
+
+Result<String, String> ContentRegistry::LoadDimension(const NodePtr &def, const LoadContext &ctx) {
+	DimensionDef d;
+	d.id = Qualify(json::Str(def, "id"), ctx.mod);
+	d.mod = ctx.mod;
+	d.displayName = json::Str(def, "displayName", json::Str(def, "name", d.id));
+	d.description = json::Str(def, "description");
+	d.generator = Ref(def, "generator", ctx.mod);
+	const auto sky = Color4(def, "sky.color", {d.skyColor[0], d.skyColor[1], d.skyColor[2], 255});
+	d.skyColor = {sky[0], sky[1], sky[2]};
+	const auto fog = Color4(def, "sky.fog", {sky[0], sky[1], sky[2], 255});
+	d.fogColor = {fog[0], fog[1], fog[2]};
+	d.skyFromBiome = json::Bool(def, "sky.fromBiome", !json::Has(def, "sky.color"));
+	d.sun = json::Bool(def, "sky.sun", true);
+	d.clouds = json::Bool(def, "sky.clouds", true);
+	d.stars = json::Bool(def, "sky.stars", true);
+	d.fogDistance = float(json::Num(def, "sky.fogDistance", 0.0));
+	d.dayCycle = json::Bool(def, "time.cycle", true);
+	d.fixedTime = float(json::Num(def, "time.fixed", 0.5));
+	d.ambient = float(json::Num(def, "light.ambient", 1.0));
+	d.skyLight = json::Bool(def, "light.sky", true);
+	d.gravity = float(json::Num(def, "physics.gravity", 1.0));
+	d.spawnTop = json::Int(def, "spawn.top", 192);
+	d.spawnBottom = json::Int(def, "spawn.bottom", -64);
+	d.enterOnDeath = json::StrList(def, "enterOnDeath");
+	d.arrivalPortal = Ref(def, "arrival.portal", ctx.mod);
+	d.music = Ref(def, "music", ctx.mod);
+	const auto color = Color4(def, "color", {d.color[0], d.color[1], d.color[2], 255});
+	d.color = {color[0], color[1], color[2]};
+	d.raw = def;
+	m_dimensions.Put(d);
+	return Ok(d.id);
 }
 
 Result<String, String> ContentRegistry::LoadGenerator(const NodePtr &def, const LoadContext &ctx) {
@@ -913,6 +954,7 @@ const SoundDef *ContentRegistry::FindSound(const String &id) const { return m_so
 const SoundSetDef *ContentRegistry::FindSoundSet(const String &id) const { return m_soundSets.Find(id); }
 const ShaderDef *ContentRegistry::FindShader(const String &id) const { return m_shaders.Find(id); }
 const BehaviorDef *ContentRegistry::FindBehavior(const String &id) const { return m_behaviors.Find(id); }
+const DimensionDef *ContentRegistry::FindDimension(const String &id) const { return m_dimensions.Find(id); }
 
 std::vector<const ItemDef *> ContentRegistry::Items() const { return m_items.All(); }
 std::vector<const EntityDef *> ContentRegistry::Entities() const { return m_entities.All(); }
@@ -925,6 +967,14 @@ std::vector<const ModelDef *> ContentRegistry::Models() const { return m_models.
 std::vector<const SoundDef *> ContentRegistry::Sounds() const { return m_sounds.All(); }
 std::vector<const ShaderDef *> ContentRegistry::Shaders() const { return m_shaders.All(); }
 std::vector<const BehaviorDef *> ContentRegistry::Behaviors() const { return m_behaviors.All(); }
+std::vector<const DimensionDef *> ContentRegistry::Dimensions() const { return m_dimensions.All(); }
+
+String ContentRegistry::DefaultDimension() const {
+	const String configured = ConfigStr("world.dimension", "core:overworld");
+	if (FindDimension(configured))
+		return configured;
+	return m_dimensions.order.empty() ? String() : String(m_dimensions.order.front().c_str());
+}
 
 bool ContentRegistry::ItemHasTag(const String &item, const String &tag) const {
 	if (const ItemDef *def = FindItem(item); def && def->HasTag(tag))
@@ -939,7 +989,8 @@ double ContentRegistry::ConfigNum(const char *path, double fallback) const { ret
 size_t ContentRegistry::DefinitionCount() const noexcept {
 	return m_blocks.size() + m_items.order.size() + m_entities.order.size() + m_recipes.order.size() + m_biomes.order.size() +
 		   m_structures.order.size() + m_generators.order.size() + m_textures.order.size() + m_models.order.size() +
-		   m_sounds.order.size() + m_soundSets.order.size() + m_shaders.order.size() + m_behaviors.order.size();
+		   m_sounds.order.size() + m_soundSets.order.size() + m_shaders.order.size() + m_behaviors.order.size() +
+		   m_dimensions.order.size();
 }
 
 std::vector<String> ContentRegistry::Validate() const {
@@ -1041,6 +1092,16 @@ std::vector<String> ContentRegistry::Validate() const {
 		for (const auto &[layer, n] : g->layers)
 			block(g->id, layer);
 	}
+	for (const DimensionDef *d : Dimensions()) {
+		if (!d->generator.IsEmpty() && !FindGenerator(d->generator))
+			warnings.push_back(String::Format("%s : générateur inconnu « %s »", d->id.CStr(), d->generator.CStr()));
+		block(d->id, d->arrivalPortal);
+		if (!d->music.IsEmpty() && !FindSound(d->music))
+			warnings.push_back(String::Format("%s : son inconnu « %s »", d->id.CStr(), d->music.CStr()));
+	}
+	for (const BlockDef &b : m_blocks)
+		if (const String to = json::Str(b.raw, "portal.dimension"); !to.IsEmpty() && to != "@return" && !FindDimension(Qualify(to, b.mod)))
+			warnings.push_back(String::Format("%s : portail vers une dimension inconnue « %s »", b.id.CStr(), to.CStr()));
 	return warnings;
 }
 

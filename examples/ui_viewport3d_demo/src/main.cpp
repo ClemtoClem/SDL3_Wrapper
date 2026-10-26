@@ -1,17 +1,16 @@
 /**
- * ui_viewport3d_demo — ui::Viewport3D (M22, Phase 3 du plan d'expansion
- * moteur) : deux widgets 3D à des rapports d'aspect TRÈS différents (un
+ * ui_viewport3d_demo — ui::Viewport3D : deux widgets 3D à des rapports d'aspect TRÈS différents (un
  * panneau haut-étroit et un panneau large-bas), montrant la MÊME scène
  * render3d:: depuis deux caméras distinctes, intégrés dans une appli ui::
  * par ailleurs tout à fait normale (panneaux/labels 2D, sdl3::Renderer,
- * UiTheme::Dark()).
+ * thème sombre).
  *
  * Coexistence sdl3::Renderer + render3d::Canvas sur la MÊME fenêtre :
  * confirmée empiriquement sans conflit pendant ce jalon (cf. rapport de
  * tâche M22 — Canvas::Create() réclame le swapchain de la fenêtre pour
  * SDL_GPU, mais aucun code de ce fichier n'appelle canvas.Begin()/End() ni
- * ne présente quoi que ce soit VIA le Canvas : ui::Viewport3DSystem (appelé
- * par gui.Render(), cf. ui.hpp) utilise en interne RenderObjectToTexture,
+ * ne présente quoi que ce soit VIA le Canvas : l'extension Viewport3D (appelée
+ * par gui.Render(), cf. viewport3d.hpp) utilise en interne RenderObjectToTexture,
  * qui rend dans ses propres command buffers locaux — jamais dans le
  * swapchain de la fenêtre, cf. offscreen.hpp) — seul le sdl3::Renderer
  * présente réellement à l'écran ici, comme dans n'importe quel autre
@@ -47,13 +46,13 @@
  *   - `canvas`/`sceneRoot`/les deux Camera ne sont JAMAIS touchés par les
  *     deux threads EN MÊME TEMPS : le thread principal ne les touche pas
  *     pendant le chargement (aucun widget Viewport3D encore spawné, donc
- *     Viewport3DSystem::Update est un no-op), et le thread secondaire est
+ *     l'extension ne rend rien), et le thread secondaire est
  *     joint avant que le thread principal ne recommence à y toucher —
  *     remise de propriété séquentielle, pas d'accès concurrent réel, donc
  *     aucun verrou nécessaire sur ces objets-là (seule la petite structure
  *     de progression, réellement lue/écrite des deux côtés, est protégée).
  *
- *   make build/bin/ui_viewport3d_demo && ./build/bin/ui_viewport3d_demo
+ *   cpp-maker run ui_viewport3d_demo
  */
 #include <iostream>
 
@@ -63,8 +62,16 @@
 #include <ui/ui.hpp>
 
 static constexpr int WIN_W = 1100;
-static constexpr int WIN_H = 700; // 640 de contenu + barres de titre et d'état
-static constexpr float FONT_PT = 14.f;
+static constexpr int WIN_H = 700;
+
+static constexpr const char *VIEWPORT_CSS = R"css(
+#loading { gap: 12px; padding: 24px; align-items: center; }
+#views { gap: 16px; padding: 20px; }
+#views > panel { gap: 8px; padding: 12px; }
+.title { font-size: 16px; }
+.muted { color: var(--muted); }
+viewport3d { border-radius: 6px; }
+)css";
 
 int main() {
 	auto sdl = sdl3::SdlContext::Create(sdl3::init_flags::VIDEO | sdl3::init_flags::EVENTS);
@@ -77,30 +84,18 @@ int main() {
 		std::cerr << "TTF init: " << ttf.Error().CStr() << "\n";
 		return 1;
 	}
-	auto fontRes = sdl3::Font::FindLocal({"DejaVuSans", "FreeSans", "Arial"}, FONT_PT);
-	if (!fontRes) {
-		std::cerr << "Font: " << fontRes.Error().CStr() << "\n";
-		return 1;
-	}
-	auto &font = fontRes.Value();
-
 	auto winRes = sdl3::Window::Create(u8"ui:: - Viewport3D demo", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
 		return 1;
 	}
 	auto &window = winRes.Value();
-
-	// Renderer (backend 2D de ui::) ET Canvas (device GPU pour les widgets
-	// Viewport3D) sur la MÊME fenêtre — cf. en-tête du fichier. Les deux
-	// DOIVENT être créés sur le thread principal (ClaimWindowForGPUDevice).
 	auto renRes = sdl3::Renderer::Create(window, "gpu");
 	if (!renRes) {
 		std::cerr << "Renderer: " << renRes.Error().CStr() << "\n";
 		return 1;
 	}
 	auto &ren = renRes.Value();
-
 	auto canvasRes = render3d::Canvas::Create(ren);
 	if (!canvasRes) {
 		std::cerr << "Canvas::Create: " << canvasRes.Error().CStr() << "\n";
@@ -108,15 +103,6 @@ int main() {
 	}
 	render3d::Canvas canvas = std::move(canvasRes.Value());
 
-	auto engRes = sdl3::TextEngine::Create(ren);
-	if (!engRes) {
-		std::cerr << "TextEngine: " << engRes.Error().CStr() << "\n";
-		return 1;
-	}
-	auto &eng = engRes.Value();
-
-	// ── Scène 3D partagée par les deux Viewport3D (mêmes objets, deux
-	// caméras différentes — cf. en-tête du fichier) ─────────────────────────
 	render3d::DirectionalLight sun;
 	sun.direction = {0.3f, -0.5f, 0.5f};
 	sun.intensity = 0.9f;
@@ -125,69 +111,43 @@ int main() {
 	canvas.SetLighting(sun, ambient);
 	canvas.SetBackgroundColor(sdl3::Color{18, 20, 28});
 
+	// ── Scène partagée par les deux vues ────────────────────────────────────
 	render3d::Object3D sceneRoot;
 	sceneRoot.SetName(String("Viewport3D demo scene"));
-
 	auto &box = static_cast<render3d::Shape &>(sceneRoot.Add(std::make_unique<render3d::Shape>(
 		render3d::Mesh::Cube(1.4f), render3d::Material::Plastic(sdl3::Color{80, 140, 220}))));
 	box.SetPosition({-1.8f, 0.f, 0.f});
-
 	auto &sphere = static_cast<render3d::Shape &>(sceneRoot.Add(std::make_unique<render3d::Shape>(
 		render3d::Mesh::Sphere(0.9f, 32, 24), render3d::Material::Metal(sdl3::Color{220, 220, 230}))));
 	sphere.SetPosition({0.f, 0.f, 0.f});
-
 	auto &torus = static_cast<render3d::Shape &>(sceneRoot.Add(std::make_unique<render3d::Shape>(
 		render3d::Mesh::Torus(0.8f, 0.3f, 16, 32), render3d::Material::Pbr(sdl3::Color{230, 180, 60}, 0.9f, 0.25f))));
 	torus.SetPosition({1.8f, 0.f, 0.f});
 
-	// Caméra A : vue de face, légèrement en hauteur — pour le panneau
-	// HAUT-ÉTROIT (aspect << 1) : recule assez pour que toute la rangée
-	// d'objets tienne dans un cadrage vertical serré.
 	render3d::Camera cameraFront;
 	cameraFront.position = {0.f, 1.2f, -9.f};
 	cameraFront.target = {0.f, 0.f, 0.f};
-
-	// Caméra B : vue de 3/4 depuis le côté, plus proche — pour le panneau
-	// LARGE-BAS (aspect >> 1) : angle et distance différents de la caméra A,
-	// donc contenu visiblement différent (pas juste un recadrage de la même
-	// image), cf. exigence "deux caméras génuinement différentes" du plan.
 	render3d::Camera cameraSide;
 	cameraSide.position = {5.5f, 2.5f, -4.f};
 	cameraSide.target = {0.f, 0.f, 0.f};
 
-	// ── Pipeline UI ──────────────────────────────────────────────────────────
-	ecs::ArchetypeRegistry ar;
-	ui::Ui gui(ar, window, ren);
-	gui.Initialize(canvas); // enregistre le Canvas pour les widgets Viewport3D (M22) — ne touche PAS le backend 2D
-	ui::UiFactory &f = gui.Factory();
+	ecs::ArchetypeRegistry world;
+	ui::Ui gui(world, window, ren);
+	gui.AddStyleSheet(VIEWPORT_CSS);
+	gui.Initialize(canvas); // device GPU des Viewport3D — le rendu 2D reste au sdl3::Renderer
 
-	gui.SetTextEngine(eng, font);
-	gui.Layout().measureText = [&font](const String &s, float fs) -> sdl3::FPoint {
-		if (auto sz = font.Measure(s); sz.IsSome())
-			return {float(sz.Unwrap().x) * (fs / FONT_PT), fs * 1.35f};
-		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
-	};
-
-	// ── Encadrement de fenêtre (barre de titre, barre d'état) ────────────────
-	// 2D pur : présent dès l'écran de chargement, sans toucher `canvas`.
 	ui::WindowFrame frame;
-	frame.Build(gui, window, {.title = "ui:: - Viewport3D", .appIcon = Some(ui::MaterialIcons::VIEW_IN_AR),
-							  .status = "Préchauffage des pipelines GPU…"});
+	frame.Build(gui, window,
+				{.title = "ui:: - Viewport3D", .appIcon = Some(ui::MaterialIcons::VIEW_IN_AR),
+				 .status = "Préchauffage des pipelines GPU…"});
 
-	// ── Phase de chargement asynchrone (cf. en-tête du fichier) ─────────────
-	// Frame de chargement : juste un label + une barre de progression, tous
-	// les deux en 2D pur (aucun widget Viewport3D ici) — le thread principal
-	// peut donc la dessiner/présenter en boucle sans jamais toucher `canvas`.
-	auto loadingRootBuilder = f.Column();
-	loadingRootBuilder.Absolute().Anchor(ui::Anchor::Center).Parent(frame.Content()).Gap(12.f).Pad(24.f).WAuto().HAuto().Children(
-		f.Label("Chargement de la scène 3D...").FontSize(16.f).Name("loadStage"),
-		f.Progress(0.f, 1.f, 0.f).Size(320.f, 14.f).Name("loadBar"));
-	ecs::Entity loadingRoot = loadingRootBuilder.Spawn();
+	// ── Écran de chargement (aucun Viewport3D : le Canvas reste libre) ──────
+	ui::Widget loadStage, loadBar;
+	ui::Widget loading = frame.Content().Append(ui::Column().Id("loading").Absolute().Anchor(ui::Anchor::Center).Children({
+		ui::Label("Chargement de la scène 3D...").Class("title").Ref(loadStage),
+		ui::Progress(0.f, 1.f, 0.f).Size(320.f, 14.f).Ref(loadBar),
+	}));
 
-	// Progression partagée entre le thread principal (lecteur) et le thread
-	// de préchauffage (écrivain) — seule donnée réellement touchée par les
-	// deux threads en même temps, donc la seule qui a besoin d'un verrou
-	// (cf. raisonnement complet en en-tête du fichier).
 	auto progressMutexRes = sdl3::Mutex::Create();
 	if (!progressMutexRes) {
 		std::cerr << "Mutex::Create: " << progressMutexRes.Error().CStr() << "\n";
@@ -199,7 +159,6 @@ int main() {
 	bool progressDone = false;
 	bool progressFailed = false;
 	String progressError;
-
 	auto setProgress = [&](float frac, const char *stage, bool done = false, bool failed = false,
 						   StringView err = StringView()) {
 		sdl3::MutexGuard guard(progressMutex);
@@ -211,19 +170,10 @@ int main() {
 			progressError = String(err);
 	};
 
-	// Deux rendus de préchauffage "jetables" (mêmes formats couleur/
-	// profondeur QUE Viewport3DSystem — cf. ui::VIEWPORT3D_COLOR_FORMAT/
-	// DEPTH_FORMAT, sinon le cache de pipelines ne serait pas réellement
-	// réchauffé pour les vrais widgets) suffisent à compiler tous les
-	// pipelines dont la scène a besoin, une fois pour toutes : les deux
-	// Viewport3D finaux partagent la MÊME sceneRoot (mêmes matériaux), donc
-	// le premier rendu compile déjà tout ; le second n'existe que pour
-	// vérifier/documenter que la caméra B fonctionne aussi (quasi instantané,
-	// cache de pipeline déjà chaud).
+	// Thread secondaire : deux rendus de préchauffage compilent les pipelines.
 	auto threadRes = sdl3::Thread::Create(
 		[&]() -> int {
 			setProgress(0.05f, "Préparation du GPU...");
-
 			render3d::OffscreenTarget warmTarget;
 			std::vector<uint8_t> warmPixels;
 			auto sized = warmTarget.EnsureSize(canvas.Device(), 64, 64, ui::VIEWPORT3D_COLOR_FORMAT,
@@ -232,21 +182,16 @@ int main() {
 				setProgress(0.f, "Échec", true, true, sized.Error());
 				return 1;
 			}
-
 			setProgress(0.15f, "Compilation des pipelines (Plastic/Metal/PBR)...");
-			auto r1 = render3d::RenderObjectToTexture(canvas, sceneRoot, cameraFront, warmTarget, warmPixels);
-			if (!r1) {
-				setProgress(0.f, "Échec", true, true, r1.Error());
+			if (auto r = render3d::RenderObjectToTexture(canvas, sceneRoot, cameraFront, warmTarget, warmPixels); !r) {
+				setProgress(0.f, "Échec", true, true, r.Error());
 				return 1;
 			}
-
 			setProgress(0.8f, "Préchauffage de la seconde caméra...");
-			auto r2 = render3d::RenderObjectToTexture(canvas, sceneRoot, cameraSide, warmTarget, warmPixels);
-			if (!r2) {
-				setProgress(0.f, "Échec", true, true, r2.Error());
+			if (auto r = render3d::RenderObjectToTexture(canvas, sceneRoot, cameraSide, warmTarget, warmPixels); !r) {
+				setProgress(0.f, "Échec", true, true, r.Error());
 				return 1;
 			}
-
 			setProgress(1.f, "Terminé", true, false);
 			return 0;
 		},
@@ -258,6 +203,7 @@ int main() {
 	sdl3::Thread warmupThread = std::move(threadRes.Value());
 
 	bool running = true;
+	uint64_t lastTick = sdl3::GetTicksMS();
 	while (running) {
 		while (auto ev = sdl3::PollEvent()) {
 			auto &e = ev.Value();
@@ -269,83 +215,60 @@ int main() {
 		}
 		if (!running)
 			break;
-
-		float frac;
-		String stage;
 		bool done;
 		{
 			sdl3::MutexGuard guard(progressMutex);
-			frac = progressFraction;
-			stage = progressStage;
+			loadBar.SetValue(progressFraction);
+			loadStage.SetText(progressStage);
 			done = progressDone;
 		}
-		if (auto e = ui::FindByName(ar, "loadBar"); e.IsSome())
-			if (auto p = ar.GetComponent<ui::UiProgress>(e.Unwrap()); p.IsSome())
-				p.Unwrap()->value = frac;
-		if (auto e = ui::FindByName(ar, "loadStage"); e.IsSome())
-			if (auto l = ar.GetComponent<ui::UiLabel>(e.Unwrap()); l.IsSome())
-				l.Unwrap()->text = stage;
-
-		gui.Tick(0.f);
+		const uint64_t now = sdl3::GetTicksMS();
+		gui.Update(float(now - lastTick) / 1000.f);
+		lastTick = now;
 		frame.Update();
 		if (frame.CloseRequested()) {
 			running = false;
 			break;
 		}
-		ren.SetDrawColor(sdl3::FColor::UI_APP_BG());
+		ren.SetDrawColor(gui.CurrentPalette().appBg);
 		ren.Clear();
-		gui.Render(); // aucun widget Viewport3D encore vivant : ne touche pas `canvas`, cf. en-tête du fichier
+		gui.Render();
 		ren.Present();
-
 		if (done)
 			break;
 	}
-
-	// Joint le thread AVANT toute décision de sortie — jamais de thread GPU
-	// encore actif pendant la destruction de `canvas`/`window` (fermeture
-	// demandée pendant le chargement comme succès normal).
 	warmupThread.Wait();
-
 	if (!running)
 		return 0;
-
-	bool failed;
-	String error;
 	{
 		sdl3::MutexGuard guard(progressMutex);
-		failed = progressFailed;
-		error = progressError;
-	}
-	if (failed) {
-		std::cerr << "Préchauffage 3D: " << error.c_str() << "\n";
-		return 1;
+		if (progressFailed) {
+			std::cerr << "Préchauffage 3D: " << progressError.c_str() << "\n";
+			return 1;
+		}
 	}
 
-	ui::DespawnTree(ar, loadingRoot);
-
-	// ── Vraie UI (deux Viewport3D, cf. en-tête du fichier) — les pipelines
-	// sont déjà compilés, ce premier vrai rendu sera donc immédiat. ─────────
+	// ── Les deux vues : même scène, deux caméras, deux rapports d'aspect ────
+	loading.Destroy();
 	frame.SetStatus("Même scène, deux caméras.");
-	auto root = f.Row();
-	root.Absolute().Anchor(ui::Anchor::Center).Parent(frame.Content()).Gap(16.f).Pad(20.f).WAuto().HAuto().Children(
-		f.Panel().Gap(8.f).Pad(12.f).Children(
-			f.Label("Panneau haut-étroit").FontSize(16.f),
-			f.Label("Caméra de face (aspect ~0.52)").TextColor(sdl3::Color{150, 156, 178}),
-			f.Viewport3D(sceneRoot, cameraFront).Size(220.f, 420.f)),
-		f.Panel().Gap(8.f).Pad(12.f).Children(
-			f.Label("Panneau large-bas").FontSize(16.f),
-			f.Label("Caméra 3/4 côté (aspect ~1.9)").TextColor(sdl3::Color{150, 156, 178}),
-			f.Viewport3D(sceneRoot, cameraSide).Size(420.f, 220.f)));
-	root.Spawn();
+	frame.Content().Append(ui::Row().Id("views").Absolute().Anchor(ui::Anchor::Center).Children({
+		ui::Panel().Children({
+			ui::Label("Panneau haut-étroit").Class("title"),
+			ui::Label("Caméra de face (aspect ~0.52)").Class("muted"),
+			ui::Viewport3D(sceneRoot, cameraFront).Size(220.f, 420.f),
+		}),
+		ui::Panel().Children({
+			ui::Label("Panneau large-bas").Class("title"),
+			ui::Label("Caméra 3/4 côté (aspect ~1.9)").Class("muted"),
+			ui::Viewport3D(sceneRoot, cameraSide).Size(420.f, 220.f),
+		}),
+	}));
 
-	uint64_t lastTick = sdl3::GetTicksMS();
 	float sceneAngle = 0.f;
-
 	while (running) {
-		uint64_t now = sdl3::GetTicksMS();
-		float dt = float(now - lastTick) / 1000.f;
+		const uint64_t now = sdl3::GetTicksMS();
+		const float dt = float(now - lastTick) / 1000.f;
 		lastTick = now;
-
 		while (auto ev = sdl3::PollEvent()) {
 			auto &e = ev.Value();
 			if (e.IsQuit() || e.IsKeyDown(SDLK_ESCAPE)) {
@@ -354,18 +277,16 @@ int main() {
 			}
 			gui.HandleEvent(e);
 		}
-		gui.Tick(dt);
+		gui.Update(dt);
 		frame.Update();
 		if (frame.CloseRequested())
 			running = false;
 
-		// Fait tourner lentement la scène : les deux Viewport3D (même racine,
-		// caméras différentes) se mettent à jour indépendamment chaque frame
-		// via Viewport3DSystem::Update (appelé depuis gui.Render() ci-dessous).
+		// Rotation lente : les deux vues (continues) se mettent à jour à chaque image.
 		sceneAngle += dt * 0.35f;
 		sceneRoot.SetRotation(math::FQuaternion::FromAxisAngle({0.f, 1.f, 0.f}, sceneAngle));
 
-		ren.SetDrawColor(sdl3::FColor::UI_APP_BG());
+		ren.SetDrawColor(gui.CurrentPalette().appBg);
 		ren.Clear();
 		gui.Render();
 		ren.Present();

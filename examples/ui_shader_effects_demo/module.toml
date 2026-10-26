@@ -9,4 +9,4 @@ type = "executable"
 dirs = ["src"]
 
 [dependencies]
-modules = ["core", "sdl3", "ui"]
+modules = ["core", "sdl3", "render3d", "ui"]

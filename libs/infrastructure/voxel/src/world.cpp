@@ -112,6 +112,7 @@ Chunk &World::EnsureChunk(const ChunkPos &p) {
 	} else {
 		m_pending.erase(p); // un chunk enregistré contient déjà tout
 	}
+	TouchAround(p, !chunk.IsEmpty());
 	onChunkLoaded.Emit(p);
 	return chunk;
 }
@@ -131,6 +132,9 @@ bool World::SetBlock(const BlockPos &p, BlockId id, uint8_t param, ChangeCause c
 	if (cause != ChangeCause::GENERATION)
 		chunk.SetModified(true);
 	TouchNeighbors(p);
+	// Un bloc qui laisse passer (ou arrête) la lumière du ciel change l'éclairage dessous.
+	if (m_content.Block(previous).IsOpaqueCube() != m_content.Block(id).IsOpaqueCube())
+		TouchBelow(ChunkOf(p));
 	onBlockChanged.Emit(BlockChange{p, previous, id, param, cause});
 	// Le bloc posé, et celui posé au-dessus, peuvent devenir instables.
 	CheckStability(p);
@@ -195,6 +199,25 @@ void World::TouchNeighbors(const BlockPos &p) {
 		touch(0, 0, -1);
 	if (l.z == CHUNK_SIZE - 1)
 		touch(0, 0, 1);
+}
+
+void World::TouchAround(const ChunkPos &p, bool below) {
+	static constexpr int FACES[6][3] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+	for (const auto &d : FACES)
+		if (Chunk *n = GetChunk({p.x + d[0], p.y + d[1], p.z + d[2]}))
+			n->Touch();
+	if (below)
+		TouchBelow(p);
+}
+
+void World::TouchBelow(const ChunkPos &p) {
+	// La lumière du ciel d'un sommet mêle les colonnes voisines : 3 × 3 colonnes.
+	constexpr int DEPTH = 8;
+	for (int dz = -1; dz <= 1; ++dz)
+		for (int dx = -1; dx <= 1; ++dx)
+			for (int dy = 1; dy <= DEPTH; ++dy)
+				if (Chunk *n = GetChunk({p.x + dx, p.y - dy, p.z + dz}))
+					n->Touch();
 }
 
 void World::CheckStability(const BlockPos &p) {

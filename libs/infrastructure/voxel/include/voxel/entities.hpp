@@ -44,6 +44,12 @@ struct GameMessage {
 	String channel = "game";
 };
 
+/// Le joueur a changé de dimension (le monde affiché a été remplacé).
+struct DimensionChanged {
+	ecs::Entity player;
+	String from, to;
+};
+
 struct EntityDied {
 	ecs::Entity entity;
 	String kind;

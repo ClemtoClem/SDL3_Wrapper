@@ -13,10 +13,6 @@ namespace emulator::app {
 
 namespace {
 
-constexpr float TITLE_BAR_HEIGHT = 32.f;
-constexpr float SIDEBAR_WIDTH = 250.f;
-constexpr float LOG_HEIGHT = 130.f;
-constexpr float FONT_POINT_SIZE = 13.f;
 constexpr uint64_t TARGET_FRAME_MS = 1000 / 60;
 
 /// `--frames` compte des images ÉMULÉES : si l'émulation n'avance plus (cœur
@@ -36,9 +32,45 @@ Application::~Application() {
 	if (m_fileSinkId != 0)
 		sdl3::LogRouter::Instance().RemoveSink(m_fileSinkId);
 	DestroySession();
-	for (ecs::Entity popup : m_menuPopups)
-		if (popup.Valid())
-			ui::DespawnTree(m_world, popup);
+}
+
+const char *Application::ShellCss() {
+	return R"css(
+/* Palette « EmulOS » (maquettes d'origine) */
+:root { font-size: 13px; }
+window-frame { background-color: #0d1117; }
+#titlebar, statusbar, menubar { background-color: #0d1117; }
+.titlebar-title { font-size: 14px; }
+#sidebar { width: 250px; background-color: #1e2128; }
+.blue-header { height: 28px; background-color: #2563eb; padding: 4px 10px; gap: 6px; }
+.blue-header > label { font-size: 14px; color: #e6e6eb; }
+#system-rows { padding: 10px; gap: 8px; }
+.card { background-color: #2a2e36; border-radius: 4px; padding: 8px; gap: 2px; }
+.card-title { font-size: 14px; color: #e6e6eb; }
+.muted { font-size: 12px; color: #969ba5; }
+.primary { color: #e6e6eb; }
+#viewport { background-color: #3a3d42; overflow: hidden; }
+#placeholder { font-size: 18px; color: #969ba5; text-align: center; }
+#hud { background-color: #0a0c0fc8; padding: 4px 10px; border-radius: 4px; }
+#hud-label { font-size: 13px; color: #78ffa0; }
+#pause { font-size: 28px; font-weight: bold; color: #e6e6eb; }
+#log-header { height: 24px; padding: 2px 8px; }
+#log-header > label { font-size: 13px; flex-grow: 1; }
+.small-button { height: 20px; font-size: 11px; padding: 0 8px; }
+#log-body { height: 130px; background-color: #0a0c0f; }
+#log-view { font-size: 12px; }
+.dialog { background-color: #181b21; padding: 0; gap: 0; border-radius: 6px; }
+.dialog-header { height: 32px; background-color: #2563eb; padding: 4px 12px; }
+.dialog-header > label { font-size: 14px; font-weight: bold; flex-grow: 1; }
+.dialog-header > button { height: 24px; font-size: 12px; }
+.dialog-body { flex-grow: 1; padding: 12px; gap: 10px; }
+.dialog-body button, .dialog-row button { height: 28px; font-size: 13px; }
+.dialog-row { gap: 8px; width: 100%; }
+.note { font-size: 12px; color: #969ba5; text-overflow: wrap; width: 100%; }
+.heading { font-size: 14px; }
+.field { width: 100%; height: 28px; }
+.config-page { padding: 8px; gap: 10px; overflow-y: auto; }
+)css";
 }
 
 // ── Initialisation ───────────────────────────────────────────────────────────
@@ -85,37 +117,12 @@ Result<bool, String> Application::Initialize() {
 	if (!ttf)
 		return Err(String::Format("initialisation SDL_ttf : %s", ttf.Error().CStr()));
 	m_ttf = Some(std::move(ttf).Unwrap());
-	auto font = sdl3::Font::FindLocal({"DejaVuSans", "LiberationSans-Regular", "NotoSans-Regular", "FreeSans", "Arial"},
-									  FONT_POINT_SIZE);
-	if (!font)
-		return Err(String::Format("aucune police système trouvée : %s", font.Error().CStr()));
-	m_font = Some(std::move(font).Unwrap());
-	auto engine = sdl3::TextEngine::Create(m_renderer.Value());
-	if (!engine)
-		return Err(String::Format("moteur de texte : %s", engine.Error().CStr()));
-	m_textEngine = Some(std::move(engine).Unwrap());
 
-	m_ui = std::make_unique<ui::Ui>(m_world, m_window.Value(), m_renderer.Value(), ui::UiTheme::Dark());
-	// Enregistrée depuis son emplacement DÉFINITIF (m_font) : RenderSystem
-	// mémorise un pointeur.
-	m_ui->SetTextEngine(m_textEngine.Value(), m_font.Value());
-	sdl3::Font *fontPtr = &m_font.Value();
-	// Mesure ligne par ligne : les libellés multi-lignes (carte de session,
-	// titres de bannière NDS) étaient mesurés comme une seule ligne et se
-	// chevauchaient.
-	m_ui->Layout().measureText = [fontPtr](const String &text, float fontSize) -> sdl3::FPoint {
-		const float scale = fontSize / FONT_POINT_SIZE;
-		float width = 0.f;
-		int lines = 0;
-		for (const String &line : text.Split('\n')) {
-			++lines;
-			float lineWidth = float(line.GetSize()) * fontSize * 0.55f;
-			if (auto size = fontPtr->Measure(line.IsEmpty() ? String(" ") : line); size.IsSome())
-				lineWidth = float(size.Unwrap().x) * scale;
-			width = std::max(width, lineWidth);
-		}
-		return {width, fontSize * 1.35f * float(std::max(lines, 1))};
-	};
+	// Polices (DejaVu, icônes) chargées par l'interface elle-même.
+	m_ui = std::make_unique<ui::Ui>(m_world, m_window.Value(), m_renderer.Value(), ui::Theme::Dark);
+	if (m_ui->GetFonts().DefaultFamily().IsEmpty() || !m_ui->GetFonts().HasFamily(m_ui->GetFonts().DefaultFamily().View()))
+		return Err(String("aucune police système trouvée"));
+	m_ui->AddStyleSheet(ShellCss());
 
 	m_gamepads.OpenConnectedPads();
 	SetLogFilePath(Settings::getLogFilePath());
@@ -150,246 +157,149 @@ void Application::SetLogFilePath(const String &path) {
 // ── Construction de la coquille ─────────────────────────────────────────────
 
 void Application::BuildShell() {
-	ui::UiFactory &f = Factory();
-	// Pas de fond ici : Run() efface déjà la fenêtre de cette couleur.
-	ui::WidgetBuilder root = f.Column();
-	root.GrowW().GrowH();
-	m_shellRoot = root.Spawn();
-
-	BuildTitleBar(m_shellRoot);
-	BuildMenuBar(m_shellRoot);
-
-	ui::WidgetBuilder body = f.Row();
-	body.GrowW().GrowH().Parent(m_shellRoot);
-	ecs::Entity bodyEntity = body.Spawn();
-	BuildSidebar(bodyEntity);
-	BuildViewport(bodyEntity);
-	BuildLogPanel(m_shellRoot);
-	BuildStatusBar(m_shellRoot);
+	// Fenêtre sans bordure : barre de titre et barre d'état du module ui
+	// (déplacer, réduire / agrandir / fermer, redimensionner).
+	m_frame.Build(*m_ui, Window(),
+				  {.title = "EmulOS",
+				   .appIcon = Some(ui::MaterialIcons::VIDEOGAME_ASSET),
+				   .status = "F5 : sauvegarde rapide · F9 : chargement rapide · F12 : capture d'écran · P : pause",
+				   .onClose = [this] { RequestQuit(); },
+				   .titleHeight = Some(32.f)});
+	ui::Widget content = m_frame.Content();
+	content.Append(MenuBar());
+	content.Append(ui::Row().Grow().FillWidth().Gap(0.f).AlignItems(ui::Align::Stretch).Children({Sidebar(), Viewport()}));
+	content.Append(LogPanel());
 }
 
-void Application::BuildTitleBar(ecs::Entity parent) {
-	// Barre de titre du module ui : icône, titre, poignée de déplacement,
-	// réduire / agrandir-restaurer / fermer en icônes MaterialIcons (repli
-	// texte sans la police).
-	ui::RenderSystem &render = Gui().RenderSystem();
-	if (!render.HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>())) {
-		m_iconFont = ui::OpenMaterialIconFont();
-		if (m_iconFont.IsSome())
-			render.RegisterFont(ui::Glyphs::FontFamily<ui::MaterialIcons>(), m_iconFont.Value());
-	}
-	ui::TitleBarOptions options;
-	options.title = "EmulOS";
-	options.appIcon = Some(ui::MaterialIcons::VIDEOGAME_ASSET);
-	options.icons = render.HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
-	options.height = TITLE_BAR_HEIGHT;
-	options.titleSize = 14.f;
-	options.background = BG_DARK();
-	options.onClose = [this] { RequestQuit(); };
-	m_titleBar = ui::TitleBar(Factory(), Window(), std::move(options), parent);
-	m_titleLabel = m_titleBar.title;
-}
-
-void Application::BuildStatusBar(ecs::Entity parent) {
-	ui::StatusBarOptions options;
-	options.text = "F5 : sauvegarde rapide · F9 : chargement rapide · F12 : capture d'écran · P : pause";
-	options.icons = Gui().RenderSystem().HasFont(ui::Glyphs::FontFamily<ui::MaterialIcons>());
-	options.background = BG_DARK();
-	m_statusBar = ui::StatusBar(Factory(), std::move(options), parent);
-	// Fenêtre sans bordure : la barre de titre la déplace, les bords et la
-	// poignée de la barre d'état la redimensionnent.
-	m_chrome.Attach(Window(), World(), Gui().Layout(), m_titleBar, &m_statusBar);
-}
-
-void Application::BuildMenuBar(ecs::Entity parent) {
-	ui::UiFactory &f = Factory();
-	ui::WidgetBuilder bar = f.MenuBar();
-	bar.Parent(parent).GrowW().HAuto().Bg(BG_DARK());
-	ecs::Entity barEntity = bar.Spawn();
-
-	auto item = [&f](const char *text, const char *shortcut, std::function<void()> action) {
-		ui::WidgetBuilder builder = f.MenuItem(String(text), String(shortcut));
-		builder.OnClick(std::move(action));
-		return builder;
+ui::AnyWidget Application::MenuBar() {
+	auto item = [](const char *text, const char *shortcut, std::function<void()> action) -> ui::AnyWidget {
+		return ui::MenuItem(text, shortcut).OnClick(std::move(action));
 	};
-
-	m_menuPopups.push_back(f.Menu(
-		barEntity, "Fichier", item("Charger une ROM…", "Ctrl+O", [this] { OpenModal("roms"); }),
-		item("Ouvrir un fichier…", "", [this] { OpenRomFileDialog(*this); }),
-		item("États sauvegardés…", "", [this] { OpenModal("saves"); }),
-		item("Sauvegarde rapide", "F5", [this] { QuickSave(); }),
-		item("Chargement rapide", "F9", [this] { QuickLoad(); }), item("Quitter", "Échap", [this] { RequestQuit(); })));
-	m_menuPopups.push_back(f.Menu(barEntity, "Émulation", item("Pause / reprise", "P", [this] { TogglePause(); }),
-								  item("Réinitialiser", "Ctrl+R", [this] { ResetGame(); }),
-								  item("Arrêter", "", [this] { StopGame(); })));
-	m_menuPopups.push_back(f.Menu(barEntity, "Configuration",
-								  item("Contrôles…", "", [this] { OpenModal("config"); }),
-								  item("Vidéo et système…", "", [this] { OpenModal("config"); })));
-	m_menuPopups.push_back(f.Menu(barEntity, "Outils", item("Réseau…", "", [this] { OpenModal("network"); }),
-								  item("Codes de triche…", "", [this] { OpenModal("cheats"); }),
-								  item("Capture d'écran", "F12", [this] {
-									  RequestScreenshot(String::Format("%s/capture-%06ld.png",
-																	   m_options.screenshotDir.CStr(), DisplayedFrame()));
-								  })));
-	m_menuPopups.push_back(
-		f.Menu(barEntity, "Affichage", item("Bandeau de performances", "", [this] { SetHudVisible(!m_hudVisible); }),
-			   item("Écrans NDS : côte à côte / empilés", "R",
-					[] { Settings::setScreenLayout(Settings::getScreenLayout() == 0 ? 1 : 0); }),
-			   item("Journal", "", [this] { SetHidden(m_logBody, !World().HasComponent<ui::UiHidden>(m_logBody)); })));
-	m_menuPopups.push_back(f.Menu(barEntity, "Aide", item("À propos d'EmulOS…", "", [this] { OpenModal("about"); })));
-}
-
-void Application::BuildSidebar(ecs::Entity parent) {
-	ui::UiFactory &f = Factory();
-	ui::WidgetBuilder sidebar = f.Column();
-	sidebar.W(ui::Dimension::Px(SIDEBAR_WIDTH)).GrowH().Bg(SIDEBAR_BG()).Parent(parent);
-	ecs::Entity sidebarEntity = sidebar.Spawn();
-
-	ui::WidgetBuilder header = f.Row();
-	header.H(ui::Dimension::Px(28.f)).GrowW().Bg(HEADER_BLUE()).Pad(sdl3::Sides(10.f, 4.f)).Parent(sidebarEntity);
-	header.Children(f.Label("État du système").FontSize(14.f).TextColor(TEXT_PRIMARY()));
-	(void)header.Spawn();
-
-	ui::WidgetBuilder rows = f.Column();
-	rows.GrowW().Pad(10.f).Gap(8.f).Parent(sidebarEntity);
-	ecs::Entity rowsEntity = rows.Spawn();
-
-	for (RomSystem system : {RomSystem::NDS, RomSystem::GBA, RomSystem::GBC}) {
-		ui::WidgetBuilder row = f.Column();
-		row.GrowW().Bg(ROW_BG()).Radius(4.f).Pad(8.f).Gap(2.f).Parent(rowsEntity);
-		ecs::Entity rowEntity = row.Spawn();
-		ui::WidgetBuilder name = f.Label(String(RomSystemName(system)));
-		name.FontSize(14.f).TextColor(TEXT_PRIMARY()).Parent(rowEntity);
-		(void)name.Spawn();
-		ui::WidgetBuilder status = f.Label("Aucune ROM chargée");
-		status.FontSize(12.f).TextColor(TEXT_MUTED()).WAuto().HAuto().Parent(rowEntity);
-		m_systemStatus.emplace_back(system, status.Spawn());
-	}
-
-	ui::WidgetBuilder info = f.Column();
-	info.GrowW().Bg(ROW_BG()).Radius(4.f).Pad(8.f).Gap(4.f).Parent(rowsEntity);
-	ecs::Entity infoEntity = info.Spawn();
-	ui::WidgetBuilder title = f.Label("Session");
-	title.FontSize(14.f).Bold().TextColor(TEXT_PRIMARY()).WAuto().HAuto().Parent(infoEntity);
-	m_romTitle = title.Spawn();
-	ui::WidgetBuilder details = f.Label("Glissez une ROM sur la fenêtre\nou Fichier > Charger une ROM…");
-	details.FontSize(12.f).TextColor(TEXT_MUTED()).WAuto().HAuto().Parent(infoEntity);
-	m_romDetails = details.Spawn();
-}
-
-void Application::BuildViewport(ecs::Entity parent) {
-	ui::UiFactory &f = Factory();
-	ui::WidgetBuilder viewport = f.Column();
-	viewport.GrowW().GrowH().Bg(VIEWPORT_BG()).Clip().Parent(parent);
-	ecs::Entity viewportEntity = viewport.Spawn();
-
-	// Le jeu est dessiné PAR l'arbre d'interface : tout ce qui est créé après
-	// ce canevas (bandeau, message de pause, boîtes) passe au-dessus.
-	ui::WidgetBuilder canvas = f.Canvas([this](sdl3::Renderer &renderer, sdl3::FRect rect) {
-		if (m_gameView)
-			m_gameView->Render(renderer, rect);
+	return ui::MenuBar().FillWidth().Children({
+		ui::Menu("Fichier").Children({
+			item("Charger une ROM…", "Ctrl+O", [this] { OpenModal("roms"); }),
+			item("Ouvrir un fichier…", "", [this] { OpenRomFileDialog(*this); }),
+			item("États sauvegardés…", "", [this] { OpenModal("saves"); }),
+			item("Sauvegarde rapide", "F5", [this] { QuickSave(); }),
+			item("Chargement rapide", "F9", [this] { QuickLoad(); }),
+			ui::MenuSeparator(),
+			item("Quitter", "Échap", [this] { RequestQuit(); }),
+		}),
+		ui::Menu("Émulation").Children({
+			item("Pause / reprise", "P", [this] { TogglePause(); }),
+			item("Réinitialiser", "Ctrl+R", [this] { ResetGame(); }),
+			item("Arrêter", "", [this] { StopGame(); }),
+		}),
+		ui::Menu("Configuration").Children({
+			item("Contrôles…", "", [this] { OpenModal("config"); }),
+			item("Vidéo et système…", "", [this] { OpenModal("config"); }),
+		}),
+		ui::Menu("Outils").Children({
+			item("Réseau…", "", [this] { OpenModal("network"); }),
+			item("Codes de triche…", "", [this] { OpenModal("cheats"); }),
+			item("Capture d'écran", "F12",
+				 [this] {
+					 RequestScreenshot(
+						 String::Format("%s/capture-%06ld.png", m_options.screenshotDir.CStr(), DisplayedFrame()));
+				 }),
+		}),
+		ui::Menu("Affichage").Children({
+			item("Bandeau de performances", "", [this] { SetHudVisible(!m_hudVisible); }),
+			item("Écrans NDS : côte à côte / empilés", "R",
+				 [] { Settings::setScreenLayout(Settings::getScreenLayout() == 0 ? 1 : 0); }),
+			item("Journal", "", [this] { SetHidden(m_logBody, m_logBody.IsVisible()); }),
+		}),
+		ui::Menu("Aide").Children({item("À propos d'EmulOS…", "", [this] { OpenModal("about"); })}),
 	});
-	canvas.GrowW().GrowH().Parent(viewportEntity);
-	(void)canvas.Spawn();
-
-	ui::WidgetBuilder placeholder = f.Label("Glissez-déposez une ROM ou choisissez Fichier > Charger une ROM…");
-	placeholder.FontSize(18.f).TextColor(TEXT_MUTED()).TextAlign(ui::TextAlign::Center);
-	placeholder.Absolute().Anchor(ui::Anchor::Center).WAuto().HAuto().Parent(viewportEntity);
-	m_placeholder = placeholder.Spawn();
-
-	ui::WidgetBuilder hud = f.Row();
-	hud.Absolute().Anchor(ui::Anchor::TopLeft).Offset(8.f, 8.f).WAuto().HAuto().Bg(HUD_BG());
-	hud.Pad(sdl3::Sides(10.f, 4.f)).Radius(4.f).Hidden().Parent(viewportEntity);
-	m_hud = hud.Spawn();
-	ui::WidgetBuilder hudLabel = f.Label("—");
-	hudLabel.FontSize(13.f).TextColor(sdl3::FColor(sdl3::Color{120, 255, 160, 255})).WAuto().HAuto().Parent(m_hud);
-	m_hudLabel = hudLabel.Spawn();
-
-	ui::WidgetBuilder pause = f.Label("PAUSE");
-	pause.FontSize(28.f).Bold().TextColor(TEXT_PRIMARY()).Absolute().Anchor(ui::Anchor::Center).WAuto().HAuto();
-	pause.Hidden().Parent(viewportEntity);
-	m_pauseLabel = pause.Spawn();
 }
 
-void Application::BuildLogPanel(ecs::Entity parent) {
-	ui::UiFactory &f = Factory();
-	ui::WidgetBuilder header = f.Row();
-	header.H(ui::Dimension::Px(24.f)).GrowW().Bg(HEADER_BLUE()).Pad(sdl3::Sides(8.f, 2.f)).Gap(6.f);
-	header.Align(ui::CrossAlign::Center).Parent(parent);
-	ecs::Entity headerEntity = header.Spawn();
+ui::AnyWidget Application::Sidebar() {
+	std::vector<ui::AnyWidget> cards;
+	m_systemStatus.clear();
+	m_systemStatus.reserve(3);
+	for (RomSystem system : {RomSystem::NDS, RomSystem::GBA, RomSystem::GBC}) {
+		m_systemStatus.emplace_back(system, ui::Widget());
+		cards.push_back(ui::Column().Class("card").FillWidth().Children({
+			ui::Label(RomSystemName(system)).Class("card-title"),
+			ui::Label("Aucune ROM chargée").Class("muted").Ref(m_systemStatus.back().second),
+		}));
+	}
+	cards.push_back(ui::Column().Class("card").FillWidth().Gap(4.f).Children({
+		ui::Label("Session").Class("card-title").Bold().Ref(m_romTitle),
+		ui::Label("Glissez une ROM sur la fenêtre\nou Fichier > Charger une ROM…").Class("muted").Ref(m_romDetails),
+	}));
+	return ui::Column().Id("sidebar").Children({
+		ui::Row().Class("blue-header").FillWidth().Children({ui::Label("État du système")}),
+		ui::Column().Id("system-rows").FillWidth().Children(std::move(cards)),
+	});
+}
 
-	ui::WidgetBuilder title = f.Label("Journal");
-	title.FontSize(13.f).TextColor(TEXT_PRIMARY()).GrowW().Parent(headerEntity);
-	(void)title.Spawn();
-	ui::WidgetBuilder copy = f.Button("Copier");
-	copy.WAuto().H(ui::Dimension::Px(20.f)).FontSize(11.f).Tooltip("Copie tout le journal dans le presse-papiers");
-	copy.Parent(headerEntity).OnClick([this] { (void)sdl3::clipboard::SetText(m_log.AllText()); });
-	(void)copy.Spawn();
-	ui::WidgetBuilder collapse = f.Button("Replier");
-	collapse.WAuto().H(ui::Dimension::Px(20.f)).FontSize(11.f).Parent(headerEntity);
-	collapse.OnClick([this] { SetHidden(m_logBody, !World().HasComponent<ui::UiHidden>(m_logBody)); });
-	(void)collapse.Spawn();
+ui::AnyWidget Application::Viewport() {
+	// Le jeu est dessiné PAR l'arbre d'interface : tout ce qui vient après ce
+	// canevas (bandeau, message de pause, boîtes) passe au-dessus.
+	return ui::Stack().Id("viewport").Grow().Children({
+		ui::Canvas([this](ui::Painter &painter, const sdl3::FRect &rect) {
+			if (m_gameView && painter.Renderer())
+				m_gameView->Render(*painter.Renderer(), rect);
+		}).Fill(),
+		ui::Label("Glissez-déposez une ROM ou choisissez Fichier > Charger une ROM…")
+			.Id("placeholder")
+			.Absolute()
+			.Anchor(ui::Anchor::Center)
+			.Ref(m_placeholder),
+		ui::Row()
+			.Id("hud")
+			.Absolute()
+			.Anchor(ui::Anchor::TopLeft)
+			.Offset(8.f, 8.f)
+			.Hidden()
+			.Ref(m_hud)
+			.Children({ui::Label("—").Id("hud-label").Ref(m_hudLabel)}),
+		ui::Label("PAUSE").Id("pause").Absolute().Anchor(ui::Anchor::Center).Hidden().Ref(m_pauseLabel),
+	});
+}
 
-	ui::WidgetBuilder body = f.Column();
-	body.H(ui::Dimension::Px(LOG_HEIGHT)).GrowW().Bg(sdl3::FColor(sdl3::Color{10, 12, 15, 255})).Parent(parent);
-	m_logBody = body.Spawn();
-	ui::WidgetBuilder view = f.InputArea("(journal vide)");
-	view.IoMode(ui::IOMode::READ_AND_COPY_ONLY).FontSize(12.f).GrowW().GrowH().Parent(m_logBody);
-	m_logView = view.Spawn();
+ui::AnyWidget Application::LogPanel() {
+	return ui::Column().FillWidth().Gap(0.f).Children({
+		ui::Row().Id("log-header").Class("blue-header").FillWidth().Children({
+			ui::Label("Journal"),
+			ui::Button("Copier")
+				.Class("small-button")
+				.Tooltip("Copie tout le journal dans le presse-papiers")
+				.OnClick([this] { (void)sdl3::clipboard::SetText(m_log.AllText()); }),
+			ui::Button("Replier").Class("small-button").OnClick([this] { SetHidden(m_logBody, m_logBody.IsVisible()); }),
+		}),
+		ui::Column().Id("log-body").FillWidth().Ref(m_logBody).Children({
+			ui::LogView().Id("log-view").Fill().Ref(m_logView),
+		}),
+	});
 }
 
 // ── Petites aides ────────────────────────────────────────────────────────────
 
-void Application::SetLabel(ecs::Entity entity, const String &text) {
-	if (auto label = m_world.GetComponent<ui::UiLabel>(entity); label.IsSome() && label.Unwrap()->text != text) {
-		label.Unwrap()->text = text;
-		m_ui->Layout().MarkDirty();
-	}
+void Application::SetLabel(ui::Widget widget, const String &text) {
+	if (widget && widget.Text() != text)
+		widget.SetText(text);
 }
 
-void Application::SetHidden(ecs::Entity entity, bool hidden) {
-	if (!entity.Valid())
-		return;
-	bool isHidden = m_world.HasComponent<ui::UiHidden>(entity);
-	if (hidden == isHidden)
-		return;
-	if (hidden)
-		m_world.AddComponent(entity, ui::UiHidden{});
-	else
-		m_world.RemoveComponent<ui::UiHidden>(entity);
-	m_ui->Layout().MarkDirty();
+void Application::SetHidden(ui::Widget widget, bool hidden) {
+	if (widget && widget.IsVisible() == hidden)
+		widget.SetVisible(!hidden);
 }
 
 void Application::SetHudVisible(bool visible) { m_hudVisible = visible; }
 
 Application::ModalFrame Application::BeginModal(const char *title, float width, float height) {
-	ui::UiFactory &f = Factory();
-	ui::WidgetBuilder panel = f.Panel();
-	panel.Size(width, height).Gap(0.f).Pad(0.f).Bg(DIALOG_BG());
-	ui::WidgetBuilder modal = f.Modal(std::move(panel));
 	ModalFrame frame;
-	frame.root = modal.Spawn();
-
-	// Modal() enveloppe le panneau : [voile, panneau].
-	ecs::Entity dialog{};
-	if (auto children = m_world.GetComponent<ui::UiChildren>(frame.root);
-		children.IsSome() && children.Unwrap()->list.size() == 2)
-		dialog = children.Unwrap()->list[1];
-
-	ui::WidgetBuilder header = f.Row();
-	header.H(ui::Dimension::Px(32.f)).GrowW().Bg(HEADER_BLUE()).Pad(sdl3::Sides(12.f, 4.f)).Align(ui::CrossAlign::Center);
-	header.Parent(dialog);
-	ecs::Entity headerEntity = header.Spawn();
-	ui::WidgetBuilder titleLabel = f.Label(String(title));
-	titleLabel.FontSize(14.f).Bold().TextColor(TEXT_PRIMARY()).GrowW().Parent(headerEntity);
-	(void)titleLabel.Spawn();
-	ui::WidgetBuilder close = f.Button("Fermer");
-	close.WAuto().H(ui::Dimension::Px(24.f)).FontSize(12.f).Parent(headerEntity).OnClick([this] { CloseModal(); });
-	(void)close.Spawn();
-
-	ui::WidgetBuilder body = f.Column();
-	body.GrowW().GrowH().Pad(12.f).Gap(10.f).Parent(dialog);
-	frame.body = body.Spawn();
+	ui::Widget dialog;
+	frame.root = m_ui->Mount(ui::Modal(ui::Panel().Class("dialog").Size(width, height).Ref(dialog).Children({
+		ui::Row().Class("dialog-header").FillWidth().Children({
+			ui::Label(title),
+			ui::Button("Fermer").OnClick([this] { CloseModal(); }),
+		}),
+		ui::Column().Class("dialog-body").FillWidth(),
+	})));
+	frame.body = dialog.Find(".dialog-body").UnwrapOr(ui::Widget());
 	return frame;
 }
 
@@ -403,11 +313,11 @@ void Application::OpenModal(const String &name) {
 		DoCloseModal();
 		m_modalName = name;
 		m_modalRoot = BuildModal(*this, name);
-		if (!m_modalRoot.Valid()) {
+		if (!m_modalRoot) {
 			m_modalName.Clear();
 			return;
 		}
-		m_ui->OpenModal(m_modalRoot);
+		m_modalRoot.Open();
 		m_report.modalsOpened.push_back(name);
 	});
 }
@@ -417,15 +327,14 @@ void Application::CloseModal() {
 }
 
 void Application::DoCloseModal() {
-	if (!m_modalRoot.Valid())
+	if (!m_modalRoot)
 		return;
-	m_ui->CloseModal(m_modalRoot);
-	ui::DespawnTree(m_world, m_modalRoot);
-	m_modalRoot = ecs::Entity{};
+	m_modalRoot.Close();
+	m_modalRoot.Destroy();
+	m_modalRoot = ui::Widget();
 	m_modalName.Clear();
 	m_modalTicks.clear();
 	m_modalEventHandlers.clear();
-	m_ui->Layout().MarkDirty();
 }
 
 bool Application::SwitchToGame(const String &romPath, const String &romEntry, bool fromCommandLine) {
@@ -554,11 +463,12 @@ void Application::Run() {
 		if (!firstFrame)
 			m_report.frames.Push(period);
 		firstFrame = false;
-		m_ui->Tick(float(period));
-		m_chrome.Update();
-		m_titleBar.Update(World(), Window());
+		m_ui->Update(float(period));
+		m_frame.Update();
+		if (m_frame.CloseRequested())
+			m_running = false;
 
-		Renderer().SetDrawColor(BG_DARK());
+		Renderer().SetDrawColor(sdl3::Color{13, 17, 23, 255});
 		Renderer().Clear();
 		m_ui->Render();
 		const long displayed = DisplayedFrame();
@@ -677,7 +587,7 @@ void Application::UpdateWidgets() {
 			action();
 	}
 	// Échap ferme la boîte côté ui:: sans passer par CloseModal() : on range.
-	if (m_modalRoot.Valid() && !m_ui->HasOpenModal())
+	if (m_modalRoot && !m_ui->HasOpenModal())
 		DoCloseModal();
 	for (auto &tick : m_modalTicks)
 		tick();
@@ -722,18 +632,20 @@ void Application::UpdateWidgets() {
 											  m_report.romPublisher.IsEmpty() ? "éditeur inconnu"
 																			  : m_report.romPublisher.CStr(),
 											  frame, m_session->CoreFps(), m_session->StatePath().CStr()));
-		SetLabel(m_titleLabel, String::Format("EmulOS — %s", title.Replace('\n', ' ').CStr()));
+		if (const String full = String::Format("EmulOS — %s", title.Replace('\n', ' ').CStr());
+			m_frame.TitleBar().title.Text() != full)
+			m_frame.SetTitle(full);
 	} else {
 		SetLabel(m_romTitle, "Session");
 		SetLabel(m_romDetails, "Glissez une ROM sur la fenêtre\nou Fichier > Charger une ROM…");
-		SetLabel(m_titleLabel, "EmulOS");
+		if (m_frame.TitleBar().title.Text() != "EmulOS")
+			m_frame.SetTitle("EmulOS");
 	}
 
 	uint64_t revision = m_log.Revision();
 	if (revision != m_logRevision) {
 		m_logRevision = revision;
-		if (auto area = m_world.GetComponent<ui::UiInputArea>(m_logView); area.IsSome())
-			area.Unwrap()->text = m_log.AllText();
+		m_logView.SetText(m_log.AllText());
 	}
 }
 

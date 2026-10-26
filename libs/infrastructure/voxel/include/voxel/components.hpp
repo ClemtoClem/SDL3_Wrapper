@@ -40,8 +40,12 @@ struct PhysicsBody {
 	float mass = 1.f, gravityScale = 1.f, friction = 0.6f, bounciness = 0.f, drag = 0.f;
 	float stepHeight = 0.6f, jumpSpeed = 8.4f, maxSpeed = 4.3f;
 	bool swims = true, flies = false, noclip = false;
+	/// Sens de la gravité : 1 vers le bas, -1 vers le haut (marcher au plafond).
+	float gravityDirection = 1.f;
 	// État (écrit par la physique)
 	bool onGround = false, inFluid = false, onClimbable = false, hitWall = false, hitCeiling = false;
+	bool inSinking = false; ///< dans des sables mouvants
+	bool trapped = false;   ///< la tête dans un bloc plein (sable tombé dessus…) : immobilisé
 	float fluidViscosity = 0.f;
 	float groundSlipperiness = 0.f;
 	BlockId groundBlock = AIR;
@@ -70,6 +74,9 @@ struct Health {
 	float invulnerable = 0.f; ///< secondes restantes
 	ecs::Entity lastAttacker{}; ///< pour l'expérience gagnée par le vainqueur
 	float hurtTime = 0.f;       ///< secondes depuis le dernier coup (affichage)
+	/// Cause du dernier dégât : « suffocation », « drowning », « fall »,
+	/// « void », « fire », « starvation », « attack »… (mort : réapparition).
+	String lastCause;
 	[[nodiscard]] bool IsDead() const noexcept { return current <= 0.f; }
 };
 
@@ -80,6 +87,7 @@ struct Survival {
 	float air = 10.f, maxAir = 10.f;                         ///< secondes de souffle sous l'eau
 	int xp = 0;                                              ///< expérience totale
 	float regenTimer = 0.f, starveTimer = 0.f, drownTimer = 0.f;
+	bool suffocating = false;                                ///< tête dans un bloc plein / du sable (HUD)
 };
 
 /// Effet de statut (poison, régénération, vitesse…) : décrits par la
@@ -168,6 +176,12 @@ struct Player {
 	float reach = 5.f;
 	float breakProgress = 0.f;
 	BlockPos breaking{0, -100000, 0};
+	/// Dimension où se trouve le joueur, et d'où il vient (portail de retour).
+	String dimension;
+	String returnDimension;
+	math::FVector3 returnPosition{0.f, 0.f, 0.f};
+	float portalTime = 0.f; ///< secondes passées dans un portail
+	bool portalCooldown = false; ///< arrivé par un portail : il faut en sortir avant d'en reprendre un
 };
 
 /// Entité enregistrée avec le monde (sinon : éphémère).

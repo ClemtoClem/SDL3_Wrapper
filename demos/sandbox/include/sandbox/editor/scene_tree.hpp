@@ -54,7 +54,7 @@ public:
 	/// Idem pour un nœud 2D (le centre de la vue 2D).
 	std::function<math::FVector3()> spawnPoint2D;
 
-	void Build(ecs::Entity page);
+	void Build(ui::Widget page);
 
 	/// Détruit les popups (racines indépendantes, hors du sous-arbre de la
 	/// page — sans ça, chaque reconstruction de l'interface en laisserait un
@@ -118,7 +118,7 @@ public:
 
 private:
 	struct RowRef {
-		ecs::Entity entity;
+		ui::Widget entity;
 		scene::NodeId node;
 		int depth = 0;
 	};
@@ -159,11 +159,11 @@ private:
 
 	// ── Menus ────────────────────────────────────────────────────────────────
 
-	ecs::Entity Item(ecs::Entity menu, const char *text, const char *shortcut, std::function<void()> action);
+	ui::Widget Item(ui::Widget menu, const char *text, const char *shortcut, std::function<void()> action);
 
 	/// Sous-menus de création, sous `menu` : « 3D ▸ », « Lumière ▸ »,
 	/// « Logique ▸ », puis les entrées de la catégorie « Nœud » à plat.
-	void AddCreateEntries(ecs::Entity menu);
+	void AddCreateEntries(ui::Widget menu);
 
 	void BuildMenus();
 
@@ -174,18 +174,18 @@ private:
 	static constexpr size_t MAX_SEARCH_RESULTS = 200;
 
 	UiContext &m_ctx;
-	ecs::Entity m_list{}, m_search{}, m_addButton{}, m_optionsButton{};
-	ecs::Entity m_contextMenu{}, m_createMenu{}, m_optionsMenu{};
-	ecs::Entity m_createSubmenu{}, m_createTrigger{};
-	ecs::Entity m_renameModal{}, m_renameInput{};
-	std::vector<ecs::Entity> m_popups;
-	std::vector<ecs::Entity> m_nodeOnlyItems;
+	ui::Widget m_list{}, m_search{}, m_addButton{}, m_optionsButton{};
+	ui::Widget m_contextMenu{}, m_createMenu{}, m_optionsMenu{};
+	ui::Widget m_createSubmenu{};
+	ui::Widget m_renameModal{}, m_renameInput{};
+	std::vector<ui::Widget> m_popups;
+	std::vector<ui::Widget> m_nodeOnlyItems;
 	std::vector<RowRef> m_rows;
-	ecs::Entity m_sceneStrip{}, m_sceneRows{};
+	ui::Widget m_sceneStrip{}, m_sceneRows{};
 	bool m_scenesExpanded = true;
 	/// Retour visuel du glisser-déposer.
-	ecs::Entity m_ghost{}, m_ghostIcon{}, m_ghostLabel{}, m_ghostAction{};
-	ecs::Entity m_dropLine{}, m_dropBox{}, m_dropBoxInvalid{};
+	ui::Widget m_ghost{}, m_ghostIcon{}, m_ghostLabel{}, m_ghostAction{};
+	ui::Widget m_dropLine{}, m_dropBox{}, m_dropBoxInvalid{};
 	scene::NodeId m_dragSource, m_dropTarget;
 	DropZone m_dropZone = DropZone::NONE;
 	std::unordered_map<scene::NodeId, bool> m_expanded;

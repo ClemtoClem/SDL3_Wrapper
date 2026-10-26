@@ -4,6 +4,9 @@
 
 #include <voxel/json.hpp>
 #include <voxel/meshing.hpp>
+#include <voxel/worldgen.hpp>
+
+#include <cmath>
 
 using namespace voxel;
 
@@ -195,4 +198,77 @@ TEST(Textures_ExpressionsInDefinitionsBecomeTextures) {
 	REQUIRE(side != nullptr && top != nullptr);
 	CHECK(side->Pixels().At(0, 0)[1] < top->Pixels().At(0, 0)[1]); // lighting(0.8)
 	CHECK(top->Pixels().At(0, 0)[1] > 120);                      // la mousse verdit la pierre
+}
+
+namespace {
+
+/// Luminosité (rouge, 0..255) des sommets d'une face du dessus à la hauteur `y`
+/// au-dessus du bloc (x, z) d'un chunk : la plus forte des quatre.
+int TopFaceLight(const MeshBuffer &b, int x, float y, int z) {
+	int best = -1;
+	for (const MeshVertex &v : b.vertices)
+		if (v.normal.y > 0.9f && std::fabs(v.position.y - y) < 1e-3f && v.position.x >= float(x) - 1e-3f &&
+			v.position.x <= float(x + 1) + 1e-3f && v.position.z >= float(z) - 1e-3f && v.position.z <= float(z + 1) + 1e-3f)
+			best = std::max(best, int(v.color[0]));
+	return best;
+}
+
+} // namespace
+
+TEST(Mesher_LightIsRecomputedAsChunksArrive) {
+	Scene s;
+	Load(s.content, R"({"type": "generator", "id": "flat16", "kind": "flat", "layers": [["stone", 16]]})");
+	World world(s.content);
+	world.SetGenerator(MakeGenerator(s.content, "t:flat16", 1));
+	ChunkMesher mesher(s.content, s.atlas, &s.assets);
+	for (int z = -1; z <= 1; ++z)
+		for (int x = -1; x <= 1; ++x)
+			(void)world.EnsureChunk({x, 0, z});
+	// Surface en y = 15, chunk du dessus pas encore chargé : la face n'est pas
+	// encore montrée (bord du monde chargé)…
+	CHECK_EQ(TopFaceLight(mesher.Build(world, {0, 0, 0}).opaque, 4, 16.f, 4), -1);
+
+	// …le chunk du dessus arrive : celui du dessous est à refaire, et sa
+	// surface paraît, pleinement éclairée — sans le « carré sombre » d'un
+	// chunk maillé avant ses voisins (coins du dessus pas encore chargés).
+	const uint64_t before = world.GetChunk({0, 0, 0})->Revision();
+	(void)world.EnsureChunk({0, 1, 0});
+	CHECK(world.GetChunk({0, 0, 0})->Revision() > before);
+	CHECK_EQ(TopFaceLight(mesher.Build(world, {0, 0, 0}).opaque, 15, 16.f, 15), 255); // coin : voisins du dessus absents
+	CHECK_EQ(TopFaceLight(mesher.Build(world, {0, 0, 0}).opaque, 4, 16.f, 4), 255);
+
+	// Un toit au-dessus d'une partie du chunk : le sol dessous s'assombrit,
+	// et le chunk est à refaire sans que le toit le touche directement.
+	const uint64_t beforeRoof = world.GetChunk({0, 0, 0})->Revision();
+	for (int z = 2; z <= 6; ++z)
+		for (int x = 2; x <= 6; ++x)
+			for (int y = 20; y <= 22; ++y)
+				(void)world.SetBlock({x, y, z}, String("t:stone"));
+	CHECK(world.GetChunk({0, 0, 0})->Revision() > beforeRoof);
+	const ChunkMesh roofed = mesher.Build(world, {0, 0, 0});
+	const int shaded = TopFaceLight(roofed.opaque, 4, 16.f, 4), open = TopFaceLight(roofed.opaque, 12, 16.f, 12);
+	CHECK(shaded > 0 && shaded < open * 2 / 3);
+	CHECK_EQ(open, 255);
+	// Désactivée (îles flottantes) : plus d'ombre du ciel.
+	mesher.options.skyLight = false;
+	CHECK_EQ(TopFaceLight(mesher.Build(world, {0, 0, 0}).opaque, 4, 16.f, 4), 255);
+}
+
+TEST(Mesher_CavesUnderUnloadedTerrainAreDark) {
+	Scene s;
+	Load(s.content, R"({"type": "generator", "id": "deep", "kind": "flat", "layers": [["stone", 48]]})");
+	World world(s.content);
+	world.SetGenerator(MakeGenerator(s.content, "t:deep", 1));
+	ChunkMesher mesher(s.content, s.atlas, &s.assets);
+	for (int z = -1; z <= 1; ++z)
+		for (int x = -1; x <= 1; ++x)
+			(void)world.EnsureChunk({x, 0, z});
+	// Une cavité en y = 8..9 : 32 blocs de roche au-dessus, dont la plupart
+	// dans des chunks pas chargés (estimation du générateur).
+	for (int z = 3; z <= 5; ++z)
+		for (int x = 3; x <= 5; ++x)
+			for (int y = 8; y <= 9; ++y)
+				(void)world.SetBlock({x, y, z}, AIR);
+	const int floor = TopFaceLight(mesher.Build(world, {0, 0, 0}).opaque, 4, 8.f, 4);
+	CHECK(floor > 0 && floor < 70);
 }

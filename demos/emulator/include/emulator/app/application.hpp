@@ -76,7 +76,6 @@ public:
 
 	// ── Accès pour les constructeurs de boîtes de dialogue ───────────────────
 	[[nodiscard]] ui::Ui &Gui() { return *m_ui; }
-	[[nodiscard]] ui::UiFactory &Factory() { return m_ui->Factory(); }
 	[[nodiscard]] ecs::ArchetypeRegistry &World() { return m_world; }
 	[[nodiscard]] sdl3::Window &Window() { return m_window.Value(); }
 	[[nodiscard]] sdl3::Renderer &Renderer() { return m_renderer.Value(); }
@@ -95,36 +94,26 @@ public:
 	/// Squelette commun des boîtes : panneau centré, en-tête titré avec
 	/// bouton de fermeture, corps en colonne (rendu dans `body`).
 	struct ModalFrame {
-		ecs::Entity root{};
-		ecs::Entity body{};
+		ui::Widget root;
+		ui::Widget body;
 	};
 	[[nodiscard]] ModalFrame BeginModal(const char *title, float width, float height);
 
-	void SetLabel(ecs::Entity entity, const String &text);
-	void SetHidden(ecs::Entity entity, bool hidden);
+	void SetLabel(ui::Widget widget, const String &text);
+	void SetHidden(ui::Widget widget, bool hidden);
 
 	/// Fichier journal (vide = désactivé) et écho terminal.
 	void SetLogFilePath(const String &path);
 
-	// Palette « EmulOS » (maquettes d'origine).
-	static sdl3::FColor BG_DARK() { return sdl3::FColor(sdl3::Color{13, 17, 23, 255}); }
-	static sdl3::FColor SIDEBAR_BG() { return sdl3::FColor(sdl3::Color{30, 33, 40, 255}); }
-	static sdl3::FColor HEADER_BLUE() { return sdl3::FColor(sdl3::Color{37, 99, 235, 255}); }
-	static sdl3::FColor ROW_BG() { return sdl3::FColor(sdl3::Color{42, 46, 54, 255}); }
-	static sdl3::FColor VIEWPORT_BG() { return sdl3::FColor(sdl3::Color{58, 61, 66, 255}); }
-	static sdl3::FColor TEXT_PRIMARY() { return sdl3::FColor(sdl3::Color{230, 230, 235, 255}); }
-	static sdl3::FColor TEXT_MUTED() { return sdl3::FColor(sdl3::Color{150, 155, 165, 255}); }
-	static sdl3::FColor DIALOG_BG() { return sdl3::FColor(sdl3::Color{24, 27, 33, 255}); }
-	static sdl3::FColor HUD_BG() { return sdl3::FColor(sdl3::Color{10, 12, 15, 200}); }
+	/// Palette « EmulOS » (maquettes d'origine) : feuille de style de la coquille.
+	static const char *ShellCss();
 
 private:
 	void BuildShell();
-	void BuildTitleBar(ecs::Entity parent);
-	void BuildMenuBar(ecs::Entity parent);
-	void BuildSidebar(ecs::Entity parent);
-	void BuildViewport(ecs::Entity parent);
-	void BuildLogPanel(ecs::Entity parent);
-	void BuildStatusBar(ecs::Entity parent);
+	[[nodiscard]] ui::AnyWidget MenuBar();
+	[[nodiscard]] ui::AnyWidget Sidebar();
+	[[nodiscard]] ui::AnyWidget Viewport();
+	[[nodiscard]] ui::AnyWidget LogPanel();
 
 	void DoCloseModal();
 	void HandleEvent(const sdl3::Event &event);
@@ -148,9 +137,6 @@ private:
 	Option<sdl3::Window> m_window = NONE;
 	Option<sdl3::Renderer> m_renderer = NONE;
 	Option<sdl3::TtfContext> m_ttf = NONE;
-	Option<sdl3::Font> m_font = NONE;
-	Option<sdl3::TextEngine> m_textEngine = NONE;
-	Option<sdl3::Font> m_iconFont = NONE; ///< MaterialIcons (barre de titre), avant l'interface qui la référence
 	std::unique_ptr<sdl3::FileLogSink> m_fileLogSink;
 	size_t m_fileSinkId = 0;
 
@@ -161,29 +147,18 @@ private:
 	std::unique_ptr<EmulatorSession> m_session;
 	std::unique_ptr<GameView> m_gameView;
 
-	// Entités de la coquille.
-	ecs::Entity m_shellRoot{};
-	std::vector<ecs::Entity> m_menuPopups;
-	ecs::Entity m_placeholder{};
-	ecs::Entity m_hud{};
-	ecs::Entity m_hudLabel{};
-	ecs::Entity m_pauseLabel{};
-	ecs::Entity m_titleLabel{};
+	// Widgets de la coquille.
+	ui::Widget m_placeholder, m_hud, m_hudLabel, m_pauseLabel;
+	ui::Widget m_romTitle, m_romDetails, m_logBody, m_logView;
+	std::vector<std::pair<RomSystem, ui::Widget>> m_systemStatus;
 	// Encadrement de la fenêtre sans décoration (module ui) : barre de titre,
 	// barre d'état et hit-test système (déplacer, redimensionner) — déclaré
 	// après la fenêtre, détruit avant elle.
-	ui::TitleBarWidgets m_titleBar;
-	ui::StatusBarWidgets m_statusBar;
-	ui::WindowChrome m_chrome;
-	std::vector<std::pair<RomSystem, ecs::Entity>> m_systemStatus;
-	ecs::Entity m_romTitle{};
-	ecs::Entity m_romDetails{};
-	ecs::Entity m_logBody{};
-	ecs::Entity m_logView{};
+	ui::WindowFrame m_frame;
 	uint64_t m_logRevision = ~uint64_t(0);
 
 	// Boîte de dialogue ouverte.
-	ecs::Entity m_modalRoot{};
+	ui::Widget m_modalRoot;
 	String m_modalName;
 	std::vector<std::function<void()>> m_modalTicks;
 	std::vector<std::function<bool(const sdl3::Event &)>> m_modalEventHandlers;

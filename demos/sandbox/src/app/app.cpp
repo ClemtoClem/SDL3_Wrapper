@@ -282,11 +282,6 @@ int App::RunWindowed() {
 	if (!ttf)
 		return Fail(String::Format("initialisation TTF : %s", ttf.Error().CStr()));
 
-	auto fontResult = sdl3::Font::FindLocal({"DejaVuSans", "FreeSans", "Arial"}, FONT_POINT_SIZE);
-	if (!fontResult)
-		return Fail(String::Format("police introuvable : %s", fontResult.Error().CStr()));
-	sdl3::Font &font = fontResult.Value();
-
 	auto windowResult = sdl3::Window::Create(u8"Éditeur de jeux 2D/3D",
 											 m_options.windowWidth, m_options.windowHeight,
 											 ui::WindowFrame::WINDOW_FLAGS);
@@ -304,31 +299,12 @@ int App::RunWindowed() {
 		return Fail(String::Format("création du canvas 3D : %s", canvasResult.Error().CStr()));
 	render3d::Canvas canvas = std::move(canvasResult.Value());
 
-	auto engineResult = sdl3::TextEngine::Create(renderer);
-	if (!engineResult)
-		return Fail(String::Format("moteur de texte : %s", engineResult.Error().CStr()));
-	sdl3::TextEngine &textEngine = engineResult.Value();
-
 	ecs::ArchetypeRegistry registry;
-	ui::UiTheme theme = EditorUi::ThemeByName(m_options.theme).UnwrapOr(ui::UiTheme::Studio());
-	ui::Ui gui(registry, window, renderer, theme);
+	// Polices (texte, chasse fixe, icônes) : chargées par ui::Ui depuis
+	// assets/fonts — TTF est déjà initialisé.
+	ui::Ui gui(registry, window, renderer);
+	gui.SetTheme(EditorUi::ThemeByName(m_options.theme).UnwrapOr(ui::Palette::Of(ui::Theme::Dark)));
 	gui.Initialize(canvas);
-	gui.SetTextEngine(textEngine, font);
-	gui.Layout().measureText = [&font](const String &text, float fontSize) -> sdl3::FPoint {
-		if (auto size = font.Measure(text); size.IsSome())
-			return {float(size.Unwrap().x) * (fontSize / FONT_POINT_SIZE), fontSize * 1.35f};
-		return {float(text.GetSize()) * fontSize * 0.55f, fontSize * 1.3f};
-	};
-	// Déclarée APRÈS `ttf` (détruite avant lui) et enregistrée DEPUIS SON
-	// EMPLACEMENT DÉFINITIF (cf. OpenIconFont).
-	Option<sdl3::Font> iconFont = OpenIconFont();
-	if (iconFont.IsSome())
-		gui.RegisterFont(ui::Glyphs::FontFamily<ui::MaterialIcons>(), iconFont.Value());
-	// Chasse fixe de l'éditeur de code et de la console (même règle de
-	// durée de vie que la police d'icônes). Facultative : sans elle, le
-	// code s'affiche en police proportionnelle.
-	auto monoFont = sdl3::Font::FindLocal({"DejaVuSansMono", "LiberationMono-Regular", "NotoSansMono-Regular", "FreeMono", "Consolas"}, FONT_POINT_SIZE);
-	if (monoFont) gui.RegisterMonospaceFont(monoFont.Value());
 
 	Runtime runtime(registry, m_options.jobWorkers);
 	InstallCommonHooks(runtime);
@@ -338,7 +314,7 @@ int App::RunWindowed() {
 		m_report.warnings.push_back(String::Format("scène inconnue : %s", m_options.scene.CStr()));
 
 	// Précompilation des pipelines pendant l'écran de chargement.
-	if (!RunLoadingScreen(gui, registry, renderer, canvas, runtime))
+	if (!RunLoadingScreen(gui, renderer, canvas, runtime))
 		return ExitCode(); // fermeture demandée pendant le chargement : sortie propre
 
 	EditorUi editorUi(runtime, gui);
@@ -420,7 +396,7 @@ int App::RunWindowed() {
 		runtime.Update(dt);
 		TrackPlayState(runtime);
 		editorUi.Tick(dt, m_report.frames.RecentFps());
-		gui.Tick(dt);
+		gui.Update(dt);
 		// `Runtime::Update` mesure lui-même ses deux étages ; on les
 		// reventile ici, et le reste de ce bloc (interface) passe dans
 		// la simulation — il est du même ordre que le bruit de mesure.
@@ -431,7 +407,7 @@ int App::RunWindowed() {
 		renderer.SetDrawColor(sdl3::FColor::UI_APP_BG());
 		renderer.Clear();
 		gui.Render();
-		const ui::UiFrameTimings &uiTimings = gui.LastFrameTimings();
+		const ui::FrameTimings &uiTimings = gui.Timings();
 		m_report.phases.Add(PhaseStats::UI_STYLE, uiTimings.styleMs);
 		m_report.phases.Add(PhaseStats::UI_LAYOUT, uiTimings.layoutMs);
 		m_report.phases.Add(PhaseStats::UI_VIEWPORT, uiTimings.viewport3dMs);
@@ -491,13 +467,6 @@ void App::InstallWindowedHooks(Runtime &runtime, EditorUi &editorUi) {
 	};
 }
 
-Option<sdl3::Font> App::OpenIconFont() {
-	auto loaded = sdl3::Font::Open(String("assets/fonts/") + ui::MATERIALICONS_FILENAME, 22.f);
-	if (!loaded)
-		return NONE;
-	return Some(std::move(loaded.Value()));
-}
-
 void App::QueueCommandLineScreenshots() {
 	for (const ScreenshotRequest &request : m_options.screenshots)
 		if (request.frame == m_frame)
@@ -541,20 +510,21 @@ void App::EnsureScreenshotDirectory() {
 	m_screenshotDirectoryReady = true;
 }
 
-bool App::RunLoadingScreen(ui::Ui &gui, ecs::ArchetypeRegistry &registry, sdl3::Renderer &renderer,
+bool App::RunLoadingScreen(ui::Ui &gui, sdl3::Renderer &renderer,
 		render3d::Canvas &canvas, Runtime &runtime) {
-	ui::UiFactory &factory = gui.Factory();
-	ui::WidgetBuilder root = factory.Column();
-	root.Anchor(ui::Anchor::Center).Gap(14.f).Pad(28.f).WAuto().HAuto().Children(
-		factory.Label(String("Éditeur de niveau")).FontSize(22.f).Bold(),
-		factory.Label(String("Compilation des pipelines de rendu…")).FontSize(14.f).Name("loadStage"),
-		factory.Progress(0.f, 1.f, 0.f).Size(360.f, 12.f).Name("loadBar"));
-	ecs::Entity loadingRoot = root.Spawn();
+	ui::Widget loadStage, loadBar;
+	ui::WidgetBuilder root = ui::Column();
+	root.AlignSelf(ui::Align::Center).Gap(14.f).Padding(28.f).Children({
+		ui::Label(String("Éditeur de niveau")).FontSize(22.f).Bold(),
+		ui::Label(String("Compilation des pipelines de rendu…")).FontSize(14.f).Ref(loadStage),
+		ui::Progress(0.f, 1.f, 0.f).Size(360.f, 12.f).Ref(loadBar),
+	});
+	ui::Widget loadingRoot = gui.Mount(root);
 
 	auto mutexResult = sdl3::Mutex::Create();
 	if (!mutexResult) {
 		m_report.warnings.push_back(String("mutex indisponible : préchauffage GPU ignoré"));
-		ui::DespawnTree(registry, loadingRoot);
+		loadingRoot.Destroy();
 		return true;
 	}
 	sdl3::Mutex mutex = std::move(mutexResult.Value());
@@ -612,7 +582,7 @@ bool App::RunLoadingScreen(ui::Ui &gui, ecs::ArchetypeRegistry &registry, sdl3::
 
 	if (!threadResult) {
 		m_report.warnings.push_back(String("fil de préchauffage indisponible : démarrage direct"));
-		ui::DespawnTree(registry, loadingRoot);
+		loadingRoot.Destroy();
 		return true;
 	}
 	sdl3::Thread warmupThread = std::move(threadResult.Value());
@@ -637,14 +607,10 @@ bool App::RunLoadingScreen(ui::Ui &gui, ecs::ArchetypeRegistry &registry, sdl3::
 			stage = progress.stage;
 			done = progress.done;
 		}
-		if (auto entity = ui::FindByName(registry, "loadBar"); entity.IsSome())
-			if (auto bar = registry.GetComponent<ui::UiProgress>(entity.Unwrap()); bar.IsSome())
-				bar.Unwrap()->value = fraction;
-		if (auto entity = ui::FindByName(registry, "loadStage"); entity.IsSome())
-			if (auto label = registry.GetComponent<ui::UiLabel>(entity.Unwrap()); label.IsSome())
-				label.Unwrap()->text = stage;
+		loadBar.SetValue(fraction);
+		loadStage.SetText(stage);
 
-		gui.Tick(0.f);
+		gui.Update(0.f);
 		renderer.SetDrawColor(sdl3::FColor::UI_APP_BG());
 		renderer.Clear();
 		gui.Render(); // aucun widget Viewport3D vivant : ne touche pas `canvas`
@@ -657,7 +623,7 @@ bool App::RunLoadingScreen(ui::Ui &gui, ecs::ArchetypeRegistry &registry, sdl3::
 	// Toujours joindre AVANT toute décision de sortie : ne jamais laisser
 	// un fil GPU vivant pendant la destruction du canvas/de la fenêtre.
 	warmupThread.Wait();
-	ui::DespawnTree(registry, loadingRoot);
+	loadingRoot.Destroy();
 
 	bool failed;
 	String error;

@@ -66,7 +66,7 @@ foundation      core · math · jobs · events · diagnostics      (sans SDL)
 | `generators` | Bruit, cartes de hauteur, terrains, labyrinthes, donjons, WFC, L-systèmes, Markov | math, ecs |
 | `render3d` | Rendu SDL_GPU : graphe de scène, PBR, ombres, IBL, animation, portails | resources, ecs, dataio |
 | `audio` | Clips audio (ressources), DSP | resources, sdl3 |
-| `ui` | UI retenue sur ECS : widgets, layout, thèmes, node-graph, graphiques, viewport 3D | ecs, render3d, dataio |
+| `ui` | UI déclarative sur ECS : builders, styles CSS, évènements façon JS, widgets, flexbox, thèmes, node-graph, graphiques, viewport 3D | ecs, render3d, dataio |
 | `script` | Langage de script : lexer, parseur, interpréteur, bibliothèque standard | math, sdl3, dataio |
 | `script_bindings` | Liaisons du langage vers `ecs::`, `ui::`, `generators::` | script, ecs, ui, generators |
 | `physics` | Corps rigides sur l'ECS : formes, phases large/étroite, solveur, articulations | math, ecs, jobs |

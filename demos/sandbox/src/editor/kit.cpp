@@ -22,9 +22,9 @@ sdl3::FColor Mix(const sdl3::FColor &a, const sdl3::FColor &b, float t) noexcept
 	return {a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1.f};
 }
 
-Palette PaletteOf(const ui::UiTheme &theme) {
+Palette PaletteOf(const ui::Palette &theme) {
 	const sdl3::FColor black{0.f, 0.f, 0.f, 1.f};
-	const sdl3::FColor panel{theme.panelBg.r, theme.panelBg.g, theme.panelBg.b, 1.f};
+	const sdl3::FColor panel{theme.panel.r, theme.panel.g, theme.panel.b, 1.f};
 	Palette p;
 	p.light = Luminance(panel) > 0.5f;
 	// Sombre : le fond de fenêtre est un panneau assombri (Atelier : panneau
@@ -34,13 +34,58 @@ Palette PaletteOf(const ui::UiTheme &theme) {
 	p.header = Mix(panel, black, p.light ? 0.06f : 0.25f);
 	p.toolbar = Mix(panel, black, p.light ? 0.03f : 0.15f);
 	p.well = Mix(panel, black, p.light ? 0.18f : 0.65f);
-	const sdl3::FColor selected = theme.listbox.bgChecked;
-	p.selection = selected.a > 0.f ? sdl3::FColor{selected.r, selected.g, selected.b, 1.f} : Mix(panel, theme.accent, 0.5f);
+	p.selection = Mix(panel, theme.accent, 0.5f);
 	p.separator = Mix(panel, theme.text, 0.2f);
 	p.ok = p.light ? Rgb(20, 130, 40) : Rgb(96, 200, 96);
 	p.warning = p.light ? Rgb(176, 104, 0) : Rgb(236, 176, 72);
 	p.error = p.light ? Rgb(200, 40, 30) : Rgb(236, 88, 72);
 	return p;
+}
+
+String EditorCss(const ui::Palette &theme) {
+	const Palette p = PaletteOf(theme);
+	auto c = [](const sdl3::FColor &color) { return ui::CssColor(color); };
+	String css = String::Format(
+		":root { --ed-base: %s; --ed-header: %s; --ed-toolbar: %s; --ed-well: %s; --ed-selection: %s; "
+		"--ed-separator: %s; --ed-ok: %s; --ed-warning: %s; --ed-error: %s; }\n",
+		c(p.base).CStr(), c(p.header).CStr(), c(p.toolbar).CStr(), c(p.well).CStr(), c(p.selection).CStr(),
+		c(p.separator).CStr(), c(p.ok).CStr(), c(p.warning).CStr(), c(p.error).CStr());
+	css.Append(R"css(
+/* Cadre de l'éditeur */
+.editor-base { background-color: var(--ed-base); }
+.editor-header { background-color: var(--ed-header); }
+.editor-toolbar { background-color: var(--ed-toolbar); }
+.editor-well { background-color: var(--ed-well); }
+.editor-separator { background-color: var(--ed-separator); }
+.selected { background-color: var(--ed-selection); }
+.caption { font-size: 12px; color: var(--muted); text-overflow: ellipsis; overflow: hidden; }
+/* Boutons d'icône plats */
+.flat-icon { background-color: transparent; border-width: 0; border-radius: 4px; padding: 0;
+             justify-content: center; align-items: center; }
+.flat-icon:hover { background-color: var(--hover); }
+.flat-icon:active { background-color: var(--pressed); }
+/* Lignes de propriétés */
+.prop-row { padding: 1px 2px; gap: 4px; align-items: center; }
+.prop-label { font-size: 12px; color: var(--muted); text-overflow: ellipsis; overflow: hidden; }
+.prop-field { height: 22px; font-size: 12px; }
+.axis-letter { font-size: 12px; font-weight: bold; }
+.color-bar { height: 20px; border-radius: 3px; border-width: 0; }
+/* Panneaux à onglets */
+.dock { gap: 0; padding: 0; background-color: var(--panel); }
+.dock-header { gap: 0; padding: 0 4px 0 0; height: 30px; align-items: center; background-color: var(--ed-header); }
+.dock-tabs { gap: 1px; padding: 0; align-items: flex-end; height: 100%; }
+.dock-tab { gap: 0; padding: 0 2px; height: 27px; align-items: center; background-color: transparent; }
+.dock-tab.closable { padding: 0 0 0 2px; }
+.dock-tab.active { background-color: var(--panel); border-top: 2px solid var(--accent); }
+.dock-tab-title { height: 24px; font-size: 13px; background-color: transparent; border-width: 0; color: var(--muted); }
+.dock-tab.active .dock-tab-title { color: var(--text); }
+.dock-extra { gap: 2px; padding: 0; align-items: center; }
+.dock-body { gap: 0; padding: 0; overflow: hidden; }
+.dock-page { gap: 4px; }
+.search-field { gap: 4px; padding: 0; align-items: center; }
+.search-field > input { height: 24px; font-size: 13px; }
+)css");
+	return css;
 }
 
 sdl3::FColor Readable(const UiContext &ctx, const sdl3::FColor &color) {
@@ -165,7 +210,7 @@ size_t NumberEnd(const String &line, size_t i) noexcept {
 	return j;
 }
 
-void HighlightSled(const String &line, std::vector<ui::UiTextSpan> &out) {
+void HighlightSled(const String &line, std::vector<ui::TextSpan> &out) {
 	static constexpr const char *KEYWORDS[] = {"let",   "var",      "const", "namespace", "fn",       "func",
 											   "if",    "else",     "while", "do",        "for",      "in",       "return",
 											   "break", "continue", "and",   "or",        "not",      "true",
@@ -223,7 +268,7 @@ void HighlightSled(const String &line, std::vector<ui::UiTextSpan> &out) {
 	}
 }
 
-void HighlightJson(const String &line, std::vector<ui::UiTextSpan> &out) {
+void HighlightJson(const String &line, std::vector<ui::TextSpan> &out) {
 	size_t i = 0;
 	while (i < line.size()) {
 		const char c = line[i];
@@ -261,7 +306,7 @@ void HighlightJson(const String &line, std::vector<ui::UiTextSpan> &out) {
 	}
 }
 
-void HighlightLog(const String &line, std::vector<ui::UiTextSpan> &out) {
+void HighlightLog(const String &line, std::vector<ui::TextSpan> &out) {
 	if (line.size() < 2 || line[0] != '[')
 		return;
 	const size_t close = line.Find("]");
@@ -280,7 +325,7 @@ void HighlightLog(const String &line, std::vector<ui::UiTextSpan> &out) {
 		out.push_back({0, close + 1, Colors().dim});
 }
 
-ui::UiSyntaxHighlighter ForName(const String &name) {
+ui::SyntaxHighlighter ForName(const String &name) {
 	const String lower = name.ToLower();
 	if (lower.EndsWith(".json") || lower.EndsWith(".gltf"))
 		return HighlightJson;
@@ -289,269 +334,224 @@ ui::UiSyntaxHighlighter ForName(const String &name) {
 
 } // namespace syntax
 
-void ClearChildren(UiContext &ctx, ecs::Entity parent) {
-	std::vector<ecs::Entity> children;
-	if (auto list = ctx.registry.GetComponent<ui::UiChildren>(parent); list.IsSome())
-		children = list.Unwrap()->list;
-	for (ecs::Entity child : children)
-		ui::DespawnTree(ctx.registry, child);
-	if (auto list = ctx.registry.GetComponent<ui::UiChildren>(parent); list.IsSome())
-		list.Unwrap()->list.clear();
-	ctx.gui.Layout().MarkDirty();
+void ClearChildren(UiContext &, ui::Widget parent) {
+	parent.Clear();
+	if (auto selection = parent.Get<ui::Selection>(); selection.IsSome())
+		selection.Unwrap()->selected.clear();
 }
 
-void SetBackground(UiContext &ctx, ecs::Entity entity, sdl3::FColor color) {
-	auto style = ctx.registry.GetOrAddComponent<ui::UiStyle>(entity);
-	if (style.IsNone())
+void MarkSelected(ui::Widget list, int index) {
+	if (!list.Valid())
 		return;
-	style.Unwrap()->SetBg(color);
-	if (!ctx.registry.HasComponent<ui::UiStyleDirty>(entity))
-		ctx.registry.AddComponent(entity, ui::UiStyleDirty{});
+	if (list.Get<ui::Selection>().IsNone())
+		list.World()->AddComponent(list.Entity(), ui::Selection{});
+	list.Get<ui::Selection>().Unwrap()->SelectOnly(index);
 }
 
-void SetLabelText(UiContext &ctx, ecs::Entity entity, const String &text) {
-	if (auto label = ctx.registry.GetComponent<ui::UiLabel>(entity); label.IsSome())
-		label.Unwrap()->text = text;
+void SetBackground(UiContext &, ui::Widget widget, sdl3::FColor color) { widget.Background(color); }
+
+void SetLabelText(UiContext &, ui::Widget widget, const String &text) {
+	if (widget && widget.Text() != text)
+		widget.SetText(text);
 }
 
-void SetHidden(UiContext &ctx, ecs::Entity entity, bool hidden) {
-	if (!entity.Valid())
-		return;
-	if (hidden && !ctx.registry.HasComponent<ui::UiHidden>(entity))
-		ctx.registry.AddComponent(entity, ui::UiHidden{});
-	else if (!hidden)
-		ctx.registry.RemoveComponent<ui::UiHidden>(entity);
-	ctx.gui.Layout().MarkDirty();
+void SetHidden(UiContext &, ui::Widget widget, bool hidden) {
+	if (widget && widget.IsVisible() == hidden)
+		widget.SetVisible(!hidden);
 }
 
-ecs::Entity Caption(UiContext &ctx, ecs::Entity parent, const String &text, float size) {
-	ui::WidgetBuilder label = ctx.factory.Label(text);
-	label.FontSize(size).TextColor(ctx.Theme().muted).WAuto().HAuto().TextEllipsis().Parent(parent);
-	return label.Spawn();
+ui::Widget Caption(UiContext &, ui::Widget parent, const String &text, float size) {
+	return parent.Append(ui::Label(text).Class("caption").FontSize(size));
 }
 
-ecs::Entity Spacer(UiContext &ctx, ecs::Entity parent) {
-	ui::WidgetBuilder spacer = ctx.factory.Row();
-	spacer.Pad(0.f);
-	spacer.GrowW().H(ui::Dimension::Px(1.f)).Parent(parent);
-	return spacer.Spawn();
+ui::Widget Spacer(UiContext &, ui::Widget parent) { return parent.Append(ui::Spacer()); }
+
+ui::Widget Glyph(UiContext &ctx, ui::Widget parent, ui::MaterialIcons icon, sdl3::FColor color, float size) {
+	return parent.Append(ui::Icon(icon, size).Color(Readable(ctx, color)).Size(size + 2.f, size + 2.f).PointerThrough());
 }
 
-ecs::Entity Glyph(UiContext &ctx, ecs::Entity parent, ui::MaterialIcons icon, sdl3::FColor color, float size) {
-	ui::WidgetBuilder glyph = ctx.factory.Icon(icon, size);
-	glyph.TextColor(Readable(ctx, color)).Size(size + 2.f, size + 2.f).PointerThrough().Parent(parent);
-	return glyph.Spawn();
-}
-
-ecs::Entity IconButton(UiContext &ctx, ecs::Entity parent, ui::MaterialIcons icon, const String &tooltip,
-		std::function<void()> action, float size, ecs::Entity *outIcon,
-		sdl3::FColor tint) {
-	ui::WidgetBuilder button = ctx.factory.Button(String());
-	button.Size(size, size).Bg(sdl3::FColor{0.f, 0.f, 0.f, 0.f}).Radius(4.f).Tooltip(tooltip).Parent(parent);
-	button.OnClick(std::move(action));
-	ecs::Entity entity = button.Spawn();
-	ui::WidgetBuilder glyph = ctx.factory.Icon(icon, size * 0.68f);
-	glyph.Parent(entity).Anchor(ui::Anchor::Center).Justify(ui::Justify::Center).Absolute().PointerThrough();
-	glyph.TextColor(tint.a > 0.f ? Readable(ctx, tint) : ctx.Theme().text);
-	ecs::Entity glyphEntity = glyph.Spawn();
+ui::Widget IconButton(UiContext &ctx, ui::Widget parent, ui::MaterialIcons icon, const String &tooltip,
+					  std::function<void()> action, float size, ui::Widget *outIcon, sdl3::FColor tint) {
+	ui::WidgetBuilder glyph = ui::Icon(icon, size * 0.68f);
+	glyph.Color(tint.a > 0.f ? Readable(ctx, tint) : ctx.Theme().text).PointerThrough();
 	if (outIcon)
-		*outIcon = glyphEntity;
-	return entity;
+		glyph.Ref(*outIcon);
+	ui::WidgetBuilder button = ui::IconButton(glyph, tooltip);
+	button.Class("flat-icon").Size(size, size).OnClick(std::move(action));
+	return parent.Append(button);
 }
 
-ecs::Entity SearchField(UiContext &ctx, ecs::Entity parent, const String &placeholder,
-		std::function<void(const String &)> onChange, float width) {
-	ui::WidgetBuilder row = ctx.factory.Row();
-	row.Pad(0.f);
-	row.Gap(4.f).Align(ui::CrossAlign::Center).HAuto().Parent(parent);
+ui::Widget SearchField(UiContext &ctx, ui::Widget parent, const String &placeholder,
+					   std::function<void(const String &)> onChange, float width) {
+	ui::WidgetBuilder row = ui::Row();
+	row.Class("search-field");
 	if (width > 0.f)
-		row.W(ui::Dimension::Px(width));
+		row.Width(width);
 	else
-		row.GrowW();
-	ecs::Entity rowEntity = row.Spawn();
-	(void)Glyph(ctx, rowEntity, ui::MaterialIcons::SEARCH, ctx.Theme().muted, 15.f);
-	ui::WidgetBuilder input = ctx.factory.Input(placeholder);
-	input.GrowW().H(ui::Dimension::Px(24.f)).FontSize(13.f).Parent(rowEntity);
-	input.OnTextChange(std::move(onChange));
-	return input.Spawn();
+		row.GrowWidth();
+	ui::Widget input;
+	row.Children({
+		ui::Icon(ui::MaterialIcons::SEARCH, 15.f).Color(Readable(ctx, ctx.Theme().muted)).Size(17.f, 17.f).PointerThrough(),
+		ui::Input(placeholder).Grow().Ref(input).OnTextChange(std::move(onChange)),
+	});
+	parent.Append(row);
+	return input;
 }
 
 // ── PropertyRows ─────────────────────────────────────────────────────────────
 
-ecs::Entity PropertyRows::Vector2(ecs::Entity page, const char *label, math::FVector2 value, float speed,
-								  std::function<void(math::FVector2)> onChange, float minValue, float maxValue) {
-	ecs::Entity row = Row(page, label);
+namespace {
+/// Champ numérique glissable d'une ligne de propriétés.
+ui::WidgetBuilder Drag(float minValue, float maxValue, float value, float speed, int decimals,
+					   std::function<void(float)> onChange) {
+	ui::WidgetBuilder field = ui::DragValue(minValue, maxValue, value, 0.f, speed, decimals);
+	field.Class("prop-field").Grow().OnChange(std::move(onChange));
+	return field;
+}
+} // namespace
+
+ui::Widget PropertyRows::Vector2(ui::Widget page, const char *label, math::FVector2 value, float speed,
+								 std::function<void(math::FVector2)> onChange, float minValue, float maxValue) {
+	ui::Widget row = Row(page, label);
 	auto state = std::make_shared<math::FVector2>(value);
 	static constexpr const char *AXES[2] = {"X", "Y"};
 	const sdl3::FColor colors[2] = {AXIS_X, AXIS_Y};
 	for (int axis = 0; axis < 2; ++axis) {
-		ui::WidgetBuilder letter = m_ctx.factory.Label(String(AXES[axis]));
-		letter.FontSize(12.f).Bold().TextColor(colors[axis]).WAuto().HAuto().Parent(row);
-		letter.Spawn();
-		ui::WidgetBuilder field = m_ctx.factory.DragValue(minValue, maxValue, axis == 0 ? value.x : value.y, 0.f, speed, 1);
-		field.GrowW().H(ui::Dimension::Px(22.f)).FontSize(12.f).Parent(row);
-		field.OnChange([state, axis, onChange](float v) {
+		row.Append(ui::Label(AXES[axis]).Class("axis-letter").Color(colors[axis]));
+		row.Append(Drag(minValue, maxValue, axis == 0 ? value.x : value.y, speed, 1, [state, axis, onChange](float v) {
 			(axis == 0 ? state->x : state->y) = v;
 			onChange(*state);
-		});
-		field.Spawn();
+		}));
 	}
 	return row;
 }
 
-ecs::Entity PropertyRows::Vector3(ecs::Entity page, const char *label, math::FVector3 value, float speed,
-		std::function<void(math::FVector3)> onChange, float minValue,
-		float maxValue) {
-	ecs::Entity row = Row(page, label);
+ui::Widget PropertyRows::Vector3(ui::Widget page, const char *label, math::FVector3 value, float speed,
+								 std::function<void(math::FVector3)> onChange, float minValue, float maxValue) {
+	ui::Widget row = Row(page, label);
 	auto state = std::make_shared<math::FVector3>(value);
 	const float components[3] = {value.x, value.y, value.z};
 	static constexpr const char *AXES[3] = {"X", "Y", "Z"};
 	const sdl3::FColor colors[3] = {AXIS_X, AXIS_Y, AXIS_Z};
 	for (int axis = 0; axis < 3; ++axis) {
-		ui::WidgetBuilder letter = m_ctx.factory.Label(String(AXES[axis]));
-		letter.FontSize(12.f).Bold().TextColor(colors[axis]).WAuto().HAuto().Parent(row);
-		letter.Spawn();
-		ui::WidgetBuilder field = m_ctx.factory.DragValue(minValue, maxValue, components[axis], 0.f, speed, 2);
-		field.GrowW().H(ui::Dimension::Px(22.f)).FontSize(12.f).Parent(row);
-		field.OnChange([state, axis, onChange](float v) {
+		row.Append(ui::Label(AXES[axis]).Class("axis-letter").Color(colors[axis]));
+		row.Append(Drag(minValue, maxValue, components[axis], speed, 2, [state, axis, onChange](float v) {
 			(axis == 0 ? state->x : axis == 1 ? state->y : state->z) = v;
 			onChange(*state);
-		});
-		field.Spawn();
+		}));
 	}
 	return row;
 }
 
-ecs::Entity PropertyRows::Number(ecs::Entity page, const char *label, float value, float minValue, float maxValue, float speed,
-		std::function<void(float)> onChange, int decimals) {
-	ecs::Entity row = Row(page, label);
-	ui::WidgetBuilder field = m_ctx.factory.DragValue(minValue, maxValue, value, 0.f, speed, decimals);
-	field.GrowW().H(ui::Dimension::Px(22.f)).FontSize(12.f).Parent(row);
-	field.OnChange(std::move(onChange));
-	field.Spawn();
+ui::Widget PropertyRows::Number(ui::Widget page, const char *label, float value, float minValue, float maxValue,
+								float speed, std::function<void(float)> onChange, int decimals) {
+	ui::Widget row = Row(page, label);
+	row.Append(Drag(minValue, maxValue, value, speed, decimals, std::move(onChange)));
 	return row;
 }
 
-ecs::Entity PropertyRows::Slider(ecs::Entity page, const char *label, float value, float minValue, float maxValue,
-		std::function<void(float)> onChange) {
-	ecs::Entity row = Row(page, label);
-	ui::WidgetBuilder slider = m_ctx.factory.Slider(minValue, maxValue, value);
-	slider.GrowW().H(ui::Dimension::Px(18.f)).Parent(row);
-	slider.OnChange(std::move(onChange));
-	slider.Spawn();
+ui::Widget PropertyRows::Slider(ui::Widget page, const char *label, float value, float minValue, float maxValue,
+								std::function<void(float)> onChange) {
+	ui::Widget row = Row(page, label);
+	row.Append(ui::Slider(minValue, maxValue, value).Grow().Height(18.f).OnChange(std::move(onChange)));
 	return row;
 }
 
-ecs::Entity PropertyRows::Check(ecs::Entity page, const char *label, bool value, std::function<void(bool)> onToggle) {
-	ecs::Entity row = Row(page, label);
-	ui::WidgetBuilder box = m_ctx.factory.Checkbox(value);
-	box.Size(18.f, 18.f).Parent(row);
-	box.OnToggle(std::move(onToggle));
-	box.Spawn();
+ui::Widget PropertyRows::Check(ui::Widget page, const char *label, bool value, std::function<void(bool)> onToggle) {
+	ui::Widget row = Row(page, label);
+	row.Append(ui::Checkbox(String(), value).OnToggle(std::move(onToggle)));
 	return row;
 }
 
-ecs::Entity PropertyRows::Choice(ecs::Entity page, const char *label, std::vector<String> items, int selected,
-		std::function<void(int)> onChange) {
-	ecs::Entity row = Row(page, label);
-	ui::WidgetBuilder combo = m_ctx.factory.Combo(std::move(items), selected);
-	combo.GrowW().H(ui::Dimension::Px(24.f)).FontSize(12.f).Parent(row);
-	combo.OnChange([onChange](float index) { onChange(int(index)); });
-	combo.Spawn();
+ui::Widget PropertyRows::Choice(ui::Widget page, const char *label, std::vector<String> items, int selected,
+								std::function<void(int)> onChange) {
+	ui::Widget row = Row(page, label);
+	row.Append(ui::Combo(std::move(items), selected).Class("prop-field").Height(24.f).Grow().OnSelect(std::move(onChange)));
 	return row;
 }
 
-ecs::Entity PropertyRows::Text(ecs::Entity page, const char *label, const String &value, std::function<void(const String &)> onSubmit) {
-	ecs::Entity row = Row(page, label);
-	ui::WidgetBuilder input = m_ctx.factory.Input();
-	input.GrowW().H(ui::Dimension::Px(22.f)).FontSize(12.f).Parent(row);
-	input.OnSubmit(std::move(onSubmit));
-	ecs::Entity entity = input.Spawn();
-	if (auto field = m_ctx.registry.GetComponent<ui::UiInput>(entity); field.IsSome())
-		field.Unwrap()->text = value;
+ui::Widget PropertyRows::Text(ui::Widget page, const char *label, const String &value,
+							  std::function<void(const String &)> onSubmit) {
+	ui::Widget row = Row(page, label);
+	row.Append(ui::Input(String(), value).Class("prop-field").Grow().OnSubmit(std::move(onSubmit)));
 	return row;
 }
 
-ecs::Entity PropertyRows::ReadOnly(ecs::Entity page, const char *label, const String &value) {
-	ecs::Entity row = Row(page, label);
-	ui::WidgetBuilder text = m_ctx.factory.Label(value);
-	text.GrowW().HAuto().FontSize(12.f).TextEllipsis().Parent(row);
-	text.Spawn();
+ui::Widget PropertyRows::ReadOnly(ui::Widget page, const char *label, const String &value) {
+	ui::Widget row = Row(page, label);
+	row.Append(ui::Label(value).FontSize(12.f).Ellipsis().Grow());
 	return row;
 }
 
-ecs::Entity PropertyRows::Row(ecs::Entity page, const char *label) {
-	ui::WidgetBuilder row = m_ctx.factory.Row();
-	row.Pad(math::Sides{2.f, 1.f});
-	row.Gap(4.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(page);
-	ecs::Entity rowEntity = row.Spawn();
-	ui::WidgetBuilder name = m_ctx.factory.Label(String(label));
-	name.Size(m_labelWidth, 0.f).HAuto().FontSize(12.f).TextColor(m_ctx.Theme().muted).TextEllipsis();
-	name.Parent(rowEntity);
-	name.Spawn();
-	return rowEntity;
+ui::Widget PropertyRows::Color(ui::Widget page, const char *label, sdl3::Color value,
+							   std::function<void(sdl3::Color)> onChange) {
+	ui::Widget row = Row(page, label);
+	// Construits l'un après l'autre : chaque rappel capture une poignée déjà valide.
+	ui::Widget bar, popup;
+	row.Append(ui::Button(String()).Class("color-bar").Grow().Background(FromColor(value)).Tooltip("Choisir la couleur").Ref(bar));
+	row.Append(ui::Popup().Ref(popup).Children({
+		ui::ColorPicker(FromColor(value), [bar, onChange](sdl3::FColor c) mutable {
+			c.a = 1.f;
+			bar.Background(c);
+			onChange(ToColor(c));
+		}),
+	}));
+	auto show = [bar, popup]() mutable { popup.OpenBelow(bar); };
+	bar.OnClick(show);
+	(void)IconButton(m_ctx, row, ui::MaterialIcons::COLORIZE, String("Sélecteur de couleur"), show, 22.f);
+	return row;
+}
+
+ui::Widget PropertyRows::Row(ui::Widget page, const char *label) {
+	ui::WidgetBuilder row = ui::Row();
+	row.Class("prop-row").GrowWidth();
+	row.Child(ui::Label(label).Class("prop-label").Width(m_labelWidth));
+	return page.Append(row);
 }
 
 // ── DockPanel ────────────────────────────────────────────────────────────────
 
-ecs::Entity DockPanel::Build(ecs::Entity parent, const std::function<void(ui::WidgetBuilder &)> &size) {
+ui::Widget DockPanel::Build(ui::Widget parent, const std::function<void(ui::WidgetBuilder &)> &size) {
 	// Reconstruction (changement de thème) : l'ancien arbre a été détruit
-	// avec la racine de l'éditeur, ses pages avec lui — les garder ici
-	// dupliquait les onglets et pointait vers des entités mortes.
+	// avec la racine de l'éditeur, ses pages avec lui.
 	m_pages.clear();
 	m_active = -1;
-	ui::WidgetBuilder frame = m_ctx.factory.Column();
-	frame.Gap(0.f).Pad(0.f).Bg(m_ctx.Theme().panelBg).Parent(parent);
+	ui::WidgetBuilder frame = ui::Column();
+	frame.Class("dock");
 	size(frame);
-	m_frame = frame.Spawn();
-
-	ui::WidgetBuilder header = m_ctx.factory.Row();
-	header.Gap(0.f).Pad(math::Sides{0.f, 0.f, 4.f, 0.f}).GrowW().H(ui::Dimension::Px(HEADER_HEIGHT));
-	header.Align(ui::CrossAlign::Center).Bg(PaletteOf(m_ctx).header).Parent(m_frame);
-	m_header = header.Spawn();
-
-	ui::WidgetBuilder tabs = m_ctx.factory.Row();
-	tabs.Pad(0.f);
-	tabs.Gap(1.f).WAuto().GrowH().Align(ui::CrossAlign::End).Parent(m_header);
-	m_tabs = tabs.Spawn();
-	(void)Spacer(m_ctx, m_header);
-
-	ui::WidgetBuilder extra = m_ctx.factory.Row();
-	extra.Pad(0.f);
-	extra.Gap(2.f).WAuto().HAuto().Align(ui::CrossAlign::Center).Parent(m_header);
-	m_extra = extra.Spawn();
+	frame.Children({
+		ui::Row().Class("dock-header").GrowWidth().Ref(m_header).Children({
+			ui::Row().Class("dock-tabs").Ref(m_tabs),
+			ui::Spacer(),
+			ui::Row().Class("dock-extra").Ref(m_extra),
+		}),
+		ui::Column().Class("dock-body").GrowWidth().GrowHeight().Ref(m_body),
+	});
+	m_frame = parent.Append(frame);
 	m_menuButton = IconButton(m_ctx, m_header, ui::MaterialIcons::MENU, String("Menu du panneau"), [this] {
 		if (!onMenu)
 			return;
-		if (auto computed = m_ctx.registry.GetComponent<ui::UiComputed>(m_menuButton); computed.IsSome()) {
-			const sdl3::FRect r = computed.Unwrap()->screen;
-			onMenu(r.x, r.y + r.h);
-		}
+		const sdl3::FRect r = m_menuButton.Bounds();
+		onMenu(r.x, r.y + r.h);
 	}, 22.f);
-
-	ui::WidgetBuilder body = m_ctx.factory.Column();
-	body.Gap(0.f).Pad(0.f).GrowW().GrowH().Clip().Parent(m_frame);
-	m_body = body.Spawn();
 	return m_frame;
 }
 
-ecs::Entity DockPanel::AddPage(const String &title, bool scroll, bool closable, float pad) {
-	ui::WidgetBuilder page = m_ctx.factory.Column();
-	page.Gap(4.f).Pad(pad).GrowW().GrowH().Parent(m_body);
+ui::Widget DockPanel::AddPage(const String &title, bool scroll, bool closable, float pad) {
+	ui::WidgetBuilder page = ui::Column();
+	page.Class("dock-page").Padding(pad).GrowWidth().GrowHeight();
 	if (scroll)
-		page.Scrollable().Clip();
-	ecs::Entity entity = page.Spawn();
-	m_pages.push_back(PageInfo{title, entity, closable});
+		page.Overflow(ui::Overflow::Auto);
+	ui::Widget widget = m_body.Append(page);
+	m_pages.push_back(PageInfo{title, widget, closable});
 	SetActive(int(m_pages.size()) - 1);
-	return entity;
+	return widget;
 }
 
 void DockPanel::RemovePage(int index) {
 	if (index < 0 || index >= int(m_pages.size()))
 		return;
-	ui::DespawnTree(m_ctx.registry, m_pages[size_t(index)].content);
-	if (auto list = m_ctx.registry.GetComponent<ui::UiChildren>(m_body); list.IsSome())
-		std::erase(list.Unwrap()->list, m_pages[size_t(index)].content);
+	m_pages[size_t(index)].content.Destroy();
 	m_pages.erase(m_pages.begin() + index);
 	SetActive(sdl3::Min(m_active, int(m_pages.size()) - 1));
 }
@@ -577,48 +577,29 @@ void DockPanel::SetTitle(int index, const String &title) {
 	RebuildTabs();
 }
 
-ecs::Entity DockPanel::Page(int index) const {
-	return index >= 0 && index < int(m_pages.size()) ? m_pages[size_t(index)].content : ecs::Entity{};
+ui::Widget DockPanel::Page(int index) const {
+	return index >= 0 && index < int(m_pages.size()) ? m_pages[size_t(index)].content : ui::Widget();
 }
 
 void DockPanel::RebuildTabs() {
 	if (!m_tabs.Valid())
 		return;
-	ClearChildren(m_ctx, m_tabs);
-	const ui::UiTheme &theme = m_ctx.Theme();
+	m_tabs.Clear();
 	for (size_t i = 0; i < m_pages.size(); ++i) {
-		const bool active = int(i) == m_active;
-		ui::WidgetBuilder tab = m_ctx.factory.Row();
-		tab.Gap(0.f).Pad(math::Sides{2.f, 0.f, m_pages[i].closable ? 0.f : 2.f, 0.f}).WAuto();
-		tab.H(ui::Dimension::Px(HEADER_HEIGHT - 3.f)).Align(ui::CrossAlign::Center).Parent(m_tabs);
-		tab.Bg(active ? theme.panelBg : sdl3::FColor{0.f, 0.f, 0.f, 0.f});
-		ecs::Entity tabEntity = tab.Spawn();
-
-		if (active) {
-			// Liseré d'accent en haut de l'onglet actif (Godot/Unity).
-			ui::WidgetBuilder accent = m_ctx.factory.Row();
-			accent.Pad(0.f);
-			accent.Absolute().Anchor(ui::Anchor::TopLeft).W(ui::Dimension::Rpct(100.f)).H(ui::Dimension::Px(2.f));
-			accent.Bg(theme.accent).PointerThrough().Parent(tabEntity);
-			accent.Spawn();
-		}
-
-		// PAS de Pad() sur un bouton : il en ferait un conteneur, dimensionné
-		// par ses enfants (aucun) au lieu de son texte.
-		ui::WidgetBuilder title = m_ctx.factory.Button(m_pages[i].title);
-		title.H(ui::Dimension::Px(HEADER_HEIGHT - 6.f)).WAuto().FontSize(13.f)
-			.Bg(sdl3::FColor{0.f, 0.f, 0.f, 0.f})
-			.TextColor(active ? theme.text : theme.muted)
-			.Parent(tabEntity);
 		const int index = int(i);
-		title.OnClick([this, index] { SetActive(index); });
-		title.Spawn();
-
+		ui::WidgetBuilder tab = ui::Row();
+		tab.Class("dock-tab");
+		if (int(i) == m_active)
+			tab.Class("active");
 		if (m_pages[i].closable)
-			(void)IconButton(m_ctx, tabEntity, ui::MaterialIcons::CLOSE, String("Fermer"), [this, index] {
+			tab.Class("closable");
+		tab.Child(ui::Button(m_pages[i].title).Class("dock-tab-title").OnClick([this, index] { SetActive(index); }));
+		ui::Widget tabWidget = m_tabs.Append(tab);
+		if (m_pages[i].closable)
+			(void)IconButton(m_ctx, tabWidget, ui::MaterialIcons::CLOSE, String("Fermer"), [this, index] {
 				if (onClose)
 					onClose(index);
-			}, 18.f, nullptr, theme.muted);
+			}, 18.f, nullptr, m_ctx.Theme().muted);
 	}
 }
 

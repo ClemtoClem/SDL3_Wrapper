@@ -2,8 +2,8 @@
 // l'interface utilisateur (script_ui.hpp) et de la génération procédurale
 // (script_generator.hpp).
 //
-// Aucune fenêtre : l'interface est construite sur un registre, une mise en
-// page et une fabrique (pilote vidéo "dummy"), comme dans les tests de ui::.
+// Aucune fenêtre : l'interface est une ui::Ui sans rendu, comme dans les
+// tests de ui::.
 #include "test.hpp"
 #include <script/script.hpp>
 #include <script_bindings/script_ecs.hpp>
@@ -35,39 +35,26 @@ struct Health {
 	int points = 100;
 };
 
-/// Interface sans fenêtre : registre + mise en page + fabrique, et une
-/// racine qui remplit l'écran.
+/// Interface sans fenêtre (ui::Ui sans rendu) et une racine de 800×600.
 struct UiHarness {
 	ecs::ArchetypeRegistry registry;
-	ui::LayoutSystem layout;
-	ui::UiFactory factory{registry, layout};
-	ui::StyleSystem styles;
+	ui::Ui gui{registry, sdl3::FPoint{800.f, 600.f}};
 	ecs::Entity root{};
 
-	UiHarness() {
-		setenv("SDL_VIDEODRIVER", "dummy", 0);
-		styles.sheet = &factory.sheet;
-		ui::WidgetBuilder column = factory.Column();
-		column.Size(800.f, 600.f);
-		root = column.Spawn();
-	}
+	UiHarness() { root = gui.Mount(ui::Column().Size(800.f, 600.f)).Entity(); }
 	[[nodiscard]] std::shared_ptr<UiBinding> Binding() {
-		auto binding = std::make_shared<UiBinding>();
-		binding->registry = &registry;
-		binding->factory = &factory;
-		binding->layout = &layout;
-		binding->root = [this]() { return root; };
-		return binding;
+		return UiBinding::FromUi(gui, [this]() { return root; });
 	}
-	void Layout() {
-		styles.Resolve(registry);
-		layout.MarkDirty();
-		layout.Run(registry, 800.f, 600.f);
-	}
+	void Layout() { gui.Layout(); }
+	[[nodiscard]] ui::Widget W(ecs::Entity e) { return ui::Widget(registry, e); }
 	[[nodiscard]] std::vector<ecs::Entity> Children(ecs::Entity e) {
-		auto list = registry.GetComponent<ui::UiChildren>(e);
-		return list.IsSome() ? list.Unwrap()->list : std::vector<ecs::Entity>{};
+		std::vector<ecs::Entity> out;
+		for (const ui::Widget &c : W(e).Children())
+			out.push_back(c.Entity());
+		return out;
 	}
+	/// Clic de l'utilisateur (geste « Clic » du bouton gauche).
+	void Click(ecs::Entity e) { W(e).Emit(ui::Trigger(sdl3::MouseButton::Left, sdl3::ButtonEvent::Clic, 1)); }
 };
 
 } // namespace
@@ -188,22 +175,21 @@ TEST(ScriptUi, WidgetsLiveInTheHostInterface) {
 	ASSERT_TRUE(top.size() == 1u);
 	const std::vector<ecs::Entity> items = h.Children(top[0]);
 	ASSERT_TRUE(items.size() == 3u);
-	EXPECT_EQ(h.registry.GetComponent<ui::UiLabel>(items[0]).Unwrap()->text, "Nouveau titre");
-	EXPECT_EQ(h.registry.GetComponent<ui::UiButton>(items[1]).Unwrap()->text, "OK");
-	EXPECT_TRUE(h.registry.GetComponent<ui::UiProgress>(items[2]).Unwrap()->value == 4.f);
+	EXPECT_EQ(h.W(items[0]).Text(), "Nouveau titre");
+	EXPECT_EQ(h.W(items[1]).Text(), "OK");
+	EXPECT_TRUE(h.W(items[2]).Value() == 4.f);
+	EXPECT_TRUE(h.W(items[1]).Bounds().w == 200.f);
 	EXPECT_TRUE(Eval(vm, "return ui.available()").AsBoolean());
 
 	// Un clic de l'utilisateur : mis en file, exécuté par Flush().
-	auto callbacks = h.registry.GetComponent<ui::UiCallbacks>(items[1]);
-	ASSERT_TRUE(callbacks.IsSome() && callbacks.Unwrap()->onClick);
-	callbacks.Unwrap()->onClick();
+	h.Click(items[1]);
 	EXPECT_TRUE(Eval(vm, "return reçu").IsNil());
 	EXPECT_EQ(binding->Flush(), size_t(1));
 	EXPECT_EQ(Eval(vm, "return reçu").ToDisplayString(), "OK");
 
 	// Masquer, retirer, tout effacer.
 	Eval(vm, "titre.hide()");
-	EXPECT_TRUE(h.registry.HasComponent<ui::UiHidden>(items[0]));
+	EXPECT_FALSE(h.W(items[0]).IsVisible());
 	Eval(vm, "ok.remove()");
 	EXPECT_FALSE(h.registry.IsAlive(items[1]));
 	Eval(vm, "ui.clear()");
@@ -222,11 +208,11 @@ TEST(ScriptUi, CallbacksNeverOutliveTheirInterpreter) {
 		InstallUiLibrary(vm, binding);
 		Eval(vm, "ui.button(\"x\", fn(b) { print(\"clic\") })");
 		button = h.Children(h.root)[0];
-		h.registry.GetComponent<ui::UiCallbacks>(button).Unwrap()->onClick();
+		h.Click(button);
 	}
 	// L'interpréteur est détruit : le rappel en file ne fait plus rien.
 	EXPECT_EQ(binding->Flush(), size_t(1));
-	h.registry.GetComponent<ui::UiCallbacks>(button).Unwrap()->onClick();
+	h.Click(button);
 	EXPECT_EQ(binding->Flush(), size_t(1));
 }
 
@@ -306,10 +292,8 @@ TEST(ScriptUi, UnreferencedWidgetsStillCallBack) {
 	ASSERT_TRUE(top.size() == 1u);
 	const std::vector<ecs::Entity> items = h.Children(top[0]);
 	ASSERT_TRUE(items.size() == 2u);
-	auto callbacks = h.registry.GetComponent<ui::UiCallbacks>(items[0]);
-	ASSERT_TRUE(callbacks.IsSome() && callbacks.Unwrap()->onClick);
-	callbacks.Unwrap()->onClick();
-	callbacks.Unwrap()->onClick();
+	h.Click(items[0]);
+	h.Click(items[0]);
 	EXPECT_EQ(binding->Flush(), size_t(2));
 	EXPECT_EQ(Eval(vm, "return clics").ToDisplayString(), "2");
 	// Retrouvables par leur nom, même sans référence dans le script.
@@ -327,9 +311,9 @@ TEST(ScriptUi, LabelGrowsWithItsText) {
 			 "let texte = ui.label(\"Préparation\", {parent: panneau, font_size: 14})\n");
 	h.Layout();
 	const ecs::Entity label = h.Children(h.Children(h.root)[0])[0];
-	const float before = h.registry.GetComponent<ui::UiComputed>(label).Unwrap()->screen.w;
+	const float before = h.W(label).Bounds().w;
 	Eval(vm, "texte.set_text(\"Plantation des arbres le long du circuit\")");
 	h.Layout();
-	const float after = h.registry.GetComponent<ui::UiComputed>(label).Unwrap()->screen.w;
+	const float after = h.W(label).Bounds().w;
 	EXPECT_TRUE(after > before * 2.f);
 }

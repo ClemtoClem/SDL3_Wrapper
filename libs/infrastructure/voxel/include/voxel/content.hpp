@@ -8,7 +8,7 @@
  *   block (ou directement la forme : "cube", "nodebox", "cross", "obj",
  *          "b3d", "mesh"), item, tool, creature, entity (entité
  *          interactive), recipe, biome, structure, generator, texture,
- *          model, sound, soundset, shader, behavior, config.
+ *          model, sound, soundset, shader, behavior, config, dimension.
  *
  * Chaque définition garde son JSON d'origine (`raw`) : les propriétés que
  * le moteur ne connaît pas restent accessibles aux scripts (« propriétés
@@ -46,6 +46,7 @@ inline constexpr int SCHEMA_VERSION = 1;
 
 enum class DefKind : uint8_t {
 	BLOCK, ITEM, CREATURE, ENTITY, RECIPE, BIOME, STRUCTURE, GENERATOR, TEXTURE, MODEL, SOUND, SOUND_SET, SHADER, BEHAVIOR, CONFIG,
+	DIMENSION,
 };
 [[nodiscard]] const char *DefKindName(DefKind kind) noexcept;
 
@@ -101,6 +102,11 @@ struct BlockDef {
 	bool walkable = true;
 	bool climbable = false;
 	float viscosity = 0.f;           ///< fluides : freinage des entités (0..1)
+	/// Sables mouvants : une entité qui y entre s'enfonce à cette vitesse
+	/// (blocs/s), presque sans pouvoir avancer ni sauter (0 : bloc ordinaire).
+	float sinking = 0.f;
+	/// Faux : le regard (visée, raycasts) traverse le bloc — champs, brumes.
+	bool selectable = true;
 	bool fluid = false;
 	bool replaceable = false;        ///< herbe haute, fluides : remplacés en posant un bloc
 	bool requiresSupport = false;
@@ -215,13 +221,20 @@ struct StructureDef {
 
 struct Decoration {
 	String block;       ///< bloc posé au-dessus de la surface…
-	String structure;   ///< …ou structure
+	String structure;   ///< …ou structure…
+	/// …ou élément procédural du générateur (« giant_tree », « spire »,
+	/// « patch »), réglé par `params` (cf. worldgen.hpp).
+	String feature;
+	NodePtr params;
 	float chance = 0.f; ///< par colonne
 	std::vector<String> onBlocks;
 };
 
 struct BiomeDef {
 	String id, mod, displayName;
+	/// Dimension propre du biome : un générateur sans liste « biomes » ne
+	/// prend que les biomes sans dimension (le monde ordinaire).
+	String dimension;
 	float temperature = 0.5f, humidity = 0.5f; ///< position dans le diagramme climatique
 	float heightBase = 64.f, heightVariation = 8.f, roughness = 0.5f;
 	String surface, subsurface, filler, underwater;
@@ -245,6 +258,35 @@ struct GeneratorDef {
 	std::vector<String> biomes; ///< vide : tous les biomes
 	std::vector<std::pair<String, int>> layers; ///< "flat" : bloc, épaisseur (du bas vers le haut)
 	String script;            ///< "script" : fonction appelée par chunk
+	NodePtr raw;
+};
+
+/// Dimension : un monde à part au sein de la même sauvegarde (son
+/// générateur, ses chunks, ses entités), généré quand on y entre puis chunk
+/// par chunk autour du joueur. Un mod en ajoute avec `"type": "dimension"`.
+struct DimensionDef {
+	String id, mod, displayName, description;
+	String generator;      ///< GeneratorDef ; vide : celui choisi à la création du monde
+	// Ciel et lumière
+	std::array<uint8_t, 3> skyColor{140, 190, 245}, fogColor{180, 210, 240};
+	bool skyFromBiome = true; ///< ciel du biome (sinon `skyColor`)
+	bool sun = true, clouds = true, stars = true;
+	bool dayCycle = true;  ///< faux : heure figée à `fixedTime` (0..1)
+	float fixedTime = 0.5f;
+	float ambient = 1.f;   ///< multiplicateur de la lumière ambiante
+	/// Lumière du ciel par sommet (grottes et dessous des surplombs sombres) ;
+	/// faux pour les îles flottantes et les mondes éclairés autrement.
+	bool skyLight = true;
+	float fogDistance = 0.f; ///< brume (blocs ; 0 : aucune)
+	// Physique et apparition
+	float gravity = 1.f;   ///< multiplicateur de gravité
+	int spawnTop = 192, spawnBottom = -64; ///< bornes de recherche du point d'apparition
+	/// Causes de mort qui y envoient le joueur au lieu de le faire réapparaître
+	/// (« suffocation », « drowning », « fall », « void »…).
+	std::vector<String> enterOnDeath;
+	String arrivalPortal;  ///< bloc posé près du point d'arrivée (portail de retour)
+	String music;          ///< ambiance (son) jouée à l'entrée
+	std::array<uint8_t, 3> color{120, 120, 140}; ///< couleur d'interface
 	NodePtr raw;
 };
 
@@ -344,6 +386,7 @@ public:
 	[[nodiscard]] const SoundSetDef *FindSoundSet(const String &id) const;
 	[[nodiscard]] const ShaderDef *FindShader(const String &id) const;
 	[[nodiscard]] const BehaviorDef *FindBehavior(const String &id) const;
+	[[nodiscard]] const DimensionDef *FindDimension(const String &id) const;
 
 	[[nodiscard]] std::vector<const ItemDef *> Items() const;
 	[[nodiscard]] std::vector<const EntityDef *> Entities() const;
@@ -356,6 +399,10 @@ public:
 	[[nodiscard]] std::vector<const SoundDef *> Sounds() const;
 	[[nodiscard]] std::vector<const ShaderDef *> Shaders() const;
 	[[nodiscard]] std::vector<const BehaviorDef *> Behaviors() const;
+	[[nodiscard]] std::vector<const DimensionDef *> Dimensions() const;
+	/// Dimension du monde ordinaire (configuration « world.dimension », par
+	/// défaut « core:overworld » ; vide si aucun mod ne la déclare).
+	[[nodiscard]] String DefaultDimension() const;
 
 	/// Objets portant un tag (recettes « #planks »…).
 	[[nodiscard]] bool ItemHasTag(const String &item, const String &tag) const;
@@ -421,6 +468,7 @@ private:
 	Result<String, String> LoadShader(const NodePtr &def, const LoadContext &ctx);
 	Result<String, String> LoadBehavior(const NodePtr &def, const LoadContext &ctx);
 	Result<String, String> LoadConfig(const NodePtr &def, const LoadContext &ctx);
+	Result<String, String> LoadDimension(const NodePtr &def, const LoadContext &ctx);
 
 	std::vector<BlockDef> m_blocks;
 	std::map<std::string, BlockId> m_blockIds;
@@ -436,6 +484,7 @@ private:
 	Store<SoundSetDef> m_soundSets;
 	Store<ShaderDef> m_shaders;
 	Store<BehaviorDef> m_behaviors;
+	Store<DimensionDef> m_dimensions;
 	NodePtr m_config;
 	std::map<int, Migration> m_migrations;
 };

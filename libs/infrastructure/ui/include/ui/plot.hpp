@@ -1,26 +1,22 @@
 #pragma once
 /**
- * ui::UiPlot — widget de graphiques 2D façon ImPlot (epezent/implot), adapté à
- * l'architecture ECS + factory/builder de ce module (cf. plan
- * mossy-forging-fog.md, section "Widgets de plots/graphiques 2D").
+ * ui::plot — graphiques 2D façon ImPlot : courbes, nuages, barres,
+ * histogrammes, aires, tiges, escaliers, axe Y secondaire, échelles
+ * logarithmiques, barres d'erreur, camemberts, heatmaps, chandeliers ;
+ * légende cliquable, pan (glisser), zoom molette (par axe ou combiné),
+ * zoom-rectangle (glisser droit), retour à l'ajustement (double clic).
  *
- * Contrairement au node-graph (ui/nodegraph.hpp), un plot n'a besoin
- * D'AUCUNE entité par point/série : c'est un widget UNIQUE, auto-dessiné,
- * exactement comme `UiTable`/`UiCalendar` — pas de classe système séparée,
- * pas de `prepass()`, pas d'appel supplémentaire dans la boucle applicative.
- * `Plot` se construit et s'utilise comme n'importe quel autre widget
- * (`f.Plot()...Spawn()`), et passe par les points d'extension EXISTANTS
- * (`RenderSystem::drawWidget`, `InputSystem::dispatch`, cf. systems.hpp).
+ * Un graphique est un widget unique (`plot`) qui porte la brique
+ * `PlotModel` (données pures : pas d'entité par point) ; son dessin et sa
+ * navigation passent par une extension des systèmes ui (cf. Extension,
+ * context.hpp), enregistrée par ui::Ui.
  *
- * Ce fichier fournit les DONNÉES (composant `UiPlot` + `PlotSeries`/
- * `PlotAxis`) et les FONCTIONS LIBRES de transform/rendu-géométrie/
- * génération de graduations — le dessin de TEXTE (labels d'axes, légende)
- * reste dans `systems.hpp` (`RenderSystem::drawTextRaw`/`measureCached` sont
- * des méthodes privées de `RenderSystem`, pas accessibles d'ici).
- *
- * Remplace l'ancien widget `UiPlot` (Phase 7 de l'initiative précédente,
- * PlotKind::Lines/Histogram, une seule série Y implicite) — un seul « le »
- * widget de plot, pas deux mécanismes parallèles.
+ * @code{.cpp}
+ * gui.Mount(ui::Plot("Signal").Size(400.f, 240.f)
+ *     .AddLineSeries(ys, "sinus")
+ *     .AddBarSeries(xs, counts, "comptes")
+ *     .Legend(ui::LegendPosition::TopRight));
+ * @endcode
  */
 #include <algorithm>
 #include <array>
@@ -31,10 +27,40 @@
 #include <vector>
 
 #include "components.hpp"
-#include "render_backend.hpp"
+#include "builder.hpp"
+#include "painter.hpp"
 #include <sdl3/structs.hpp>
 
 namespace ui {
+
+/// Stylo des fonctions de tracé : couleur courante + primitives du Painter.
+class PlotPen {
+public:
+	explicit PlotPen(Painter &painter) noexcept : m_painter(painter) {}
+
+	[[nodiscard]] Painter &Paint() noexcept { return m_painter; }
+	bool SetDrawColor(Color c) noexcept {
+		m_color = c;
+		return true;
+	}
+	[[nodiscard]] Color GetDrawColorFloat() const noexcept { return m_color; }
+	bool FillRect(const sdl3::FRect &r);
+	bool DrawRect(const sdl3::FRect &r);
+	bool DrawLine(float x1, float y1, float x2, float y2);
+	bool DrawLine(sdl3::FPoint a, sdl3::FPoint b) { return DrawLine(a.x, a.y, b.x, b.y); }
+	bool FillRoundedRect(const sdl3::FRect &r, const math::Corners &c);
+	bool DrawRoundedRect(const sdl3::FRect &r, const math::Corners &c);
+	bool FillCircle(sdl3::FPoint center, float radius);
+	bool DrawCircle(sdl3::FPoint center, float radius);
+	bool FillPolygon(std::span<const sdl3::FPoint> pts);
+	bool DrawPolygon(std::span<const sdl3::FPoint> pts);
+	bool DrawPie(sdl3::FPoint center, float radius, float startDeg, float endDeg);
+	bool RenderGeometry(std::span<const sdl3::Vertex> vertices);
+
+private:
+	Painter &m_painter;
+	Color m_color{1.f, 1.f, 1.f, 1.f};
+};
 
 // ============================================================================
 // Séries
@@ -53,10 +79,10 @@ enum class PlotSeriesKind : uint8_t { LINE, SCATTER, BAR, BAR_H, HISTOGRAM, AREA
 /// Forme de marqueur pour Scatter (et les points de Line, si posée).
 enum class PlotMarker : uint8_t { NONE, CIRCLE, SQUARE, TRIANGLE };
 
-/// Une série de données — DONNÉE PURE dans `UiPlot::series` (pas d'entité,
+/// Une série de données — DONNÉE PURE dans `PlotModel::series` (pas d'entité,
 /// même idiome que `GraphConnection`/`UiTable::rows` : un plot peut avoir
 /// des milliers de points, une entité par point serait absurde). `x`/`y`
-/// sont COPIÉS (même raison que l'ancien `UiPlot::values` : un composant ECS
+/// sont COPIÉS (même raison que l'ancien `PlotModel::values` : un composant ECS
 /// retenu doit posséder ses données d'une frame à l'autre).
 struct PlotSeries {
 	PlotSeriesKind kind = PlotSeriesKind::LINE;
@@ -73,8 +99,8 @@ struct PlotSeries {
 	float fillOpacity = 0.35f;
 	String label; ///< nom affiché dans la légende (Phase 2)
 	bool visible = true;
-	/// Si vrai, la série se réfère à `UiPlot::yAxis2` (axe Y secondaire,
-	/// Phase 4) au lieu de `UiPlot::yAxis` — `UiPlot::yAxis2` n'est affiché
+	/// Si vrai, la série se réfère à `PlotModel::yAxis2` (axe Y secondaire,
+	/// Phase 4) au lieu de `PlotModel::yAxis` — `PlotModel::yAxis2` n'est affiché
 	/// que si AU MOINS une série l'utilise (cf. `plotHasSecondaryY()`), pas
 	/// de flag séparé à synchroniser sur `Plot` lui-même.
 	bool useSecondaryY = false;
@@ -89,14 +115,14 @@ struct PlotSeries {
 	/// série ; reçoit le rectangle de tracé écran et les axes courants (pour
 	/// que l'appelant puisse lui-même convertir données→écran via
 	/// `dataToScreen()` s'il en a besoin).
-	std::function<void(sdl3::Renderer &, const sdl3::FRect &plotRect, const PlotSeries &, const struct PlotAxis &xAxis,
+	std::function<void(Painter &, const sdl3::FRect &plotRect, const PlotSeries &, const struct PlotAxis &xAxis,
 					   const struct PlotAxis &yAxis)>
 		onCustomDraw;
 
 	/// Remplace x ET y (tailles doivent correspondre).
 	void SetXy(std::span<const float> xs, std::span<const float> ys);
 	/// Remplace uniquement y — régénère un x implicite (indices 0..N-1) si
-	/// la taille a changé, même sémantique que l'ancien `UiPlot::setValues()`.
+	/// la taille a changé, même sémantique que l'ancien `PlotModel::setValues()`.
 	void SetY(std::span<const float> ys);
 };
 
@@ -157,8 +183,8 @@ namespace detail {
 // en avoir des dizaines.
 // ============================================================================
 
-/// Une part de camembert — DONNÉE PURE dans `UiPlot::pieSlices`, actif
-/// seulement si `UiPlot::mode == PlotMode::PIE`. `visible` permet le même
+/// Une part de camembert — DONNÉE PURE dans `PlotModel::pieSlices`, actif
+/// seulement si `PlotModel::mode == PlotMode::PIE`. `visible` permet le même
 /// bascule-au-clic-de-légende que `PlotSeries::visible` (Phase 2) : une part
 /// masquée est exclue du total ET recalculée hors des angles (cf.
 /// `computePieAngles()`), pas juste rendue invisible à angle inchangé.
@@ -184,8 +210,8 @@ enum class Colormap : uint8_t {
 	COOL_WARM, ///< bleu -> blanc -> rouge (divergent, utile pour des données signées)
 };
 
-/// Grille 2D de valeurs — DONNÉE PURE dans `UiPlot::heatmap`, actif seulement
-/// si `UiPlot::mode == PlotMode::HEATMAP`. `values` est en ordre LIGNE
+/// Grille 2D de valeurs — DONNÉE PURE dans `PlotModel::heatmap`, actif seulement
+/// si `PlotModel::mode == PlotMode::HEATMAP`. `values` est en ordre LIGNE
 /// PRINCIPALE (`values[r*cols+c]`), taille attendue `rows*cols` (sinon
 /// `drawHeatmap()` ne dessine rien plutôt que de risquer un accès hors
 /// bornes — cf. son garde en tête de fonction).
@@ -207,10 +233,10 @@ struct HeatmapData {
 // distincte : 4 valeurs Y par point, ne rentre pas dans le moule x[]/y[]).
 // ============================================================================
 
-/// Une bougie — DONNÉE PURE dans `UiPlot::candleBars`, actif seulement si
-/// `UiPlot::mode == PlotMode::CANDLE`. `x` partage l'échelle de `xAxis`
+/// Une bougie — DONNÉE PURE dans `PlotModel::candleBars`, actif seulement si
+/// `PlotModel::mode == PlotMode::CANDLE`. `x` partage l'échelle de `xAxis`
 /// (typiquement un indice de temps/session), `open`/`close` déterminent la
-/// couleur (hausse si `close >= open`, cf. `UiPlot::candleBullColor`/
+/// couleur (hausse si `close >= open`, cf. `PlotModel::candleBullColor`/
 /// `candleBearColor`), `high`/`low` la mèche.
 struct OhlcBar {
 	float x = 0.f;
@@ -227,7 +253,7 @@ struct OhlcBar {
 /// 2D, Phase 6), Candle (bougies OHLC, Phase 6).
 enum class PlotMode : uint8_t { XY, PIE, HEATMAP, CANDLE };
 
-struct UiPlot {
+struct PlotModel {
 	PlotMode mode = PlotMode::XY;
 	PlotAxis xAxis, yAxis;
 	/// Axe Y secondaire (Phase 4) — bord par défaut `Right` (posé par
@@ -287,7 +313,7 @@ struct UiPlot {
 /// Vrai si au moins une série se réfère à `yAxis2` — seule condition
 /// d'activation de l'axe Y secondaire (Phase 4) : pas de flag dédié sur
 /// `Plot` à garder synchronisé avec l'état des séries.
-[[nodiscard]] bool PlotHasSecondaryY(const UiPlot &plot) noexcept;
+[[nodiscard]] bool PlotHasSecondaryY(const PlotModel &plot) noexcept;
 
 /// Nombre d'entrées de légende — `series` en `PlotMode::XY`, `pieSlices` en
 /// `PlotMode::PIE` (Phase 5), toujours 0 en `PlotMode::HEATMAP`/`Candle`
@@ -295,7 +321,7 @@ struct UiPlot {
 /// série de bougies) : les fonctions de mise en page de la légende (marges,
 /// boîte) n'ont besoin QUE de ce compte, pas de savoir laquelle des
 /// collections l'a produit.
-[[nodiscard]] size_t PlotLegendItemCount(const UiPlot &plot) noexcept;
+[[nodiscard]] size_t PlotLegendItemCount(const PlotModel &plot) noexcept;
 
 // ============================================================================
 // Palette catégorielle par défaut (Décision #6 — autonome, pas d'ajout à UiTheme)
@@ -305,8 +331,16 @@ namespace detail {
 /// 10 couleurs distinctes (palette "tab10", un standard de facto pour les
 /// séries catégorielles — matplotlib/D3/Vega l'utilisent tous).
 inline constexpr std::array<sdl3::FColor, 10> K_PLOT_PALETTE{{
-	{31, 119, 180, 255}, {255, 127, 14, 255}, {44, 160, 44, 255}, {214, 39, 40, 255}, {148, 103, 189, 255},
-	{140, 86, 75, 255}, {227, 119, 194, 255}, {127, 127, 127, 255}, {188, 189, 34, 255}, {23, 190, 207, 255},
+	{31 / 255.f, 119 / 255.f, 180 / 255.f, 1.f},
+	{255 / 255.f, 127 / 255.f, 14 / 255.f, 1.f},
+	{44 / 255.f, 160 / 255.f, 44 / 255.f, 1.f},
+	{214 / 255.f, 39 / 255.f, 40 / 255.f, 1.f},
+	{148 / 255.f, 103 / 255.f, 189 / 255.f, 1.f},
+	{140 / 255.f, 86 / 255.f, 75 / 255.f, 1.f},
+	{227 / 255.f, 119 / 255.f, 194 / 255.f, 1.f},
+	{127 / 255.f, 127 / 255.f, 127 / 255.f, 1.f},
+	{188 / 255.f, 189 / 255.f, 34 / 255.f, 1.f},
+	{23 / 255.f, 190 / 255.f, 207 / 255.f, 1.f},
 }};
 } // namespace detail
 
@@ -368,11 +402,11 @@ struct PlotMargins {
 /// (si `showLegend && !legendOverlay`) — AVANT tout calcul de rectangle,
 /// pour éviter toute circularité (la position finale de la légende dépend du
 /// rectangle de tracé, qui dépend lui-même de cette marge).
-[[nodiscard]] PlotMargins ComputePlotMargins(const UiPlot &plot) noexcept;
+[[nodiscard]] PlotMargins ComputePlotMargins(const PlotModel &plot) noexcept;
 
 /// Rectangle de TRACÉ (données) à partir de la boîte écran du widget —
 /// applique `computePlotMargins()` puis un petit inset fixe de base.
-[[nodiscard]] sdl3::FRect ComputePlotRect(const UiPlot &plot, const sdl3::FRect &widgetRect) noexcept;
+[[nodiscard]] sdl3::FRect ComputePlotRect(const PlotModel &plot, const sdl3::FRect &widgetRect) noexcept;
 
 /// Position/taille finale d'une zone ancrée (légende ou bande de
 /// graduations superposée) à l'une des 8 points cardinaux/coins de `area`.
@@ -387,7 +421,7 @@ struct PlotMargins {
 
 /// Boîte de légende complète (position + taille), superposée à `plotRect`
 /// ou dans sa bande réservée de `widgetRect`, selon `plot.legendOverlay`.
-[[nodiscard]] sdl3::FRect LegendBoxRect(const UiPlot &plot, const sdl3::FRect &widgetRect, const sdl3::FRect &plotRect) noexcept;
+[[nodiscard]] sdl3::FRect LegendBoxRect(const PlotModel &plot, const sdl3::FRect &widgetRect, const sdl3::FRect &plotRect) noexcept;
 
 /// Rectangle-ligne de la Nième entrée de légende, à l'intérieur de `legendBox`.
 [[nodiscard]] sdl3::FRect LegendRowRect(const sdl3::FRect &legendBox, size_t index) noexcept;
@@ -455,7 +489,7 @@ struct PlotMargins {
 /// Grille de fond (lignes verticales aux graduations X, horizontales aux
 /// graduations Y) — n'affiche rien si les graduations sont trop rapprochées
 /// à l'écran (même garde que NodeGraphSystem::RenderGrid).
-void DrawPlotGrid(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const PlotAxis &xAxis, const PlotAxis &yAxis,
+void DrawPlotGrid(PlotPen &ren, const sdl3::FRect &plotRect, const PlotAxis &xAxis, const PlotAxis &yAxis,
 						 sdl3::FColor gridColor);
 
 /// Fond + pastilles de couleur de la légende (PAS le texte — cf. en-tête du
@@ -465,7 +499,7 @@ void DrawPlotGrid(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const Plot
 /// que l'entrée est masquée sans la faire disparaître de la liste). Itère
 /// `series` en `PlotMode::XY`, `pieSlices` en `PlotMode::PIE` (Phase 5) — cf.
 /// `plotLegendItemCount()`, même compte utilisé pour la mise en page.
-void DrawPlotLegendBackground(IUiRenderBackend &ren, const UiPlot &plot, const sdl3::FRect &legendBox);
+void DrawPlotLegendBackground(PlotPen &ren, const PlotModel &plot, const sdl3::FRect &legendBox);
 
 namespace detail {
 /// Ajoute un quad (ruban épais) pour un segment `a`-`b` — même technique que
@@ -481,12 +515,12 @@ void AppendThickSegment(std::vector<sdl3::Vertex> &verts, sdl3::FPoint a, sdl3::
 void AppendFillQuad(std::vector<sdl3::Vertex> &verts, sdl3::FPoint a, sdl3::FPoint b, sdl3::FPoint baseA, sdl3::FPoint baseB,
 						   sdl3::FColor color);
 
-void DrawMarker(IUiRenderBackend &ren, sdl3::FPoint center, PlotMarker marker, float size);
+void DrawMarker(PlotPen &ren, sdl3::FPoint center, PlotMarker marker, float size);
 
 /// Polyligne épaisse (segments consécutifs de `pts`) — factorisé car Line ET
 /// Step le réutilisent (Step ne diffère que par la construction des points,
 /// cf. stepPoints(), pas par le tracé lui-même).
-void DrawThickPolyline(IUiRenderBackend &ren, std::span<const sdl3::FPoint> pts, float lineWidth, sdl3::FColor color);
+void DrawThickPolyline(PlotPen &ren, std::span<const sdl3::FPoint> pts, float lineWidth, sdl3::FColor color);
 
 /// Points en « escalier » à partir des points de courbe — convention
 /// « post » : la valeur de gauche est maintenue jusqu'au x suivant, puis
@@ -504,8 +538,8 @@ void DrawThickPolyline(IUiRenderBackend &ren, std::span<const sdl3::FPoint> pts,
 /// ce cas — c'est à l'appelant de le gérer s'il le souhaite). `dimFactor`
 /// (dans [0,1]) atténue l'opacité de TOUT ce qui est dessiné — utilisé pour
 /// estomper les séries non survolées quand une entrée de légende a le focus
-/// (cf. Phase 2, `UiPlot::legendHover`), 1.0 = opacité normale.
-void DrawPlotSeries(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const PlotSeries &s, const PlotAxis &xAxis,
+/// (cf. Phase 2, `PlotModel::legendHover`), 1.0 = opacité normale.
+void DrawPlotSeries(PlotPen &ren, const sdl3::FRect &plotRect, const PlotSeries &s, const PlotAxis &xAxis,
 						   const PlotAxis &yAxis, float dimFactor = 1.f);
 
 /// Point le plus proche de `mouseScreen` parmi toutes les séries VISIBLES,
@@ -516,7 +550,7 @@ void DrawPlotSeries(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const Pl
 /// (min/max non à jour). Chaque série choisit `yAxis` ou `yAxis2` selon
 /// `PlotSeries::useSecondaryY` (Phase 4). Retourne {-1,-1} si rien dans le
 /// rayon.
-[[nodiscard]] std::pair<int, int> PlotNearestPoint(const UiPlot &plot, const sdl3::FRect &plotRect,
+[[nodiscard]] std::pair<int, int> PlotNearestPoint(const PlotModel &plot, const sdl3::FRect &plotRect,
 														  const PlotAxis &xAxis, const PlotAxis &yAxis,
 														  const PlotAxis &yAxis2, sdl3::FPoint mouseScreen,
 														  float maxDist = 12.f);
@@ -565,10 +599,10 @@ void AppendPieSliceFan(std::vector<sdl3::Vertex> &verts, sdl3::FPoint center, st
 
 /// Dessine le camembert (parts pleines PUIS contours dans une passe séparée,
 /// pour qu'aucun contour ne soit recouvert par le remplissage d'une part
-/// voisine) — `hoveredSlice` (survol direct OU `UiPlot::legendHover`, à
+/// voisine) — `hoveredSlice` (survol direct OU `PlotModel::legendHover`, à
 /// l'appelant de choisir lequel prime) atténue les autres parts, même esprit
 /// que `dimFactor` de `drawPlotSeries()`.
-void DrawPieChart(IUiRenderBackend &ren, const std::vector<PieSlice> &slices,
+void DrawPieChart(PlotPen &ren, const std::vector<PieSlice> &slices,
 						 const std::vector<PieSliceAngles> &angles, sdl3::FPoint center, float radius, int hoveredSlice,
 						 sdl3::FColor borderColor);
 
@@ -590,7 +624,7 @@ void DrawPieChart(IUiRenderBackend &ren, const std::vector<PieSlice> &slices,
 /// `rows*cols` éléments (plutôt que de risquer un accès hors bornes) ; un
 /// léger surplomb de 0.5px entre cellules absorbe l'arrondi pixel (évite un
 /// liseré de fond visible entre deux cellules adjacentes).
-void DrawHeatmap(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const HeatmapData &hm);
+void DrawHeatmap(PlotPen &ren, const sdl3::FRect &plotRect, const HeatmapData &hm);
 
 /// Index de cellule (`r*cols+c`) sous `mouseScreen`, -1 si hors grille.
 [[nodiscard]] int HeatmapHitTest(const HeatmapData &hm, const sdl3::FRect &plotRect, sdl3::FPoint mouseScreen) noexcept;
@@ -628,7 +662,7 @@ void DrawHeatmap(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const Heatm
 /// Dessine toutes les bougies (mèche + corps) — couleur hausse/baisse selon
 /// `close` vs `open` (cf. doc de `OhlcBar`). `dimFactor` estompe une bougie
 /// donnée (survol, même esprit que `drawPlotSeries()`), -1 = aucune.
-void DrawCandleChart(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const std::vector<OhlcBar> &bars,
+void DrawCandleChart(PlotPen &ren, const sdl3::FRect &plotRect, const std::vector<OhlcBar> &bars,
 							const PlotAxis &xAxis, const PlotAxis &yAxis, float candleWidth, sdl3::FColor bullColor,
 							sdl3::FColor bearColor, int hoveredBar = -1);
 
@@ -657,7 +691,7 @@ void DrawCandleChart(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const s
 /// cas (axe jamais dessiné/résolu ailleurs), plus simple qu'un paramètre
 /// optionnel. Bascule `autoFit=false` sur les trois axes (sans quoi le
 /// recalcul auto-fit de la frame suivante écraserait le pan).
-void ApplyPlotPan(UiPlot &plot, const sdl3::FRect &plotRect, sdl3::FPoint startMouse, sdl3::FPoint currentMouse,
+void ApplyPlotPan(PlotModel &plot, const sdl3::FRect &plotRect, sdl3::FPoint startMouse, sdl3::FPoint currentMouse,
 						 const PlotAxis &startXAxis, const PlotAxis &startYAxis,
 						 const PlotAxis &startYAxis2) noexcept;
 
@@ -680,18 +714,87 @@ void ApplyPlotAxisZoom(PlotAxis &axis, const std::vector<PlotSeries> &series, bo
 /// min/max sont TRIÉS — gère les deux sens de glisser ET l'inversion
 /// écran/données de l'axe Y sans cas particulier. `startYAxis2` toujours
 /// appliqué à `plot.yAxis2` (même remarque que `applyPlotPan`, Phase 4).
-void ApplyPlotBoxZoom(UiPlot &plot, const sdl3::FRect &plotRect, sdl3::FPoint corner0, sdl3::FPoint corner1,
+void ApplyPlotBoxZoom(PlotModel &plot, const sdl3::FRect &plotRect, sdl3::FPoint corner0, sdl3::FPoint corner1,
 							 const PlotAxis &startXAxis, const PlotAxis &startYAxis,
 							 const PlotAxis &startYAxis2) noexcept;
 
 /// Retour à l'ajustement automatique (double-clic) — repasse simplement les
 /// trois axes en `autoFit=true`, `resolveAxis()` recalcule leur plage depuis
 /// les séries visibles dès la frame suivante (aucune valeur à recalculer ici).
-void ResetPlotToAutoFit(UiPlot &plot) noexcept;
+void ResetPlotToAutoFit(PlotModel &plot) noexcept;
 
 /// Rectangle de sélection du zoom-rectangle, pendant le geste uniquement
 /// (`plot.boxZooming`) — fond translucide + contour, coins normalisés (pas
 /// d'hypothèse sur le sens de glisser).
-void DrawPlotBoxZoomRect(IUiRenderBackend &ren, const UiPlot &plot);
+void DrawPlotBoxZoomRect(PlotPen &ren, const PlotModel &plot);
+
+// ============================================================================
+// Builder et extension
+// ============================================================================
+
+/// Builder d'un graphique : les séries s'ajoutent avant la construction.
+class PlotBuilder : public Builder<PlotBuilder> {
+public:
+	explicit PlotBuilder(PlotMode mode = PlotMode::XY, String title = String());
+
+	[[nodiscard]] PlotModel &Model() noexcept { return m_model; }
+
+	PlotBuilder &AddSeries(PlotSeriesKind kind, std::span<const float> x, std::span<const float> y, String label = "",
+						   Option<ui::Color> color = NONE);
+	PlotBuilder &AddLineSeries(std::span<const float> y, String label = "", Option<ui::Color> color = NONE);
+	PlotBuilder &AddLineSeriesXy(std::span<const float> x, std::span<const float> y, String label = "",
+								 Option<ui::Color> color = NONE);
+	PlotBuilder &AddScatterSeries(std::span<const float> x, std::span<const float> y, String label = "",
+								  Option<ui::Color> color = NONE);
+	PlotBuilder &AddStepSeries(std::span<const float> x, std::span<const float> y, String label = "",
+							   Option<ui::Color> color = NONE);
+	PlotBuilder &AddAreaSeries(std::span<const float> x, std::span<const float> y, String label = "",
+							   Option<ui::Color> color = NONE, float fillOpacity = 0.35f);
+	PlotBuilder &AddStemSeries(std::span<const float> x, std::span<const float> y, String label = "",
+							   Option<ui::Color> color = NONE);
+	PlotBuilder &AddBarSeries(std::span<const float> x, std::span<const float> y, String label = "",
+							  Option<ui::Color> color = NONE, float barWidth = 0.67f);
+	PlotBuilder &AddBarHSeries(std::span<const float> x, std::span<const float> y, String label = "",
+							   Option<ui::Color> color = NONE, float barWidth = 0.67f);
+	PlotBuilder &AddHistogramSeries(std::span<const float> x, std::span<const float> y, String label = "",
+									Option<ui::Color> color = NONE, float barWidth = 1.f);
+	/// Sur la dernière série ajoutée.
+	PlotBuilder &SetYError(std::span<const float> err);
+	PlotBuilder &UseSecondaryY(bool enable = true);
+	PlotBuilder &SetMarker(PlotMarker marker, float size = 4.f);
+	PlotBuilder &SetLineWidth(float width);
+	PlotBuilder &SetOnCustomDraw(std::function<void(Painter &, const sdl3::FRect &, const PlotSeries &, const PlotAxis &,
+													 const PlotAxis &)>
+									 fn);
+	PlotBuilder &AddPieSlice(float value, String label = "", Option<ui::Color> color = NONE);
+	PlotBuilder &SetHeatmapData(int rows, int cols, std::span<const float> values, Colormap cm = Colormap::VIRIDIS);
+	PlotBuilder &AddOhlcBar(float x, float open, float high, float low, float close);
+	PlotBuilder &XTicks(PlotEdge position, bool overlay = false, Option<ui::Color> boxColor = NONE);
+	PlotBuilder &YTicks(PlotEdge position, bool overlay = false, Option<ui::Color> boxColor = NONE);
+	PlotBuilder &YTicks2(PlotEdge position, bool overlay = false, Option<ui::Color> boxColor = NONE);
+	PlotBuilder &Legend(LegendPosition position, bool overlay = true, Option<ui::Color> boxColor = NONE);
+	PlotBuilder &ShowLegend(bool show);
+	PlotBuilder &LogScaleX(bool enable = true);
+	PlotBuilder &LogScaleY(bool enable = true);
+	PlotBuilder &LogScaleY2(bool enable = true);
+	PlotBuilder &XRange(float min, float max);
+	PlotBuilder &YRange(float min, float max);
+
+protected:
+	void Expand(WidgetSpec &s) const override;
+
+private:
+	PlotModel m_model;
+};
+
+[[nodiscard]] PlotBuilder Plot(String title = String());
+/// Une série de courbe, X implicite (0..N-1).
+[[nodiscard]] PlotBuilder PlotLines(std::span<const float> values, String title = String(), Option<ui::Color> color = NONE);
+[[nodiscard]] PlotBuilder Pie(String title = String());
+[[nodiscard]] PlotBuilder Heatmap(String title = String());
+[[nodiscard]] PlotBuilder Candlestick(String title = String());
+
+/// Dessin et navigation des graphiques (enregistrée par ui::Ui).
+void RegisterPlotExtension(Context &ctx);
 
 } // namespace ui

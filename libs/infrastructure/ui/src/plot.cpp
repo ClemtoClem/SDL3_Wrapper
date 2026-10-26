@@ -1,5 +1,6 @@
 // Définitions de ui/plot.hpp
 #include <ui/plot.hpp>
+#include <ui/systems.hpp>
 
 namespace ui {
 
@@ -41,14 +42,14 @@ PlotEdge LegendMarginSide(LegendPosition pos) noexcept {
 
 } // namespace detail
 
-bool PlotHasSecondaryY(const UiPlot &plot) noexcept {
+bool PlotHasSecondaryY(const PlotModel &plot) noexcept {
     for (const PlotSeries &s : plot.series)
         if (s.useSecondaryY)
             return true;
     return false;
 }
 
-size_t PlotLegendItemCount(const UiPlot &plot) noexcept {
+size_t PlotLegendItemCount(const PlotModel &plot) noexcept {
     switch (plot.mode) {
     case PlotMode::PIE:
         return plot.pieSlices.size();
@@ -89,7 +90,7 @@ float ScreenToData(const PlotAxis &axis, float screenMin, float screenMax, float
     return FromAxisSpace(axis, lo + t * (hi - lo));
 }
 
-PlotMargins ComputePlotMargins(const UiPlot &plot) noexcept {
+PlotMargins ComputePlotMargins(const PlotModel &plot) noexcept {
 	PlotMargins m;
 	// Graduations d'axes — XY ET Candle (Phase 6 : les bougies réutilisent
 	// xAxis/yAxis pour leurs graduations, cf. resolveCandleAxis()) ; sans
@@ -135,7 +136,7 @@ PlotMargins ComputePlotMargins(const UiPlot &plot) noexcept {
 	return m;
 }
 
-sdl3::FRect ComputePlotRect(const UiPlot &plot, const sdl3::FRect &widgetRect) noexcept {
+sdl3::FRect ComputePlotRect(const PlotModel &plot, const sdl3::FRect &widgetRect) noexcept {
 	PlotMargins m = ComputePlotMargins(plot);
 	constexpr float K_BASE_PAD = 4.f;
 	float x = widgetRect.x + K_BASE_PAD + m.left;
@@ -201,7 +202,7 @@ sdl3::FRect LegendReservedStrip(LegendPosition pos, const sdl3::FRect &widgetRec
 	}
 }
 
-sdl3::FRect LegendBoxRect(const UiPlot &plot, const sdl3::FRect &widgetRect, const sdl3::FRect &plotRect) noexcept {
+sdl3::FRect LegendBoxRect(const PlotModel &plot, const sdl3::FRect &widgetRect, const sdl3::FRect &plotRect) noexcept {
 	float w = K_PLOT_LEGEND_WIDTH;
 	float h = float(PlotLegendItemCount(plot)) * K_PLOT_LEGEND_ROW_H + 6.f;
 	sdl3::FRect area = plot.legendOverlay ? plotRect : LegendReservedStrip(plot.legendPosition, widgetRect, plotRect);
@@ -239,9 +240,28 @@ std::pair<float, float> ComputeAutoFit(const std::vector<PlotSeries> &series, bo
 		if (!forX && s.useSecondaryY != forSecondaryY)
 			continue;
 		const std::vector<float> &vals = forX ? s.x : s.y;
+		// Barres, tiges et aires partent de 0 sur leur axe de valeur.
+		const bool valueAxis = s.kind == PlotSeriesKind::BAR_H ? forX : !forX;
+		if (valueAxis && !logScale && !vals.empty() &&
+			(s.kind == PlotSeriesKind::BAR || s.kind == PlotSeriesKind::BAR_H || s.kind == PlotSeriesKind::HISTOGRAM ||
+			 s.kind == PlotSeriesKind::STEM || s.kind == PlotSeriesKind::AREA)) {
+			mn = any ? sdl3::Min(mn, 0.f) : 0.f;
+			mx = any ? sdl3::Max(mx, 0.f) : 0.f;
+			any = true;
+		}
+		// Les barres débordent de leur abscisse d'une demi-largeur.
+		const bool barExtent = !valueAxis && (s.kind == PlotSeriesKind::BAR || s.kind == PlotSeriesKind::BAR_H ||
+											  s.kind == PlotSeriesKind::HISTOGRAM);
+		const float half = barExtent ? s.barWidth * 0.5f : 0.f;
 		for (float v : vals) {
 			if (logScale && v <= 0.f)
 				continue;
+			if (half > 0.f) {
+				mn = any ? sdl3::Min(mn, v - half) : v - half;
+				mx = any ? sdl3::Max(mx, v + half) : v + half;
+				any = true;
+				continue;
+			}
 			if (!any) {
 				mn = mx = v;
 				any = true;
@@ -315,7 +335,7 @@ std::vector<float> GenerateTicks(float min, float max, int targetCount) {
 	return ticks;
 }
 
-void DrawPlotGrid(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const PlotAxis &xAxis, const PlotAxis &yAxis,
+void DrawPlotGrid(PlotPen &ren, const sdl3::FRect &plotRect, const PlotAxis &xAxis, const PlotAxis &yAxis,
 		sdl3::FColor gridColor) {
 	ren.SetDrawColor(gridColor);
 	if (xAxis.showGrid) {
@@ -334,7 +354,7 @@ void DrawPlotGrid(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const Plot
 	}
 }
 
-void DrawPlotLegendBackground(IUiRenderBackend &ren, const UiPlot &plot, const sdl3::FRect &legendBox) {
+void DrawPlotLegendBackground(PlotPen &ren, const PlotModel &plot, const sdl3::FRect &legendBox) {
 	ren.SetDrawColor(plot.legendBoxColor);
 	ren.FillRoundedRect(legendBox, math::Corners(3.f));
 	size_t n = PlotLegendItemCount(plot);
@@ -378,7 +398,7 @@ void AppendFillQuad(std::vector<sdl3::Vertex> &verts, sdl3::FPoint a, sdl3::FPoi
 	verts.insert(verts.end(), {va, vb, vBaseB, va, vBaseB, vBaseA});
 }
 
-void DrawMarker(IUiRenderBackend &ren, sdl3::FPoint center, PlotMarker marker, float size) {
+void DrawMarker(PlotPen &ren, sdl3::FPoint center, PlotMarker marker, float size) {
 	float r = size * 0.5f;
 	switch (marker) {
 	case PlotMarker::NONE:
@@ -398,7 +418,7 @@ void DrawMarker(IUiRenderBackend &ren, sdl3::FPoint center, PlotMarker marker, f
 	}
 }
 
-void DrawThickPolyline(IUiRenderBackend &ren, std::span<const sdl3::FPoint> pts, float lineWidth, sdl3::FColor color) {
+void DrawThickPolyline(PlotPen &ren, std::span<const sdl3::FPoint> pts, float lineWidth, sdl3::FColor color) {
 	if (pts.size() < 2)
 		return;
 	ren.SetDrawColor(color);
@@ -442,13 +462,12 @@ std::vector<sdl3::FPoint> PlotSeriesScreenPoints(const PlotSeries &s, const sdl3
 	return pts;
 }
 
-void DrawPlotSeries(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const PlotSeries &s, const PlotAxis &xAxis,
+void DrawPlotSeries(PlotPen &ren, const sdl3::FRect &plotRect, const PlotSeries &s, const PlotAxis &xAxis,
 		const PlotAxis &yAxis, float dimFactor) {
 	if (!s.visible)
 		return;
 	if (s.onCustomDraw) {
-		if (auto *nr = ren.NativeRenderer())
-			s.onCustomDraw(*nr, plotRect, s, xAxis, yAxis);
+		s.onCustomDraw(ren.Paint(), plotRect, s, xAxis, yAxis);
 		return;
 	}
 	std::vector<sdl3::FPoint> pts = PlotSeriesScreenPoints(s, plotRect, xAxis, yAxis);
@@ -556,7 +575,7 @@ void DrawPlotSeries(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const Pl
 	}
 }
 
-std::pair<int, int> PlotNearestPoint(const UiPlot &plot, const sdl3::FRect &plotRect,
+std::pair<int, int> PlotNearestPoint(const PlotModel &plot, const sdl3::FRect &plotRect,
 		const PlotAxis &xAxis, const PlotAxis &yAxis,
 		const PlotAxis &yAxis2, sdl3::FPoint mouseScreen,
 		float maxDist) {
@@ -641,7 +660,7 @@ void AppendPieSliceFan(std::vector<sdl3::Vertex> &verts, sdl3::FPoint center, st
 
 } // namespace detail
 
-void DrawPieChart(IUiRenderBackend &ren, const std::vector<PieSlice> &slices,
+void DrawPieChart(PlotPen &ren, const std::vector<PieSlice> &slices,
 		const std::vector<PieSliceAngles> &angles, sdl3::FPoint center, float radius, int hoveredSlice,
 		sdl3::FColor borderColor) {
 	for (size_t i = 0; i < slices.size(); ++i) {
@@ -706,7 +725,7 @@ std::pair<float, float> ResolveHeatmapRange(const HeatmapData &hm) noexcept {
 	return {mn, mx};
 }
 
-void DrawHeatmap(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const HeatmapData &hm) {
+void DrawHeatmap(PlotPen &ren, const sdl3::FRect &plotRect, const HeatmapData &hm) {
 	if (hm.rows <= 0 || hm.cols <= 0 || int64_t(hm.values.size()) < int64_t(hm.rows) * int64_t(hm.cols))
 		return;
 	auto [mn, mx] = ResolveHeatmapRange(hm);
@@ -787,7 +806,7 @@ sdl3::FRect ComputeCandleBodyRect(const sdl3::FRect &plotRect, const PlotAxis &x
 	return {sdl3::Min(x0, x1), top, sdl3::Max(1.f, sdl3::Abs(x1 - x0)), sdl3::Max(1.f, bottom - top)};
 }
 
-void DrawCandleChart(IUiRenderBackend &ren, const sdl3::FRect &plotRect, const std::vector<OhlcBar> &bars,
+void DrawCandleChart(PlotPen &ren, const sdl3::FRect &plotRect, const std::vector<OhlcBar> &bars,
 		const PlotAxis &xAxis, const PlotAxis &yAxis, float candleWidth, sdl3::FColor bullColor,
 		sdl3::FColor bearColor, int hoveredBar) {
 	for (size_t i = 0; i < bars.size(); ++i) {
@@ -820,7 +839,7 @@ int CandleNearestBar(const std::vector<OhlcBar> &bars, const sdl3::FRect &plotRe
 	return best;
 }
 
-void ApplyPlotPan(UiPlot &plot, const sdl3::FRect &plotRect, sdl3::FPoint startMouse, sdl3::FPoint currentMouse,
+void ApplyPlotPan(PlotModel &plot, const sdl3::FRect &plotRect, sdl3::FPoint startMouse, sdl3::FPoint currentMouse,
 		const PlotAxis &startXAxis, const PlotAxis &startYAxis,
 		const PlotAxis &startYAxis2) noexcept {
 	float dx = currentMouse.x - startMouse.x;
@@ -863,7 +882,7 @@ void ApplyPlotAxisZoom(PlotAxis &axis, const std::vector<PlotSeries> &series, bo
 	axis.autoFit = false;
 }
 
-void ApplyPlotBoxZoom(UiPlot &plot, const sdl3::FRect &plotRect, sdl3::FPoint corner0, sdl3::FPoint corner1,
+void ApplyPlotBoxZoom(PlotModel &plot, const sdl3::FRect &plotRect, sdl3::FPoint corner0, sdl3::FPoint corner1,
 		const PlotAxis &startXAxis, const PlotAxis &startYAxis,
 		const PlotAxis &startYAxis2) noexcept {
 	float dx0 = ScreenToData(startXAxis, plotRect.x, plotRect.x + plotRect.w, corner0.x);
@@ -885,13 +904,13 @@ void ApplyPlotBoxZoom(UiPlot &plot, const sdl3::FRect &plotRect, sdl3::FPoint co
 	plot.yAxis2.autoFit = false;
 }
 
-void ResetPlotToAutoFit(UiPlot &plot) noexcept {
+void ResetPlotToAutoFit(PlotModel &plot) noexcept {
 	plot.xAxis.autoFit = true;
 	plot.yAxis.autoFit = true;
 	plot.yAxis2.autoFit = true;
 }
 
-void DrawPlotBoxZoomRect(IUiRenderBackend &ren, const UiPlot &plot) {
+void DrawPlotBoxZoomRect(PlotPen &ren, const PlotModel &plot) {
 	if (!plot.boxZooming)
 		return;
 	float x0 = sdl3::Min(plot.dragStartMouse.x, plot.dragCurrentMouse.x);
@@ -903,6 +922,647 @@ void DrawPlotBoxZoomRect(IUiRenderBackend &ren, const UiPlot &plot) {
 	ren.FillRect(r);
 	ren.SetDrawColor(sdl3::FColor{1.f, 1.f, 1.f, 160/255.f});
 	ren.DrawRect(r);
+}
+
+} // namespace ui
+
+// ============================================================================
+// PlotPen
+// ============================================================================
+
+namespace ui {
+
+bool PlotPen::FillRect(const sdl3::FRect &r) {
+	m_painter.FillRect(r, m_color);
+	return true;
+}
+
+bool PlotPen::DrawRect(const sdl3::FRect &r) {
+	m_painter.StrokeRoundedRect(r, math::Corners(), math::Sides(1.f), m_color);
+	return true;
+}
+
+bool PlotPen::DrawLine(float x1, float y1, float x2, float y2) {
+	m_painter.Line({x1, y1}, {x2, y2}, 1.f, m_color);
+	return true;
+}
+
+bool PlotPen::FillRoundedRect(const sdl3::FRect &r, const math::Corners &c) {
+	m_painter.FillRoundedRect(r, c, m_color);
+	return true;
+}
+
+bool PlotPen::DrawRoundedRect(const sdl3::FRect &r, const math::Corners &c) {
+	m_painter.StrokeRoundedRect(r, c, math::Sides(1.f), m_color);
+	return true;
+}
+
+bool PlotPen::FillCircle(sdl3::FPoint center, float radius) {
+	m_painter.FillCircle(center, radius, m_color);
+	return true;
+}
+
+bool PlotPen::DrawCircle(sdl3::FPoint center, float radius) {
+	m_painter.StrokeCircle(center, radius, 1.f, m_color);
+	return true;
+}
+
+bool PlotPen::FillPolygon(std::span<const sdl3::FPoint> pts) {
+	m_painter.FillPolygon(pts, m_color);
+	return true;
+}
+
+bool PlotPen::DrawPolygon(std::span<const sdl3::FPoint> pts) {
+	m_painter.Polyline(pts, 1.f, m_color, true);
+	return true;
+}
+
+bool PlotPen::DrawPie(sdl3::FPoint center, float radius, float startDeg, float endDeg) {
+	m_painter.Arc(center, radius, startDeg, endDeg - startDeg, 1.f, m_color);
+	const float a0 = startDeg * math::PI / 180.f, a1 = endDeg * math::PI / 180.f;
+	m_painter.Line(center, {center.x + std::cos(a0) * radius, center.y + std::sin(a0) * radius}, 1.f, m_color);
+	m_painter.Line(center, {center.x + std::cos(a1) * radius, center.y + std::sin(a1) * radius}, 1.f, m_color);
+	return true;
+}
+
+bool PlotPen::RenderGeometry(std::span<const sdl3::Vertex> vertices) {
+	m_painter.Triangles(vertices);
+	return true;
+}
+
+// ============================================================================
+// PlotBuilder
+// ============================================================================
+
+PlotBuilder::PlotBuilder(PlotMode mode, String title) : Builder("plot") {
+	m_model.mode = mode;
+	m_model.title = std::move(title);
+	// Axe Y principal à gauche, secondaire en face.
+	m_model.yAxis.tickPosition = PlotEdge::Left;
+	m_model.yAxis2.tickPosition = PlotEdge::Right;
+	if (mode == PlotMode::PIE)
+		spec.element.classes.push_back("pie");
+	else if (mode == PlotMode::HEATMAP)
+		spec.element.classes.push_back("heatmap");
+	else if (mode == PlotMode::CANDLE)
+		spec.element.classes.push_back("candlestick");
+}
+
+void PlotBuilder::Expand(WidgetSpec &s) const {
+	s.components.push_back([model = m_model](ecs::ArchetypeRegistry &w, ecs::Entity e) { w.AddComponent(e, model); });
+}
+
+PlotBuilder &PlotBuilder::AddSeries(PlotSeriesKind kind, std::span<const float> x, std::span<const float> y, String label,
+									Option<ui::Color> color) {
+	PlotSeries s;
+	s.kind = kind;
+	s.SetXy(x, y);
+	s.label = std::move(label);
+	s.color = color.IsSome() ? color.Unwrap() : PlotPaletteColor(m_model.series.size());
+	if (kind == PlotSeriesKind::SCATTER)
+		s.marker = PlotMarker::CIRCLE;
+	m_model.series.push_back(std::move(s));
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::AddLineSeries(std::span<const float> y, String label, Option<ui::Color> color) {
+	std::vector<float> x(y.size());
+	for (size_t i = 0; i < x.size(); ++i)
+		x[i] = float(i);
+	return AddSeries(PlotSeriesKind::LINE, x, y, std::move(label), color);
+}
+
+PlotBuilder &PlotBuilder::AddLineSeriesXy(std::span<const float> x, std::span<const float> y, String label,
+										  Option<ui::Color> color) {
+	return AddSeries(PlotSeriesKind::LINE, x, y, std::move(label), color);
+}
+
+PlotBuilder &PlotBuilder::AddScatterSeries(std::span<const float> x, std::span<const float> y, String label,
+										   Option<ui::Color> color) {
+	return AddSeries(PlotSeriesKind::SCATTER, x, y, std::move(label), color);
+}
+
+PlotBuilder &PlotBuilder::AddStepSeries(std::span<const float> x, std::span<const float> y, String label,
+										Option<ui::Color> color) {
+	return AddSeries(PlotSeriesKind::STEP, x, y, std::move(label), color);
+}
+
+PlotBuilder &PlotBuilder::AddAreaSeries(std::span<const float> x, std::span<const float> y, String label,
+										Option<ui::Color> color, float fillOpacity) {
+	AddSeries(PlotSeriesKind::AREA, x, y, std::move(label), color);
+	m_model.series.back().fillOpacity = fillOpacity;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::AddStemSeries(std::span<const float> x, std::span<const float> y, String label,
+										Option<ui::Color> color) {
+	AddSeries(PlotSeriesKind::STEM, x, y, std::move(label), color);
+	m_model.series.back().marker = PlotMarker::CIRCLE;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::AddBarSeries(std::span<const float> x, std::span<const float> y, String label,
+									   Option<ui::Color> color, float barWidth) {
+	AddSeries(PlotSeriesKind::BAR, x, y, std::move(label), color);
+	m_model.series.back().barWidth = barWidth;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::AddBarHSeries(std::span<const float> x, std::span<const float> y, String label,
+										Option<ui::Color> color, float barWidth) {
+	AddSeries(PlotSeriesKind::BAR_H, x, y, std::move(label), color);
+	m_model.series.back().barWidth = barWidth;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::AddHistogramSeries(std::span<const float> x, std::span<const float> y, String label,
+											 Option<ui::Color> color, float barWidth) {
+	AddSeries(PlotSeriesKind::HISTOGRAM, x, y, std::move(label), color);
+	m_model.series.back().barWidth = barWidth;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::SetYError(std::span<const float> err) {
+	if (!m_model.series.empty())
+		m_model.series.back().yError.assign(err.begin(), err.end());
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::UseSecondaryY(bool enable) {
+	if (!m_model.series.empty())
+		m_model.series.back().useSecondaryY = enable;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::SetMarker(PlotMarker marker, float size) {
+	if (!m_model.series.empty()) {
+		m_model.series.back().marker = marker;
+		m_model.series.back().markerSize = size;
+	}
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::SetLineWidth(float width) {
+	if (!m_model.series.empty())
+		m_model.series.back().lineWidth = width;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::SetOnCustomDraw(
+	std::function<void(Painter &, const sdl3::FRect &, const PlotSeries &, const PlotAxis &, const PlotAxis &)> fn) {
+	if (!m_model.series.empty())
+		m_model.series.back().onCustomDraw = std::move(fn);
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::AddPieSlice(float value, String label, Option<ui::Color> color) {
+	PieSlice s;
+	s.value = value;
+	s.label = std::move(label);
+	s.color = color.IsSome() ? color.Unwrap() : PlotPaletteColor(m_model.pieSlices.size());
+	m_model.pieSlices.push_back(std::move(s));
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::SetHeatmapData(int rows, int cols, std::span<const float> values, Colormap cm) {
+	m_model.heatmap.rows = rows;
+	m_model.heatmap.cols = cols;
+	m_model.heatmap.values.assign(values.begin(), values.end());
+	m_model.heatmap.colormap = cm;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::AddOhlcBar(float x, float open, float high, float low, float close) {
+	m_model.candleBars.push_back({x, open, high, low, close});
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::XTicks(PlotEdge position, bool overlay, Option<ui::Color> boxColor) {
+	m_model.xAxis.tickPosition = position;
+	m_model.xAxis.tickOverlay = overlay;
+	if (boxColor.IsSome())
+		m_model.xAxis.tickBoxColor = boxColor.Unwrap();
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::YTicks(PlotEdge position, bool overlay, Option<ui::Color> boxColor) {
+	m_model.yAxis.tickPosition = position;
+	m_model.yAxis.tickOverlay = overlay;
+	if (boxColor.IsSome())
+		m_model.yAxis.tickBoxColor = boxColor.Unwrap();
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::YTicks2(PlotEdge position, bool overlay, Option<ui::Color> boxColor) {
+	m_model.yAxis2.tickPosition = position;
+	m_model.yAxis2.tickOverlay = overlay;
+	if (boxColor.IsSome())
+		m_model.yAxis2.tickBoxColor = boxColor.Unwrap();
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::Legend(LegendPosition position, bool overlay, Option<ui::Color> boxColor) {
+	m_model.legendPosition = position;
+	m_model.legendOverlay = overlay;
+	m_model.showLegend = true;
+	if (boxColor.IsSome())
+		m_model.legendBoxColor = boxColor.Unwrap();
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::ShowLegend(bool show) {
+	m_model.showLegend = show;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::LogScaleX(bool enable) {
+	m_model.xAxis.logScale = enable;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::LogScaleY(bool enable) {
+	m_model.yAxis.logScale = enable;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::LogScaleY2(bool enable) {
+	m_model.yAxis2.logScale = enable;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::XRange(float min, float max) {
+	m_model.xAxis.min = min;
+	m_model.xAxis.max = max;
+	m_model.xAxis.autoFit = false;
+	return *this;
+}
+
+PlotBuilder &PlotBuilder::YRange(float min, float max) {
+	m_model.yAxis.min = min;
+	m_model.yAxis.max = max;
+	m_model.yAxis.autoFit = false;
+	return *this;
+}
+
+PlotBuilder Plot(String title) { return PlotBuilder(PlotMode::XY, std::move(title)); }
+
+PlotBuilder PlotLines(std::span<const float> values, String title, Option<ui::Color> color) {
+	PlotBuilder b(PlotMode::XY, std::move(title));
+	b.AddLineSeries(values, String(), color);
+	b.ShowLegend(false);
+	return b;
+}
+
+PlotBuilder Pie(String title) { return PlotBuilder(PlotMode::PIE, std::move(title)); }
+PlotBuilder Heatmap(String title) { return PlotBuilder(PlotMode::HEATMAP, std::move(title)); }
+PlotBuilder Candlestick(String title) { return PlotBuilder(PlotMode::CANDLE, std::move(title)); }
+
+// ============================================================================
+// Extension : dessin et navigation
+// ============================================================================
+
+namespace {
+
+struct PlotText {
+	Context &ctx;
+	const ComputedStyle &cs;
+
+	sdl3::Font *Font(float size) const { return ctx.fonts.Resolve(cs.fontFamily.View(), size); }
+	sdl3::FPoint Measure(const String &s, float size) const { return ctx.painter.MeasureText(s, Font(size), size); }
+	void Draw(const String &s, float size, Color c, float x, float y) const { ctx.painter.Text(s, Font(size), c, x, y); }
+};
+
+/// Libellé d'une graduation (jamais « -0 » : arrondi à `dec` décimales).
+String TickLabel(float v, int dec) {
+	return String::From(std::fabs(v) < 0.5f * std::pow(10.f, -float(dec)) ? 0.f : v, dec);
+}
+
+void DrawAxisTicks(const PlotText &t, PlotPen &pen, const sdl3::FRect &plotRect, const PlotAxis &axis,
+				   const PlotAxis &resolved, bool isX, float tickFs, Color tickColor) {
+	auto ticks = resolved.logScale ? GenerateLogTicks(resolved.min, resolved.max) : GenerateTicks(resolved.min, resolved.max);
+	const int dec = ticks.size() >= 2 ? TickDecimals(ticks[1] - ticks[0]) : 1;
+	if (isX) {
+		const bool top = axis.tickPosition == PlotEdge::Top;
+		const float ly = axis.tickOverlay ? (top ? plotRect.y + 2.f : plotRect.y + plotRect.h - tickFs - 2.f)
+										  : (top ? plotRect.y - K_PLOT_TICK_MARGIN + 2.f : plotRect.y + plotRect.h + 4.f);
+		if (axis.tickOverlay && !ticks.empty()) {
+			pen.SetDrawColor(axis.tickBoxColor);
+			pen.FillRect({plotRect.x, ly - 1.f, plotRect.w, tickFs + 2.f});
+		}
+		for (float v : ticks) {
+			const float sx = DataToScreen(resolved, plotRect.x, plotRect.x + plotRect.w, v);
+			const String label = TickLabel(v, dec);
+			const sdl3::FPoint sz = t.Measure(label, tickFs);
+			t.Draw(label, tickFs, tickColor, sx - sz.x * 0.5f, ly);
+		}
+		return;
+	}
+	const bool right = axis.tickPosition == PlotEdge::Right;
+	const float boxW = K_PLOT_TICK_MARGIN - 2.f;
+	if (axis.tickOverlay && !ticks.empty()) {
+		pen.SetDrawColor(axis.tickBoxColor);
+		pen.FillRect({right ? plotRect.x + plotRect.w - boxW : plotRect.x, plotRect.y, boxW, plotRect.h});
+	}
+	for (float v : ticks) {
+		const float sy = DataToScreen(resolved, plotRect.y + plotRect.h, plotRect.y, v);
+		const String label = TickLabel(v, dec);
+		const sdl3::FPoint sz = t.Measure(label, tickFs);
+		const float lx = axis.tickOverlay ? (right ? plotRect.x + plotRect.w - sz.x - 3.f : plotRect.x + 3.f)
+										  : (right ? plotRect.x + plotRect.w + 3.f : plotRect.x - sz.x - 3.f);
+		t.Draw(label, tickFs, tickColor, lx, sy - sz.y * 0.5f);
+	}
+}
+
+void DrawTopLabel(const PlotText &t, const sdl3::FRect &s, float centerX, const String &text, Color c) {
+	const float fs = 12.f * t.cs.scale;
+	const sdl3::FPoint sz = t.Measure(text, fs);
+	const float tx = math::Clamp(centerX - sz.x * 0.5f, s.x, math::Max(s.x, s.x + s.w - sz.x));
+	t.Draw(text, fs, c, tx, s.y + 2.f);
+}
+
+void DrawLegendLabels(const PlotText &t, const PlotModel &p, const sdl3::FRect &legendBox, Color tickColor) {
+	const float fs = 11.f * t.cs.scale;
+	const size_t n = p.mode == PlotMode::PIE ? p.pieSlices.size() : p.series.size();
+	for (size_t i = 0; i < n; ++i) {
+		const String &label = p.mode == PlotMode::PIE ? p.pieSlices[i].label : p.series[i].label;
+		const bool visible = p.mode == PlotMode::PIE ? p.pieSlices[i].visible : p.series[i].visible;
+		if (label.IsEmpty())
+			continue;
+		const sdl3::FRect labelRect = LegendLabelRect(LegendRowRect(legendBox, i));
+		Color lc = tickColor;
+		if (!visible)
+			lc.a *= 0.5f;
+		const sdl3::FPoint sz = t.Measure(label, fs);
+		t.Draw(label, fs, lc, labelRect.x, labelRect.y + (labelRect.h - sz.y) * 0.5f);
+	}
+}
+
+void DrawPlot(ecs::ArchetypeRegistry &world, Context &ctx, ecs::Entity e, const Rect &rect, const ComputedStyle &cs) {
+	auto model = world.GetComponent<PlotModel>(e);
+	if (model.IsNone())
+		return;
+	const PlotModel &p = *model.Unwrap();
+	Painter &painter = ctx.painter;
+	PlotPen pen(painter);
+	const sdl3::FRect s = rect.box;
+	const PlotText text{ctx, cs};
+	const Color textColor = cs.color;
+	const Color tickColor = WithAlpha(cs.color, cs.color.a * 0.8f);
+	const float tickFs = 11.f * cs.scale;
+	painter.PushClip(s);
+	const sdl3::FRect plotRect = ComputePlotRect(p, s);
+
+	if (p.mode == PlotMode::PIE) {
+		const sdl3::FRect circleRect = ComputePieCircleRect(plotRect);
+		const sdl3::FPoint center{circleRect.x + circleRect.w * 0.5f, circleRect.y + circleRect.h * 0.5f};
+		const auto angles = ComputePieAngles(p.pieSlices);
+		const int hovered = p.legendHover >= 0 ? p.legendHover : p.hoveredSeries;
+		DrawPieChart(pen, p.pieSlices, angles, center, circleRect.w * 0.5f, hovered, cs.borderColor);
+		if (hovered >= 0 && size_t(hovered) < p.pieSlices.size()) {
+			const PieSlice &hs = p.pieSlices[size_t(hovered)];
+			float total = 0.f;
+			for (const PieSlice &sl : p.pieSlices)
+				if (sl.visible)
+					total += math::Max(0.f, sl.value);
+			const float pct = total > 0.f ? math::Max(0.f, hs.value) / total * 100.f : 0.f;
+			String full = hs.label.IsEmpty() ? String::From(hs.value, 1) : hs.label;
+			full += String(" (") + String::From(pct, 1) + "%)";
+			DrawTopLabel(text, s, s.x + s.w * 0.5f, full, textColor);
+		}
+		if (p.showLegend && !p.pieSlices.empty()) {
+			const sdl3::FRect legendBox = LegendBoxRect(p, s, plotRect);
+			DrawPlotLegendBackground(pen, p, legendBox);
+			DrawLegendLabels(text, p, legendBox, tickColor);
+		}
+	} else if (p.mode == PlotMode::HEATMAP) {
+		DrawHeatmap(pen, plotRect, p.heatmap);
+		if (p.hoveredSeries >= 0 && size_t(p.hoveredSeries) < p.heatmap.values.size())
+			DrawTopLabel(text, s, s.x + s.w * 0.5f, String::From(p.heatmap.values[size_t(p.hoveredSeries)], 2), textColor);
+	} else if (p.mode == PlotMode::CANDLE) {
+		const PlotAxis xr = ResolveCandleAxis(p.xAxis, p.candleBars, true);
+		const PlotAxis yr = ResolveCandleAxis(p.yAxis, p.candleBars, false);
+		DrawPlotGrid(pen, plotRect, xr, yr, WithAlpha(cs.color, 0.08f));
+		DrawCandleChart(pen, plotRect, p.candleBars, xr, yr, p.candleWidth, p.candleBullColor, p.candleBearColor,
+						p.hoveredSeries);
+		DrawAxisTicks(text, pen, plotRect, p.xAxis, xr, true, tickFs, tickColor);
+		DrawAxisTicks(text, pen, plotRect, p.yAxis, yr, false, tickFs, tickColor);
+		if (p.hoveredSeries >= 0 && size_t(p.hoveredSeries) < p.candleBars.size()) {
+			const OhlcBar &b = p.candleBars[size_t(p.hoveredSeries)];
+			DrawTopLabel(text, s, s.x + s.w * 0.5f,
+						 String("O:") + String::From(b.open, 2) + " H:" + String::From(b.high, 2) + " L:" +
+							 String::From(b.low, 2) + " C:" + String::From(b.close, 2),
+						 textColor);
+		}
+	} else {
+		const PlotAxis xr = ResolveAxis(p.xAxis, p.series, true);
+		const PlotAxis yr = ResolveAxis(p.yAxis, p.series, false);
+		const bool hasY2 = PlotHasSecondaryY(p);
+		const PlotAxis yr2 = hasY2 ? ResolveAxis(p.yAxis2, p.series, false, true) : PlotAxis{};
+		DrawPlotGrid(pen, plotRect, xr, yr, WithAlpha(cs.color, 0.08f));
+		painter.PushClip(plotRect);
+		for (size_t i = 0; i < p.series.size(); ++i) {
+			const float dim = (p.legendHover < 0 || int(i) == p.legendHover) ? 1.f : 0.25f;
+			DrawPlotSeries(pen, plotRect, p.series[i], xr, p.series[i].useSecondaryY ? yr2 : yr, dim);
+		}
+		painter.PopClip();
+		DrawAxisTicks(text, pen, plotRect, p.xAxis, xr, true, tickFs, tickColor);
+		DrawAxisTicks(text, pen, plotRect, p.yAxis, yr, false, tickFs, tickColor);
+		if (hasY2)
+			DrawAxisTicks(text, pen, plotRect, p.yAxis2, yr2, false, tickFs, tickColor);
+		if (p.hoveredSeries >= 0 && size_t(p.hoveredSeries) < p.series.size()) {
+			const PlotSeries &hs = p.series[size_t(p.hoveredSeries)];
+			if (size_t(p.hoveredIndex) < hs.x.size() && size_t(p.hoveredIndex) < hs.y.size()) {
+				const float hx = DataToScreen(xr, plotRect.x, plotRect.x + plotRect.w, hs.x[size_t(p.hoveredIndex)]);
+				pen.SetDrawColor(WithAlpha(cs.color, 0.4f));
+				pen.DrawLine(hx, plotRect.y, hx, plotRect.y + plotRect.h);
+				DrawTopLabel(text, s, hx, String::From(hs.y[size_t(p.hoveredIndex)], 2), textColor);
+			}
+		}
+		if (p.showLegend && !p.series.empty()) {
+			const sdl3::FRect legendBox = LegendBoxRect(p, s, plotRect);
+			DrawPlotLegendBackground(pen, p, legendBox);
+			DrawLegendLabels(text, p, legendBox, tickColor);
+		}
+		DrawPlotBoxZoomRect(pen, p);
+	}
+	if (!p.title.IsEmpty()) {
+		const float fs = 13.f * cs.scale;
+		const sdl3::FPoint sz = text.Measure(p.title, fs);
+		text.Draw(p.title, fs, textColor, s.x + (s.w - sz.x) * 0.5f, s.y + 2.f);
+	}
+	painter.PopClip();
+}
+
+ecs::Entity PlotUnder(ecs::ArchetypeRegistry &world, sdl3::FPoint p) {
+	return NearestWith<PlotModel>(world, HitTest(world, p));
+}
+
+void UpdatePlotHover(ecs::ArchetypeRegistry &world, ecs::Entity e, PlotModel &p, sdl3::FPoint mouse) {
+	const sdl3::FRect s = Widget(world, e).Bounds();
+	const sdl3::FRect plotRect = ComputePlotRect(p, s);
+	p.hoveredSeries = p.hoveredIndex = -1;
+	p.legendHover = -1;
+	if (!p.hovered)
+		return;
+	const size_t legendItems = p.mode == PlotMode::PIE ? p.pieSlices.size() : p.series.size();
+	if (p.showLegend && (p.mode == PlotMode::XY || p.mode == PlotMode::PIE)) {
+		const sdl3::FRect legendBox = LegendBoxRect(p, s, plotRect);
+		for (size_t i = 0; i < legendItems; ++i)
+			if (LegendRowRect(legendBox, i).Contains(mouse)) {
+				p.legendHover = int(i);
+				return;
+			}
+	}
+	switch (p.mode) {
+	case PlotMode::PIE: {
+		const sdl3::FRect circle = ComputePieCircleRect(plotRect);
+		p.hoveredSeries = PieHitTest(p.pieSlices, ComputePieAngles(p.pieSlices),
+									 {circle.x + circle.w * 0.5f, circle.y + circle.h * 0.5f}, circle.w * 0.5f, mouse);
+		break;
+	}
+	case PlotMode::HEATMAP:
+		p.hoveredSeries = HeatmapHitTest(p.heatmap, plotRect, mouse);
+		break;
+	case PlotMode::CANDLE:
+		p.hoveredSeries = CandleNearestBar(p.candleBars, plotRect, ResolveCandleAxis(p.xAxis, p.candleBars, true), mouse);
+		break;
+	case PlotMode::XY: {
+		const PlotAxis xr = ResolveAxis(p.xAxis, p.series, true);
+		const PlotAxis yr = ResolveAxis(p.yAxis, p.series, false);
+		const PlotAxis yr2 = ResolveAxis(p.yAxis2, p.series, false, true);
+		auto [si, idx] = PlotNearestPoint(p, plotRect, xr, yr, yr2, mouse);
+		p.hoveredSeries = si;
+		p.hoveredIndex = idx;
+		break;
+	}
+	}
+}
+
+bool PlotEvent(ecs::ArchetypeRegistry &world, Context &ctx, const sdl3::Event &ev) {
+	(void)ctx;
+	if (ev.IsMouseMotion()) {
+		const sdl3::FPoint m{ev.MouseMotion().x, ev.MouseMotion().y};
+		const ecs::Entity under = PlotUnder(world, m);
+		bool gesture = false;
+		world.Query<PlotModel>([&](ecs::Entity e, PlotModel &p) {
+			p.hovered = e == under;
+			const sdl3::FRect plotRect = ComputePlotRect(p, Widget(world, e).Bounds());
+			if (p.panning) {
+				p.dragCurrentMouse = m;
+				ApplyPlotPan(p, plotRect, p.dragStartMouse, p.dragCurrentMouse, p.dragStartXAxis, p.dragStartYAxis,
+							 p.dragStartYAxis2);
+				gesture = true;
+			} else if (p.boxZooming) {
+				p.dragCurrentMouse = m;
+				gesture = true;
+			} else {
+				UpdatePlotHover(world, e, p, m);
+			}
+		});
+		return gesture;
+	}
+	if (ev.IsMouseDown() || ev.IsMouseUp()) {
+		const sdl3::FPoint m{ev.MouseButton().x, ev.MouseButton().y};
+		const bool left = ev.MouseButton().button == SDL_BUTTON_LEFT;
+		const bool right = ev.MouseButton().button == SDL_BUTTON_RIGHT;
+		if (ev.IsMouseUp()) {
+			bool ended = false;
+			world.Query<PlotModel>([&](ecs::Entity e, PlotModel &p) {
+				if (left && p.panning) {
+					p.panning = false;
+					ended = true;
+				}
+				if (right && p.boxZooming) {
+					p.boxZooming = false;
+					ended = true;
+					const float dw = std::fabs(m.x - p.dragStartMouse.x), dh = std::fabs(m.y - p.dragStartMouse.y);
+					if (dw > 4.f && dh > 4.f)
+						ApplyPlotBoxZoom(p, ComputePlotRect(p, Widget(world, e).Bounds()), p.dragStartMouse, m,
+										 p.dragStartXAxis, p.dragStartYAxis, p.dragStartYAxis2);
+				}
+			});
+			return ended;
+		}
+		const ecs::Entity e = PlotUnder(world, m);
+		if (!e.Valid() || (!left && !right))
+			return false;
+		PlotModel &p = *world.GetComponent<PlotModel>(e).Unwrap();
+		p.hovered = true;
+		UpdatePlotHover(world, e, p, m);
+		if (p.legendHover >= 0) {
+			if (left) {
+				if (p.mode == PlotMode::PIE)
+					p.pieSlices[size_t(p.legendHover)].visible = !p.pieSlices[size_t(p.legendHover)].visible;
+				else
+					p.series[size_t(p.legendHover)].visible = !p.series[size_t(p.legendHover)].visible;
+			}
+			return true;
+		}
+		if (p.mode != PlotMode::XY)
+			return false;
+		if (left && ev.MouseButton().clicks >= 2) {
+			ResetPlotToAutoFit(p);
+			return true;
+		}
+		p.dragStartMouse = p.dragCurrentMouse = m;
+		p.dragStartXAxis = ResolveAxis(p.xAxis, p.series, true);
+		p.dragStartYAxis = ResolveAxis(p.yAxis, p.series, false);
+		p.dragStartYAxis2 = ResolveAxis(p.yAxis2, p.series, false, true);
+		p.hoveredSeries = p.hoveredIndex = -1;
+		if (left)
+			p.panning = true;
+		else
+			p.boxZooming = true;
+		return true;
+	}
+	if (ev.IsMouseWheel()) {
+		const sdl3::FPoint m{ev.MouseWheel().mouse_x, ev.MouseWheel().mouse_y};
+		const ecs::Entity e = PlotUnder(world, m);
+		if (!e.Valid())
+			return false;
+		PlotModel &p = *world.GetComponent<PlotModel>(e).Unwrap();
+		if (p.mode != PlotMode::XY)
+			return false;
+		const sdl3::FRect plotRect = ComputePlotRect(p, Widget(world, e).Bounds());
+		const float wheel = ev.MouseWheel().y;
+		const bool overX = !p.xAxis.tickOverlay && ((p.xAxis.tickPosition == PlotEdge::Bottom && m.y > plotRect.y + plotRect.h) ||
+													(p.xAxis.tickPosition == PlotEdge::Top && m.y < plotRect.y));
+		const bool overY = !p.yAxis.tickOverlay && ((p.yAxis.tickPosition == PlotEdge::Right && m.x > plotRect.x + plotRect.w) ||
+													(p.yAxis.tickPosition == PlotEdge::Left && m.x < plotRect.x));
+		const bool overY2 = PlotHasSecondaryY(p) && !p.yAxis2.tickOverlay &&
+							((p.yAxis2.tickPosition == PlotEdge::Right && m.x > plotRect.x + plotRect.w) ||
+							 (p.yAxis2.tickPosition == PlotEdge::Left && m.x < plotRect.x));
+		if (overX) {
+			ApplyPlotAxisZoom(p.xAxis, p.series, true, plotRect.x, plotRect.x + plotRect.w, m.x, wheel);
+		} else if (overY) {
+			ApplyPlotAxisZoom(p.yAxis, p.series, false, plotRect.y + plotRect.h, plotRect.y, m.y, wheel);
+		} else if (overY2) {
+			ApplyPlotAxisZoom(p.yAxis2, p.series, false, plotRect.y + plotRect.h, plotRect.y, m.y, wheel, true);
+		} else {
+			ApplyPlotAxisZoom(p.xAxis, p.series, true, plotRect.x, plotRect.x + plotRect.w, m.x, wheel);
+			ApplyPlotAxisZoom(p.yAxis, p.series, false, plotRect.y + plotRect.h, plotRect.y, m.y, wheel);
+			if (PlotHasSecondaryY(p))
+				ApplyPlotAxisZoom(p.yAxis2, p.series, false, plotRect.y + plotRect.h, plotRect.y, m.y, wheel, true);
+		}
+		return true;
+	}
+	return false;
+}
+
+} // namespace
+
+void RegisterPlotExtension(Context &ctx) {
+	Extension ext;
+	ext.name = "plot";
+	ext.draw = DrawPlot;
+	ext.event = PlotEvent;
+	ext.measure = [](ecs::ArchetypeRegistry &world, Context &, ecs::Entity e,
+					 const ComputedStyle &) -> Option<sdl3::FPoint> {
+		if (world.HasComponent<PlotModel>(e))
+			return Some(sdl3::FPoint{200.f, 120.f});
+		return NONE;
+	};
+	RegisterExtension(ctx, std::move(ext));
 }
 
 } // namespace ui

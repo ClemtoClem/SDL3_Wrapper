@@ -8,14 +8,14 @@ namespace sandbox {
 
 // ── InspectorPanel ───────────────────────────────────────────────────────────
 
-void InspectorPanel::Build(ecs::Entity page) {
+void InspectorPanel::Build(ui::Widget page) {
 	m_page = page;
 	MarkDirty();
 }
 
 void InspectorPanel::Teardown() {
 	ClearPopups();
-	m_page = ecs::Entity{};
+	m_page = ui::Widget();
 }
 
 void InspectorPanel::OnNodeChanged() {
@@ -53,9 +53,9 @@ const char * InspectorPanel::SectionForTab(int tab) noexcept {
 }
 
 void InspectorPanel::ClearPopups() {
-	for (ecs::Entity popup : m_popups)
+	for (ui::Widget popup : m_popups)
 		if (popup.Valid())
-			ui::DespawnTree(m_ctx.registry, popup);
+			ui::Widget(popup).Destroy();
 	m_popups.clear();
 }
 
@@ -82,7 +82,7 @@ void InspectorPanel::Refresh() {
 
 	// ── Nœud ──────────────────────────────────────────────────────────
 	{
-		ecs::Entity s = Section("Nœud", String());
+		ui::Widget s = Section("Nœud", String());
 		(void)rows.ReadOnly(s, "Type", String::Format("%s (%s)", kit::LookOf(*node).label, node->type.CStr()));
 		// Le chemin TYPÉ du nœud dans le projet : son document (scène ou
 		// objet) puis son chemin dans l'arbre — « Nœud (objet) /objects/Torche/Flamme ».
@@ -99,7 +99,7 @@ void InspectorPanel::Refresh() {
 	// ── Transform ─────────────────────────────────────────────────────
 	if (Is2DNode(*node)) {
 		// Nœud 2D : position et échelle planes (pixels), rotation autour de Z.
-		ecs::Entity s = Section("Transform", String());
+		ui::Widget s = Section("Transform", String());
 		const scene::Transform t = node->transform;
 		(void)rows.Vector2(s, "Position", {t.position.x, t.position.y}, 1.f,
 						   Live([this, id, z = t.position.z](math::FVector2 v) {
@@ -111,7 +111,7 @@ void InspectorPanel::Refresh() {
 						   Live([this, id](math::FVector2 v) { (void)m_ctx.runtime.SetScale(id, {v.x, v.y, 1.f}); }),
 						   -1000.f, 1000.f);
 	} else {
-		ecs::Entity s = Section("Transform", String());
+		ui::Widget s = Section("Transform", String());
 		(void)rows.Vector3(s, "Position", node->transform.position, 0.05f,
 						   Live([this, id](math::FVector3 v) { (void)m_ctx.runtime.SetPosition(id, v); }));
 		(void)rows.Vector3(s, "Rotation", node->transform.EulerDegrees(), 0.5f,
@@ -153,31 +153,30 @@ void InspectorPanel::Refresh() {
 void InspectorPanel::BuildHeader(const SceneDesc &scene, const scene::Node &node) {
 	const scene::NodeId id = node.id;
 	const kit::NodeLook look = kit::LookOf(node);
-	ui::WidgetBuilder head = m_ctx.factory.Row();
-	head.Pad(0.f);
-	head.Gap(6.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(m_page);
-	ecs::Entity headEntity = head.Spawn();
+	ui::WidgetBuilder head = ui::Row();
+	head.Padding(0.f);
+	head.Gap(6.f).GrowWidth().AlignItems(ui::Align::Center);
+	ui::Widget headEntity = m_page.Append(head);
 	(void)kit::Glyph(m_ctx, headEntity, look.icon, look.color, 18.f);
-	ui::WidgetBuilder name = m_ctx.factory.Input();
-	name.GrowW().H(ui::Dimension::Px(26.f)).FontSize(14.f).Tooltip(String("Entrée pour renommer")).Parent(headEntity);
+	ui::WidgetBuilder name = ui::Input();
+	name.GrowWidth().Height(26.f).FontSize(14.f).Tooltip(String("Entrée pour renommer"));
 	name.OnSubmit([this, id](const String &text) {
 		if (!text.Trim().IsEmpty() && m_ctx.runtime.RenameNode(id, text.Trim()))
 			Status(String::Format("Renommé : %s", text.Trim().CStr()));
 	});
-	ecs::Entity nameEntity = name.Spawn();
-	if (auto field = m_ctx.registry.GetComponent<ui::UiInput>(nameEntity); field.IsSome())
-		field.Unwrap()->text = node.name;
+	ui::Widget nameEntity = headEntity.Append(name);
+	nameEntity.SetText(node.name);
 
-	ui::WidgetBuilder bar = m_ctx.factory.Row();
-	bar.Pad(0.f);
-	bar.Gap(4.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(m_page);
-	ecs::Entity barEntity = bar.Spawn();
-	ui::WidgetBuilder title = m_ctx.factory.Label(String("Propriétés"));
-	title.FontSize(13.f).TextColor(m_ctx.Theme().muted).WAuto().HAuto().Parent(barEntity);
-	title.Spawn();
+	ui::WidgetBuilder bar = ui::Row();
+	bar.Padding(0.f);
+	bar.Gap(4.f).GrowWidth().AlignItems(ui::Align::Center);
+	ui::Widget barEntity = m_page.Append(bar);
+	ui::WidgetBuilder title = ui::Label(String("Propriétés"));
+	title.FontSize(13.f).Color(m_ctx.Theme().muted);
+	barEntity.Append(title);
 	(void)kit::Spacer(m_ctx, barEntity);
 
-	ecs::Entity menu = m_ctx.factory.ContextMenu();
+	ui::Widget menu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_popups.push_back(menu);
 	AddMenuItem(menu, "Modifier les propriétés en JSON…", [this, id] {
 		if (m_actions.editJson)
@@ -193,17 +192,17 @@ void InspectorPanel::BuildHeader(const SceneDesc &scene, const scene::Node &node
 			   menu);
 }
 
-ecs::Entity InspectorPanel::Section(const char *title, const String &component) {
+ui::Widget InspectorPanel::Section(const char *title, const String &component) {
 	const String key(title);
 	const bool open = m_open.find(key) == m_open.end() || m_open[key];
-	ui::WidgetBuilder section = m_ctx.factory.Expander(key, open);
-	section.GrowW().Gap(4.f).FontSize(14.f).Parent(m_page);
+	ui::WidgetBuilder section = ui::Expander(key, open);
+	section.GrowWidth().Gap(4.f).FontSize(14.f);
 	section.OnToggle([this, key](bool expanded) { m_open[key] = expanded; });
-	ecs::Entity entity = section.Spawn();
+	ui::Widget entity = m_page.Append(section);
 	m_sections.emplace_back(key, entity);
 	if (!component.IsEmpty() && open) {
 		const scene::NodeId id = m_ctx.runtime.SelectedId();
-		ecs::Entity menu = m_ctx.factory.ContextMenu();
+		ui::Widget menu = m_ctx.gui.Mount(ui::ContextMenu());
 		m_popups.push_back(menu);
 		AddMenuItem(menu, "Réinitialiser", [this, id, component] {
 			(void)m_ctx.runtime.RemoveComponentOfType(id, component);
@@ -219,40 +218,39 @@ ecs::Entity InspectorPanel::Section(const char *title, const String &component) 
 		});
 		// ⋮ dans l'en-tête de la section : positionné en ABSOLU dans la
 		// bande d'en-tête que l'Expander réserve par son padding haut.
-		ui::WidgetBuilder button = m_ctx.factory.Button(String());
-		button.Size(22.f, 22.f).Bg(sdl3::FColor{0.f, 0.f, 0.f, 0.f}).Radius(4.f).Tooltip(String("Actions du composant"));
+		ui::WidgetBuilder button = ui::Button(String());
+		button.Size(22.f, 22.f).Background(sdl3::FColor{0.f, 0.f, 0.f, 0.f}).BorderRadius(4.f).Tooltip(String("Actions du composant"));
 		// L'ancre se résout dans la boîte de CONTENU (sous le padding qui
 		// réserve l'en-tête) : on remonte donc de la hauteur d'en-tête.
 		const float header = m_ctx.Theme().fontSize + 14.f + 6.f;
-		button.Absolute().Anchor(ui::Anchor::TopRight).Offset(0.f, -header + 3.f).Parent(entity);
-		ecs::Entity buttonEntity = button.Spawn();
-		ui::WidgetBuilder glyph = m_ctx.factory.Icon(ui::MaterialIcons::MORE_VERT, 15.f);
-		glyph.Absolute().Anchor(ui::Anchor::Center).Justify(ui::Justify::Center).PointerThrough().Parent(buttonEntity);
-		(void)glyph.Spawn();
+		button.Absolute().Anchor(ui::Anchor::TopRight).Offset(0.f, -header + 3.f);
+		ui::Widget buttonEntity = entity.Append(button);
+		ui::WidgetBuilder glyph = ui::Icon(ui::MaterialIcons::MORE_VERT, 15.f);
+		glyph.Absolute().Anchor(ui::Anchor::Center).JustifyContent(ui::Justify::Center).PointerThrough();
+		buttonEntity.Append(glyph);
 		AttachMenu(buttonEntity, menu);
 	}
 	return entity;
 }
 
-void InspectorPanel::AddMenuItem(ecs::Entity menu, const char *text, std::function<void()> action) {
-	ui::WidgetBuilder item = m_ctx.factory.MenuItem(String(text));
-	item.OnClick(std::move(action)).Parent(menu);
-	(void)item.Spawn();
+void InspectorPanel::AddMenuItem(ui::Widget menu, const char *text, std::function<void()> action) {
+	ui::WidgetBuilder item = ui::MenuItem(String(text));
+	item.OnClick(std::move(action));
+	menu.Append(item);
 }
 
-void InspectorPanel::AttachMenu(ecs::Entity button, ecs::Entity menu) {
-	if (auto callbacks = m_ctx.registry.GetComponent<ui::UiCallbacks>(button); callbacks.IsSome())
-		callbacks.Unwrap()->onClick = [this, button, menu] {
-			if (auto computed = m_ctx.registry.GetComponent<ui::UiComputed>(button); computed.IsSome()) {
-				const sdl3::FRect r = computed.Unwrap()->screen;
-				m_ctx.gui.OpenPopupAt(menu, sdl3::FPoint{r.x + r.w - 200.f, r.y + r.h});
+void InspectorPanel::AttachMenu(ui::Widget button, ui::Widget menu) {
+	button.OnClick([this, button, menu]() mutable {
+			if (ui::Widget(button)) {
+				const sdl3::FRect r = ui::Widget(button).Bounds();
+				menu.OpenAt(sdl3::FPoint{r.x + r.w - 200.f, r.y + r.h});
 			}
-		};
+		});
 }
 
 void InspectorPanel::BuildVisualSections(kit::PropertyRows &rows, scene::NodeId id, const VisualDesc &visual) {
 	{
-		ecs::Entity s = Section("Maillage", String(component::VISUAL));
+		ui::Widget s = Section("Maillage", String(component::VISUAL));
 		if (visual.shape == ShapeKind::MODEL) {
 			(void)rows.ReadOnly(s, "Modèle", visual.source);
 		} else if (visual.shape == ShapeKind::MESH) {
@@ -275,19 +273,19 @@ void InspectorPanel::BuildVisualSections(kit::PropertyRows &rows, scene::NodeId 
 			(void)rows.Number(s, "Segments", float(visual.segments), 3.f, 128.f, 0.2f, Live([this, id](float n) {
 				MutateVisual(id, [n](VisualDesc &v) { v.segments = int(n); });
 			}), 0);
-			ui::WidgetBuilder convert = m_ctx.factory.Button(String("Convertir et modéliser (faces éditables)"));
-			convert.GrowW().HAuto().FontSize(12.f).Parent(s);
+			ui::WidgetBuilder convert = ui::Button(String("Convertir et modéliser (faces éditables)"));
+			convert.GrowWidth().FontSize(12.f);
 			convert.Tooltip(String("Remplace la primitive par un maillage modélisé, éditable à la SketchUp"));
 			convert.OnClick([this, id] {
 				if (m_actions.beginModeling)
 					m_actions.beginModeling(id);
 			});
-			(void)convert.Spawn();
+			s.Append(convert);
 		}
 	}
 	{
 		const MaterialDesc material = visual.material;
-		ecs::Entity s = Section("Matériau", String());
+		ui::Widget s = Section("Matériau", String());
 		std::vector<String> kinds;
 		for (MaterialKind kind : {MaterialKind::PLASTIC, MaterialKind::METAL, MaterialKind::WOOD, MaterialKind::PBR,
 								  MaterialKind::UNLIT, MaterialKind::BASIC})
@@ -297,7 +295,7 @@ void InspectorPanel::BuildVisualSections(kit::PropertyRows &rows, scene::NodeId 
 		});
 		(void)rows.Color(s, "Couleur", material.baseColor, Live([this, id](sdl3::Color c) {
 			(void)m_ctx.runtime.SetMaterialColor(id, c);
-		}), m_popups);
+		}));
 		(void)rows.Slider(s, "Métallique", material.metallic, 0.f, 1.f, Live([this, id](float v) {
 			MutateMaterial(id, [v](MaterialDesc &m) { m.metallic = v; });
 		}));
@@ -313,7 +311,7 @@ void InspectorPanel::BuildVisualSections(kit::PropertyRows &rows, scene::NodeId 
 	}
 }
 
-void InspectorPanel::BuildModeledMeshRows(kit::PropertyRows &rows, ecs::Entity s, scene::NodeId id,
+void InspectorPanel::BuildModeledMeshRows(kit::PropertyRows &rows, ui::Widget s, scene::NodeId id,
 										  const VisualDesc &visual) {
 	(void)rows.ReadOnly(s, "Fichier", visual.source);
 	Result<modeling::Model *, String> model = m_ctx.runtime.Meshes().Get(visual.source);
@@ -328,39 +326,39 @@ void InspectorPanel::BuildModeledMeshRows(kit::PropertyRows &rows, ecs::Entity s
 		edges += e.alive ? 1 : 0;
 	(void)rows.ReadOnly(s, "Géométrie", String::Format("%d faces, %d arêtes", int(faces), int(edges)));
 	const bool editing = m_ctx.modeling && m_ctx.modeling->IsActive() && m_ctx.modeling->Node() == id;
-	ui::WidgetBuilder edit = m_ctx.factory.Button(String(editing ? "Terminer la modélisation (Échap)" : "Modéliser"));
-	edit.GrowW().HAuto().FontSize(12.f).Parent(s);
+	ui::WidgetBuilder edit = ui::Button(String(editing ? "Terminer la modélisation (Échap)" : "Modéliser"));
+	edit.GrowWidth().FontSize(12.f);
 	edit.OnClick([this, id, editing] {
 		if (editing && m_actions.endModeling)
 			m_actions.endModeling();
 		else if (!editing && m_actions.beginModeling)
 			m_actions.beginModeling(id);
 	});
-	(void)edit.Spawn();
-	ui::WidgetBuilder row = m_ctx.factory.Row();
-	row.GrowW().HAuto().Gap(4.f).Pad(0.f).Parent(s);
-	const ecs::Entity rowEntity = row.Spawn();
+	s.Append(edit);
+	ui::WidgetBuilder row = ui::Row();
+	row.GrowWidth().Gap(4.f).Padding(0.f);
+	ui::Widget rowEntity = s.Append(row);
 	for (const char *extension : {"obj", "stl", "ply"}) {
-		ui::WidgetBuilder button = m_ctx.factory.Button(String::Format("Exporter .%s", extension));
-		button.GrowW().HAuto().FontSize(12.f).Parent(rowEntity);
+		ui::WidgetBuilder button = ui::Button(String::Format("Exporter .%s", extension));
+		button.GrowWidth().FontSize(12.f);
 		button.OnClick([this, extension] {
 			if (m_actions.exportMesh)
 				m_actions.exportMesh(extension);
 		});
-		(void)button.Spawn();
+		rowEntity.Append(button);
 	}
 }
 
 void InspectorPanel::BuildLightSections(kit::PropertyRows &rows, scene::NodeId id, const LightDesc &light) {
 	{
-		ecs::Entity s = Section("Lumière", String(component::LIGHT));
+		ui::Widget s = Section("Lumière", String(component::LIGHT));
 		(void)rows.Choice(s, "Type", {String("Ponctuelle"), String("Projecteur")}, int(light.kind), [this, id](int index) {
 			MutateLight(id, [index](LightDesc &l) { l.kind = LightKind(index); });
 			MarkDirty();
 		});
 		(void)rows.Color(s, "Couleur", light.color, Live([this, id](sdl3::Color c) {
 			MutateLight(id, [c](LightDesc &l) { l.color = c; });
-		}), m_popups);
+		}));
 		(void)rows.Number(s, "Intensité", light.intensity, 0.f, 50.f, 0.02f, Live([this, id](float v) {
 			MutateLight(id, [v](LightDesc &l) { l.intensity = v; });
 		}));
@@ -377,7 +375,7 @@ void InspectorPanel::BuildLightSections(kit::PropertyRows &rows, scene::NodeId i
 		}
 	}
 	{
-		ecs::Entity s = Section("Ombres", String());
+		ui::Widget s = Section("Ombres", String());
 		(void)rows.Check(s, "Activées", light.castShadow, [this, id](bool v) {
 			MutateLight(id, [v](LightDesc &l) { l.castShadow = v; });
 		});
@@ -386,7 +384,7 @@ void InspectorPanel::BuildLightSections(kit::PropertyRows &rows, scene::NodeId i
 }
 
 void InspectorPanel::BuildCameraSection(kit::PropertyRows &rows, scene::NodeId id, const CameraNodeDesc &camera) {
-	ecs::Entity s = Section("Caméra", String(component::CAMERA));
+	ui::Widget s = Section("Caméra", String(component::CAMERA));
 	(void)rows.Number(s, "Champ de vision", camera.fovDegrees, 20.f, 120.f, 0.2f, Live([this, id](float v) {
 		CameraNodeDesc updated = CurrentCamera(id);
 		updated.fovDegrees = v;
@@ -401,7 +399,7 @@ void InspectorPanel::BuildCameraSection(kit::PropertyRows &rows, scene::NodeId i
 }
 
 void InspectorPanel::BuildTriggerSection(kit::PropertyRows &rows, scene::NodeId id, const TriggerDesc &trigger) {
-	ecs::Entity s = Section("Déclencheur", String(component::TRIGGER));
+	ui::Widget s = Section("Déclencheur", String(component::TRIGGER));
 	(void)rows.Vector3(s, "Demi-taille", trigger.halfExtents, 0.02f, Live([this, id](math::FVector3 v) {
 		TriggerDesc updated = CurrentTrigger(id);
 		updated.halfExtents = v;
@@ -421,7 +419,7 @@ void InspectorPanel::BuildTriggerSection(kit::PropertyRows &rows, scene::NodeId 
 }
 
 void InspectorPanel::BuildAudioSourceSection(kit::PropertyRows &rows, scene::NodeId id, const AudioSourceDesc &source) {
-	ecs::Entity s = Section("Source audio", String(component::AUDIO_SOURCE));
+	ui::Widget s = Section("Source audio", String(component::AUDIO_SOURCE));
 	(void)rows.Text(s, "Son", source.clip, [this, id](const String &clip) {
 		MutateAudioSource(id, [clip](AudioSourceDesc &a) { a.clip = clip.Trim(); });
 		MarkDirty();
@@ -439,11 +437,10 @@ void InspectorPanel::BuildAudioSourceSection(kit::PropertyRows &rows, scene::Nod
 		MutateAudioSource(id, [v](AudioSourceDesc &a) { a.spatial = v; });
 	});
 	// Écoute : le son tel quel, sans spatialisation ni boucle.
-	ui::WidgetBuilder listen = m_ctx.factory.Button(String("Écouter / arrêter"));
-	listen.GrowW().H(ui::Dimension::Px(26.f)).Parent(s);
-	ecs::Entity button = listen.Spawn();
-	if (auto callbacks = m_ctx.registry.GetComponent<ui::UiCallbacks>(button); callbacks.IsSome())
-		callbacks.Unwrap()->onClick = [this, id] {
+	ui::WidgetBuilder listen = ui::Button(String("Écouter / arrêter"));
+	listen.GrowWidth().Height(26.f);
+	ui::Widget button = s.Append(listen);
+	button.OnClick([this, id] {
 			if (m_ctx.runtime.IsPreviewing()) {
 				m_ctx.runtime.StopPreview();
 				return;
@@ -451,12 +448,12 @@ void InspectorPanel::BuildAudioSourceSection(kit::PropertyRows &rows, scene::Nod
 			const scene::Node *node = m_ctx.runtime.FindNode(id);
 			if (node && AudioSourceDesc::Has(*node))
 				(void)m_ctx.runtime.PreviewSound(AudioSourceDesc::Read(*node).clip);
-		};
+		});
 	(void)kit::Caption(m_ctx, s, String("Glisser un son de l'explorateur dans la vue crée une source. Scripts : audio.play_source(nom)."), 11.f);
 }
 
 void InspectorPanel::BuildPhysicsSection(kit::PropertyRows &rows, scene::NodeId id, const PhysicsDesc &physics) {
-	ecs::Entity s = Section("Physique", String(component::BODY));
+	ui::Widget s = Section("Physique", String(component::BODY));
 	(void)rows.Choice(s, "Corps", {String("aucun"), String("statique"), String("dynamique")}, int(physics.body),
 					  [this, id](int index) { MutatePhysics(id, [index](PhysicsDesc &p) { p.body = BodyKind(index); }); });
 	(void)rows.Choice(s, "Collision", {String("boîte"), String("sphère"), String("capsule")}, int(physics.collider),
@@ -475,17 +472,17 @@ void InspectorPanel::BuildPhysicsSection(kit::PropertyRows &rows, scene::NodeId 
 	(void)rows.Slider(s, "Frottement", physics.friction, 0.f, 2.f, Live([this, id](float v) {
 		MutatePhysics(id, [v](PhysicsDesc &p) { p.friction = v; });
 	}));
-	ui::WidgetBuilder impulse = m_ctx.factory.Button(String("Impulsion vers le haut (mode Jeu)"));
-	impulse.GrowW().HAuto().FontSize(12.f).Parent(s);
+	ui::WidgetBuilder impulse = ui::Button(String("Impulsion vers le haut (mode Jeu)"));
+	impulse.GrowWidth().FontSize(12.f);
 	impulse.OnClick([this, id] {
 		if (const scene::Node *node = m_ctx.runtime.FindNode(id))
 			(void)m_ctx.runtime.ApplyImpulse(node->name, math::FVector3{0.f, 240.f, 0.f});
 	});
-	(void)impulse.Spawn();
+	s.Append(impulse);
 }
 
 void InspectorPanel::BuildCanvasItemSection(kit::PropertyRows &rows, scene::NodeId id, const CanvasItemDesc &item) {
-	ecs::Entity s = Section("Apparence 2D", String(component::CANVAS_ITEM));
+	ui::Widget s = Section("Apparence 2D", String(component::CANVAS_ITEM));
 	std::vector<String> kinds;
 	int current = 0;
 	for (size_t i = 0; i < std::size(CANVAS_ITEM_KINDS); ++i) {
@@ -503,9 +500,7 @@ void InspectorPanel::BuildCanvasItemSection(kit::PropertyRows &rows, scene::Node
 		});
 		MarkDirty();
 	});
-	(void)rows.Color(s, item.kind == CanvasItemKind::SPRITE ? "Teinte" : "Couleur", item.color,
-					 Live([this, id](sdl3::Color c) { MutateCanvasItem(id, [c](CanvasItemDesc &d) { d.color = c; }); }),
-					 m_popups);
+	(void)rows.Color(s, item.kind == CanvasItemKind::SPRITE ? "Teinte" : "Couleur", item.color, Live([this, id](sdl3::Color c) { MutateCanvasItem(id, [c](CanvasItemDesc &d) { d.color = c; }); }));
 	switch (item.kind) {
 		case CanvasItemKind::TEXT:
 			(void)rows.Text(s, "Texte", item.text, [this, id](const String &text) {
@@ -554,7 +549,7 @@ void InspectorPanel::BuildCanvasItemSection(kit::PropertyRows &rows, scene::Node
 		}), 1);
 		(void)rows.Color(s, "Couleur du contour", item.outlineColor, Live([this, id](sdl3::Color c) {
 			MutateCanvasItem(id, [c](CanvasItemDesc &d) { d.outlineColor = c; });
-		}), m_popups);
+		}));
 	}
 	(void)rows.Check(s, "Pivot au centre", item.centered, [this, id](bool v) {
 		MutateCanvasItem(id, [v](CanvasItemDesc &d) { d.centered = v; });
@@ -566,7 +561,7 @@ void InspectorPanel::BuildCanvasItemSection(kit::PropertyRows &rows, scene::Node
 }
 
 void InspectorPanel::BuildCamera2DSection(kit::PropertyRows &rows, scene::NodeId id, const Camera2DDesc &camera) {
-	ecs::Entity s = Section("Caméra 2D", String(component::CAMERA_2D));
+	ui::Widget s = Section("Caméra 2D", String(component::CAMERA_2D));
 	(void)rows.Number(s, "Zoom", camera.zoom, 0.05f, 20.f, 0.01f, Live([this, id](float v) {
 		if (const scene::Node *node = m_ctx.runtime.FindNode(id)) {
 			Camera2DDesc updated = Camera2DDesc::Read(*node);
@@ -603,7 +598,7 @@ void InspectorPanel::MutateCanvasItem(scene::NodeId id, const std::function<void
 }
 
 void InspectorPanel::BuildScriptSection(kit::PropertyRows &rows, scene::NodeId id, const ScriptRef &ref) {
-	ecs::Entity s = Section("Script", String(component::SCRIPT));
+	ui::Widget s = Section("Script", String(component::SCRIPT));
 	const Project &project = m_ctx.runtime.GetProject();
 	std::vector<String> names{String("(aucun)")};
 	int current = 0;
@@ -630,11 +625,11 @@ void InspectorPanel::BuildScriptSection(kit::PropertyRows &rows, scene::NodeId i
 							 ? String("aucune classe dérivée de Behaviour : rien ne s'attachera au nœud")
 							 : outline.attachProblem;
 		}
-		ecs::Entity status = rows.Row(s, "État");
+		ui::Widget status = rows.Row(s, "État");
 		(void)kit::Glyph(m_ctx, status, badge.icon, badge.color, 15.f);
-		ui::WidgetBuilder text = m_ctx.factory.Label(badge.text);
-		text.GrowW().HAuto().FontSize(12.f).TextEllipsis().Tooltip(badge.text).Parent(status);
-		(void)text.Spawn();
+		ui::WidgetBuilder text = ui::Label(badge.text);
+		text.GrowWidth().FontSize(12.f).Ellipsis().Tooltip(badge.text);
+		status.Append(text);
 		if (const ScriptClassInfo *main = outline.Find(outline.mainClass)) {
 			(void)rows.ReadOnly(s, "Classe", main->Signature());
 			String hooks;
@@ -655,13 +650,13 @@ void InspectorPanel::BuildScriptSection(kit::PropertyRows &rows, scene::NodeId i
 		if (!asset->description.IsEmpty())
 			(void)kit::Caption(m_ctx, s, asset->description, 11.f);
 	}
-	ui::WidgetBuilder open = m_ctx.factory.Button(String("Ouvrir dans l'éditeur de code"));
-	open.GrowW().HAuto().FontSize(12.f).Parent(s);
+	ui::WidgetBuilder open = ui::Button(String("Ouvrir dans l'éditeur de code"));
+	open.GrowWidth().FontSize(12.f);
 	open.OnClick([this, name = ref.script] {
 		if (m_actions.openScript && !name.IsEmpty())
 			m_actions.openScript(name);
 	});
-	(void)open.Spawn();
+	s.Append(open);
 }
 
 void InspectorPanel::BuildInstanceSection(kit::PropertyRows &rows, const SceneDesc &scene, scene::NodeId id) {
@@ -672,33 +667,33 @@ void InspectorPanel::BuildInstanceSection(kit::PropertyRows &rows, const SceneDe
 	int generated = 0;
 	scene.tree.Traverse(id, [&](scene::NodeId, const scene::Node &child) { generated += obj::IsGenerated(child) ? 1 : 0; });
 
-	ecs::Entity s = Section("Instance d'objet", String());
+	ui::Widget s = Section("Instance d'objet", String());
 	(void)rows.ReadOnly(s, "Objet", exists ? source : source + String(" (introuvable)"));
 	(void)rows.ReadOnly(s, "Contenu", String::Format("%d nœud(s) générés depuis l'objet", generated));
 	(void)kit::Caption(m_ctx, s,
 					   String("Position, rotation et taille appartiennent à l'instance ; le contenu suit l'objet. "
 							  "Ouvrez l'objet pour le modifier dans toutes les scènes."),
 					   11.f);
-	ui::WidgetBuilder buttons = m_ctx.factory.Row();
-	buttons.Gap(6.f).GrowW().HAuto().Parent(s);
-	ecs::Entity row = buttons.Spawn();
-	ui::WidgetBuilder open = m_ctx.factory.Button(String("Ouvrir l'objet"));
-	open.GrowW().HAuto().FontSize(12.f).Parent(row);
+	ui::WidgetBuilder buttons = ui::Row();
+	buttons.Gap(6.f).GrowWidth();
+	ui::Widget row = s.Append(buttons);
+	ui::WidgetBuilder open = ui::Button(String("Ouvrir l'objet"));
+	open.GrowWidth().FontSize(12.f);
 	if (!exists)
 		open.Disabled();
 	open.OnClick([this, source] {
 		if (m_ctx.runtime.OpenObject(ObjectRef{source}))
 			Status(String::Format("Objet ouvert : %s", source.CStr()));
 	});
-	(void)open.Spawn();
-	ui::WidgetBuilder detach = m_ctx.factory.Button(String("Rendre indépendant"));
-	detach.GrowW().HAuto().FontSize(12.f).Tooltip(String("Le contenu devient des nœuds propres à ce document")).Parent(row);
+	row.Append(open);
+	ui::WidgetBuilder detach = ui::Button(String("Rendre indépendant"));
+	detach.GrowWidth().FontSize(12.f).Tooltip(String("Le contenu devient des nœuds propres à ce document"));
 	detach.OnClick([this, id] {
 		auto done = m_ctx.runtime.DetachInstance(id);
 		Status(done.IsOk() ? String("Instance rendue indépendante")
 						   : String::Format("Impossible : %s", done.Error().CStr()));
 	});
-	(void)detach.Spawn();
+	row.Append(detach);
 }
 
 void InspectorPanel::BuildScriptObjects(kit::PropertyRows &rows, scene::NodeId id) {
@@ -708,16 +703,15 @@ void InspectorPanel::BuildScriptObjects(kit::PropertyRows &rows, scene::NodeId i
 	// Les objets de script qui PORTENT ce nœud (Behaviour attachée, Mesh3D
 	// créé par un script…) : lus dans les registres C++, sans exécuter de
 	// script. Les champs sont un instantané : « Actualiser » le reprend.
-	ecs::Entity s = Section("Objets de script", String());
+	ui::Widget s = Section("Objets de script", String());
 	constexpr size_t MAX_FIELDS = 16;
 	for (const ScriptObjectInfo &info : objects) {
-		ecs::Entity head = rows.Row(s, info.attached ? "Behaviour" : "Objet");
+		ui::Widget head = rows.Row(s, info.attached ? "Behaviour" : "Objet");
 		(void)kit::Glyph(m_ctx, head, info.destroyed ? ui::MaterialIcons::ERROR : ui::MaterialIcons::CHECK_CIRCLE,
 						 info.destroyed ? kit::PaletteOf(m_ctx).error : kit::syntax::Colors().type, 15.f);
-		ui::WidgetBuilder title = m_ctx.factory.Label(info.Signature());
-		title.GrowW().HAuto().FontSize(12.f).TextEllipsis().Tooltip(String::Format("créé par : %s", info.origin.CStr()));
-		title.Parent(head);
-		(void)title.Spawn();
+		ui::WidgetBuilder title = ui::Label(info.Signature());
+		title.GrowWidth().FontSize(12.f).Ellipsis().Tooltip(String::Format("créé par : %s", info.origin.CStr()));
+		head.Append(title);
 		const std::vector<std::pair<String, String>> fields = info.Fields();
 		for (size_t i = 0; i < fields.size() && i < MAX_FIELDS; ++i)
 			(void)rows.ReadOnly(s, fields[i].first.CStr(), fields[i].second);
@@ -725,39 +719,39 @@ void InspectorPanel::BuildScriptObjects(kit::PropertyRows &rows, scene::NodeId i
 			(void)kit::Caption(m_ctx, s, String::Format("… %d autres champs", int(fields.size() - MAX_FIELDS)), 11.f);
 		if (info.destroyed)
 			continue;
-		ui::WidgetBuilder destroy = m_ctx.factory.Button(String("Détruire (on_destroy → deinit → bases)"));
-		destroy.GrowW().HAuto().FontSize(12.f).Parent(s);
+		ui::WidgetBuilder destroy = ui::Button(String("Détruire (on_destroy → deinit → bases)"));
+		destroy.GrowWidth().FontSize(12.f);
 		destroy.OnClick([this, info] {
 			if (m_ctx.runtime.DestroyScriptObject(info))
 				Status(String::Format("%s détruit", info.className.CStr()));
 			Refresh();
 		});
-		(void)destroy.Spawn();
+		s.Append(destroy);
 	}
-	ui::WidgetBuilder refresh = m_ctx.factory.Button(String("Actualiser les champs"));
-	refresh.GrowW().HAuto().FontSize(12.f).Parent(s);
+	ui::WidgetBuilder refresh = ui::Button(String("Actualiser les champs"));
+	refresh.GrowWidth().FontSize(12.f);
 	refresh.OnClick([this] { Refresh(); });
-	(void)refresh.Spawn();
+	s.Append(refresh);
 }
 
 void InspectorPanel::BuildCustomProperties(const scene::Node &node) {
 	if (node.properties.Size() == 0)
 		return;
-	ecs::Entity s = Section("Propriétés personnalisées", String());
+	ui::Widget s = Section("Propriétés personnalisées", String());
 	kit::PropertyRows rows(m_ctx);
 	for (const auto &[key, value] : node.properties.Entries())
 		(void)rows.ReadOnly(s, key.CStr(), value.ToDisplayString());
-	ui::WidgetBuilder edit = m_ctx.factory.Button(String("Modifier en JSON…"));
-	edit.GrowW().HAuto().FontSize(12.f).Parent(s);
+	ui::WidgetBuilder edit = ui::Button(String("Modifier en JSON…"));
+	edit.GrowWidth().FontSize(12.f);
 	edit.OnClick([this, id = node.id] {
 		if (m_actions.editJson)
 			m_actions.editJson(id, String());
 	});
-	(void)edit.Spawn();
+	s.Append(edit);
 }
 
 void InspectorPanel::BuildAddComponent(const scene::Node &node) {
-	ecs::Entity menu = m_ctx.factory.ContextMenu();
+	ui::Widget menu = m_ctx.gui.Mount(ui::ContextMenu());
 	m_popups.push_back(menu);
 	int available = 0;
 	for (const String &type : Runtime::AddableComponents()) {
@@ -773,9 +767,9 @@ void InspectorPanel::BuildAddComponent(const scene::Node &node) {
 	}
 	if (available == 0)
 		return;
-	ui::WidgetBuilder add = m_ctx.factory.Button(String("Ajouter un composant"));
-	add.GrowW().H(ui::Dimension::Px(28.f)).Parent(m_page);
-	ecs::Entity button = add.Spawn();
+	ui::WidgetBuilder add = ui::Button(String("Ajouter un composant"));
+	add.GrowWidth().Height(28.f);
+	ui::Widget button = m_page.Append(add);
 	AttachMenu(button, menu);
 }
 
@@ -783,14 +777,11 @@ void InspectorPanel::ScrollToPendingSection() {
 	for (const auto &[title, entity] : m_sections) {
 		if (title != m_pendingSection)
 			continue;
-		auto section = m_ctx.registry.GetComponent<ui::UiComputed>(entity);
-		auto page = m_ctx.registry.GetComponent<ui::UiComputed>(m_page);
-		auto rect = m_ctx.registry.GetComponent<ui::UiRect>(m_page);
-		if (section.IsNone() || page.IsNone() || rect.IsNone() || section.Unwrap()->screen.h <= 0.f)
+		ui::Widget section = entity, page = m_page;
+		if (!section || !page || section.Bounds().h <= 0.f)
 			return; // mise en page pas encore faite : réessai à l'image suivante
-		rect.Unwrap()->scroll.y += section.Unwrap()->screen.y - page.Unwrap()->screen.y - 4.f;
-		rect.Unwrap()->ClampScroll();
-		m_ctx.gui.Layout().MarkDirty();
+		const sdl3::FPoint scroll = page.ScrollOffset();
+		page.ScrollTo({scroll.x, scroll.y + section.Bounds().y - page.Bounds().y - 4.f});
 		break;
 	}
 	m_pendingSection = String();
@@ -924,37 +915,36 @@ std::vector<MaterialPreset> MaterialPresets() {
 
 // ── LibraryPanel ─────────────────────────────────────────────────────────────
 
-void LibraryPanel::BuildMaterials(ecs::Entity page) {
+void LibraryPanel::BuildMaterials(ui::Widget page) {
 	m_materialsPage = page;
 	(void)kit::Caption(m_ctx, page, String("Clic : appliquer au maillage sélectionné"), 12.f);
 	const std::vector<MaterialPreset> presets = MaterialPresets();
-	ecs::Entity row{};
+	ui::Widget row{};
 	for (size_t i = 0; i < presets.size(); ++i) {
 		if (i % 3 == 0) {
-			ui::WidgetBuilder rowBuilder = m_ctx.factory.Row();
-			rowBuilder.Pad(0.f);
-			rowBuilder.Gap(6.f).GrowW().HAuto().Parent(page);
-			row = rowBuilder.Spawn();
+			ui::WidgetBuilder rowBuilder = ui::Row();
+			rowBuilder.Padding(0.f);
+			rowBuilder.Gap(6.f).GrowWidth();
+			row = page.Append(rowBuilder);
 		}
 		const MaterialPreset preset = presets[i];
-		ui::WidgetBuilder tile = m_ctx.factory.Button(String());
-		tile.Size(84.f, 74.f).Radius(4.f).Bg(sdl3::FColor{0.f, 0.f, 0.f, 0.f}).Tooltip(String(preset.name)).Parent(row);
+		ui::WidgetBuilder tile = ui::Button(String());
+		tile.Size(84.f, 74.f).BorderRadius(4.f).Background(sdl3::FColor{0.f, 0.f, 0.f, 0.f}).Tooltip(String(preset.name));
 		tile.OnClick([this, preset] { Apply(preset); });
-		ecs::Entity tileEntity = tile.Spawn();
-		ui::WidgetBuilder swatch = m_ctx.factory.Row();
-		swatch.Pad(0.f);
-		swatch.Size(46.f, 40.f).Radius(preset.material.kind == MaterialKind::METAL ? 20.f : 4.f);
-		swatch.Bg(kit::FromColor(preset.material.baseColor)).Absolute().Anchor(ui::Anchor::Top).Offset(0.f, 6.f);
-		swatch.PointerThrough().Parent(tileEntity);
-		(void)swatch.Spawn();
-		ui::WidgetBuilder name = m_ctx.factory.Label(String(preset.name));
-		name.Absolute().Anchor(ui::Anchor::Bottom).Offset(0.f, -4.f).WAuto().HAuto().FontSize(12.f).PointerThrough();
-		name.Parent(tileEntity);
-		(void)name.Spawn();
+		ui::Widget tileEntity = row.Append(tile);
+		ui::WidgetBuilder swatch = ui::Row();
+		swatch.Padding(0.f);
+		swatch.Size(46.f, 40.f).BorderRadius(preset.material.kind == MaterialKind::METAL ? 20.f : 4.f);
+		swatch.Background(kit::FromColor(preset.material.baseColor)).Absolute().Anchor(ui::Anchor::Top).Offset(0.f, 6.f);
+		swatch.PointerThrough();
+		tileEntity.Append(swatch);
+		ui::WidgetBuilder name = ui::Label(String(preset.name));
+		name.Absolute().Anchor(ui::Anchor::Bottom).Offset(0.f, -4.f).FontSize(12.f).PointerThrough();
+		tileEntity.Append(name);
 	}
 }
 
-void LibraryPanel::BuildScripts(ecs::Entity page) {
+void LibraryPanel::BuildScripts(ui::Widget page) {
 	m_scriptsPage = page;
 	RefreshScripts();
 }
@@ -967,25 +957,25 @@ void LibraryPanel::RefreshScripts() {
 	for (const ScriptAsset &script : m_ctx.runtime.GetProject().scripts) {
 		const kit::ScriptBadge badge =
 			kit::BadgeOf(m_ctx, m_ctx.runtime.OutlineScript(script.source, ScriptUse::LIBRARY));
-		ui::WidgetBuilder row = m_ctx.factory.Row();
-		row.Pad(0.f);
-		row.Gap(6.f).GrowW().HAuto().Align(ui::CrossAlign::Center).Parent(m_scriptsPage);
-		ecs::Entity rowEntity = row.Spawn();
+		ui::WidgetBuilder row = ui::Row();
+		row.Padding(0.f);
+		row.Gap(6.f).GrowWidth().AlignItems(ui::Align::Center);
+		ui::Widget rowEntity = m_scriptsPage.Append(row);
 		(void)kit::Glyph(m_ctx, rowEntity, badge.icon, badge.color, 16.f);
 		// Ligne sélectionnable (texte à gauche) : un UiButton centre
 		// toujours son texte.
-		ui::WidgetBuilder name = m_ctx.factory.Selectable(String(), m_scriptRowIndex++);
-		name.GrowW().HAuto().Pad(math::Sides{4.f, 3.f}).Parent(rowEntity);
+		ui::WidgetBuilder name = ui::Selectable(String(), m_scriptRowIndex++);
+		name.GrowWidth().Padding(math::Sides{4.f, 3.f});
 		name.Tooltip(script.description.IsEmpty() ? badge.text
 												  : String::Format("%s\n%s", script.description.CStr(), badge.text.CStr()));
 		name.OnClick([this, scriptName = script.name] {
 			if (m_actions.openScript)
 				m_actions.openScript(scriptName);
 		});
-		ecs::Entity nameEntity = name.Spawn();
-		ui::WidgetBuilder text = m_ctx.factory.Label(script.name + String(".script"));
-		text.GrowW().HAuto().FontSize(13.f).TextEllipsis().PointerThrough().Parent(nameEntity);
-		(void)text.Spawn();
+		ui::Widget nameEntity = rowEntity.Append(name);
+		ui::WidgetBuilder text = ui::Label(script.name + String(".script"));
+		text.GrowWidth().FontSize(13.f).Ellipsis().PointerThrough();
+		nameEntity.Append(text);
 		(void)kit::IconButton(m_ctx, rowEntity, ui::MaterialIcons::LINK, String("Attacher au nœud sélectionné"),
 							  [this, scriptName = script.name] {
 								  const scene::NodeId id = m_ctx.runtime.SelectedId();
@@ -1004,7 +994,7 @@ void LibraryPanel::RefreshScripts() {
 	}
 }
 
-void LibraryPanel::BuildWorld(ecs::Entity page) {
+void LibraryPanel::BuildWorld(ui::Widget page) {
 	m_worldPage = page;
 	RefreshWorld();
 }
@@ -1013,16 +1003,16 @@ void LibraryPanel::RefreshWorld() {
 	if (!m_worldPage.Valid())
 		return;
 	kit::ClearChildren(m_ctx, m_worldPage);
-	for (ecs::Entity popup : m_popups)
-		ui::DespawnTree(m_ctx.registry, popup);
+	for (ui::Widget popup : m_popups)
+		ui::Widget(popup).Destroy();
 	m_popups.clear();
 	SceneDesc *scene = m_ctx.runtime.ActiveDocument();
 	if (!scene)
 		return;
 	kit::PropertyRows rows(m_ctx, 90.f);
-	ui::WidgetBuilder title = m_ctx.factory.Label(scene->name);
-	title.FontSize(14.f).Bold().WAuto().HAuto().Parent(m_worldPage);
-	(void)title.Spawn();
+	ui::WidgetBuilder title = ui::Label(scene->name);
+	title.FontSize(14.f).Bold();
+	m_worldPage.Append(title);
 	(void)kit::Caption(m_ctx, m_worldPage, scene->description, 11.f);
 	if (scene->IsObject()) {
 		// Un objet n'est qu'une arborescence de nœuds : le monde (gravité,
@@ -1053,12 +1043,12 @@ void LibraryPanel::RefreshWorld() {
 		if (SceneDesc *target = m_ctx.runtime.ActiveDocument())
 			target->environment.ambientColor = c;
 		m_ctx.runtime.ApplyEnvironment();
-	}, m_popups);
+	});
 	(void)rows.Color(m_worldPage, "Fond", scene->environment.backgroundColor, [this](sdl3::Color c) {
 		if (SceneDesc *target = m_ctx.runtime.ActiveDocument())
 			target->environment.backgroundColor = c;
 		m_ctx.runtime.ApplyEnvironment();
-	}, m_popups);
+	});
 
 	// Calque 2D de la scène.
 	(void)kit::Caption(m_ctx, m_worldPage, String("2D : écran de référence et rendu"), 12.f);
@@ -1080,15 +1070,15 @@ void LibraryPanel::RefreshWorld() {
 	}, 0);
 	(void)rows.Color(m_worldPage, "Fond 2D", scene->canvas.background, [canvas2d](sdl3::Color c) {
 		canvas2d([c](Canvas2DDesc &d) { d.background = c; });
-	}, m_popups);
+	});
 }
 
 void LibraryPanel::Teardown() {
-	for (ecs::Entity popup : m_popups)
+	for (ui::Widget popup : m_popups)
 		if (popup.Valid())
-			ui::DespawnTree(m_ctx.registry, popup);
+			ui::Widget(popup).Destroy();
 	m_popups.clear();
-	m_materialsPage = m_scriptsPage = m_worldPage = ecs::Entity{};
+	m_materialsPage = m_scriptsPage = m_worldPage = ui::Widget();
 }
 
 void LibraryPanel::Apply(const MaterialPreset &preset) {

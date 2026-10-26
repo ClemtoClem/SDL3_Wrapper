@@ -1,0 +1,1010 @@
+// Biomes propres aux dimensions (« dimension » : ils ne s'invitent pas dans
+// le monde ordinaire). Décorations procédurales : giant_tree, spire, patch,
+// cluster (cf. voxel/worldgen.hpp).
+[
+ {
+  "type": "biome",
+  "id": "inverted_isles",
+  "displayName": "Îles inversées",
+  "dimension": "inverted",
+  "climate": {
+   "temperature": 0.5,
+   "humidity": 0.5
+  },
+  "terrain": {
+   "height": 64,
+   "variation": 8,
+   "roughness": 0.5
+  },
+  "blocks": {
+   "surface": "inverted_grass",
+   "subsurface": "inverted_soil",
+   "filler": "inverted_stone",
+   "subsurfaceDepth": 3,
+   "underwater": "inverted_stone"
+  },
+  "decorations": [
+   {
+    "feature": "spire",
+    "chance": 0.0014,
+    "block": "gravity_field_up",
+    "height": [
+     50,
+     80
+    ],
+    "radius": [
+     1,
+     2
+    ],
+    "taper": false,
+    "natural": true
+   },
+   {
+    "feature": "spire",
+    "chance": 0.0016,
+    "block": "inverted_bricks",
+    "accent": "gravity_crystal_block",
+    "crown": "zenith_altar",
+    "height": [
+     8,
+     16
+    ],
+    "radius": [
+     2,
+     3
+    ],
+    "square": true,
+    "hollow": true,
+    "ruined": 0.45
+   },
+   {
+    "feature": "cluster",
+    "chance": 0.02,
+    "block": "gravity_crystal_block",
+    "tip": "inversion_crystal_ore",
+    "size": [
+     1,
+     3
+    ],
+    "where": "ceiling"
+   },
+   {
+    "block": "inverted_flower",
+    "chance": 0.06,
+    "on": [
+     "inverted_grass"
+    ]
+   },
+   {
+    "block": "void_lily",
+    "chance": 0.02,
+    "on": [
+     "inverted_grass"
+    ]
+   },
+   {
+    "block": "inverted_tall_grass",
+    "chance": 0.12,
+    "on": [
+     "inverted_grass"
+    ]
+   }
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "inverted_ceiling",
+  "displayName": "Plafonds suspendus",
+  "dimension": "inverted",
+  "climate": {
+   "temperature": 0.5,
+   "humidity": 0.5
+  },
+  "terrain": {
+   "height": 64,
+   "variation": 8,
+   "roughness": 0.5
+  },
+  "blocks": {
+   "surface": "inverted_grass",
+   "subsurface": "inverted_soil",
+   "filler": "inverted_stone",
+   "subsurfaceDepth": 3,
+   "underwater": "inverted_stone"
+  },
+  "decorations": [
+   {
+    "feature": "spire",
+    "chance": 0.0016,
+    "block": "gravity_field_down",
+    "height": [
+     50,
+     80
+    ],
+    "radius": [
+     1,
+     2
+    ],
+    "taper": false,
+    "natural": true
+   },
+   {
+    "feature": "cluster",
+    "chance": 0.015,
+    "block": "gravity_crystal_block",
+    "size": [
+     1,
+     2
+    ]
+   },
+   {
+    "block": "inverted_flower",
+    "chance": 0.05,
+    "on": [
+     "inverted_grass"
+    ]
+   }
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "living_jungle",
+  "displayName": "Jungle primordiale",
+  "dimension": "living",
+  "climate": {
+   "temperature": 0.8,
+   "humidity": 0.85
+  },
+  "terrain": {
+   "height": 70,
+   "variation": 10,
+   "roughness": 0.6
+  },
+  "blocks": {
+   "surface": "living_moss",
+   "subsurface": "living_soil",
+   "filler": "stone",
+   "subsurfaceDepth": 3,
+   "underwater": "living_soil"
+  },
+  "decorations": [
+   {
+    "feature": "giant_tree",
+    "chance": 0.0009,
+    "trunk": "primordial_log",
+    "leaves": "primordial_leaves",
+    "sap": "primordial_sap_block",
+    "fruit": "glow_fruit",
+    "floor": "primordial_planks",
+    "climb": "vine",
+    "core": "root_heart",
+    "height": [
+     44,
+     64
+    ],
+    "radius": [
+     3,
+     5
+    ],
+    "hollow": true,
+    "sapChance": 0.05,
+    "natural": true
+   },
+   {
+    "structure": "jungle_tree",
+    "chance": 0.02,
+    "on": [
+     "living_moss"
+    ]
+   },
+   {
+    "block": "glow_fern",
+    "chance": 0.1,
+    "on": [
+     "living_moss"
+    ]
+   },
+   {
+    "block": "lumen_flower",
+    "chance": 0.02,
+    "on": [
+     "living_moss"
+    ]
+   },
+   {
+    "block": "spore_cap",
+    "chance": 0.012,
+    "on": [
+     "living_moss"
+    ]
+   },
+   {
+    "block": "creeping_vine",
+    "chance": 0.01,
+    "on": [
+     "living_moss"
+    ]
+   }
+  ],
+  "sky": [
+   40,
+   90,
+   70
+  ],
+  "fog": [
+   40,
+   90,
+   70
+  ],
+  "colors": {
+   "foliage": [
+    60,
+    190,
+    90
+   ]
+  }
+ },
+ {
+  "type": "biome",
+  "id": "living_glowshroom",
+  "displayName": "Forêt de champignons lumineux",
+  "dimension": "living",
+  "climate": {
+   "temperature": 0.6,
+   "humidity": 0.95
+  },
+  "terrain": {
+   "height": 66,
+   "variation": 6,
+   "roughness": 0.5
+  },
+  "blocks": {
+   "surface": "living_mycelium",
+   "subsurface": "living_soil",
+   "filler": "stone",
+   "subsurfaceDepth": 3
+  },
+  "decorations": [
+   {
+    "feature": "giant_tree",
+    "chance": 0.004,
+    "trunk": "giant_mushroom_stem",
+    "leaves": "spore_cap_block",
+    "fruit": "glow_fruit",
+    "height": [
+     16,
+     26
+    ],
+    "radius": [
+     2,
+     3
+    ],
+    "hollow": false,
+    "natural": true
+   },
+   {
+    "block": "spore_cap",
+    "chance": 0.05,
+    "on": [
+     "living_mycelium"
+    ]
+   },
+   {
+    "block": "glow_mushroom",
+    "chance": 0.06,
+    "on": [
+     "living_mycelium"
+    ]
+   },
+   {
+    "block": "lumen_flower",
+    "chance": 0.01,
+    "on": [
+     "living_mycelium"
+    ]
+   }
+  ],
+  "sky": [
+   30,
+   60,
+   80
+  ],
+  "fog": [
+   30,
+   60,
+   80
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "living_rootlands",
+  "displayName": "Terres des racines",
+  "dimension": "living",
+  "climate": {
+   "temperature": 0.9,
+   "humidity": 0.5
+  },
+  "terrain": {
+   "height": 74,
+   "variation": 14,
+   "roughness": 0.7
+  },
+  "blocks": {
+   "surface": "living_soil",
+   "subsurface": "living_soil",
+   "filler": "stone",
+   "subsurfaceDepth": 3
+  },
+  "decorations": [
+   {
+    "feature": "spire",
+    "chance": 0.004,
+    "block": "primordial_log",
+    "height": [
+     8,
+     18
+    ],
+    "radius": [
+     1,
+     2
+    ],
+    "taper": true,
+    "natural": true
+   },
+   {
+    "feature": "giant_tree",
+    "chance": 0.0005,
+    "trunk": "primordial_log",
+    "leaves": "primordial_leaves",
+    "sap": "primordial_sap_block",
+    "fruit": "glow_fruit",
+    "floor": "primordial_planks",
+    "climb": "vine",
+    "core": "root_heart",
+    "height": [
+     50,
+     70
+    ],
+    "radius": [
+     4,
+     6
+    ],
+    "hollow": true,
+    "sapChance": 0.07,
+    "natural": true
+   },
+   {
+    "block": "thorn_bush",
+    "chance": 0.03,
+    "on": [
+     "living_soil"
+    ]
+   },
+   {
+    "block": "glow_fern",
+    "chance": 0.04,
+    "on": [
+     "living_soil"
+    ]
+   }
+  ],
+  "sky": [
+   60,
+   80,
+   50
+  ],
+  "fog": [
+   60,
+   80,
+   50
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "frag_prehistoric",
+  "displayName": "Ère préhistorique",
+  "dimension": "fragmented",
+  "climate": {
+   "temperature": 0.92,
+   "humidity": 0.85
+  },
+  "terrain": {
+   "height": 68,
+   "variation": 10,
+   "roughness": 0.6
+  },
+  "blocks": {
+   "surface": "grass",
+   "subsurface": "dirt",
+   "filler": "stone",
+   "subsurfaceDepth": 3,
+   "underwater": "sand"
+  },
+  "decorations": [
+   {
+    "structure": "jungle_tree",
+    "chance": 0.015,
+    "on": [
+     "grass"
+    ]
+   },
+   {
+    "feature": "spire",
+    "chance": 0.0015,
+    "block": "magmacobble_block",
+    "height": [
+     6,
+     14
+    ],
+    "radius": [
+     2,
+     4
+    ],
+    "taper": true,
+    "natural": true
+   },
+   {
+    "block": "giant_fern",
+    "chance": 0.12,
+    "on": [
+     "grass"
+    ]
+   },
+   {
+    "block": "fern",
+    "chance": 0.1,
+    "on": [
+     "grass"
+    ]
+   }
+  ],
+  "sky": [
+   150,
+   200,
+   160
+  ],
+  "fog": [
+   150,
+   200,
+   160
+  ],
+  "colors": {
+   "grass": [
+    90,
+    170,
+    50
+   ],
+   "foliage": [
+    70,
+    150,
+    40
+   ]
+  }
+ },
+ {
+  "type": "biome",
+  "id": "frag_medieval",
+  "displayName": "Moyen Âge",
+  "dimension": "fragmented",
+  "climate": {
+   "temperature": 0.55,
+   "humidity": 0.5
+  },
+  "terrain": {
+   "height": 66,
+   "variation": 6,
+   "roughness": 0.5
+  },
+  "blocks": {
+   "surface": "grass",
+   "subsurface": "dirt",
+   "filler": "stone",
+   "subsurfaceDepth": 3,
+   "underwater": "sand"
+  },
+  "decorations": [
+   {
+    "structure": "house",
+    "chance": 0.0012,
+    "on": [
+     "grass"
+    ]
+   },
+   {
+    "structure": "well",
+    "chance": 0.0006,
+    "on": [
+     "grass"
+    ]
+   },
+   {
+    "feature": "spire",
+    "chance": 0.0008,
+    "block": "ruined_wall",
+    "accent": "cobble",
+    "height": [
+     12,
+     20
+    ],
+    "radius": [
+     3,
+     4
+    ],
+    "square": true,
+    "hollow": true,
+    "ruined": 0.25
+   },
+   {
+    "structure": "oak_tree",
+    "chance": 0.006,
+    "on": [
+     "grass"
+    ]
+   },
+   {
+    "block": "tall_grass",
+    "chance": 0.1,
+    "on": [
+     "grass"
+    ]
+   },
+   {
+    "block": "time_vault",
+    "chance": 0.0004,
+    "on": [
+     "grass"
+    ]
+   }
+  ],
+  "sky": [
+   150,
+   190,
+   235
+  ],
+  "fog": [
+   150,
+   190,
+   235
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "frag_future",
+  "displayName": "Futur en ruine",
+  "dimension": "fragmented",
+  "climate": {
+   "temperature": 0.3,
+   "humidity": 0.3
+  },
+  "terrain": {
+   "height": 64,
+   "variation": 3,
+   "roughness": 0.2
+  },
+  "blocks": {
+   "surface": "future_pavement",
+   "subsurface": "gravel",
+   "filler": "stone",
+   "subsurfaceDepth": 3
+  },
+  "decorations": [
+   {
+    "feature": "spire",
+    "chance": 0.004,
+    "block": "future_concrete",
+    "accent": "future_glass",
+    "crown": "future_lamp",
+    "height": [
+     18,
+     44
+    ],
+    "radius": [
+     3,
+     5
+    ],
+    "square": true,
+    "hollow": true,
+    "ruined": 0.35,
+    "taper": false
+   },
+   {
+    "block": "time_vault",
+    "chance": 0.0008,
+    "on": [
+     "future_pavement"
+    ]
+   },
+   {
+    "block": "sealed_chest",
+    "chance": 0.0008,
+    "on": [
+     "future_pavement"
+    ]
+   },
+   {
+    "block": "dead_bush",
+    "chance": 0.01,
+    "on": [
+     "future_pavement"
+    ]
+   }
+  ],
+  "sky": [
+   170,
+   160,
+   150
+  ],
+  "fog": [
+   170,
+   160,
+   150
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "frag_anomaly",
+  "displayName": "Anomalies temporelles",
+  "dimension": "fragmented",
+  "climate": {
+   "temperature": 0.1,
+   "humidity": 0.9
+  },
+  "terrain": {
+   "height": 68,
+   "variation": 12,
+   "roughness": 0.8
+  },
+  "blocks": {
+   "surface": "chrono_stone_present",
+   "subsurface": "chrono_stone_past",
+   "filler": "stone",
+   "subsurfaceDepth": 3
+  },
+  "decorations": [
+   {
+    "block": "anomaly_fast",
+    "chance": 0.01,
+    "on": [
+     "chrono_stone_present"
+    ]
+   },
+   {
+    "block": "anomaly_slow",
+    "chance": 0.01,
+    "on": [
+     "chrono_stone_present"
+    ]
+   },
+   {
+    "block": "anomaly_frozen",
+    "chance": 0.006,
+    "on": [
+     "chrono_stone_present"
+    ]
+   },
+   {
+    "feature": "spire",
+    "chance": 0.0012,
+    "block": "chrono_stone_future",
+    "crown": "chrono_altar",
+    "height": [
+     6,
+     10
+    ],
+    "radius": [
+     1,
+     2
+    ],
+    "taper": false,
+    "square": true
+   },
+   {
+    "feature": "cluster",
+    "chance": 0.004,
+    "block": "time_crystal_ore",
+    "size": [
+     1,
+     2
+    ]
+   }
+  ],
+  "sky": [
+   120,
+   100,
+   180
+  ],
+  "fog": [
+   120,
+   100,
+   180
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "core_magma_caves",
+  "displayName": "Cavernes de magma",
+  "dimension": "core",
+  "climate": {
+   "temperature": 0.9,
+   "humidity": 0.3
+  },
+  "terrain": {
+   "height": 64,
+   "variation": 8,
+   "roughness": 0.5
+  },
+  "blocks": {
+   "surface": "core_ash",
+   "subsurface": "core_basalt",
+   "filler": "core_stone",
+   "subsurfaceDepth": 3,
+   "underwater": "core_basalt"
+  },
+  "decorations": [
+   {
+    "feature": "cluster",
+    "chance": 0.012,
+    "block": "ember_crystal",
+    "size": [
+     1,
+     2
+    ],
+    "where": "ceiling"
+   },
+   {
+    "feature": "cluster",
+    "chance": 0.006,
+    "block": "ember_crystal",
+    "size": [
+     1,
+     2
+    ]
+   },
+   {
+    "block": "magma_vent",
+    "chance": 0.008
+   },
+   {
+    "feature": "spire",
+    "chance": 0.0015,
+    "block": "ancient_bronze",
+    "crown": "ancient_machine_broken",
+    "height": [
+     3,
+     5
+    ],
+    "radius": [
+     1,
+     1
+    ],
+    "square": true,
+    "taper": false
+   },
+   {
+    "block": "core_altar",
+    "chance": 0.0002
+   }
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "core_dark_caves",
+  "displayName": "Cavernes sans lumière",
+  "dimension": "core",
+  "climate": {
+   "temperature": 0.3,
+   "humidity": 0.7
+  },
+  "terrain": {
+   "height": 64,
+   "variation": 8,
+   "roughness": 0.5
+  },
+  "blocks": {
+   "surface": "core_shadow_rock",
+   "subsurface": "core_shadow_rock",
+   "filler": "core_stone",
+   "subsurfaceDepth": 3,
+   "underwater": "core_shadow_rock"
+  },
+  "decorations": [
+   {
+    "block": "shadow_moss",
+    "chance": 0.05
+   },
+   {
+    "feature": "cluster",
+    "chance": 0.003,
+    "block": "core_shadow_rock",
+    "size": [
+     1,
+     3
+    ],
+    "where": "ceiling"
+   },
+   {
+    "feature": "spire",
+    "chance": 0.001,
+    "block": "ancient_bronze",
+    "crown": "ancient_machine_broken",
+    "height": [
+     3,
+     5
+    ],
+    "radius": [
+     1,
+     1
+    ],
+    "square": true,
+    "taper": false
+   }
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "core_forge_halls",
+  "displayName": "Halles des forges antiques",
+  "dimension": "core",
+  "climate": {
+   "temperature": 0.6,
+   "humidity": 0.1
+  },
+  "terrain": {
+   "height": 64,
+   "variation": 8,
+   "roughness": 0.5
+  },
+  "blocks": {
+   "surface": "core_metal_floor",
+   "subsurface": "ancient_bronze",
+   "filler": "core_stone",
+   "subsurfaceDepth": 3,
+   "underwater": "core_basalt"
+  },
+  "decorations": [
+   {
+    "feature": "spire",
+    "chance": 0.006,
+    "block": "ancient_bronze",
+    "accent": "core_seal",
+    "crown": "ancient_machine_broken",
+    "height": [
+     5,
+     9
+    ],
+    "radius": [
+     1,
+     2
+    ],
+    "square": true,
+    "taper": false
+   },
+   {
+    "feature": "cluster",
+    "chance": 0.004,
+    "block": "ember_crystal",
+    "size": [
+     1,
+     2
+    ],
+    "where": "ceiling"
+   },
+   {
+    "block": "core_altar",
+    "chance": 0.0006
+   }
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "void_isles",
+  "displayName": "Îles du Néant",
+  "dimension": "void",
+  "climate": {
+   "temperature": 0.4,
+   "humidity": 0.4
+  },
+  "terrain": {
+   "height": 64,
+   "variation": 8,
+   "roughness": 0.5
+  },
+  "blocks": {
+   "surface": "void_crumble",
+   "subsurface": "void_stone",
+   "filler": "void_stone",
+   "subsurfaceDepth": 3,
+   "underwater": "void_stone"
+  },
+  "decorations": [
+   {
+    "feature": "spire",
+    "chance": 0.0025,
+    "block": "monolith_stone",
+    "accent": "void_runes",
+    "crown": "void_beacon",
+    "height": [
+     22,
+     50
+    ],
+    "radius": [
+     1,
+     2
+    ],
+    "square": true,
+    "taper": false,
+    "natural": true
+   },
+   {
+    "block": "void_door",
+    "chance": 0.0008,
+    "on": [
+     "void_crumble"
+    ]
+   },
+   {
+    "block": "void_altar",
+    "chance": 0.0003,
+    "on": [
+     "void_crumble"
+    ]
+   },
+   {
+    "feature": "cluster",
+    "chance": 0.01,
+    "block": "void_shard_block",
+    "size": [
+     1,
+     2
+    ],
+    "where": "ceiling"
+   }
+  ]
+ },
+ {
+  "type": "biome",
+  "id": "void_erasure",
+  "displayName": "Zone d'effacement",
+  "dimension": "void",
+  "climate": {
+   "temperature": 0.8,
+   "humidity": 0.8
+  },
+  "terrain": {
+   "height": 64,
+   "variation": 8,
+   "roughness": 0.5
+  },
+  "blocks": {
+   "surface": "erased_ground",
+   "subsurface": "void_stone",
+   "filler": "void_stone",
+   "subsurfaceDepth": 3,
+   "underwater": "void_stone"
+  },
+  "decorations": [
+   {
+    "feature": "spire",
+    "chance": 0.0015,
+    "block": "erased_ground",
+    "height": [
+     6,
+     18
+    ],
+    "radius": [
+     1,
+     1
+    ],
+    "square": true,
+    "ruined": 0.5
+   },
+   {
+    "block": "void_altar",
+    "chance": 0.0004,
+    "on": [
+     "erased_ground"
+    ]
+   }
+  ]
+ }
+]

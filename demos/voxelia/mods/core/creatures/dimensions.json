@@ -1,0 +1,773 @@
+// Créatures et gardiens des dimensions (comportements dans
+// scripts/dimensions.script).
+[
+ {
+  "type": "creature",
+  "id": "rift",
+  "displayName": "Faille instable",
+  "tags": [
+   "rift"
+  ],
+  "shape": "cube",
+  "size": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "physics": {
+   "collider": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mass": 30,
+   "maxSpeed": 0.4,
+   "jumpSpeed": 7,
+   "flies": true
+  },
+  "health": 60,
+  "behaviors": [
+   "core:rift_pulse"
+  ],
+  "rig": {
+   "model": "core:ghast",
+   "scale": 0.4,
+   "skins": [
+    "core:entities/ghast/ghast^colorize(170,80,255,0.7)"
+   ]
+  },
+  "drops": [],
+  "xp": 3,
+  "spawn": {
+   "dimensions": [
+    "core:inverted"
+   ],
+   "chance": 0.006,
+   "max": 3,
+   "flying": true
+  },
+  "description": "Change périodiquement le sens de la gravité alentour."
+ },
+ {
+  "type": "creature",
+  "id": "zenith_guardian",
+  "displayName": "Gardien du Zénith",
+  "tags": [
+   "boss",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": [
+   1.0,
+   4.4,
+   1.0
+  ],
+  "physics": {
+   "collider": [
+    1.0,
+    4.4,
+    1.0
+   ],
+   "mass": 30,
+   "maxSpeed": 3.0,
+   "jumpSpeed": 7
+  },
+  "health": 320,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 48,
+    "speed": 3.0,
+    "damage": 7
+   },
+   "core:zenith_gravity"
+  ],
+  "rig": {
+   "model": "core:enderman",
+   "scale": 1.5,
+   "skins": [
+    "core:entities/enderman/enderman^colorize(170,80,255,0.55)"
+   ]
+  },
+  "drops": [
+   [
+    "core:zenith_heart",
+    1
+   ],
+   [
+    "core:inversion_crystal",
+    8
+   ]
+  ],
+  "xp": 120
+ },
+ {
+  "type": "creature",
+  "id": "lumen_moth",
+  "displayName": "Phalène de lumen",
+  "tags": [
+   "living"
+  ],
+  "shape": "cube",
+  "size": [
+   0.5,
+   0.9,
+   0.5
+  ],
+  "physics": {
+   "collider": [
+    0.5,
+    0.9,
+    0.5
+   ],
+   "mass": 30,
+   "maxSpeed": 2.2,
+   "jumpSpeed": 7,
+   "flies": true
+  },
+  "health": 6,
+  "behaviors": [
+   "wander",
+   {
+    "id": "flee",
+    "range": 5
+   }
+  ],
+  "rig": {
+   "model": "core:animal_parrot",
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:spore_powder",
+    1
+   ]
+  ],
+  "xp": 2,
+  "spawn": {
+   "dimensions": [
+    "core:living"
+   ],
+   "chance": 0.02,
+   "max": 6,
+   "hostility": [
+    -1000,
+    25
+   ],
+   "flying": true
+  }
+ },
+ {
+  "type": "creature",
+  "id": "sylvan_beetle",
+  "displayName": "Scarabée sylvestre",
+  "tags": [
+   "living"
+  ],
+  "shape": "cube",
+  "size": [
+   1.2,
+   0.8,
+   1.2
+  ],
+  "physics": {
+   "collider": [
+    1.2,
+    0.8,
+    1.2
+   ],
+   "mass": 30,
+   "maxSpeed": 2.0,
+   "jumpSpeed": 7
+  },
+  "health": 16,
+  "behaviors": [
+   {
+    "id": "core:living_temper",
+    "range": 16,
+    "speed": 2.4,
+    "damage": 3,
+    "threshold": 20
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:spider",
+   "skins": [
+    "core:entities/spider/spider^colorize(60,180,90,0.5)"
+   ]
+  },
+  "drops": [
+   [
+    "core:spore_powder",
+    1
+   ]
+  ],
+  "xp": 4,
+  "spawn": {
+   "dimensions": [
+    "core:living"
+   ],
+   "chance": 0.02,
+   "max": 6
+  }
+ },
+ {
+  "type": "creature",
+  "id": "thorn_stalker",
+  "displayName": "Rôdeur épineux",
+  "tags": [
+   "living",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": [
+   0.6,
+   1.8,
+   0.6
+  ],
+  "physics": {
+   "collider": [
+    0.6,
+    1.8,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 2.0,
+   "jumpSpeed": 7
+  },
+  "health": 26,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 24,
+    "speed": 2.8,
+    "damage": 4,
+    "effect": "poison"
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:zombie",
+   "skins": [
+    "core:mobs/zombie/zombie3^colorize(60,140,50,0.6)"
+   ]
+  },
+  "drops": [
+   [
+    "core:primordial_sap",
+    1
+   ]
+  ],
+  "xp": 8,
+  "spawn": {
+   "dimensions": [
+    "core:living"
+   ],
+   "chance": 0.012,
+   "max": 5,
+   "hostility": [
+    40,
+    1000
+   ]
+  },
+  "sounds": {
+   "idle": "core:zombie_idle",
+   "hurt": "core:zombie_hurt",
+   "death": "core:zombie_death"
+  }
+ },
+ {
+  "type": "creature",
+  "id": "root_heart_boss",
+  "displayName": "Cœur-Racine",
+  "tags": [
+   "boss",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": [
+   1.6,
+   3.0,
+   1.6
+  ],
+  "physics": {
+   "collider": [
+    1.6,
+    3.0,
+    1.6
+   ],
+   "mass": 30,
+   "maxSpeed": 1.4,
+   "jumpSpeed": 7
+  },
+  "health": 360,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 40,
+    "speed": 1.4,
+    "damage": 9
+   },
+   "core:root_heart_powers"
+  ],
+  "rig": {
+   "model": "core:iron_golem",
+   "scale": 1.4,
+   "skins": [
+    "core:entities/iron_golem^colorize(70,140,60,0.6)"
+   ]
+  },
+  "drops": [
+   [
+    "core:root_seed",
+    1
+   ],
+   [
+    "core:primordial_sap",
+    10
+   ]
+  ],
+  "xp": 120
+ },
+ {
+  "type": "creature",
+  "id": "raptor",
+  "displayName": "Raptor",
+  "tags": [
+   "hostile",
+   "prehistoric"
+  ],
+  "shape": "cube",
+  "size": [
+   0.9,
+   0.9,
+   1.8
+  ],
+  "physics": {
+   "collider": [
+    0.9,
+    0.9,
+    1.8
+   ],
+   "mass": 30,
+   "maxSpeed": 4.0,
+   "jumpSpeed": 7
+  },
+  "health": 18,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 20,
+    "speed": 4.2,
+    "damage": 4
+   },
+   "wander"
+  ],
+  "rig": {
+   "model": "core:animal_crocodile",
+   "scale": 0.9,
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:beef",
+    2
+   ]
+  ],
+  "xp": 6,
+  "spawn": {
+   "dimensions": [
+    "core:fragmented"
+   ],
+   "biomes": [
+    "core:frag_prehistoric"
+   ],
+   "chance": 0.015,
+   "max": 4
+  }
+ },
+ {
+  "type": "creature",
+  "id": "brontosaur",
+  "displayName": "Brontosaure",
+  "tags": [
+   "prehistoric"
+  ],
+  "shape": "cube",
+  "size": [
+   2.4,
+   3.6,
+   3.4
+  ],
+  "physics": {
+   "collider": [
+    2.4,
+    3.6,
+    3.4
+   ],
+   "mass": 30,
+   "maxSpeed": 1.2,
+   "jumpSpeed": 7
+  },
+  "health": 60,
+  "behaviors": [
+   "wander"
+  ],
+  "rig": {
+   "model": "core:animal_elephant",
+   "scale": 1.6,
+   "yaw": 180
+  },
+  "drops": [
+   [
+    "core:beef",
+    6
+   ]
+  ],
+  "xp": 6,
+  "spawn": {
+   "dimensions": [
+    "core:fragmented"
+   ],
+   "biomes": [
+    "core:frag_prehistoric"
+   ],
+   "chance": 0.008,
+   "max": 2
+  }
+ },
+ {
+  "type": "creature",
+  "id": "sentry_drone",
+  "displayName": "Drone sentinelle",
+  "tags": [
+   "hostile",
+   "future"
+  ],
+  "shape": "cube",
+  "size": [
+   0.8,
+   0.8,
+   0.8
+  ],
+  "physics": {
+   "collider": [
+    0.8,
+    0.8,
+    0.8
+   ],
+   "mass": 30,
+   "maxSpeed": 2.0,
+   "jumpSpeed": 7,
+   "flies": true
+  },
+  "health": 14,
+  "behaviors": [
+   {
+    "id": "core:keep_distance",
+    "range": 22,
+    "speed": 2.0,
+    "distance": 9
+   },
+   {
+    "id": "core:shoot",
+    "range": 20,
+    "damage": 3,
+    "speed": 14,
+    "interval": 2.5
+   }
+  ],
+  "rig": {
+   "model": "core:ghast",
+   "scale": 0.3,
+   "skins": [
+    "core:entities/ghast/ghast^grayscale()^colorize(90,220,230,0.4)"
+   ]
+  },
+  "drops": [
+   [
+    "core:iron_ingot",
+    1
+   ]
+  ],
+  "xp": 6,
+  "spawn": {
+   "dimensions": [
+    "core:fragmented"
+   ],
+   "biomes": [
+    "core:frag_future"
+   ],
+   "chance": 0.012,
+   "max": 4,
+   "flying": true
+  }
+ },
+ {
+  "type": "creature",
+  "id": "chronophage",
+  "displayName": "Chronophage",
+  "tags": [
+   "boss",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": [
+   1.0,
+   4.6,
+   1.0
+  ],
+  "physics": {
+   "collider": [
+    1.0,
+    4.6,
+    1.0
+   ],
+   "mass": 30,
+   "maxSpeed": 3.2,
+   "jumpSpeed": 7
+  },
+  "health": 340,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 48,
+    "speed": 3.2,
+    "damage": 8
+   },
+   "core:chronophage_aging"
+  ],
+  "rig": {
+   "model": "core:enderman",
+   "scale": 1.6,
+   "skins": [
+    "core:entities/enderman/enderman^colorize(240,200,90,0.5)"
+   ]
+  },
+  "drops": [
+   [
+    "core:chrono_core",
+    1
+   ],
+   [
+    "core:time_fragment",
+    10
+   ]
+  ],
+  "xp": 120
+ },
+ {
+  "type": "creature",
+  "id": "magma_crawler",
+  "displayName": "Rampant de magma",
+  "tags": [
+   "hostile",
+   "core"
+  ],
+  "shape": "cube",
+  "size": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "physics": {
+   "collider": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mass": 30,
+   "maxSpeed": 2.0,
+   "jumpSpeed": 7
+  },
+  "health": 14,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 16,
+    "speed": 2.2,
+    "damage": 3
+   },
+   "hop"
+  ],
+  "rig": {
+   "model": "core:slime",
+   "scale": 1.5,
+   "skins": [
+    "core:entities/slime/magmacube"
+   ]
+  },
+  "drops": [
+   [
+    "core:ember_shard",
+    1
+   ]
+  ],
+  "xp": 5,
+  "spawn": {
+   "dimensions": [
+    "core:core"
+   ],
+   "chance": 0.015,
+   "max": 6,
+   "underground": true
+  }
+ },
+ {
+  "type": "creature",
+  "id": "magma_titan",
+  "displayName": "Titan magmatique",
+  "tags": [
+   "boss",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": [
+   1.8,
+   3.6,
+   1.8
+  ],
+  "physics": {
+   "collider": [
+    1.8,
+    3.6,
+    1.8
+   ],
+   "mass": 30,
+   "maxSpeed": 1.8,
+   "jumpSpeed": 7
+  },
+  "health": 400,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 40,
+    "speed": 1.8,
+    "damage": 11
+   },
+   "core:titan_eruption"
+  ],
+  "rig": {
+   "model": "core:iron_golem",
+   "scale": 1.6,
+   "skins": [
+    "core:entities/iron_golem^colorize(255,90,30,0.55)"
+   ]
+  },
+  "drops": [
+   [
+    "core:titan_core",
+    1
+   ],
+   [
+    "core:solar_steel_ingot",
+    8
+   ]
+  ],
+  "xp": 150
+ },
+ {
+  "type": "creature",
+  "id": "void_watcher",
+  "displayName": "Observateur",
+  "tags": [
+   "void"
+  ],
+  "shape": "cube",
+  "size": [
+   0.6,
+   2.9,
+   0.6
+  ],
+  "physics": {
+   "collider": [
+    0.6,
+    2.9,
+    0.6
+   ],
+   "mass": 30,
+   "maxSpeed": 3.0,
+   "jumpSpeed": 7
+  },
+  "health": 40,
+  "behaviors": [
+   "core:watch"
+  ],
+  "rig": {
+   "model": "core:enderman",
+   "scale": 1.1,
+   "skins": [
+    "core:entities/enderman/enderman^darken(0.4)"
+   ]
+  },
+  "drops": [
+   [
+    "core:void_fragment",
+    1
+   ]
+  ],
+  "xp": 10,
+  "spawn": {
+   "dimensions": [
+    "core:void"
+   ],
+   "chance": 0.01,
+   "max": 3
+  }
+ },
+ {
+  "type": "creature",
+  "id": "eraser",
+  "displayName": "L'Effaceur",
+  "tags": [
+   "boss",
+   "hostile"
+  ],
+  "shape": "cube",
+  "size": [
+   2.0,
+   2.0,
+   2.0
+  ],
+  "physics": {
+   "collider": [
+    2.0,
+    2.0,
+    2.0
+   ],
+   "mass": 30,
+   "maxSpeed": 2.4,
+   "jumpSpeed": 7,
+   "flies": true
+  },
+  "health": 360,
+  "behaviors": [
+   {
+    "id": "core:chase",
+    "range": 48,
+    "speed": 2.4,
+    "damage": 7
+   },
+   "core:eraser_powers"
+  ],
+  "rig": {
+   "model": "core:ghast",
+   "scale": 0.7,
+   "skins": [
+    "core:entities/ghast/ghast^grayscale()^darken(0.5)"
+   ]
+  },
+  "drops": [
+   [
+    "core:eraser_core",
+    1
+   ],
+   [
+    "core:void_fragment",
+    10
+   ]
+  ],
+  "xp": 150
+ }
+]

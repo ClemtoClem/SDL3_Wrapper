@@ -43,8 +43,11 @@ TerrainGenerator::TerrainGenerator(const ContentRegistry &content, const Generat
 	  m_height(MakeNoise(seed, def.frequency, def.octaves)), m_detail(MakeNoise(seed + 7, def.frequency * 4.f, 2)),
 	  m_temperature(MakeNoise(seed + 101, def.frequency * 0.25f, 2)), m_humidity(MakeNoise(seed + 202, def.frequency * 0.25f, 2)),
 	  m_caves(MakeNoise(seed + 303, 0.045f, 2)) {
+	// Sans liste : les biomes du monde ordinaire (ceux d'une dimension restent
+	// chez elle).
 	for (const BiomeDef *biome : content.Biomes())
-		if (def.biomes.empty() || std::find(def.biomes.begin(), def.biomes.end(), biome->id) != def.biomes.end())
+		if (def.biomes.empty() ? biome->dimension.IsEmpty()
+							   : std::find(def.biomes.begin(), def.biomes.end(), biome->id) != def.biomes.end())
 			m_biomes.push_back(biome);
 	m_fluid = content.BlockIdOf(def.fluid);
 	m_bedrock = content.BlockIdOf(def.bedrock);
@@ -62,6 +65,29 @@ TerrainGenerator::TerrainGenerator(const ContentRegistry &content, const Generat
 			if (ore.block != AIR)
 				m_ores.push_back(ore);
 		}
+	if (m_def.kind == "islands")
+		SetupIslands();
+	else if (m_def.kind == "caverns")
+		SetupCaverns();
+	else if (m_def.kind == "maze")
+		SetupMaze();
+}
+
+const BiomeDef *TerrainGenerator::ClimateBiome(const std::vector<const BiomeDef *> &biomes, int x, int z) const {
+	if (biomes.empty())
+		return nullptr;
+	const float t = m_temperature.Sample01(float(x), float(z));
+	const float h = m_humidity.Sample01(float(x), float(z));
+	const BiomeDef *best = nullptr;
+	float bestDistance = 1e30f;
+	for (const BiomeDef *b : biomes) {
+		const float dt = t - b->temperature, dh = h - b->humidity;
+		if (const float d = dt * dt + dh * dh; d < bestDistance) {
+			bestDistance = d;
+			best = b;
+		}
+	}
+	return best;
 }
 
 TerrainGenerator::Column TerrainGenerator::ColumnAt(int x, int z) const {
@@ -93,6 +119,14 @@ TerrainGenerator::Column TerrainGenerator::ColumnAt(int x, int z) const {
 }
 
 int TerrainGenerator::SurfaceHeight(int x, int z) const {
+	if (m_def.kind == "islands") {
+		const IslandColumn c = IslandAt(m_mainIslands, m_islandNoise, x, z);
+		return c.present ? c.top : int(m_mainIslands.base);
+	}
+	if (m_def.kind == "caverns")
+		return m_cavernFloor + 8;
+	if (m_def.kind == "maze")
+		return m_mazeFloor;
 	if (m_def.kind == "flat") {
 		int h = 0;
 		for (const auto &[block, n] : m_def.layers)
@@ -103,7 +137,21 @@ int TerrainGenerator::SurfaceHeight(int x, int z) const {
 }
 
 const BiomeDef *TerrainGenerator::BiomeAt(int x, int z) const {
+	if (m_def.kind == "maze")
+		return m_levels.empty() ? nullptr : MazeLevelAt(x, z).biome;
+	if (m_def.kind == "islands" || m_def.kind == "caverns")
+		return ClimateBiome(x, z);
 	return m_def.kind == "flat" ? (m_biomes.empty() ? nullptr : m_biomes.front()) : ColumnAt(x, z).biome;
+}
+
+Option<int> TerrainGenerator::SkyCover(int x, int z) const {
+	if (m_def.kind == "caverns")
+		return Some(m_cavernRoof + 48); // la voûte du monde souterrain
+	if (m_def.kind == "maze")
+		return Some(m_mazeFloor + m_mazeHeight + 6);
+	if (m_def.kind == "noise" || m_def.kind == "flat")
+		return Some(SurfaceHeight(x, z));
+	return NONE; // îles, script : ciel ouvert
 }
 
 void TerrainGenerator::Generate(Chunk &chunk, World &world) {
@@ -111,6 +159,12 @@ void TerrainGenerator::Generate(Chunk &chunk, World &world) {
 		GenerateFlat(chunk);
 	else if (m_def.kind == "script" && m_script)
 		m_script(chunk, world, m_def);
+	else if (m_def.kind == "islands")
+		GenerateIslands(chunk, world);
+	else if (m_def.kind == "caverns")
+		GenerateCaverns(chunk, world);
+	else if (m_def.kind == "maze")
+		GenerateMaze(chunk, world);
 	else
 		GenerateNoise(chunk, world);
 }
@@ -208,29 +262,614 @@ void TerrainGenerator::Decorate(Chunk &chunk, World &world, int x, int z, const 
 	uint32_t salt = 1000;
 	for (const Decoration &deco : col.biome->decorations) {
 		++salt;
-		if (RandomAt(m_seed, x, 0, z, salt) >= deco.chance * m_tuning.vegetation)
+		if (json::Str(deco.params, "where") == "ceiling")
 			continue;
-		// Structures « bâties » (sans tronc : ni arbre ni pic) désactivables.
-		if (!m_tuning.structures && !deco.structure.IsEmpty() && !deco.structure.EndsWith("_tree") && !deco.structure.Contains("_tree_") &&
-			!deco.structure.Contains("oak") && !deco.structure.Contains("spike"))
-			continue;
-		if (!deco.onBlocks.empty() &&
-			std::none_of(deco.onBlocks.begin(), deco.onBlocks.end(), [&](const String &b) { return m_content.BlockIdOf(b) == surface; }))
-			continue;
-		if (!deco.structure.IsEmpty()) {
-			if (const StructureDef *structure = m_content.FindStructure(deco.structure))
-				world.PlaceStructure(*structure, {x, y, z}, int(HashPosition(m_seed, x, y, z, salt) % 4));
-		} else if (!deco.block.IsEmpty()) {
-			world.GenerationWrite({x, y, z}, m_content.BlockIdOf(deco.block), false);
-		}
-		return; // une décoration par colonne
+		if (PlaceDecoration(world, deco, *col.biome, x, y, z, salt, false, surface))
+			return; // une décoration par colonne
 	}
-	(void)chunk;
+}
+
+bool TerrainGenerator::PlaceDecoration(World &world, const Decoration &deco, const BiomeDef &biome, int x, int y, int z,
+									   uint32_t salt, bool ceiling, BlockId surface) {
+	if (RandomAt(m_seed, x, ceiling ? y : 0, z, salt) >= deco.chance * m_tuning.vegetation)
+		return false;
+	// Structures « bâties » (sans tronc : ni arbre ni pic) désactivables.
+	if (!m_tuning.structures && !deco.structure.IsEmpty() && !deco.structure.EndsWith("_tree") && !deco.structure.Contains("_tree_") &&
+		!deco.structure.Contains("oak") && !deco.structure.Contains("spike"))
+		return false;
+	if (!m_tuning.structures && (deco.feature == "spire" || deco.feature == "giant_tree") && !json::Bool(deco.params, "natural", false))
+		return false;
+	if (!deco.onBlocks.empty() &&
+		std::none_of(deco.onBlocks.begin(), deco.onBlocks.end(), [&](const String &b) { return m_content.BlockIdOf(b) == surface; }))
+		return false;
+	if (!deco.feature.IsEmpty()) {
+		if (deco.feature == "giant_tree")
+			FeatureGiantTree(world, deco.params, biome.mod, x, y, z, salt);
+		else if (deco.feature == "spire")
+			FeatureSpire(world, deco.params, biome.mod, x, y, z, salt, ceiling);
+		else if (deco.feature == "patch")
+			FeaturePatch(world, deco.params, biome.mod, x, y, z, salt, ceiling);
+		else if (deco.feature == "cluster")
+			FeatureCluster(world, deco.params, biome.mod, x, y, z, salt, ceiling);
+		else
+			return false;
+	} else if (!deco.structure.IsEmpty()) {
+		const StructureDef *structure = m_content.FindStructure(deco.structure);
+		if (!structure)
+			return false;
+		world.PlaceStructure(*structure, {x, y, z}, int(HashPosition(m_seed, x, y, z, salt) % 4));
+	} else if (!deco.block.IsEmpty()) {
+		world.GenerationWrite({x, y, z}, m_content.BlockIdOf(deco.block), false);
+	} else {
+		return false;
+	}
+	return true;
 }
 
 void TerrainGenerator::SetTuning(const GenerationTuning &tuning) {
 	m_def.seaLevel += tuning.seaLevel - m_tuning.seaLevel;
 	m_tuning = tuning;
+}
+
+// ── Paramètres des générateurs et éléments procéduraux ───────────────────────
+
+namespace {
+
+/// Intervalle « [min, max] » (ou nombre seul) d'un paramètre.
+std::pair<float, float> RangeParam(const NodePtr &params, const char *key, float min, float max) {
+	NodePtr v = json::At(params, key);
+	if (v && v->IsArray() && v->GetSize() >= 2)
+		return {float(json::Num(v->At(0), "", min)), float(json::Num(v->At(1), "", max))};
+	if (v)
+		return {float(json::Num(params, key, min)), float(json::Num(params, key, min))};
+	return {min, max};
+}
+
+/// Valeur tirée dans un intervalle, déterministe.
+float Pick(const std::pair<float, float> &range, float t) { return range.first + (range.second - range.first) * t; }
+
+BlockId BlockParam(const ContentRegistry &content, const NodePtr &params, const char *key, const String &mod) {
+	const String id = json::Str(params, key);
+	return id.IsEmpty() ? AIR : content.BlockIdOf(ContentRegistry::Qualify(id, mod));
+}
+
+} // namespace
+
+// ── "islands" ────────────────────────────────────────────────────────────────
+
+void TerrainGenerator::SetupIslands() {
+	auto layer = [&](const char *key, bool mirrored) {
+		IslandLayer l;
+		NodePtr p = json::At(m_def.raw, key);
+		l.enabled = p && p->IsObject();
+		l.mirrored = mirrored;
+		l.base = float(json::Num(p, "base", mirrored ? 150.0 : 80.0));
+		l.spread = float(json::Num(p, "spread", 20.0));
+		l.threshold = float(json::Num(p, "threshold", 0.35));
+		l.height = float(json::Num(p, "height", 6.0));
+		l.thickness = float(json::Num(p, "thickness", 18.0));
+		for (const String &id : json::StrList(p, "biomes"))
+			if (const BiomeDef *b = m_content.FindBiome(ContentRegistry::Qualify(id, m_def.mod)))
+				l.biomes.push_back(b);
+		return l;
+	};
+	m_mainIslands = layer("islands", false);
+	m_mainIslands.enabled = true;
+	m_mirrorIslands = layer("mirror", true);
+	const float frequency = float(json::Num(m_def.raw, "islands.frequency", m_def.frequency));
+	m_islandNoise = MakeNoise(m_seed + 401, frequency, 4);
+	m_mirrorNoise = MakeNoise(m_seed + 402, float(json::Num(m_def.raw, "mirror.frequency", frequency)), 4);
+	m_islandOffset = MakeNoise(m_seed + 403, frequency * 0.5f, 2);
+	m_fragments = float(json::Num(m_def.raw, "fragments.density", 0.0));
+	m_fragmentMin = json::Int(m_def.raw, "fragments.minY", 40);
+	m_fragmentMax = json::Int(m_def.raw, "fragments.maxY", 140);
+	m_fragmentBlock = BlockParam(m_content, m_def.raw, "fragments.block", m_def.mod);
+	m_fragmentNoise = MakeNoise(m_seed + 404, float(json::Num(m_def.raw, "fragments.frequency", 0.06)), 2);
+}
+
+TerrainGenerator::IslandColumn TerrainGenerator::IslandAt(const IslandLayer &layer, const generators::Noise &noise, int x, int z) const {
+	IslandColumn c;
+	if (!layer.enabled)
+		return c;
+	const float n = noise.Sample01(float(x), float(z));
+	if (n <= layer.threshold)
+		return c;
+	// k : 0 au bord de l'île, 1 en son cœur. Dôme au-dessus, cône en dessous.
+	const float k = std::min(1.f, (n - layer.threshold) / std::max(0.05f, 1.f - layer.threshold) * 2.2f);
+	const float center = layer.base + m_islandOffset.Sample(float(x), float(z)) * layer.spread;
+	const float detail = m_detail.Sample(float(x), float(z)) * 1.5f;
+	const int dome = int(std::floor(std::sqrt(k) * layer.height * m_tuning.relief + detail));
+	const int depth = 1 + int(std::floor(k * k * layer.thickness));
+	if (!layer.mirrored) {
+		c.top = int(std::floor(center)) + dome;
+		c.bottom = c.top - depth;
+	} else { // surface DESSOUS : le dôme pend vers le bas
+		c.bottom = int(std::floor(center)) - dome;
+		c.top = c.bottom + depth;
+	}
+	c.present = c.top >= c.bottom;
+	return c;
+}
+
+void TerrainGenerator::GenerateIslands(Chunk &chunk, World &world) {
+	const BlockPos origin = chunk.Pos().Origin();
+	for (int lz = 0; lz < CHUNK_SIZE; ++lz)
+		for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+			const int x = origin.x + lx, z = origin.z + lz;
+			for (const IslandLayer *layer : {&m_mainIslands, &m_mirrorIslands}) {
+				const IslandColumn c = IslandAt(*layer, layer->mirrored ? m_mirrorNoise : m_islandNoise, x, z);
+				if (!c.present || c.bottom > origin.y + CHUNK_SIZE - 1 + 1 || c.top < origin.y - 1)
+					continue;
+				const BiomeDef *biome = layer->biomes.empty() ? ClimateBiome(x, z) : ClimateBiome(layer->biomes, x, z);
+				const BlockId surface = biome ? m_content.BlockIdOf(biome->surface) : AIR;
+				const BlockId subsurface = biome ? m_content.BlockIdOf(biome->subsurface) : AIR;
+				const BlockId filler = biome ? m_content.BlockIdOf(biome->filler) : AIR;
+				const BlockId under = biome && !biome->underwater.IsEmpty() ? m_content.BlockIdOf(biome->underwater) : filler;
+				const int depth = biome ? biome->subsurfaceDepth : 3;
+				for (int y = std::max(c.bottom, origin.y); y <= std::min(c.top, origin.y + CHUNK_SIZE - 1); ++y) {
+					// Distance à la face « habitable » (dessus, ou dessous si retournée).
+					const int fromSurface = layer->mirrored ? y - c.bottom : c.top - y;
+					BlockId id = fromSurface == 0 ? surface : fromSurface < depth ? subsurface : filler;
+					if (!layer->mirrored && y == c.bottom && c.top - c.bottom > 2)
+						id = under; // dessous rocheux
+					if (layer->mirrored && y == c.top && c.top - c.bottom > 2)
+						id = under;
+					if (id == AIR)
+						id = filler;
+					for (const Ore &ore : m_ores)
+						if (id == ore.in && y >= ore.minY && y <= ore.maxY && RandomAt(m_seed, x, y, z, 17) < ore.chance * m_tuning.ores)
+							id = ore.block;
+					if (id != AIR)
+						chunk.Set(lx, y - origin.y, lz, id);
+				}
+				if (!biome)
+					continue;
+				// Décorations : sur la face habitable ; « ceiling » : pendues de l'autre côté.
+				const int above = layer->mirrored ? c.bottom - 1 : c.top + 1;
+				const int below = layer->mirrored ? c.top + 1 : c.bottom - 1;
+				uint32_t salt = layer->mirrored ? 3000 : 1000;
+				bool placedAbove = false, placedBelow = false;
+				for (const Decoration &deco : biome->decorations) {
+					++salt;
+					const bool hanging = json::Str(deco.params, "where") == "ceiling";
+					const int y = hanging ? below : above;
+					if (y < origin.y || y >= origin.y + CHUNK_SIZE || (hanging ? placedBelow : placedAbove))
+						continue;
+					// Une île retournée : ses plantes poussent vers le bas.
+					if (PlaceDecoration(world, deco, *biome, x, y, z, salt, hanging != layer->mirrored, surface))
+						(hanging ? placedBelow : placedAbove) = true;
+				}
+			}
+			// Débris en suspension entre les îles.
+			if (m_fragments > 0.f && m_fragmentBlock != AIR)
+				for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
+					const int y = origin.y + ly;
+					if (y < m_fragmentMin || y > m_fragmentMax || chunk.Get(lx, ly, lz) != AIR)
+						continue;
+					if (m_fragmentNoise.Sample(float(x), float(y) * 1.3f, float(z)) > 1.f - m_fragments * 0.6f)
+						chunk.Set(lx, ly, lz, m_fragmentBlock);
+				}
+		}
+}
+
+// ── "caverns" ────────────────────────────────────────────────────────────────
+
+void TerrainGenerator::SetupCaverns() {
+	NodePtr p = json::At(m_def.raw, "caverns");
+	m_cavernFloor = json::Int(p, "floor", -48);
+	m_cavernRoof = json::Int(p, "roof", 64);
+	m_cavernThreshold = float(json::Num(p, "threshold", 0.2));
+	m_cavernVertical = float(json::Num(p, "verticalScale", 1.4));
+	m_lavaLevel = json::Int(p, "lavaLevel", -1000);
+	m_lava = BlockParam(m_content, p, "lava", m_def.mod);
+	m_roofBlock = BlockParam(m_content, p, "roofBlock", m_def.mod);
+	const float frequency = float(json::Num(p, "frequency", 0.022));
+	m_cavernNoise = MakeNoise(m_seed + 501, frequency, 3);
+	m_chamberNoise = MakeNoise(m_seed + 502, frequency * 0.35f, 2);
+}
+
+bool TerrainGenerator::CavernSolid(int x, int y, int z) const {
+	if (y <= m_cavernFloor || y >= m_cavernRoof)
+		return true;
+	// Tunnels (bruit 3D) et salles immenses (bruit lent), resserrés près du
+	// plancher et du toit du monde.
+	const float tunnels = 1.f - std::fabs(m_cavernNoise.Sample(float(x), float(y) * m_cavernVertical, float(z)));
+	const float chambers = m_chamberNoise.Sample(float(x), float(y) * 1.8f, float(z));
+	const float span = float(m_cavernRoof - m_cavernFloor);
+	const float h = (float(y - m_cavernFloor) / span) * 2.f - 1.f; // -1 en bas, 1 en haut
+	const float edge = h > 0.f ? h * h * h * h * 0.6f : 0.f; // voûtes resserrées sous le toit
+	const float open = std::max(tunnels - (1.f - m_cavernThreshold * m_tuning.caves), chambers - 0.35f) - edge;
+	return open <= 0.f;
+}
+
+void TerrainGenerator::GenerateCaverns(Chunk &chunk, World &world) {
+	const BlockPos origin = chunk.Pos().Origin();
+	if (origin.y > m_cavernRoof + 1 || origin.y + CHUNK_SIZE < m_cavernFloor - 1) {
+		if (origin.y > m_cavernRoof + 1 && origin.y < m_cavernRoof + 48 && m_roofBlock != AIR)
+			chunk.Fill(m_roofBlock); // au-dessus du toit : roche massive
+		return;
+	}
+	bool solid[CHUNK_SIZE][CHUNK_SIZE + 2][CHUNK_SIZE];
+	for (int lz = 0; lz < CHUNK_SIZE; ++lz)
+		for (int lx = 0; lx < CHUNK_SIZE; ++lx)
+			for (int ly = -1; ly <= CHUNK_SIZE; ++ly)
+				solid[lz][ly + 1][lx] = CavernSolid(origin.x + lx, origin.y + ly, origin.z + lz);
+	for (int lz = 0; lz < CHUNK_SIZE; ++lz)
+		for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+			const int x = origin.x + lx, z = origin.z + lz;
+			const BiomeDef *biome = ClimateBiome(x, z);
+			const BlockId floor = biome ? m_content.BlockIdOf(biome->surface) : AIR;
+			const BlockId wall = biome ? m_content.BlockIdOf(biome->subsurface) : AIR;
+			const BlockId filler = biome ? m_content.BlockIdOf(biome->filler) : AIR;
+			const BlockId ceiling = biome && !biome->underwater.IsEmpty() ? m_content.BlockIdOf(biome->underwater) : wall;
+			for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
+				const int y = origin.y + ly;
+				BlockId id = AIR;
+				if (y <= m_cavernFloor || y >= m_cavernRoof) {
+					id = m_bedrock != AIR ? m_bedrock : filler;
+				} else if (solid[lz][ly + 1][lx]) {
+					const bool airAbove = !solid[lz][ly + 2][lx], airBelow = !solid[lz][ly][lx];
+					id = airAbove ? floor : airBelow ? ceiling : filler;
+					if (id == AIR)
+						id = filler;
+					for (const Ore &ore : m_ores)
+						if ((id == ore.in || (ore.in == AIR && id == filler)) && y >= ore.minY && y <= ore.maxY &&
+							RandomAt(m_seed, x, y, z, 17) < ore.chance * m_tuning.ores)
+							id = ore.block;
+				} else if (y <= m_lavaLevel && m_lava != AIR) {
+					id = m_lava;
+				}
+				if (id != AIR)
+					chunk.Set(lx, ly, lz, id);
+			}
+			if (!biome)
+				continue;
+			// Décorations des sols (au-dessus) et des plafonds (en dessous).
+			for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
+				const int y = origin.y + ly;
+				if (solid[lz][ly + 1][lx] || y <= m_lavaLevel)
+					continue;
+				const bool onFloor = solid[lz][ly][lx], underCeiling = solid[lz][ly + 2][lx];
+				if (!onFloor && !underCeiling)
+					continue;
+				uint32_t salt = 2000;
+				for (const Decoration &deco : biome->decorations) {
+					++salt;
+					const bool hanging = json::Str(deco.params, "where") == "ceiling";
+					if ((hanging && !underCeiling) || (!hanging && !onFloor))
+						continue;
+					if (PlaceDecoration(world, deco, *biome, x, y, z, salt + uint32_t(y & 255) * 64u, hanging, hanging ? ceiling : floor))
+						break;
+				}
+			}
+		}
+}
+
+// ── "maze" ───────────────────────────────────────────────────────────────────
+
+void TerrainGenerator::SetupMaze() {
+	NodePtr p = json::At(m_def.raw, "maze");
+	m_mazeFloor = json::Int(p, "floor", 0);
+	m_mazeHeight = std::max(3, json::Int(p, "height", 5));
+	m_mazeCell = std::max(3, json::Int(p, "cell", 7));
+	m_mazeRegion = std::max(m_mazeCell * 2, json::Int(p, "region", 80));
+	m_doorWidth = std::clamp(json::Int(p, "doorWidth", 2), 1, m_mazeCell - 2);
+	m_mazeOuter = BlockParam(m_content, p, "outer", m_def.mod);
+	m_mazeExit = BlockParam(m_content, p, "exit.block", m_def.mod);
+	m_mazeExitSign = BlockParam(m_content, p, "exit.sign", m_def.mod);
+	m_exitChance = float(json::Num(p, "exit.chance", 0.003));
+	if (NodePtr levels = json::At(m_def.raw, "levels"); levels && levels->IsArray())
+		for (size_t i = 0; i < levels->GetSize(); ++i) {
+			NodePtr l = levels->At(i);
+			MazeLevel level;
+			level.id = json::Str(l, "id");
+			level.weight = std::max(0.f, float(json::Num(l, "weight", 1.0)));
+			level.floor = BlockParam(m_content, l, "floor", m_def.mod);
+			level.wall = BlockParam(m_content, l, "wall", m_def.mod);
+			level.ceiling = BlockParam(m_content, l, "ceiling", m_def.mod);
+			level.light = BlockParam(m_content, l, "light", m_def.mod);
+			level.pillar = BlockParam(m_content, l, "pillar", m_def.mod);
+			level.water = BlockParam(m_content, l, "water", m_def.mod);
+			level.trim = BlockParam(m_content, l, "trim", m_def.mod);
+			level.lightEvery = std::max(2, json::Int(l, "lightEvery", 4));
+			level.open = json::Bool(l, "open", false);
+			level.wallChance = float(json::Num(l, "wallChance", 0.55));
+			level.waterChance = float(json::Num(l, "waterChance", 0.0));
+			level.darkChance = float(json::Num(l, "darkChance", 0.0));
+			if (const String biome = json::Str(l, "biome"); !biome.IsEmpty())
+				level.biome = m_content.FindBiome(ContentRegistry::Qualify(biome, m_def.mod));
+			if (level.wall == AIR)
+				level.wall = m_mazeOuter;
+			m_levelWeight += level.weight;
+			m_levels.push_back(level);
+		}
+	if (m_levels.empty()) { // un seul niveau, de pierre
+		MazeLevel level;
+		level.id = "default";
+		level.floor = level.wall = level.ceiling = m_mazeOuter;
+		m_levels.push_back(level);
+		m_levelWeight = 1.f;
+	}
+}
+
+const TerrainGenerator::MazeLevel &TerrainGenerator::MazeLevelAt(int x, int z) const {
+	// Régions carrées (bords décalés par du bruit) : chacune tire son niveau.
+	const float wobble = m_detail.Sample(float(x), float(z)) * float(m_mazeCell);
+	const int rx = int(std::floor((float(x) + wobble) / float(m_mazeRegion)));
+	const int rz = int(std::floor((float(z) - wobble) / float(m_mazeRegion)));
+	// Autour de l'origine : toujours le premier niveau (le « hall » d'arrivée).
+	if (std::abs(x) < m_mazeRegion / 2 && std::abs(z) < m_mazeRegion / 2)
+		return m_levels.front();
+	float pick = RandomAt(m_seed, rx, 0, rz, 611) * m_levelWeight;
+	for (const MazeLevel &level : m_levels) {
+		if (pick < level.weight)
+			return level;
+		pick -= level.weight;
+	}
+	return m_levels.back();
+}
+
+bool TerrainGenerator::MazeWall(const MazeLevel &level, int x, int z) const {
+	const int cell = m_mazeCell;
+	const int cx = int(std::floor(float(x) / float(cell))), cz = int(std::floor(float(z) / float(cell)));
+	const int lx = x - cx * cell, lz = z - cz * cell;
+	if (level.open) // grande salle : piliers seulement
+		return lx == 0 && lz == 0 && (cx & 1) == 0 && (cz & 1) == 0;
+	if (lx == 0 && lz == 0)
+		return true; // coins
+	// Cellule murée (cul-de-sac) : rare.
+	if (RandomAt(m_seed, cx, 1, cz, 613) < 0.04f)
+		return true;
+	auto segment = [&](int sx, int sz, uint32_t salt, int along) {
+		if (RandomAt(m_seed, sx, 2, sz, salt) >= level.wallChance)
+			return false;
+		const int door = 1 + int(HashPosition(m_seed, sx, 3, sz, salt) % uint64_t(std::max(1, cell - 1 - m_doorWidth)));
+		// Un mur sur deux garde une porte.
+		const bool hasDoor = RandomAt(m_seed, sx, 4, sz, salt) < 0.75f;
+		return !(hasDoor && along >= door && along < door + m_doorWidth);
+	};
+	if (lx == 0)
+		return segment(cx, cz, 617, lz);
+	if (lz == 0)
+		return segment(cx, cz, 619, lx);
+	return false;
+}
+
+void TerrainGenerator::GenerateMaze(Chunk &chunk, World &world) {
+	const BlockPos origin = chunk.Pos().Origin();
+	const int floor = m_mazeFloor, ceiling = m_mazeFloor + m_mazeHeight;
+	const int shell = 6; // épaisseur de la roche autour du niveau
+	if (origin.y > ceiling + shell || origin.y + CHUNK_SIZE <= floor - shell)
+		return;
+	for (int lz = 0; lz < CHUNK_SIZE; ++lz)
+		for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+			const int x = origin.x + lx, z = origin.z + lz;
+			const MazeLevel &level = MazeLevelAt(x, z);
+			const int cell = m_mazeCell;
+			const int cx = int(std::floor(float(x) / float(cell))), cz = int(std::floor(float(z) / float(cell)));
+			const int mx = x - cx * cell, mz = z - cz * cell;
+			// Une frontière de niveaux est un mur continu, percé de portes.
+			bool wall = MazeWall(level, x, z);
+			if (!wall && (&MazeLevelAt(x + 1, z) != &level || &MazeLevelAt(x, z + 1) != &level))
+				wall = (mx + mz) % 9 > 2;
+			const bool flooded = !wall && level.water != AIR && RandomAt(m_seed, cx, 5, cz, 623) < level.waterChance;
+			const int every = level.lightEvery;
+			const bool lamp = level.light != AIR && ((x % every) + every) % every == every / 2 && ((z % every) + every) % every == every / 2 &&
+							  RandomAt(m_seed, x, 6, z, 629) >= level.darkChance;
+			const bool exit = m_mazeExit != AIR && !wall && mx == cell / 2 && mz == cell / 2 &&
+							  RandomAt(m_seed, cx, 7, cz, 631) < m_exitChance;
+			for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
+				const int y = origin.y + ly;
+				BlockId id = AIR;
+				if (y < floor - shell || y > ceiling + shell)
+					continue;
+				if (y < floor || y > ceiling)
+					id = m_mazeOuter;
+				else if (y == floor)
+					id = flooded ? level.water : level.floor;
+				else if (y == ceiling)
+					id = lamp && !wall ? level.light : level.ceiling;
+				else if (wall)
+					id = (y == floor + 1 && level.trim != AIR) ? level.trim : (level.pillar != AIR && mx == 0 && mz == 0 ? level.pillar : level.wall);
+				else if (flooded && y == floor + 1 && level.water != AIR)
+					id = level.water;
+				else if (exit && y == floor + 1)
+					id = m_mazeExit;
+				else if (exit && y == floor + 2 && m_mazeExitSign != AIR)
+					id = m_mazeExitSign;
+				if (id != AIR)
+					chunk.Set(lx, ly, lz, id);
+			}
+			// Bassin : un niveau plus bas sous l'eau (on peut y nager).
+			if (flooded && floor - 1 >= origin.y && floor - 1 < origin.y + CHUNK_SIZE)
+				chunk.Set(lx, floor - 1 - origin.y, lz, level.water);
+			if (flooded && floor - 2 >= origin.y && floor - 2 < origin.y + CHUNK_SIZE)
+				chunk.Set(lx, floor - 2 - origin.y, lz, level.floor);
+			// Décorations du biome du niveau (mobilier, flaques…).
+			if (level.biome && !wall && !flooded && !exit && floor + 1 >= origin.y && floor + 1 < origin.y + CHUNK_SIZE) {
+				uint32_t salt = 4000;
+				for (const Decoration &deco : level.biome->decorations) {
+					++salt;
+					if (PlaceDecoration(world, deco, *level.biome, x, floor + 1, z, salt, false, level.floor))
+						break;
+				}
+			}
+		}
+}
+
+// ── Éléments procéduraux ─────────────────────────────────────────────────────
+
+void TerrainGenerator::FeatureGiantTree(World &world, const NodePtr &params, const String &mod, int x, int y, int z, uint32_t salt) {
+	const BlockId trunk = BlockParam(m_content, params, "trunk", mod);
+	const BlockId leaves = BlockParam(m_content, params, "leaves", mod);
+	const BlockId sap = BlockParam(m_content, params, "sap", mod);
+	const BlockId fruit = BlockParam(m_content, params, "fruit", mod);
+	const BlockId floorBlock = BlockParam(m_content, params, "floor", mod);
+	const BlockId climb = BlockParam(m_content, params, "climb", mod);
+	const BlockId core = BlockParam(m_content, params, "core", mod);
+	if (trunk == AIR)
+		return;
+	auto rnd = [&](uint32_t k) { return RandomAt(m_seed, x, y, z, salt * 31u + k); };
+	const int height = int(Pick(RangeParam(params, "height", 36.f, 60.f), rnd(1)));
+	const float radius = Pick(RangeParam(params, "radius", 3.f, 5.f), rnd(2));
+	const bool hollow = json::Bool(params, "hollow", true);
+	const float sapChance = float(json::Num(params, "sapChance", 0.04));
+	const int door = int(rnd(3) * 4.f); // façade de l'entrée
+	const int ir = int(std::ceil(radius)) + 3;
+	for (int dy = -4; dy <= height; ++dy) {
+		// Base évasée (racines), tronc régulier ensuite.
+		const float r = radius + (dy < 3 ? float(3 - dy) * 0.7f : 0.f);
+		for (int dz = -ir; dz <= ir; ++dz)
+			for (int dx = -ir; dx <= ir; ++dx) {
+				const float d = std::sqrt(float(dx * dx + dz * dz));
+				if (d > r)
+					continue;
+				const BlockPos p{x + dx, y + dy, z + dz};
+				const bool shell = d > r - 1.3f;
+				if (hollow && !shell && dy >= 0 && dy < height - 3) {
+					// Salles empilées : un plancher tous les 8 blocs, troué pour monter.
+					const bool storey = dy % 8 == 0;
+					const bool hole = dx == 1 && dz == 0;
+					world.GenerationWrite(p, storey && !hole ? (floorBlock != AIR ? floorBlock : trunk) : AIR, true);
+					if (core != AIR && dy == height / 2 && dx == 0 && dz == 0)
+						world.GenerationWrite(p, core, true); // cœur de l'arbre (au milieu)
+					continue;
+				}
+				BlockId id = trunk;
+				if (sap != AIR && shell && dy > 2 && RandomAt(m_seed, p.x, p.y, p.z, salt + 7) < sapChance)
+					id = sap;
+				world.GenerationWrite(p, id, true);
+			}
+		// Liane intérieure pour grimper d'un étage à l'autre.
+		if (hollow && climb != AIR && dy > 0 && dy < height - 3)
+			world.GenerationWrite({x + 1, y + dy, z}, dy % 8 == 0 ? AIR : climb, true);
+	}
+	// Entrée : trois blocs de haut, deux de large, dans la façade tirée.
+	static constexpr int DIRS[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+	if (hollow)
+		for (int dy = 1; dy <= 3; ++dy)
+			for (int step = 0; step <= ir; ++step)
+				for (int w = 0; w < 2; ++w) {
+					const int dx = DIRS[door][0] * step + (DIRS[door][0] == 0 ? w : 0);
+					const int dz = DIRS[door][1] * step + (DIRS[door][1] == 0 ? w : 0);
+					if (float(dx * dx + dz * dz) >= (radius - 1.3f) * (radius - 1.3f))
+						world.GenerationWrite({x + dx, y + dy, z + dz}, AIR, true);
+				}
+	// Branches et canopée.
+	const int top = y + height;
+	const float canopy = radius * 2.8f + 3.f;
+	for (int b = 0; b < 4; ++b) {
+		const float angle = (float(b) + rnd(10 + uint32_t(b))) * 1.5708f;
+		const int start = top - int(float(height) * 0.25f) - b * 2;
+		for (int i = 0; i < int(canopy); ++i) {
+			const int bx = x + int(std::cos(angle) * float(i)), bz = z + int(std::sin(angle) * float(i));
+			world.GenerationWrite({bx, start + i / 3, bz}, trunk, false);
+		}
+	}
+	if (leaves != AIR) {
+		const int rc = int(std::ceil(canopy)), rv = int(std::ceil(canopy * 0.55f));
+		for (int dy = -rv; dy <= rv; ++dy)
+			for (int dz = -rc; dz <= rc; ++dz)
+				for (int dx = -rc; dx <= rc; ++dx) {
+					const float e = float(dx * dx + dz * dz) / (canopy * canopy) + float(dy * dy) / float(rv * rv);
+					const BlockPos p{x + dx, top + dy, z + dz};
+					if (e > 1.f || RandomAt(m_seed, p.x, p.y, p.z, salt + 11) < e * 0.35f)
+						continue;
+					const bool glow = fruit != AIR && RandomAt(m_seed, p.x, p.y, p.z, salt + 13) < 0.015f;
+					world.GenerationWrite(p, glow ? fruit : leaves, false);
+				}
+	}
+}
+
+void TerrainGenerator::FeatureSpire(World &world, const NodePtr &params, const String &mod, int x, int y, int z, uint32_t salt, bool ceiling) {
+	const BlockId block = BlockParam(m_content, params, "block", mod);
+	const BlockId accent = BlockParam(m_content, params, "accent", mod);
+	const BlockId crown = BlockParam(m_content, params, "crown", mod);
+	const BlockId inside = BlockParam(m_content, params, "inside", mod);
+	if (block == AIR)
+		return;
+	auto rnd = [&](uint32_t k) { return RandomAt(m_seed, x, y, z, salt * 37u + k); };
+	const int height = int(Pick(RangeParam(params, "height", 10.f, 30.f), rnd(1)));
+	const float radius = Pick(RangeParam(params, "radius", 1.f, 3.f), rnd(2));
+	const bool hollow = json::Bool(params, "hollow", false);
+	const bool taper = json::Bool(params, "taper", true);
+	const bool square = json::Bool(params, "square", false);
+	const float ruined = float(json::Num(params, "ruined", 0.0));
+	const int dir = ceiling ? -1 : 1;
+	const int ir = int(std::ceil(radius)) + 1;
+	for (int i = -3; i <= height; ++i) {
+		const float r = taper && i > 0 ? std::max(0.6f, radius * (1.f - float(i) / float(height) * 0.65f)) : radius;
+		for (int dz = -ir; dz <= ir; ++dz)
+			for (int dx = -ir; dx <= ir; ++dx) {
+				const float d = square ? float(std::max(std::abs(dx), std::abs(dz))) : std::sqrt(float(dx * dx + dz * dz));
+				if (d > r)
+					continue;
+				const BlockPos p{x + dx, y + i * dir, z + dz};
+				// Ruine : de plus en plus de blocs manquent vers le sommet.
+				if (ruined > 0.f && i > 1 && RandomAt(m_seed, p.x, p.y, p.z, salt + 3) < ruined * float(i) / float(height))
+					continue;
+				const bool shell = d > r - 1.f;
+				if (hollow && !shell && i >= 0) {
+					world.GenerationWrite(p, i > 0 && i % 6 == 0 ? (accent != AIR ? accent : block) : (inside != AIR && i == 1 && dx == 0 && dz == 0 ? inside : AIR), true);
+					continue;
+				}
+				world.GenerationWrite(p, accent != AIR && i > 0 && i % 5 == 0 ? accent : block, true);
+			}
+	}
+	if (hollow) // porte
+		for (int i = 1; i <= 2; ++i)
+			for (int k = 0; k <= ir; ++k)
+				world.GenerationWrite({x + k, y + i * dir, z}, AIR, true);
+	if (crown != AIR)
+		world.GenerationWrite({x, y + (height + 1) * dir, z}, crown, true);
+}
+
+void TerrainGenerator::FeaturePatch(World &world, const NodePtr &params, const String &mod, int x, int y, int z, uint32_t salt, bool ceiling) {
+	const BlockId block = BlockParam(m_content, params, "block", mod);
+	const BlockId rim = BlockParam(m_content, params, "rim", mod);
+	if (block == AIR)
+		return;
+	const float radius = Pick(RangeParam(params, "radius", 2.f, 4.f), RandomAt(m_seed, x, y, z, salt * 41u));
+	const int depth = std::max(1, json::Int(params, "depth", 3));
+	const int ir = int(std::ceil(radius)) + 1;
+	const int dir = ceiling ? 1 : -1; // vers l'intérieur de la roche
+	for (int dz = -ir; dz <= ir; ++dz)
+		for (int dx = -ir; dx <= ir; ++dx) {
+			const float d = std::sqrt(float(dx * dx + dz * dz)) + m_detail.Sample(float(x + dx), float(z + dz)) * 0.8f;
+			if (d > radius + 0.8f)
+				continue;
+			const bool edge = d > radius;
+			// Plus profond au centre.
+			const int deep = edge ? 1 : std::max(1, int(float(depth) * (1.f - d / (radius + 1.f)) + 0.99f));
+			for (int k = 0; k < deep; ++k) {
+				const BlockPos p{x + dx, y + dir * (1 + k), z + dz};
+				world.GenerationWrite(p, edge && rim != AIR ? rim : edge && rim == AIR ? AIR : block, true);
+				if (edge && rim == AIR)
+					break;
+			}
+		}
+}
+
+void TerrainGenerator::FeatureCluster(World &world, const NodePtr &params, const String &mod, int x, int y, int z, uint32_t salt, bool ceiling) {
+	const BlockId block = BlockParam(m_content, params, "block", mod);
+	const BlockId tip = BlockParam(m_content, params, "tip", mod);
+	if (block == AIR)
+		return;
+	const int size = std::max(1, int(Pick(RangeParam(params, "size", 1.f, 3.f), RandomAt(m_seed, x, y, z, salt * 43u))));
+	const int dir = ceiling ? -1 : 1;
+	for (int dy = 0; dy < size * 2; ++dy)
+		for (int dz = -size; dz <= size; ++dz)
+			for (int dx = -size; dx <= size; ++dx) {
+				const float r = float(size) * (1.f - float(dy) / float(size * 2));
+				if (float(dx * dx + dz * dz) > r * r + 0.3f)
+					continue;
+				const BlockPos p{x + dx, y + dy * dir, z + dz};
+				if (RandomAt(m_seed, p.x, p.y, p.z, salt + 5) < 0.25f)
+					continue;
+				world.GenerationWrite(p, block, false);
+			}
+	if (tip != AIR)
+		world.GenerationWrite({x, y + size * 2 * dir, z}, tip, false);
 }
 
 std::shared_ptr<TerrainGenerator> MakeGenerator(const ContentRegistry &content, const String &generatorId, uint32_t seed,

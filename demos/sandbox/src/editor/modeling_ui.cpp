@@ -427,17 +427,15 @@ bool EditorUi::ModelingCommand(const String &command, const String &argument) {
 
 // ── Widgets ──────────────────────────────────────────────────────────────────
 
-void EditorUi::BuildModelingMenu(ecs::Entity bar) {
-	ecs::Entity menu = m_ctx.factory.Menu(
-		bar, String("Modélisation"),
-		MenuAction("Modéliser la sélection", "", [this] { BeginModeling(Rt().SelectedId()); }),
-		MenuAction("Nouveau maillage modélisé", "", [this] { CreateModeledMesh(String("Maillage"), modeling::Model{}); }),
-		MenuAction("Convertir en maillage modélisé", "", [this] {
+void EditorUi::BuildModelingMenu(ui::Widget bar) {
+	ui::Widget menu = bar.Append(ui::Menu(String("Modélisation")).Children({MenuAction("Modéliser la sélection", "", [this] { BeginModeling(Rt().SelectedId()); }),
+MenuAction("Nouveau maillage modélisé", "", [this] { CreateModeledMesh(String("Maillage"), modeling::Model{}); }),
+MenuAction("Convertir en maillage modélisé", "", [this] {
 			Result<String, String> done = Rt().ConvertToMesh(Rt().SelectedId());
 			SetStatus(done.IsOk() ? String::Format("Converti : %s", done.Value().CStr())
 								  : String::Format("Conversion impossible : %s", done.Error().CStr()));
 		}),
-		MenuAction("Adoucir les arêtes (30°)", "", [this] {
+MenuAction("Adoucir les arêtes (30°)", "", [this] {
 			if (!m_modeling.IsActive()) {
 				SetStatus(String("Adoucir : modélisez d'abord un maillage"));
 				return;
@@ -449,14 +447,14 @@ void EditorUi::BuildModelingMenu(ecs::Entity bar) {
 			});
 			SetStatus(String::Format("%d arête(s) adoucie(s)", int(softened)));
 		}),
-		MenuAction("Éclairage d'atelier (bascule)", "", [this] { SetModelingLight(!m_modelingLight); }),
-		MenuAction("Terminer la modélisation", "Échap", [this] { EndModeling(); }));
+MenuAction("Éclairage d'atelier (bascule)", "", [this] { SetModelingLight(!m_modelingLight); }),
+MenuAction("Terminer la modélisation", "Échap", [this] { EndModeling(); })}));
 	m_menuPopups.push_back(menu);
-	ecs::Entity insert = m_ctx.factory.SubMenu(menu, String("Insérer une forme"));
+	ui::Widget insert = menu.Append(ui::SubMenu(String("Insérer une forme")));
 	m_menuPopups.push_back(insert);
 	for (int i = 0; i < int(std::size(SHAPES)); ++i)
 		AddItem(insert, SHAPES[i].name, "", [this, i] { InsertModelingShape(i); });
-	ecs::Entity views = m_ctx.factory.SubMenu(menu, String("Vues standard"));
+	ui::Widget views = menu.Append(ui::SubMenu(String("Vues standard")));
 	m_menuPopups.push_back(views);
 	for (const auto &[label, key] : {std::pair{"Iso", "iso"}, std::pair{"Dessus", "top"}, std::pair{"Face", "front"},
 									 std::pair{"Droite", "right"}, std::pair{"Arrière", "back"},
@@ -465,34 +463,35 @@ void EditorUi::BuildModelingMenu(ecs::Entity bar) {
 			if (!SetModelingView(view))
 				SetStatus(String("Vues standard : modélisez d'abord un maillage non vide"));
 		});
-	ecs::Entity exportMenu = m_ctx.factory.SubMenu(menu, String("Exporter le maillage"));
+	ui::Widget exportMenu = menu.Append(ui::SubMenu(String("Exporter le maillage")));
 	m_menuPopups.push_back(exportMenu);
 	AddItem(exportMenu, "Wavefront OBJ (+ MTL)", "", [this] { ExportModeledMesh("obj"); });
 	AddItem(exportMenu, "STL binaire", "", [this] { ExportModeledMesh("stl"); });
 	AddItem(exportMenu, "PLY", "", [this] { ExportModeledMesh("ply"); });
 }
 
-void EditorUi::BuildModelingOverlay(ecs::Entity viewport) {
+void EditorUi::BuildModelingOverlay(ui::Widget viewport) {
 	ui::WidgetBuilder layer =
-		m_ctx.factory.Canvas([this](sdl3::Renderer &ren, sdl3::FRect r) { DrawModelingLayer(ren, r); });
-	layer.Absolute().Anchor(ui::Anchor::TopLeft).W(ui::Dimension::Pct(100.f)).H(ui::Dimension::Pct(100.f));
-	layer.PointerThrough().Parent(viewport);
-	(void)layer.Spawn();
+		ui::Canvas([this](ui::Painter &painter, const sdl3::FRect &r) {
+		if (painter.Renderer())
+			DrawModelingLayer(*painter.Renderer(), r);
+	});
+	layer.Absolute().Anchor(ui::Anchor::TopLeft).Width(ui::Length::Pct(100.f)).Height(ui::Length::Pct(100.f));
+	layer.PointerThrough();
+	viewport.Append(layer);
 
 	// Consigne de l'outil et mesure (la « boîte de mesures »), en bas à gauche.
-	ui::WidgetBuilder info = m_ctx.factory.Column();
-	info.Absolute().Anchor(ui::Anchor::BottomLeft).Offset(10.f, -10.f).WAuto().HAuto().Gap(2.f);
-	info.Pad(math::Sides{10.f, 6.f}).Radius(6.f).Bg(sdl3::FColor{0.08f, 0.08f, 0.1f, 0.82f});
-	info.PointerThrough().Parent(viewport);
-	m_modelInfo = info.Spawn();
-	ui::WidgetBuilder hint = m_ctx.factory.Label(String(""));
-	hint.WAuto().HAuto().FontSize(12.f).TextColor(sdl3::FColor{1.f, 1.f, 1.f, 0.8f}).PointerThrough();
-	hint.Parent(m_modelInfo);
-	m_modelHint = hint.Spawn();
-	ui::WidgetBuilder measure = m_ctx.factory.Label(String(""));
-	measure.WAuto().HAuto().FontSize(14.f).Bold().TextColor(sdl3::FColor::WHITE()).PointerThrough();
-	measure.Parent(m_modelInfo);
-	m_modelMeasure = measure.Spawn();
+	ui::WidgetBuilder info = ui::Column();
+	info.Absolute().Anchor(ui::Anchor::BottomLeft).Offset(10.f, -10.f).Gap(2.f);
+	info.Padding(math::Sides{10.f, 6.f}).BorderRadius(6.f).Background(sdl3::FColor{0.08f, 0.08f, 0.1f, 0.82f});
+	info.PointerThrough();
+	m_modelInfo = viewport.Append(info);
+	ui::WidgetBuilder hint = ui::Label(String(""));
+	hint.FontSize(12.f).Color(sdl3::FColor{1.f, 1.f, 1.f, 0.8f}).PointerThrough();
+	m_modelHint = m_modelInfo.Append(hint);
+	ui::WidgetBuilder measure = ui::Label(String(""));
+	measure.FontSize(14.f).Bold().Color(sdl3::FColor::WHITE()).PointerThrough();
+	m_modelMeasure = m_modelInfo.Append(measure);
 
 	m_shownModeling = true; // force la mise à jour (masquage) à l'image suivante
 	m_shownModelTool = -1;

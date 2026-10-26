@@ -10,11 +10,11 @@
  * entre le thread UI et le thread audio, cf. les commentaires de `main()`.
  *
  * Blocs : Audio In/Out, Filter, Amp, Mixer, Delay, Oscillator, Scope,
- * Spectrum (ui::UiPlot au lieu d'un canvas dessiné à la main), Playlist
+ * Spectrum (ui::Plot au lieu d'un canvas dessiné à la main), Playlist
  * (sdl3::AudioDecoder pour le décodage multi-format, sdl3::dialog pour le
  * choix de fichiers plutôt qu'un explorateur de fichiers fait main).
  *
- *   make examples && ./build/examples/audio_patchbay
+ *   cpp-maker run audio_patchbay
  */
 #include <algorithm>
 #include <cstdlib>
@@ -22,6 +22,8 @@
 #include <iostream>
 #include <unordered_map>
 #include <unordered_set>
+#include <map>
+#include <memory>
 #include <variant>
 
 #include <audio/dsp.hpp>
@@ -31,7 +33,6 @@
 
 static constexpr int WIN_W = 1440;
 static constexpr int WIN_H = 920; // 860 de contenu + barres de titre et d'état
-static constexpr float FONT_PT = 13.f;
 
 // ============================================================================
 // Modèle DSP — PAS de l'ECS : le thread audio de fond ne touche jamais
@@ -438,6 +439,25 @@ inline void ProcessGraph(Graph &g) {
 }
 
 // ============================================================================
+// Interface
+// ============================================================================
+
+static constexpr const char *PATCHBAY_CSS = R"css(
+#toolbar { height: 36px; padding: 4px; gap: 4px; background-color: #10121c; }
+#toolbar > button { font-size: 11px; }
+.block { gap: 4px; width: 100%; }
+.small { font-size: 10px; }
+.tiny { font-size: 9px; }
+.transport { width: 32px; }
+)css";
+
+/// Widgets d'un bloc mis à jour par la boucle (adresse stable : référencés par `Ref`).
+struct BlockUi {
+	ui::Widget plot, playlist, time;
+	size_t shownTracks = 0;
+};
+
+// ============================================================================
 // main()
 // ============================================================================
 int main() {
@@ -456,13 +476,6 @@ int main() {
 		std::cerr << "Mixer init: " << mixerCtx.Error().CStr() << "\n";
 		return 1;
 	}
-	auto fontRes = sdl3::Font::FindLocal({"DejaVuSans", "FreeSans", "Arial"}, FONT_PT);
-	if (!fontRes) {
-		std::cerr << "Font: " << fontRes.Error().CStr() << "\n";
-		return 1;
-	}
-	auto &font = fontRes.Value();
-
 	auto winRes = sdl3::Window::Create(u8"audio:: - Patchbay audio", WIN_W, WIN_H, ui::WindowFrame::WINDOW_FLAGS);
 	if (!winRes) {
 		std::cerr << "Window: " << winRes.Error().CStr() << "\n";
@@ -475,68 +488,20 @@ int main() {
 		return 1;
 	}
 	auto &ren = renRes.Value();
-	ui::SdlRendererBackend renBackend(ren);
-	auto engRes = sdl3::TextEngine::Create(ren);
-	if (!engRes) {
-		std::cerr << "TextEngine: " << engRes.Error().CStr() << "\n";
-		return 1;
-	}
-	auto &eng = engRes.Value();
 
-	// ── Pipeline UI manuel (systèmes séparés, pas la façade ui::Ui) — le
-	// node-graph doit s'intercaler entre layout et rendu, cf. ui_node_graph_demo.cpp ──
-	ecs::ArchetypeRegistry ar;
-	ui::LayoutSystem layout;
-	ui::InputSystem input;
-	ui::RenderSystem render;
-	ui::StyleSystem style;
-	ui::UiFactory f(ar, layout);
-	ui::NodeGraphSystem nodeGraph;
-	style.sheet = &f.sheet;
+	ecs::ArchetypeRegistry world;
+	ui::Ui gui(world, window, ren);
+	gui.AddStyleSheet(PATCHBAY_CSS);
 
-	window.StartTextInput();
-	render.SetTextEngine(&eng, &font);
-	nodeGraph.SetTextEngine(eng, font);
-	layout.measureText = [&font](const String &s, float fs) -> sdl3::FPoint {
-		if (auto sz = font.Measure(s); sz.IsSome())
-			return {float(sz.Unwrap().x) * (fs / FONT_PT), fs * 1.35f};
-		return {float(s.size()) * fs * 0.55f, fs * 1.3f};
-	};
-	auto named = [&ar](const String &n) -> ecs::Entity {
-		auto o = ui::FindByName(ar, n);
-		return o.IsSome() ? o.Unwrap() : ecs::Entity{};
-	};
-	auto setLabel = [&](ecs::Entity e, String text) {
-		if (!e.Valid())
-			return;
-		if (auto l = ar.GetComponent<ui::UiLabel>(e); l.IsSome()) {
-			if (l.Unwrap()->text == text)
-				return;
-			l.Unwrap()->text = std::move(text);
-			layout.MarkDirty();
-		}
-	};
-
-	// ── Encadrement de fenêtre : barre de titre, zone de contenu (barre
-	// d'outils puis canvas), barre d'état. Pas de fond sur la racine : la
-	// grille du graphe est dessinée AVANT render.Run().
+	// ── Encadrement : barre de titre, barre d'outils + canevas, barre d'état ──
 	ui::WindowFrame frame;
-	frame.Build(f, layout, render, window,
+	frame.Build(gui, window,
 				{.title = "audio:: - Patchbay audio", .appIcon = Some(ui::MaterialIcons::CABLE),
 				 .status = "Ajouter des blocs, relier leurs broches · Clic droit : menu · Suppr : effacer"});
-	// Emplacement de la barre d'outils, construite plus bas (elle a besoin
-	// du graphe DSP) : réservé ici pour qu'elle précède le canvas.
-	auto toolbarSlot = f.Row();
-	toolbarSlot.GrowW().HAuto().Parent(frame.Content());
-	ecs::Entity toolbarSlotE = toolbarSlot.Spawn();
+	ui::Widget toolbar = frame.Content().Append(ui::Row().Id("toolbar").FillWidth());
+	ui::Widget canvas = frame.Content().Append(ui::NodeGraph().Grow().FillWidth());
 
-	// ── Canvas : le reste de la zone de contenu ─────────────────────────────
-	auto canvas = ui::CanvasBuilder(f);
-	canvas.GrowW().GrowH().Parent(frame.Content());
-	ecs::Entity canvasE = canvas.Spawn();
-	ui::AttachNodeGraphCanvas(ar, canvasE);
-
-	// ── Graphe DSP + threading (Décision #7 du plan) ────────────────────────
+	// ── Graphe DSP + threading (le thread audio ne touche jamais l'ECS) ───────
 	dsp::Graph graph;
 	auto graphMutexRes = sdl3::Mutex::Create();
 	sdl3::Mutex graphMutex = std::move(graphMutexRes).Unwrap();
@@ -551,59 +516,45 @@ int main() {
 	for (auto &d : playDevices)
 		playNames.push_back(d.name);
 
-	// Entity <-> id du graphe DSP, et pin -> (id, port, isOutput) pour
-	// dériver `graph.connections` des `GraphConnection` visuelles chaque frame.
+	// Entité <-> id du graphe DSP, et pin -> (id, port, sortie ?) pour dériver
+	// `graph.connections` des connexions visuelles chaque image.
 	struct PinInfo {
 		int nodeId = 0;
 		int port = 0;
 		bool isOutput = false;
 	};
-	std::unordered_map<uint64_t, int> nodeEntityToId;
-	std::unordered_map<int, ecs::Entity> idToNodeEntity;
-	std::unordered_map<uint64_t, PinInfo> pinInfo;
-	std::unordered_map<int, ecs::Entity> nodePlotEntity; // Scope/Spectrum uniquement
-
-	auto entityKey = [](ecs::Entity e) -> uint64_t { return e.id; };
+	std::unordered_map<ecs::Entity, int> nodeEntityToId;
+	std::unordered_map<ecs::Entity, PinInfo> pinInfo;
+	std::map<int, std::unique_ptr<BlockUi>> blockUi;
 
 	auto resyncConnections = [&] {
 		sdl3::MutexGuard lock(graphMutex);
-		auto cv = ar.GetComponent<ui::UiNodeGraphCanvas>(canvasE);
+		auto cv = canvas.Get<ui::GraphCanvas>();
 		if (cv.IsNone())
 			return;
-		std::vector<dsp::Connection> newConns;
+		std::vector<dsp::Connection> conns;
 		for (auto &gc : cv.Unwrap()->connections) {
-			auto itFrom = pinInfo.find(entityKey(gc.fromPin));
-			auto itTo = pinInfo.find(entityKey(gc.toPin));
+			auto itFrom = pinInfo.find(gc.fromPin);
+			auto itTo = pinInfo.find(gc.toPin);
 			if (itFrom == pinInfo.end() || itTo == pinInfo.end())
 				continue;
-			PinInfo a = itFrom->second, b = itTo->second;
+			const PinInfo a = itFrom->second, b = itTo->second;
 			if (a.isOutput == b.isOutput)
-				continue; // les deux côtés du même type (sortie-sortie/entrée-entrée) : ignoré
-			PinInfo &outPin = a.isOutput ? a : b;
-			PinInfo &inPin = a.isOutput ? b : a;
-			newConns.push_back({outPin.nodeId, outPin.port, inPin.nodeId, inPin.port});
+				continue; // sortie-sortie ou entrée-entrée : ignoré
+			const PinInfo &out = a.isOutput ? a : b;
+			const PinInfo &in = a.isOutput ? b : a;
+			// Un port d'entrée n'accepte qu'UNE source : la première trouvée.
+			const bool taken = std::any_of(conns.begin(), conns.end(), [&](const dsp::Connection &c) {
+				return c.toId == in.nodeId && c.toPort == in.port;
+			});
+			if (!taken)
+				conns.push_back({out.nodeId, out.port, in.nodeId, in.port});
 		}
-		// Un port d'entrée n'accepte qu'UNE source (comme l'original) : garde
-		// la première trouvée par port d'entrée.
-		std::vector<dsp::Connection> deduped;
-		for (auto &c : newConns) {
-			bool dup = false;
-			for (auto &d : deduped)
-				if (d.toId == c.toId && d.toPort == c.toPort) {
-					dup = true;
-					break;
-				}
-			if (!dup)
-				deduped.push_back(c);
-		}
-		graph.connections = std::move(deduped);
+		graph.connections = std::move(conns);
 		graph.RebuildBuses();
 	};
 
-	// ── (Ré)ouverture des flux Audio In/Out — index 0 = périphérique par
-	// défaut, index i>0 = recDevices[i-1]/playDevices[i-1] (même décalage que
-	// les items du combo, "Défaut système" en tête). Verrouille `graph` elle-
-	// même : le nœud doit déjà y être poussé avant le premier appel.
+	// ── (Ré)ouverture des flux Audio In/Out — index 0 = périphérique par défaut.
 	auto openAudioIn = [&](int id, int idx) {
 		sdl3::MutexGuard lock(graphMutex);
 		auto *n = graph.FindNode(id);
@@ -615,8 +566,8 @@ int main() {
 			st.stream = sdl3::AudioStream();
 		}
 		sdl3::AudioSpec spec{sdl3::AudioFormat::F32, 1, dsp::K_SAMPLE_RATE};
-		auto res = (idx <= 0) ? sdl3::AudioStream::OpenRecording(spec)
-							  : sdl3::AudioStream::OpenRecording(spec, recDevices[size_t(idx - 1)].id);
+		auto res = idx <= 0 ? sdl3::AudioStream::OpenRecording(spec)
+							: sdl3::AudioStream::OpenRecording(spec, recDevices[size_t(idx - 1)].id);
 		if (res) {
 			st.stream = std::move(res.Value());
 			st.stream.Resume();
@@ -633,46 +584,49 @@ int main() {
 			st.stream = sdl3::AudioStream();
 		}
 		sdl3::AudioSpec spec{sdl3::AudioFormat::F32, 1, dsp::K_SAMPLE_RATE};
-		auto res = (idx <= 0) ? sdl3::AudioStream::OpenPlayback(spec)
-							  : sdl3::AudioStream::OpenPlayback(spec, playDevices[size_t(idx - 1)].id);
+		auto res = idx <= 0 ? sdl3::AudioStream::OpenPlayback(spec)
+							: sdl3::AudioStream::OpenPlayback(spec, playDevices[size_t(idx - 1)].id);
 		if (res) {
 			st.stream = std::move(res.Value());
 			st.stream.Resume();
 		}
 	};
 
+	// Modifie l'état DSP d'un nœud sous verrou.
+	auto withState = [&]<typename State>(int id, auto &&fn) {
+		sdl3::MutexGuard lock(graphMutex);
+		if (auto *n = graph.FindNode(id))
+			fn(std::get<State>(n->state));
+	};
+
 	// ── Construction d'un bloc ───────────────────────────────────────────────
 	auto addBlock = [&](dsp::BlockType type) {
-		int id = nextId++;
-		String bid = String(std::format("{}", id).c_str());
-
+		const int id = nextId++;
+		const String bid = String::From(id);
 		const char *title = "";
 		sdl3::FPoint size{200.f, 160.f};
-		sdl3::FColor headerColor{sdl3::FColor::UI_NODE_HEADER_NEUTRAL()};
+		ui::Color header = ui::Rgba(70, 74, 86);
 		int numIn = 0, numOut = 0;
 		switch (type) {
-		case dsp::BlockType::AUDIO_IN: title = "Audio In"; size = {230.f, 140.f}; headerColor = sdl3::FColor::UI_ACCENT_BLUE_PRIMARY(); numOut = 1; break;
-		case dsp::BlockType::AUDIO_OUT: title = "Audio Out"; size = {230.f, 110.f}; headerColor = sdl3::FColor{155 / 255.f, 75 / 255.f, 220 / 255.f, 1.f}; numIn = 1; break;
-		case dsp::BlockType::FILTER: title = "Filter"; size = {200.f, 150.f}; headerColor = sdl3::FColor{230 / 255.f, 145 / 255.f, 30 / 255.f, 1.f}; numIn = 1; numOut = 1; break;
-		case dsp::BlockType::AMP: title = "Amp"; size = {180.f, 90.f}; headerColor = sdl3::FColor{45 / 255.f, 195 / 255.f, 110 / 255.f, 1.f}; numIn = 1; numOut = 1; break;
-		case dsp::BlockType::MIXER: title = "Mixer"; size = {180.f, 130.f}; headerColor = sdl3::FColor{45 / 255.f, 180 / 255.f, 180 / 255.f, 1.f}; numIn = 3; numOut = 1; break;
-		case dsp::BlockType::DELAY: title = "Delay"; size = {200.f, 100.f}; headerColor = sdl3::FColor{155 / 255.f, 75 / 255.f, 220 / 255.f, 1.f}; numIn = 1; numOut = 1; break;
-		case dsp::BlockType::OSC: title = "Oscillator"; size = {220.f, 190.f}; headerColor = sdl3::FColor{200 / 255.f, 60 / 255.f, 50 / 255.f, 1.f}; numOut = 1; break;
-		case dsp::BlockType::SCOPE: title = "Scope"; size = {320.f, 260.f}; headerColor = sdl3::FColor{45 / 255.f, 195 / 255.f, 110 / 255.f, 1.f}; numIn = 1; break;
-		case dsp::BlockType::SPECTRUM: title = "Spectrum"; size = {340.f, 280.f}; headerColor = sdl3::FColor::UI_ACCENT_BLUE_PRIMARY(); numIn = 1; break;
-		case dsp::BlockType::PLAYLIST: title = "Playlist"; size = {320.f, 360.f}; headerColor = sdl3::FColor{230 / 255.f, 145 / 255.f, 30 / 255.f, 1.f}; numOut = 1; break;
+		case dsp::BlockType::AUDIO_IN: title = "Audio In"; size = {230.f, 140.f}; header = ui::Rgba(55, 115, 210); numOut = 1; break;
+		case dsp::BlockType::AUDIO_OUT: title = "Audio Out"; size = {230.f, 110.f}; header = ui::Rgba(155, 75, 220); numIn = 1; break;
+		case dsp::BlockType::FILTER: title = "Filter"; size = {200.f, 150.f}; header = ui::Rgba(230, 145, 30); numIn = 1; numOut = 1; break;
+		case dsp::BlockType::AMP: title = "Amp"; size = {180.f, 90.f}; header = ui::Rgba(45, 195, 110); numIn = 1; numOut = 1; break;
+		case dsp::BlockType::MIXER: title = "Mixer"; size = {180.f, 130.f}; header = ui::Rgba(45, 180, 180); numIn = 3; numOut = 1; break;
+		case dsp::BlockType::DELAY: title = "Delay"; size = {200.f, 100.f}; header = ui::Rgba(155, 75, 220); numIn = 1; numOut = 1; break;
+		case dsp::BlockType::OSC: title = "Oscillator"; size = {220.f, 190.f}; header = ui::Rgba(200, 60, 50); numOut = 1; break;
+		case dsp::BlockType::SCOPE: title = "Scope"; size = {320.f, 260.f}; header = ui::Rgba(45, 195, 110); numIn = 1; break;
+		case dsp::BlockType::SPECTRUM: title = "Spectrum"; size = {340.f, 280.f}; header = ui::Rgba(55, 115, 210); numIn = 1; break;
+		case dsp::BlockType::PLAYLIST: title = "Playlist"; size = {320.f, 360.f}; header = ui::Rgba(230, 145, 30); numOut = 1; break;
 		}
-
-		sdl3::FPoint pos{60.f + float((id - 1) % 4) * 260.f, 60.f + float(((id - 1) / 4) % 3) * 220.f};
+		const sdl3::FPoint pos{60.f + float((id - 1) % 4) * 260.f, 60.f + float(((id - 1) / 4) % 3) * 220.f};
 
 		dsp::Node node;
 		node.id = id;
 		node.type = type;
 		node.inputs.assign(size_t(numIn), nullptr);
-		node.outputs.clear();
 		for (int i = 0; i < numOut; ++i)
 			node.outputs.push_back(std::make_shared<dsp::AudioBus>());
-
 		switch (type) {
 		case dsp::BlockType::AUDIO_IN: node.state = dsp::AudioInState{}; break;
 		case dsp::BlockType::AUDIO_OUT: node.state = dsp::AudioOutState{}; break;
@@ -685,10 +639,8 @@ int main() {
 		case dsp::BlockType::SPECTRUM: node.state = dsp::SpectrumState{}; break;
 		case dsp::BlockType::PLAYLIST: node.state = dsp::PlaylistState{}; break;
 		}
-
-		// Poussé dans le graphe MAINTENANT (pas en fin de fonction) : les
-		// callbacks ci-dessous (device combos) et l'ouverture initiale du
-		// flux Audio In/Out doivent pouvoir retrouver ce nœud par id.
+		// Poussé dans le graphe tout de suite : les rappels ci-dessous et
+		// l'ouverture initiale des flux retrouvent le nœud par id.
 		{
 			sdl3::MutexGuard lock(graphMutex);
 			graph.nodes.push_back(std::move(node));
@@ -698,432 +650,276 @@ int main() {
 		else if (type == dsp::BlockType::AUDIO_OUT)
 			openAudioOut(id, 0);
 
-		// ── Contenu visuel par type ──────────────────────────────────────────
-		auto content = f.Column();
-		content.Gap(4.f).W(ui::Dimension::Pct(100));
+		BlockUi &bui = *(blockUi[id] = std::make_unique<BlockUi>());
+
+		// Libellé + curseur : le libellé suit la valeur (format appliqué à `map(v)`).
+		auto labelledSlider = [](const char *cls, String initial, float min, float max, float value, float step,
+								 std::function<String(float)> onChange) {
+			auto label = std::make_shared<ui::Widget>();
+			return std::vector<ui::AnyWidget>{
+				ui::Label(std::move(initial)).Class(cls).Ref(*label),
+				ui::Slider(min, max, value, step).FillWidth().OnChange([label, onChange](float v) {
+					label->SetText(onChange(v));
+				}),
+			};
+		};
+		std::vector<ui::AnyWidget> content;
+		auto append = [&content](std::vector<ui::AnyWidget> more) {
+			for (auto &w : more)
+				content.push_back(std::move(w));
+		};
 
 		switch (type) {
-		case dsp::BlockType::AUDIO_IN: {
-			auto tog = f.Toggle(true);
-			tog.Name(String("in_") + bid + String("_tog")).OnToggle([&graph, &graphMutex, id](bool v) {
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id))
-					std::get<dsp::AudioInState>(n->state).enabled = v;
-			});
-			auto dev = f.Combo(recNames, 0);
-			dev.Name(String("in_") + bid + String("_dev")).GrowW().OnChange([&openAudioIn, id](float v) { openAudioIn(id, int(v)); });
-			content.Children(f.Label("Périphérique :").FontSize(10.f), std::move(dev), std::move(tog));
-			break;
-		}
+		case dsp::BlockType::AUDIO_IN:
 		case dsp::BlockType::AUDIO_OUT: {
-			auto tog = f.Toggle(true);
-			tog.Name(String("out_") + bid + String("_tog")).OnToggle([&graph, &graphMutex, id](bool v) {
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id))
-					std::get<dsp::AudioOutState>(n->state).enabled = v;
-			});
-			auto dev = f.Combo(playNames, 0);
-			dev.Name(String("out_") + bid + String("_dev")).GrowW().OnChange([&openAudioOut, id](float v) { openAudioOut(id, int(v)); });
-			content.Children(f.Label("Périphérique :").FontSize(10.f), std::move(dev), std::move(tog));
+			const bool in = type == dsp::BlockType::AUDIO_IN;
+			content.push_back(ui::Label("Périphérique :").Class("small"));
+			content.push_back(ui::Combo(in ? recNames : playNames, 0).FillWidth().OnSelect([&, id, in](int i) {
+				if (in)
+					openAudioIn(id, i);
+				else
+					openAudioOut(id, i);
+			}));
+			content.push_back(ui::Switch(true).OnToggle([&, id, in](bool v) {
+				if (in)
+					withState.operator()<dsp::AudioInState>(id, [v](auto &st) { st.enabled = v; });
+				else
+					withState.operator()<dsp::AudioOutState>(id, [v](auto &st) { st.enabled = v; });
+			}));
 			break;
 		}
 		case dsp::BlockType::FILTER: {
-			auto lp = f.Radio(String("filtmode_") + bid, String("Passe-bas"), true);
-			lp.OnToggle([&graph, &graphMutex, id](bool v) {
-				if (!v)
-					return;
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id))
-					std::get<dsp::FilterState>(n->state).mode = audio::BiQuadKind::LOW_PASS;
-			});
-			auto hp = f.Radio(String("filtmode_") + bid, String("Passe-haut"), false);
-			hp.OnToggle([&graph, &graphMutex, id](bool v) {
-				if (!v)
-					return;
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id))
-					std::get<dsp::FilterState>(n->state).mode = audio::BiQuadKind::HIGH_PASS;
-			});
-			auto lbl = f.Label("Coupure : 1000 Hz");
-			lbl.Name(String("filt_") + bid + String("_lbl")).FontSize(10.f);
-			auto cut = f.Slider(0.f, 1.f, 0.5f, 0.005f);
-			cut.GrowW().OnChange([&, id](float v) {
-				float hz = 20.f * sdl3::Pow(1000.f, v);
-				{
-					sdl3::MutexGuard lock(graphMutex);
-					if (auto *n = graph.FindNode(id))
-						std::get<dsp::FilterState>(n->state).cutoffHz = hz;
-				}
-				setLabel(named(String("filt_") + bid + String("_lbl")), String(std::format("Coupure : {:.0f} Hz", hz).c_str()));
-			});
-			content.Children(std::move(lp), std::move(hp), std::move(lbl), std::move(cut));
+			const String group = String("filter-") + bid;
+			content.push_back(ui::Radio("Passe-bas", group, true).OnToggle([&, id](bool v) {
+				if (v)
+					withState.operator()<dsp::FilterState>(id, [](auto &st) { st.mode = audio::BiQuadKind::LOW_PASS; });
+			}));
+			content.push_back(ui::Radio("Passe-haut", group).OnToggle([&, id](bool v) {
+				if (v)
+					withState.operator()<dsp::FilterState>(id, [](auto &st) { st.mode = audio::BiQuadKind::HIGH_PASS; });
+			}));
+			append(labelledSlider("small", "Coupure : 1000 Hz", 0.f, 1.f, 0.5f, 0.005f, [&, id](float v) {
+				const float hz = 20.f * sdl3::Pow(1000.f, v);
+				withState.operator()<dsp::FilterState>(id, [hz](auto &st) { st.cutoffHz = hz; });
+				return String(std::format("Coupure : {:.0f} Hz", hz));
+			}));
 			break;
 		}
-		case dsp::BlockType::AMP: {
-			auto lbl = f.Label("Gain : 1.00x");
-			lbl.Name(String("amp_") + bid + String("_lbl")).FontSize(10.f);
-			auto sl = f.Slider(0.f, 5.f, 1.f, 0.01f);
-			sl.GrowW().OnChange([&, id](float v) {
-				{
-					sdl3::MutexGuard lock(graphMutex);
-					if (auto *n = graph.FindNode(id))
-						std::get<dsp::AmpState>(n->state).gain = v;
-				}
-				setLabel(named(String("amp_") + bid + String("_lbl")), String(std::format("Gain : {:.2f}x", v).c_str()));
-			});
-			content.Children(std::move(lbl), std::move(sl));
+		case dsp::BlockType::AMP:
+			append(labelledSlider("small", "Gain : 1.00x", 0.f, 5.f, 1.f, 0.01f, [&, id](float v) {
+				withState.operator()<dsp::AmpState>(id, [v](auto &st) { st.gain = v; });
+				return String(std::format("Gain : {:.2f}x", v));
+			}));
 			break;
-		}
 		case dsp::BlockType::MIXER: {
-			auto add = f.Radio(String("mix_") + bid, String("Addition"), true);
-			add.OnToggle([&graph, &graphMutex, id](bool v) {
-				if (!v)
-					return;
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id))
-					std::get<dsp::MixerState>(n->state).mode = dsp::MixMode::ADD;
-			});
-			auto mul = f.Radio(String("mix_") + bid, String("Multiplication"), false);
-			mul.OnToggle([&graph, &graphMutex, id](bool v) {
-				if (!v)
-					return;
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id))
-					std::get<dsp::MixerState>(n->state).mode = dsp::MixMode::MULTIPLY;
-			});
-			auto avg = f.Radio(String("mix_") + bid, String("Moyenne"), false);
-			avg.OnToggle([&graph, &graphMutex, id](bool v) {
-				if (!v)
-					return;
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id))
-					std::get<dsp::MixerState>(n->state).mode = dsp::MixMode::AVERAGE;
-			});
-			content.Children(std::move(add), std::move(mul), std::move(avg));
+			const String group = String("mix-") + bid;
+			const std::pair<const char *, dsp::MixMode> modes[] = {
+				{"Addition", dsp::MixMode::ADD}, {"Multiplication", dsp::MixMode::MULTIPLY}, {"Moyenne", dsp::MixMode::AVERAGE}};
+			for (auto [label, mode] : modes)
+				content.push_back(ui::Radio(label, group, mode == dsp::MixMode::ADD).OnToggle([&, id, mode](bool v) {
+					if (v)
+						withState.operator()<dsp::MixerState>(id, [mode](auto &st) { st.mode = mode; });
+				}));
 			break;
 		}
-		case dsp::BlockType::DELAY: {
-			auto lbl = f.Label("Délai : 100 ms");
-			lbl.Name(String("dly_") + bid + String("_lbl")).FontSize(10.f);
-			auto sl = f.Slider(0.f, 2000.f, 100.f, 1.f);
-			sl.GrowW().OnChange([&, id](float v) {
-				{
-					sdl3::MutexGuard lock(graphMutex);
-					if (auto *n = graph.FindNode(id))
-						std::get<dsp::DelayState>(n->state).delayMs = v;
-				}
-				setLabel(named(String("dly_") + bid + String("_lbl")), String(std::format("Délai : {:.0f} ms", v).c_str()));
-			});
-			content.Children(std::move(lbl), std::move(sl));
+		case dsp::BlockType::DELAY:
+			append(labelledSlider("small", "Délai : 100 ms", 0.f, 2000.f, 100.f, 1.f, [&, id](float v) {
+				withState.operator()<dsp::DelayState>(id, [v](auto &st) { st.delayMs = v; });
+				return String(std::format("Délai : {:.0f} ms", v));
+			}));
 			break;
-		}
 		case dsp::BlockType::OSC: {
-			static constexpr const char *K_SHAPE_LABELS[5] = {"Sin", "Sqr", "Tri", "Saw", "Nse"};
-			auto shapeRow = f.Row();
-			shapeRow.Gap(2.f);
-			for (int s = 0; s < 5; ++s) {
-				auto r = f.Radio(String("oscshape_") + bid, String(K_SHAPE_LABELS[s]), s == 0);
-				r.FontSize(9.f).OnToggle([&graph, &graphMutex, id, s](bool v) {
-					if (!v)
-						return;
-					sdl3::MutexGuard lock(graphMutex);
-					if (auto *n = graph.FindNode(id))
-						std::get<dsp::OscState>(n->state).shape = dsp::OscShape(s);
-				});
-				shapeRow.Children(std::move(r));
-			}
-			auto lblF = f.Label("Fréq : 440 Hz");
-			lblF.Name(String("osc_") + bid + String("_flbl")).FontSize(9.f);
-			auto slF = f.Slider(0.f, 1.f, 0.5f, 0.005f);
-			slF.GrowW().OnChange([&, id](float v) {
-				float hz = 20.f * sdl3::Pow(1000.f, v);
-				{
-					sdl3::MutexGuard lock(graphMutex);
-					if (auto *n = graph.FindNode(id))
-						std::get<dsp::OscState>(n->state).freq = hz;
-				}
-				setLabel(named(String("osc_") + bid + String("_flbl")), String(std::format("Fréq : {:.0f} Hz", hz).c_str()));
-			});
-			auto lblA = f.Label("Amp : 0.50");
-			lblA.Name(String("osc_") + bid + String("_albl")).FontSize(9.f);
-			auto slA = f.Slider(0.f, 1.f, 0.5f, 0.01f);
-			slA.GrowW().OnChange([&, id](float v) {
-				{
-					sdl3::MutexGuard lock(graphMutex);
-					if (auto *n = graph.FindNode(id))
-						std::get<dsp::OscState>(n->state).amp = v;
-				}
-				setLabel(named(String("osc_") + bid + String("_albl")), String(std::format("Amp : {:.2f}", v).c_str()));
-			});
-			content.Children(std::move(shapeRow), std::move(lblF), std::move(slF), std::move(lblA), std::move(slA));
+			static constexpr const char *K_SHAPES[5] = {"Sin", "Sqr", "Tri", "Saw", "Nse"};
+			const String group = String("osc-") + bid;
+			std::vector<ui::AnyWidget> shapes;
+			for (int sh = 0; sh < 5; ++sh)
+				shapes.push_back(ui::Radio(K_SHAPES[sh], group, sh == 0).Class("tiny").OnToggle([&, id, sh](bool v) {
+					if (v)
+						withState.operator()<dsp::OscState>(id, [sh](auto &st) { st.shape = dsp::OscShape(sh); });
+				}));
+			content.push_back(ui::Wrap().Gap(4.f).Children(std::move(shapes)));
+			append(labelledSlider("tiny", "Fréq : 440 Hz", 0.f, 1.f, 0.5f, 0.005f, [&, id](float v) {
+				const float hz = 20.f * sdl3::Pow(1000.f, v);
+				withState.operator()<dsp::OscState>(id, [hz](auto &st) { st.freq = hz; });
+				return String(std::format("Fréq : {:.0f} Hz", hz));
+			}));
+			append(labelledSlider("tiny", "Amp : 0.50", 0.f, 1.f, 0.5f, 0.01f, [&, id](float v) {
+				withState.operator()<dsp::OscState>(id, [v](auto &st) { st.amp = v; });
+				return String(std::format("Amp : {:.2f}", v));
+			}));
 			break;
 		}
 		case dsp::BlockType::SCOPE: {
-			std::vector<float> initY(size_t(dsp::K_BUFFER_SIZE), 0.f);
-			auto plot = f.Plot("");
-			plot.AddLineSeries(initY, "", Some(sdl3::FColor::UI_ACCENT_GREEN()));
-			plot.Name(String("scope_") + bid + String("_plot")).GrowW().H(ui::Dimension::Px(140));
-
-			auto trigRow = f.Row();
-			trigRow.Gap(3.f);
-			static constexpr const char *K_TRIG_LABELS[3] = {"Libre", "Montant", "Descendant"};
-			for (int t = 0; t < 3; ++t) {
-				auto r = f.Radio(String("trig_") + bid, String(K_TRIG_LABELS[t]), t == 0);
-				r.FontSize(9.f).OnToggle([&graph, &graphMutex, id, t](bool v) {
-					if (!v)
-						return;
-					sdl3::MutexGuard lock(graphMutex);
-					if (auto *n = graph.FindNode(id)) {
-						auto &st = std::get<dsp::ScopeState>(n->state);
-						st.trig = dsp::TriggerMode(t);
-						st.armed = true;
-						st.collecting = false;
-						st.collectCount = 0;
-					}
-				});
-				trigRow.Children(std::move(r));
-			}
-			auto lblLvl = f.Label("Niveau : +0.00");
-			lblLvl.Name(String("scope_") + bid + String("_lvllbl")).FontSize(9.f);
-			auto slLvl = f.Slider(-1.f, 1.f, 0.f, 0.01f);
-			slLvl.GrowW().OnChange([&, id](float v) {
-				{
-					sdl3::MutexGuard lock(graphMutex);
-					if (auto *n = graph.FindNode(id))
-						std::get<dsp::ScopeState>(n->state).trigLevel = v;
-				}
-				setLabel(named(String("scope_") + bid + String("_lvllbl")), String(std::format("Niveau : {:+.2f}", v).c_str()));
-			});
-			content.Children(std::move(plot), std::move(trigRow), std::move(lblLvl), std::move(slLvl));
+			const std::vector<float> initY(size_t(dsp::K_BUFFER_SIZE), 0.f);
+			ui::PlotBuilder plot = ui::Plot();
+			plot.AddLineSeries(initY, "", Some(ui::Rgba(80, 200, 120)))
+				.YRange(-1.f, 1.f)
+				.ShowLegend(false).FillWidth().Height(140.f).Ref(bui.plot);
+			content.push_back(plot);
+			static constexpr const char *K_TRIGGERS[3] = {"Libre", "Montant", "Descendant"};
+			const String group = String("trig-") + bid;
+			std::vector<ui::AnyWidget> triggers;
+			for (int t = 0; t < 3; ++t)
+				triggers.push_back(ui::Radio(K_TRIGGERS[t], group, t == 0).Class("tiny").OnToggle([&, id, t](bool v) {
+					if (v)
+						withState.operator()<dsp::ScopeState>(id, [t](auto &st) {
+							st.trig = dsp::TriggerMode(t);
+							st.armed = true;
+							st.collecting = false;
+							st.collectCount = 0;
+						});
+				}));
+			content.push_back(ui::Wrap().Gap(4.f).Children(std::move(triggers)));
+			append(labelledSlider("tiny", "Niveau : +0.00", -1.f, 1.f, 0.f, 0.01f, [&, id](float v) {
+				withState.operator()<dsp::ScopeState>(id, [v](auto &st) { st.trigLevel = v; });
+				return String(std::format("Niveau : {:+.2f}", v));
+			}));
 			break;
 		}
 		case dsp::BlockType::SPECTRUM: {
-			std::vector<float> initX(dsp::K_BUFFER_SIZE / 2, 0.f), initY(dsp::K_BUFFER_SIZE / 2, -80.f);
-			auto plot = f.Plot("");
-			plot.AddAreaSeries(initX, initY, "", Some(sdl3::FColor::UI_ACCENT_BLUE_SKY()));
-			plot.Name(String("spec_") + bid + String("_plot")).GrowW().H(ui::Dimension::Px(180));
-
-			auto win = f.Combo(std::vector<String>{String("Rect"), String("Hann"), String("Hamming"), String("Blackman")}, 1);
-			win.GrowW().OnChange([&graph, &graphMutex, id](float v) {
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id))
-					std::get<dsp::SpectrumState>(n->state).winIdx = int(v);
-			});
-			content.Children(f.Label("Fenêtre :").FontSize(10.f), std::move(win), std::move(plot));
+			const std::vector<float> initX(dsp::K_BUFFER_SIZE / 2, 0.f), initY(dsp::K_BUFFER_SIZE / 2, -80.f);
+			ui::PlotBuilder plot = ui::Plot();
+			plot.AddAreaSeries(initX, initY, "", Some(ui::Rgba(90, 180, 255)))
+				.XRange(0.f, 20000.f)
+				.YRange(-80.f, 0.f)
+				.ShowLegend(false)
+				.FillWidth()
+				.Height(180.f)
+				.Ref(bui.plot);
+			content.push_back(ui::Label("Fenêtre :").Class("small"));
+			content.push_back(ui::Combo(std::vector<String>{"Rect", "Hann", "Hamming", "Blackman"}, 1)
+								  .FillWidth()
+								  .OnSelect([&, id](int i) {
+									  withState.operator()<dsp::SpectrumState>(id, [i](auto &st) { st.winIdx = i; });
+								  }));
+			content.push_back(plot);
 			break;
 		}
 		case dsp::BlockType::PLAYLIST: {
-			auto lst = f.Listbox(std::vector<String>{}, -1);
-			lst.Name(String("plist_") + bid).GrowW().H(ui::Dimension::Px(90));
-
-			auto btnAdd = f.Button("Ajouter...");
-			btnAdd.GrowW().OnClick([&, id] {
-				std::vector<sdl3::DialogFilter> filters{{String("Audio"), String("wav;ogg;flac;mp3")}};
-				sdl3::dialog::ShowOpenFile(
-					[&, id](const sdl3::DialogResult &res, int) {
-						if (!res.Ok())
-							return;
-						sdl3::MutexGuard lock(graphMutex);
-						auto *n = graph.FindNode(id);
-						if (!n)
-							return;
-						auto &st = std::get<dsp::PlaylistState>(n->state);
-						for (auto &path : res.files)
-							st.tracks.push_back(path);
-						// Le listbox est resynchronisé chaque frame depuis
-						// st.tracks (cf. boucle principale) — pas ici, pour
-						// rester cohérent avec un seul point de vérité.
-					},
-					window, filters, String(), true);
-			});
-			auto btnClear = f.Button("Vider");
-			btnClear.GrowW().OnClick([&graph, &graphMutex, id] {
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id)) {
-					auto &st = std::get<dsp::PlaylistState>(n->state);
-					st.tracks.clear();
-					st.playing = false;
-					st.audioData.clear();
-					st.currentTrack = -1;
-				}
-			});
-			auto rowTop = f.Row();
-			rowTop.Gap(2.f).Children(std::move(btnAdd), std::move(btnClear));
-
-			auto btnPlay = f.Button(u8"▶");
-			btnPlay.W(ui::Dimension::Px(32)).OnClick([&, id] {
-				int sel = -1;
-				if (auto lb = ar.GetComponent<ui::ListBox>(named(String("plist_") + bid)); lb.IsSome())
-					sel = lb.Unwrap()->selected;
-				sdl3::MutexGuard lock(graphMutex);
-				auto *n = graph.FindNode(id);
-				if (!n)
-					return;
-				auto &st = std::get<dsp::PlaylistState>(n->state);
-				if (sel == -1 && !st.tracks.empty())
-					sel = 0;
-				if (sel != -1)
-					st.pendingLoad = sel;
-			});
-			auto btnStop = f.Button(u8"■");
-			btnStop.W(ui::Dimension::Px(32)).OnClick([&graph, &graphMutex, id] {
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id)) {
-					auto &st = std::get<dsp::PlaylistState>(n->state);
-					st.playing = false;
-					st.playbackPos = 0;
-				}
-			});
-			auto togAuto = f.Toggle(true);
-			togAuto.OnToggle([&graph, &graphMutex, id](bool v) {
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id))
-					std::get<dsp::PlaylistState>(n->state).autoplay = v;
-			});
-			auto togLoop = f.Toggle(false);
-			togLoop.OnToggle([&graph, &graphMutex, id](bool v) {
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id))
-					std::get<dsp::PlaylistState>(n->state).looping = v;
-			});
-			auto rowCtrl = f.Row();
-			rowCtrl.Gap(4.f).Align(ui::CrossAlign::Center).Children(std::move(btnPlay), std::move(btnStop), std::move(togAuto),
-																	std::move(togLoop));
-
-			auto lblTime = f.Label("00:00 / 00:00");
-			lblTime.Name(String("plist_") + bid + String("_time")).FontSize(10.f);
-
-			content.Children(std::move(lst), std::move(rowTop), std::move(rowCtrl), std::move(lblTime));
+			content.push_back(ui::ListBox({}, -1).FillWidth().Height(90.f).Ref(bui.playlist));
+			content.push_back(ui::Row().Gap(2.f).Children({
+				ui::Button("Ajouter...").Grow().OnClick([&, id] {
+					std::vector<sdl3::DialogFilter> filters{{String("Audio"), String("wav;ogg;flac;mp3")}};
+					sdl3::dialog::ShowOpenFile(
+						[&, id](const sdl3::DialogResult &res, int) {
+							if (res.Ok())
+								withState.operator()<dsp::PlaylistState>(id, [&res](auto &st) {
+									for (auto &path : res.files)
+										st.tracks.push_back(path);
+								});
+						},
+						window, filters, String(), true);
+				}),
+				ui::Button("Vider").Grow().OnClick([&, id] {
+					withState.operator()<dsp::PlaylistState>(id, [](auto &st) {
+						st.tracks.clear();
+						st.playing = false;
+						st.audioData.clear();
+						st.currentTrack = -1;
+					});
+				}),
+			}));
+			content.push_back(ui::Row().Gap(4.f).Children({
+				ui::Button("\xe2\x96\xb6").Class("transport").Tooltip("Lire").OnClick([&, id] {
+					int sel = blockUi[id]->playlist.Selected();
+					withState.operator()<dsp::PlaylistState>(id, [&sel](auto &st) {
+						if (sel < 0 && !st.tracks.empty())
+							sel = 0;
+						if (sel >= 0)
+							st.pendingLoad = sel;
+					});
+				}),
+				ui::Button("\xe2\x96\xa0").Class("transport").Tooltip("Arrêter").OnClick([&, id] {
+					withState.operator()<dsp::PlaylistState>(id, [](auto &st) {
+						st.playing = false;
+						st.playbackPos = 0;
+					});
+				}),
+				ui::Switch(true).Tooltip("Lecture automatique").OnToggle([&, id](bool v) {
+					withState.operator()<dsp::PlaylistState>(id, [v](auto &st) { st.autoplay = v; });
+				}),
+				ui::Switch(false).Tooltip("Boucle").OnToggle([&, id](bool v) {
+					withState.operator()<dsp::PlaylistState>(id, [v](auto &st) { st.looping = v; });
+				}),
+			}));
+			content.push_back(ui::Label("00:00 / 00:00").Class("small").Ref(bui.time));
 			break;
 		}
 		}
 
-		// ── Spawn du nœud visuel + pins ──────────────────────────────────────
-		ecs::Entity nodeE = ui::AddGraphNode(f, canvasE, String(title), pos, size, std::move(content), headerColor);
+		// ── Nœud visuel + pins ───────────────────────────────────────────────
+		ui::Widget nodeW = ui::AddGraphNode(canvas, title, pos, size, ui::Column().Class("block").Children(std::move(content)),
+											header);
 		for (int i = 0; i < numIn; ++i) {
-			float off = float(i + 1) / float(numIn + 1);
-			ecs::Entity pin = ui::AddGraphPin(ar, nodeE, ui::PinSide::Left, off, ui::PinShape::CIRCLE,
-											 sdl3::FColor::UI_ACCENT_BLUE_PRIMARY());
-			pinInfo[entityKey(pin)] = {id, i, false};
+			ui::Widget pin = ui::AddGraphPin(nodeW, ui::PinSide::Left, float(i + 1) / float(numIn + 1),
+											 ui::PinShape::CIRCLE, ui::Rgba(55, 115, 210));
+			pinInfo[pin.Entity()] = {id, i, false};
 		}
 		for (int i = 0; i < numOut; ++i) {
-			float off = float(i + 1) / float(numOut + 1);
-			ecs::Entity pin = ui::AddGraphPin(ar, nodeE, ui::PinSide::Right, off, ui::PinShape::TRIANGLE,
-											 sdl3::FColor{45/255.f, 195/255.f, 110/255.f, 255/255.f});
-			pinInfo[entityKey(pin)] = {id, i, true};
+			ui::Widget pin = ui::AddGraphPin(nodeW, ui::PinSide::Right, float(i + 1) / float(numOut + 1),
+											 ui::PinShape::TRIANGLE, ui::Rgba(45, 195, 110));
+			pinInfo[pin.Entity()] = {id, i, true};
 		}
-		// Contournement d'un bug confirmé de ui::nodegraph.hpp (cf. mémoire du
-		// projet) : un nœud sans AUCUN pin sur un côté (Gauche OU Droite) voit
-		// son PROPRE UiComputed.screen mal résolu par LayoutSystem (largeur/
-		// hauteur en pixels explicites totalement ignorées, remplacées par des
-		// valeurs minuscules) — reproduit même en gardant strictement le même
-		// contenu, isolé au SEUL fait que `numIn==0` ou `numOut==0`. Un pin
-		// invisible (`connectable=false`, alpha 0) sur le côté manquant
-		// contourne le bug sans changer le nombre de ports DSP réels.
-		if (numIn == 0) {
-			ecs::Entity spacer = ui::AddGraphPin(ar, nodeE, ui::PinSide::Left, 0.5f, ui::PinShape::CIRCLE,
-												sdl3::FColor{0, 0, 0, 0});
-			if (auto p = ar.GetComponent<ui::UiGraphPin>(spacer); p.IsSome())
-				p.Unwrap()->connectable = false;
-		}
-		if (numOut == 0) {
-			ecs::Entity spacer = ui::AddGraphPin(ar, nodeE, ui::PinSide::Right, 0.5f, ui::PinShape::CIRCLE,
-												sdl3::FColor{0, 0, 0, 0});
-			if (auto p = ar.GetComponent<ui::UiGraphPin>(spacer); p.IsSome())
-				p.Unwrap()->connectable = false;
-		}
-		nodeEntityToId[entityKey(nodeE)] = id;
-		idToNodeEntity[id] = nodeE;
-		if (type == dsp::BlockType::SCOPE)
-			nodePlotEntity[id] = named(String("scope_") + bid + String("_plot"));
-		else if (type == dsp::BlockType::SPECTRUM)
-			nodePlotEntity[id] = named(String("spec_") + bid + String("_plot"));
-		layout.MarkDirty();
-		// Résolution synchrone immédiate (pas juste markDirty + attendre la
-		// prochaine frame) : un nœud nouvellement ajouté doit avoir un
-		// UiComputed.screen correct dès CETTE frame, avant le premier rendu.
-		nodeGraph.Prepass(ar);
-		layout.Run(ar, float(window.GetSize().x), float(window.GetSize().y));
-		nodeGraph.UpdatePins(ar);
+		nodeEntityToId[nodeW.Entity()] = id;
 	};
 
-	// ── Barre d'outils "Ajouter un bloc" ─────────────────────────────────────
-	auto toolbar = f.Row();
-	toolbar.Gap(4.f).Pad(4.f).GrowW().H(ui::Dimension::Px(36)).Bg(sdl3::Color{16, 18, 28}).Parent(toolbarSlotE);
+	// ── Barre d'outils « Ajouter un bloc » ───────────────────────────────────
 	struct ToolbarBtn {
 		const char *label;
 		dsp::BlockType type;
 	};
 	static constexpr ToolbarBtn K_TOOLBAR_BTNS[] = {
 		{"+ Audio In", dsp::BlockType::AUDIO_IN}, {"+ Audio Out", dsp::BlockType::AUDIO_OUT},
-		{"+ Filter", dsp::BlockType::FILTER},    {"+ Amp", dsp::BlockType::AMP},
-		{"+ Mixer", dsp::BlockType::MIXER},      {"+ Delay", dsp::BlockType::DELAY},
-		{"+ Oscillator", dsp::BlockType::OSC},   {"+ Scope", dsp::BlockType::SCOPE},
+		{"+ Filter", dsp::BlockType::FILTER},	  {"+ Amp", dsp::BlockType::AMP},
+		{"+ Mixer", dsp::BlockType::MIXER},		  {"+ Delay", dsp::BlockType::DELAY},
+		{"+ Oscillator", dsp::BlockType::OSC},	  {"+ Scope", dsp::BlockType::SCOPE},
 		{"+ Spectrum", dsp::BlockType::SPECTRUM}, {"+ Playlist", dsp::BlockType::PLAYLIST},
 	};
-	for (auto &tb : K_TOOLBAR_BTNS) {
-		auto btn = f.Button(String(tb.label));
-		dsp::BlockType t = tb.type;
-		btn.FontSize(11.f).OnClick([&addBlock, t] { addBlock(t); });
-		toolbar.Children(std::move(btn));
+	for (const ToolbarBtn &tb : K_TOOLBAR_BTNS) {
+		const dsp::BlockType t = tb.type;
+		toolbar.Append(ui::Button(tb.label).OnClick([&addBlock, t] { addBlock(t); }));
 	}
-	toolbar.Spawn();
 
-	// ── Menu contextuel (clic droit) : supprimer un nœud / déconnecter un pin ──
-	auto rightClickedNode = std::make_shared<ecs::Entity>();
-	auto rightClickedPin = std::make_shared<ecs::Entity>();
-
-	auto delBtn = f.Button("Supprimer le bloc");
-	delBtn.OnClick([&, rightClickedNode] {
-		if (!rightClickedNode->Valid())
-			return;
-		auto it = nodeEntityToId.find(entityKey(*rightClickedNode));
-		if (it != nodeEntityToId.end()) {
-			int id = it->second;
-			sdl3::MutexGuard lock(graphMutex);
-			graph.nodes.erase(std::remove_if(graph.nodes.begin(), graph.nodes.end(),
-											 [id](const dsp::Node &n) { return n.id == id; }),
-							  graph.nodes.end());
-			graph.connections.erase(std::remove_if(graph.connections.begin(), graph.connections.end(),
-												   [id](const dsp::Connection &c) { return c.fromId == id || c.toId == id; }),
-									graph.connections.end());
-			idToNodeEntity.erase(id);
-			nodePlotEntity.erase(id);
-		}
-		ui::DestroyGraphNode(ar, *rightClickedNode);
-		*rightClickedNode = ecs::Entity{};
-		layout.MarkDirty();
-	});
-	auto discBtn = f.Button(u8"Déconnecter");
-	discBtn.OnClick([&, rightClickedPin] {
-		if (!rightClickedPin->Valid())
-			return;
-		if (auto cv = ar.GetComponent<ui::UiNodeGraphCanvas>(canvasE); cv.IsSome()) {
-			auto &conns = cv.Unwrap()->connections;
-			conns.erase(std::remove_if(conns.begin(), conns.end(),
-									   [&](const ui::GraphConnection &c) {
-										   return c.fromPin == *rightClickedPin || c.toPin == *rightClickedPin;
-									   }),
-					   conns.end());
-		}
-		*rightClickedPin = ecs::Entity{};
-		resyncConnections();
-	});
-	auto ctxMenu = f.Popup();
-	ctxMenu.Gap(2.f).Pad(4.f).Children(std::move(delBtn), std::move(discBtn));
-	ecs::Entity ctxMenuE = ctxMenu.Spawn();
-
-	ui::NodeGraphCallbacks cb;
-	cb.onContextMenu = [&, ctxMenuE, rightClickedNode, rightClickedPin](ecs::Entity node, ecs::Entity pin, sdl3::FPoint screenPos) {
-		*rightClickedNode = node;
-		*rightClickedPin = pin;
-		if (auto rect = ar.GetComponent<ui::UiRect>(ctxMenuE); rect.IsSome())
-			rect.Unwrap()->offset = {screenPos.x, screenPos.y};
-		ui::OpenPopup(ar, layout, ctxMenuE, ctxMenuE);
+	// ── Menu contextuel (clic droit) : supprimer un bloc / déconnecter un pin ──
+	ecs::Entity rightClickedNode{}, rightClickedPin{};
+	ui::Widget menu = gui.Mount(ui::ContextMenu().Children({
+		ui::MenuItem("Supprimer le bloc").OnClick([&] {
+			if (!world.IsAlive(rightClickedNode))
+				return;
+			if (auto it = nodeEntityToId.find(rightClickedNode); it != nodeEntityToId.end()) {
+				const int id = it->second;
+				{
+					sdl3::MutexGuard lock(graphMutex);
+					std::erase_if(graph.nodes, [id](const dsp::Node &n) { return n.id == id; });
+					std::erase_if(graph.connections,
+								  [id](const dsp::Connection &c) { return c.fromId == id || c.toId == id; });
+				}
+				blockUi.erase(id);
+				nodeEntityToId.erase(it);
+			}
+			ui::DestroyGraphNode(world, rightClickedNode);
+			rightClickedNode = ecs::Entity{};
+		}),
+		ui::MenuItem("Déconnecter").OnClick([&] {
+			if (!world.IsAlive(rightClickedPin))
+				return;
+			if (auto cv = canvas.Get<ui::GraphCanvas>(); cv.IsSome())
+				std::erase_if(cv.Unwrap()->connections, [&](const ui::GraphConnection &c) {
+					return c.fromPin == rightClickedPin || c.toPin == rightClickedPin;
+				});
+			rightClickedPin = ecs::Entity{};
+			resyncConnections();
+		}),
+	}));
+	ui::GraphCallbacks callbacks;
+	callbacks.onContextMenu = [&](ecs::Entity node, ecs::Entity pin, sdl3::FPoint at) {
+		rightClickedNode = node;
+		rightClickedPin = pin;
+		menu.OpenAt(at);
 	};
-	ar.AddComponent(canvasE, std::move(cb));
+	ui::SetGraphCallbacks(canvas, std::move(callbacks));
 
-	// ── Thread audio de fond (Décision #7 : ne touche QUE `graph`, jamais `ar`) ──
+	// ── Thread audio de fond : ne touche QUE `graph`, jamais l'ECS ───────────
 	auto audioThreadRes = sdl3::Thread::Create(
 		[&audioRunning, &graph, &graphMutex]() -> int {
 			while (audioRunning.Load() != 0) {
@@ -1141,15 +937,10 @@ int main() {
 	// ── Boucle ───────────────────────────────────────────────────────────────
 	bool running = true;
 	uint64_t lastTick = sdl3::GetTicksMS();
-
 	while (running) {
-		uint64_t now = sdl3::GetTicksMS();
-		float dt = float(now - lastTick) / 1000.f;
+		const uint64_t now = sdl3::GetTicksMS();
+		const float dt = float(now - lastTick) / 1000.f;
 		lastTick = now;
-
-		nodeGraph.Prepass(ar);
-		layout.RunIfNeeded(ar, float(window.GetSize().x), float(window.GetSize().y));
-		nodeGraph.UpdatePins(ar);
 
 		while (auto ev = sdl3::PollEvent()) {
 			auto &e = ev.Value();
@@ -1157,107 +948,86 @@ int main() {
 				running = false;
 				break;
 			}
-			if (e.IsKeyDown(SDLK_ESCAPE) && !input.HasOpenModal()) {
+			if (gui.HandleEvent(e))
+				continue;
+			if (e.IsKeyDown(SDLK_ESCAPE))
 				running = false;
-				break;
-			}
-			input.HandleEvent(ar, e, layout);
-			nodeGraph.HandleEvent(ar, e, layout);
 		}
-		input.Tick(ar, layout, dt);
-		nodeGraph.Tick(ar, layout, dt);
+		gui.Update(dt);
 		frame.Update();
 		if (frame.CloseRequested())
 			running = false;
 
-		// Topologie : re-dérive `graph.connections` des `GraphConnection`
-		// visuelles (l'utilisateur a pu glisser une nouvelle connexion).
+		// Topologie : re-dérive `graph.connections` des connexions visuelles.
 		resyncConnections();
 
-		// Chargement différé d'une piste sélectionnée (décodage HORS du
-		// verrou audio — un AudioDecoder complet prend plusieurs ms).
-		{
-			std::vector<std::pair<int, String>> toLoad;
-			{
-				sdl3::MutexGuard lock(graphMutex);
-				for (auto &n : graph.nodes) {
-					if (n.type != dsp::BlockType::PLAYLIST)
-						continue;
-					auto &st = std::get<dsp::PlaylistState>(n.state);
-					if (st.pendingLoad >= 0 && st.pendingLoad < int(st.tracks.size())) {
-						toLoad.push_back({n.id, st.tracks[size_t(st.pendingLoad)]});
-						st.currentTrack = st.pendingLoad;
-						st.pendingLoad = -1;
-					}
-				}
-			}
-			for (auto &[id, path] : toLoad) {
-				std::vector<float> data;
-				bool ok = DecodeToMonoFloat(path, data);
-				sdl3::MutexGuard lock(graphMutex);
-				if (auto *n = graph.FindNode(id)) {
-					auto &st = std::get<dsp::PlaylistState>(n->state);
-					st.audioData = ok ? std::move(data) : std::vector<float>{};
-					st.playbackPos = 0;
-					st.playing = ok;
-				}
-			}
-		}
-
-		// Télémétrie DSP -> UI (Scope/Spectrum/Playlist), sous verrou.
+		// Chargement différé d'une piste (décodage HORS du verrou audio).
+		std::vector<std::pair<int, String>> toLoad;
 		{
 			sdl3::MutexGuard lock(graphMutex);
 			for (auto &n : graph.nodes) {
+				if (n.type != dsp::BlockType::PLAYLIST)
+					continue;
+				auto &st = std::get<dsp::PlaylistState>(n.state);
+				if (st.pendingLoad >= 0 && st.pendingLoad < int(st.tracks.size())) {
+					toLoad.push_back({n.id, st.tracks[size_t(st.pendingLoad)]});
+					st.currentTrack = st.pendingLoad;
+					st.pendingLoad = -1;
+				}
+			}
+		}
+		for (auto &[id, path] : toLoad) {
+			std::vector<float> data;
+			const bool ok = DecodeToMonoFloat(path, data);
+			withState.operator()<dsp::PlaylistState>(id, [&](auto &st) {
+				st.audioData = ok ? std::move(data) : std::vector<float>{};
+				st.playbackPos = 0;
+				st.playing = ok;
+			});
+		}
+
+		// Télémétrie DSP -> interface (Scope / Spectrum / Playlist), sous verrou.
+		{
+			sdl3::MutexGuard lock(graphMutex);
+			for (auto &n : graph.nodes) {
+				auto it = blockUi.find(n.id);
+				if (it == blockUi.end())
+					continue;
+				BlockUi &bui = *it->second;
 				if (n.type == dsp::BlockType::SCOPE) {
 					auto &st = std::get<dsp::ScopeState>(n.state);
-					auto it = nodePlotEntity.find(n.id);
-					if (it != nodePlotEntity.end() && !st.display.empty()) {
-						if (auto p = ar.GetComponent<ui::UiPlot>(it->second); p.IsSome() && !p.Unwrap()->series.empty())
-							p.Unwrap()->series[0].SetY(st.display);
-					}
+					if (auto p = bui.plot.Get<ui::PlotModel>(); p.IsSome() && !st.display.empty() && !p.Unwrap()->series.empty())
+						p.Unwrap()->series[0].SetY(st.display);
 				} else if (n.type == dsp::BlockType::SPECTRUM) {
 					auto &st = std::get<dsp::SpectrumState>(n.state);
-					auto it = nodePlotEntity.find(n.id);
-					if (it != nodePlotEntity.end() && !st.displayDb.empty()) {
+					if (auto p = bui.plot.Get<ui::PlotModel>(); p.IsSome() && !st.displayDb.empty() && !p.Unwrap()->series.empty()) {
 						auto freqs = audio::ProcessFFTFrequencies(size_t(dsp::K_BUFFER_SIZE), dsp::K_SAMPLE_RATE);
-						std::vector<float> y(freqs.size());
+						std::vector<float> y(freqs.size(), -80.f);
 						for (size_t k = 0; k < freqs.size() && k < st.displayDb.size(); ++k)
 							y[k] = sdl3::Max(-80.f, st.displayDb[k]);
-						if (auto p = ar.GetComponent<ui::UiPlot>(it->second); p.IsSome() && !p.Unwrap()->series.empty())
-							p.Unwrap()->series[0].SetXy(freqs, y);
+						p.Unwrap()->series[0].SetXy(freqs, y);
 					}
 				} else if (n.type == dsp::BlockType::PLAYLIST) {
 					auto &st = std::get<dsp::PlaylistState>(n.state);
-					String bid = String(std::format("{}", n.id).c_str());
-					if (auto lb = ar.GetComponent<ui::ListBox>(named(String("plist_") + bid)); lb.IsSome()) {
+					if (bui.playlist && bui.shownTracks != st.tracks.size()) {
 						std::vector<String> names;
-						names.reserve(st.tracks.size());
 						for (auto &t : st.tracks)
 							names.push_back(FileNameOf(t));
-						if (lb.Unwrap()->items.size() != names.size())
-							lb.Unwrap()->items = names;
+						bui.playlist.SetItems(std::move(names));
+						bui.shownTracks = st.tracks.size();
 					}
-					float durSec = st.audioData.empty() ? 0.f : float(st.audioData.size()) / float(dsp::K_SAMPLE_RATE);
-					float posSec = float(st.playbackPos) / float(dsp::K_SAMPLE_RATE);
-					setLabel(named(String("plist_") + bid + String("_time")),
-							 String(std::format("{:02.0f}:{:02.0f} / {:02.0f}:{:02.0f}", sdl3::Floor(posSec / 60.f),
-												sdl3::Fmod(posSec, 60.f), sdl3::Floor(durSec / 60.f), sdl3::Fmod(durSec, 60.f))
-										.c_str()));
+					const float durSec = st.audioData.empty() ? 0.f : float(st.audioData.size()) / float(dsp::K_SAMPLE_RATE);
+					const float posSec = float(st.playbackPos) / float(dsp::K_SAMPLE_RATE);
+					bui.time.SetText(std::format("{:02.0f}:{:02.0f} / {:02.0f}:{:02.0f}", sdl3::Floor(posSec / 60.f),
+												 sdl3::Fmod(posSec, 60.f), sdl3::Floor(durSec / 60.f),
+												 sdl3::Fmod(durSec, 60.f)));
 				}
 			}
 		}
 
-		style.Resolve(ar);
-		layout.RunIfNeeded(ar, float(window.GetSize().x), float(window.GetSize().y));
-
-		ren.SetDrawColor(sdl3::FColor::UI_WINDOW_BG());
+		ren.SetDrawColor(gui.CurrentPalette().appBg);
 		ren.Clear();
-		nodeGraph.RenderGrid(ar, renBackend);
-		nodeGraph.RenderConnections(ar, renBackend);
-		render.Run(ar, renBackend, &input.tooltip);
-		nodeGraph.RenderHeaders(ar, renBackend);
-		nodeGraph.RenderPins(ar, renBackend);
-		nodeGraph.RenderMarquee(renBackend);
+		gui.Render();
 		ren.Present();
 	}
 

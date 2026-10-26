@@ -1,102 +1,70 @@
 #pragma once
 /**
- * ui::scene — système de scènes retenues (retained-mode).
+ * ui::SceneManager — écrans retenus, construits paresseusement.
  *
- * Une Scene est un ensemble nommé de racines UI construites paresseusement
- * (le builder n'est appelé qu'au premier show()). Cacher/montrer une scène ne
- * détruit RIEN : les entités restent en mémoire avec leur état (valeurs de
- * sliders, texte saisi, position de scroll...), seule la visibilité change —
- * c'est ce qui rend la navigation entre écrans quasi gratuite, à la GTK4
- * (GtkStack), au lieu de reconstruire l'arbre à chaque changement d'écran.
+ * Une scène est un builder matérialisé au premier `Show` ; la cacher ne
+ * détruit rien (valeurs, texte saisi, défilement conservés) : naviguer entre
+ * écrans ne coûte qu'une bascule de visibilité.
  *
  * @code{.cpp}
- * ui::SceneManager scenes(factory);
- *
- * scenes.Add("menu", [](ui::UiFactory& f) {
- *     return std::vector{ f.Panel().Children(...).Spawn() };
- * });
- * scenes.Add("options", [](ui::UiFactory& f) { ... });
- *
- * scenes.SwitchTo("menu");     // construit "menu" (1re fois), l'affiche
- * scenes.SwitchTo("options");  // cache "menu" (état conservé), affiche "options"
- * scenes.SwitchTo("menu");     // ré-affichage instantané, aucun rebuild
+ * ui::SceneManager scenes(gui.Root());
+ * scenes.Add("menu", [] { return ui::Column().Fill().Children({...}); });
+ * scenes.Add("options", [] { return ui::Panel().Children({...}); });
+ * scenes.SwitchTo("menu");      // construit, affiche
+ * scenes.SwitchTo("options");   // cache "menu" (état conservé)
  * @endcode
  */
-#include <unordered_map>
+#include <functional>
+#include <map>
+#include <vector>
 
-#include "factory.hpp"
+#include "builder.hpp"
+#include "widget.hpp"
 
 namespace ui {
 
-// ============================================================================
-// Scene
-// ============================================================================
-
-class Scene {
-public:
-	using Builder = std::function<std::vector<ecs::Entity>(UiFactory &)>;
-
-	Scene() = default;
-	Scene(String name_, Builder builder_) : name(std::move(name_)), builder(std::move(builder_)) {}
-
-	[[nodiscard]] const String &SceneName() const noexcept { return name; }
-	[[nodiscard]] bool Built() const noexcept { return built; }
-	[[nodiscard]] bool Visible() const noexcept { return visible; }
-	[[nodiscard]] const std::vector<ecs::Entity> &Roots() const noexcept { return roots; }
-
-private:
-	friend class SceneManager;
-
-	String name;
-	Builder builder;
-	std::vector<ecs::Entity> roots;
-	bool built = false;
-	bool visible = false;
-};
-
-// ============================================================================
-// SceneManager
-// ============================================================================
-
 class SceneManager {
 public:
-	explicit SceneManager(UiFactory &factory_) : factory(&factory_) {}
+	using Factory = std::function<AnyWidget()>;
 
-	/// Enregistre une scène (construction différée au premier show()).
-	Scene &Add(String name, Scene::Builder builder);
+	struct Scene {
+		String name;
+		Factory factory;
+		Widget root;
+		bool visible = false;
+		[[nodiscard]] bool Built() const noexcept { return root.Valid(); }
+	};
 
-	[[nodiscard]] bool Has(const String &name) const { return scenes.contains(String(name.c_str())); }
+	/// Les scènes sont construites sous `parent` (la racine en général).
+	explicit SceneManager(Widget parent) : m_parent(parent) {}
 
-	[[nodiscard]] Scene *Get(const String &name);
+	Scene &Add(String name, Factory factory);
+	[[nodiscard]] bool Has(StringView name) const;
+	[[nodiscard]] Scene *Get(StringView name);
+	/// Widget racine de la scène (la construit au besoin, sans l'afficher).
+	[[nodiscard]] Widget RootOf(StringView name);
 
-	/// Affiche la scène (la construit au premier appel). Retourne false si inconnue.
-	bool Show(const String &name);
-
-	/// Cache la scène sans rien détruire (l'état des widgets est conservé).
-	bool Hide(const String &name);
-
-	/// Cache toutes les scènes visibles puis affiche `name`.
-	bool SwitchTo(const String &name);
-
-	bool Toggle(const String &name);
-
-	/// Détruit les entités de la scène (rebuild au prochain show()).
-	bool Destroy(const String &name);
-
-	/// Retire la scène du gestionnaire (après destruction de ses entités).
-	bool Remove(const String &name);
+	/// Affiche la scène (construite au premier appel) ; faux si inconnue.
+	bool Show(StringView name);
+	/// Cache sans détruire.
+	bool Hide(StringView name);
+	/// Cache les autres, affiche `name`.
+	bool SwitchTo(StringView name);
+	bool Toggle(StringView name);
+	/// Détruit les widgets (reconstruits au prochain Show).
+	bool Destroy(StringView name);
+	bool Remove(StringView name);
 
 	[[nodiscard]] std::vector<String> VisibleScenes() const;
-
-	[[nodiscard]] UiFactory &Factory() noexcept { return *factory; }
+	/// Dernière scène affichée par SwitchTo (vide : aucune).
+	[[nodiscard]] const String &Current() const noexcept { return m_current; }
 
 private:
-	UiFactory *factory;
-	std::unordered_map<String, Scene> scenes;
+	void Build(Scene &s);
 
-	void BuildIfNeeded(Scene &s);
-
-	static void ZeroComputed(ecs::ArchetypeRegistry &w, ecs::Entity e);
+	Widget m_parent;
+	std::map<String, Scene, std::less<>> m_scenes;
+	String m_current;
 };
 
 } // namespace ui

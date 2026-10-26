@@ -27,7 +27,7 @@ constexpr int DB_VERSION = 1;
 
 using dataio::Node;
 
-String ChunkKey(const ChunkPos &p) { return String::Format("%d,%d,%d", p.x, p.y, p.z); }
+String LegacyChunkKey(const ChunkPos &p) { return String::Format("%d,%d,%d", p.x, p.y, p.z); }
 
 String Bytes(const std::vector<uint8_t> &bytes) { return String(reinterpret_cast<const char *>(bytes.data()), bytes.size()); }
 
@@ -236,7 +236,7 @@ Option<String> WorldSave::ImportLegacyFiles() {
 			const ChunkPos p{x, y, z};
 			Chunk chunk(p);
 			const std::vector<uint8_t> stored = DecodeChunk(bytes, chunk) ? EncodeChunk(chunk) : bytes;
-			(void)m_db.Upsert(String("chunks"), {Node::MakeString(ChunkKey(p)), Node::MakeInt(x), Node::MakeInt(y), Node::MakeInt(z),
+			(void)m_db.Upsert(String("chunks"), {Node::MakeString(LegacyChunkKey(p)), Node::MakeInt(x), Node::MakeInt(y), Node::MakeInt(z),
 												  Node::MakeString(Bytes(stored))});
 			++chunks;
 		}
@@ -465,6 +465,10 @@ bool WorldSave::DecodeChunk(const std::vector<uint8_t> &bytes, Chunk &chunk) {
 	return r.ok;
 }
 
+String WorldSave::ChunkKey(const ChunkPos &p) const {
+	return m_dimension.IsEmpty() ? LegacyChunkKey(p) : m_dimension + String("|") + LegacyChunkKey(p);
+}
+
 bool WorldSave::LoadChunk(Chunk &chunk) {
 	if (OpenDatabase().IsError())
 		return false;
@@ -519,7 +523,15 @@ NodePtr EntityToJson(ecs::ArchetypeRegistry &registry, ecs::Entity e) {
 	if (auto player = registry.GetComponent<Player>(e); player.IsSome()) {
 		n->Set("name", json::MakeStr(player.Unwrap()->name));
 		n->Set("selectedSlot", json::MakeInt(player.Unwrap()->selectedSlot));
+		if (!player.Unwrap()->dimension.IsEmpty())
+			n->Set("dimension", json::MakeStr(player.Unwrap()->dimension));
+		if (!player.Unwrap()->returnDimension.IsEmpty()) {
+			n->Set("returnDimension", json::MakeStr(player.Unwrap()->returnDimension));
+			n->Set("returnPosition", Vec(player.Unwrap()->returnPosition));
+		}
 	}
+	if (auto body = registry.GetComponent<PhysicsBody>(e); body.IsSome() && body.Unwrap()->gravityDirection < 0.f)
+		n->Set("gravityInverted", json::MakeBool(true));
 	if (auto body = registry.GetComponent<PhysicsBody>(e); body.IsSome() && body.Unwrap()->flies)
 		n->Set("flying", json::MakeBool(true));
 	if (auto sv = registry.GetComponent<Survival>(e); sv.IsSome()) {
@@ -590,14 +602,25 @@ Result<bool, String> WorldSave::SaveEntities(ecs::ArchetypeRegistry &registry) {
 	if (Result<bool, String> r = OpenDatabase(); r.IsError())
 		return r;
 	// Instantané complet : les entités disparues depuis quittent la table.
-	if (Result<sql::QueryResult, String> r = m_db.Execute(String("DELETE FROM entities")); r.IsError())
-		return Err(r.Error());
 	std::vector<ecs::Entity> entities;
 	registry.Query<Persistent, EntityKind>([&](ecs::Entity e, Persistent &, EntityKind &) { entities.push_back(e); });
+	// Les entités des AUTRES dimensions restent : on les réécrit telles quelles.
+	std::vector<sql::Row> others;
+	(void)m_db.ForEachRow(String("entities"), [&](const sql::Row &row) {
+		if (Result<NodePtr, String> n = json::Parse(row[5]->stringValue); n.IsOk() && json::Str(n.Value(), "dimension") != m_dimension)
+			others.push_back(row);
+	});
+	if (Result<sql::QueryResult, String> r = m_db.Execute(String("DELETE FROM entities")); r.IsError())
+		return Err(r.Error());
+	for (sql::Row &row : others)
+		if (Result<sql::QueryResult, String> r = m_db.Upsert(String("entities"), std::move(row)); r.IsError())
+			return Err(r.Error());
 	for (ecs::Entity e : entities) {
 		if (registry.HasComponent<Player>(e))
 			continue;
 		const NodePtr n = EntityToJson(registry, e);
+		if (!m_dimension.IsEmpty())
+			n->Set("dimension", json::MakeStr(m_dimension));
 		const math::FVector3 pos = json::Vec3(n, "position");
 		if (Result<sql::QueryResult, String> r =
 				m_db.Upsert(String("entities"), {Node::MakeString(json::Str(n, "uuid")), Node::MakeString(json::Str(n, "kind")),
@@ -615,8 +638,10 @@ Result<size_t, String> WorldSave::LoadEntities(ecs::ArchetypeRegistry &registry)
 		return Err(r.Error());
 	std::vector<NodePtr> stored;
 	(void)m_db.ForEachRow(String("entities"), [&](const sql::Row &row) {
-		if (Result<NodePtr, String> n = json::Parse(row[5]->stringValue); n.IsOk())
-			stored.push_back(n.Value());
+		if (Result<NodePtr, String> n = json::Parse(row[5]->stringValue); n.IsOk()) {
+			if (json::Str(n.Value(), "dimension") == m_dimension)
+				stored.push_back(n.Value());
+		}
 		else
 			m_warnings.push_back(String::Format("entité %s illisible : ignorée", row[0]->stringValue.CStr()));
 	});
@@ -667,8 +692,14 @@ bool WorldSave::LoadPlayer(ecs::ArchetypeRegistry &registry, ecs::Entity player)
 		h.Unwrap()->current = float(json::Num(n, "health", h.Unwrap()->current));
 	if (auto inv = registry.GetComponent<InventoryComponent>(player); inv.IsSome() && json::Has(n, "inventory"))
 		inv.Unwrap()->inventory = Inventory::FromJson(json::At(n, "inventory"));
-	if (auto pl = registry.GetComponent<Player>(player); pl.IsSome())
+	if (auto pl = registry.GetComponent<Player>(player); pl.IsSome()) {
 		pl.Unwrap()->selectedSlot = json::Int(n, "selectedSlot", 0);
+		pl.Unwrap()->dimension = json::Str(n, "dimension");
+		pl.Unwrap()->returnDimension = json::Str(n, "returnDimension");
+		pl.Unwrap()->returnPosition = json::Vec3(n, "returnPosition");
+	}
+	if (auto body = registry.GetComponent<PhysicsBody>(player); body.IsSome())
+		body.Unwrap()->gravityDirection = json::Bool(n, "gravityInverted", false) ? -1.f : 1.f;
 	if (auto body = registry.GetComponent<PhysicsBody>(player); body.IsSome())
 		body.Unwrap()->flies = json::Bool(n, "flying", false);
 	if (auto sv = registry.GetComponent<Survival>(player); sv.IsSome() && json::Has(n, "survival")) {

@@ -2,13 +2,14 @@
 /**
  * Game — la partie, SANS fenêtre ni GPU : contenu (mods), monde,
  * sauvegarde, entités et systèmes ECS, scripts, console. L'application
- * (demos/voxelgame) n'y ajoute que l'affichage, le son et les entrées ;
+ * (demos/voxelia) n'y ajoute que l'affichage, le son et les entrées ;
  * les tests pilotent une partie complète sans rien de tout cela.
  *
  * Systèmes (ecs::Schedule) :
  *   PRE_UPDATE    world.stream      chunks autour des joueurs
  *   FIXED_UPDATE  ai                comportements (intégrés et scriptés)
  *                 physics           physique voxel
+ *                 portals           portails, champs de gravité
  *                 falling_blocks    sable & co
  *                 items             objets au sol (ramassage, fusion, durée)
  *                 health            chutes, morts, butin
@@ -16,6 +17,12 @@
  *                 sounds.idle       sons d'ambiance des créatures
  *   POST_UPDATE   events.dispatch   événements ECS → scripts
  * Un mod peut ajouter ses propres systèmes (`voxel.system`).
+ *
+ * Dimensions (DimensionDef) : un seul monde ACTIF à la fois, celui du
+ * joueur ; changer de dimension enregistre puis décharge le monde courant
+ * (chunks, entités), et ouvre l'autre — généré à l'arrivée, puis chunk par
+ * chunk. Chaque dimension garde ses chunks et ses entités dans la même
+ * sauvegarde, son point d'arrivée et ses données libres (scripts).
  *
  * Actions de jeu (interface, scripts, console) : casser/poser un bloc,
  * utiliser l'objet tenu, interagir avec une entité, blesser, faire
@@ -117,6 +124,26 @@ public:
 	[[nodiscard]] ecs::Schedule &GetSchedule() noexcept { return m_schedule; }
 	[[nodiscard]] PhysicsSettings &Physics() noexcept { return m_physics; }
 
+	// ── Dimensions ──────────────────────────────────────────────────────────
+
+	/// Dimension active (celle du joueur local) ; vide si aucun mod n'en déclare.
+	[[nodiscard]] const String &CurrentDimension() const noexcept { return m_dimension; }
+	[[nodiscard]] const DimensionDef *CurrentDimensionDef() const;
+	/// Envoie le joueur dans `dimension`, en `at` ou à son point d'arrivée.
+	/// Demandé pendant un pas de jeu (script, portail, mort), le voyage a lieu
+	/// à la fin du pas. Erreur si la dimension est inconnue.
+	Result<bool, String> TravelTo(ecs::Entity player, const String &dimension, Option<math::FVector3> at = NONE);
+	/// Avance à chaque remplacement du monde (changement de dimension) :
+	/// l'affichage le reconstruit de zéro.
+	[[nodiscard]] uint64_t WorldSerial() const noexcept { return m_worldSerial; }
+	/// Données persistantes d'une dimension (vide : la courante) — « state »
+	/// est réservé aux scripts (énergie du noyau, hostilité de la forêt…).
+	[[nodiscard]] NodePtr DimensionData(const String &dimension = String());
+	/// Secondes de jeu passées dans la dimension courante depuis l'arrivée.
+	[[nodiscard]] double TimeInDimension() const noexcept { return m_metadata.playTime - m_dimensionEnter; }
+	/// Position des yeux (gravité inversée : près des pieds, la tête en bas).
+	[[nodiscard]] math::FVector3 EyePosition(ecs::Entity e);
+
 	/// Un pas de jeu (systèmes, scripts).
 	void Tick(float dt);
 
@@ -173,7 +200,8 @@ public:
 	[[nodiscard]] math::FVector3 SpawnPoint();
 	ecs::Entity SpawnEntity(const String &id, const math::FVector3 &feet);
 	ecs::Entity DropItem(const ItemStack &stack, const math::FVector3 &position, const math::FVector3 &velocity = {0.f, 3.f, 0.f});
-	void Damage(ecs::Entity target, float amount, ecs::Entity source = ecs::Entity{});
+	/// `cause` : « attack » (source donnée), « suffocation », « fall »… (cf. Health::lastCause).
+	void Damage(ecs::Entity target, float amount, ecs::Entity source = ecs::Entity{}, const String &cause = String());
 	void Kill(ecs::Entity target);
 	bool Interact(ecs::Entity actor, ecs::Entity target);
 
@@ -224,8 +252,24 @@ private:
 	/// `top` et `bottom` : solide, ni fluide ni feuillage, surmonté de deux
 	/// blocs libres. Les chunks traversés sont générés au besoin.
 	[[nodiscard]] Option<int> StandableY(int x, int z, int top, int bottom);
+public:
+	/// Même chose sans rien générer (chunks chargés seulement) ; scripts.
+	[[nodiscard]] Option<int> LoadedGround(int x, int z, int top, int bottom) const;
+private:
 	/// Point d'apparition vérifié sur les blocs réellement générés.
 	[[nodiscard]] math::FVector3 FindSpawn();
+	/// Point d'arrivée de la dimension courante (celui du monde ordinaire :
+	/// SpawnPoint), calculé une fois puis enregistré.
+	[[nodiscard]] math::FVector3 DimensionSpawn();
+	/// Crée le monde de `dimension` (générateur, graine dérivée, stockage).
+	void CreateWorld(const String &dimension);
+	void DoTravel(ecs::Entity player, const String &dimension, Option<math::FVector3> at, bool remember);
+	/// Pose le joueur dans le terrain chargé (première place libre au-dessus).
+	void SettlePlayer(ecs::Entity e);
+	/// Portail de retour près du point d'arrivée (première visite).
+	void PlaceArrivalPortal(const DimensionDef &def, const math::FVector3 &spawn);
+	void StepPortals(float dt);
+	[[nodiscard]] bool IsDefaultDimension(const String &dimension) const;
 	void InstallSystems();
 	void InstallCommands();
 	void StepFallingBlocks();
@@ -257,6 +301,18 @@ private:
 	std::vector<UiRequest> m_uiRequests;
 	float m_randomTickTimer = 0.f;
 	std::map<uint32_t, float> m_stepDistance; ///< distance marchée depuis le dernier pas sonore
+	// Dimensions
+	String m_dimension;
+	uint64_t m_worldSerial = 0;
+	double m_dimensionEnter = 0.0;
+	float m_baseGravity = 28.f;
+	bool m_inTick = false;
+	struct PendingTravel {
+		ecs::Entity player;
+		String dimension;
+		Option<math::FVector3> at;
+	};
+	std::vector<PendingTravel> m_travels;
 };
 
 } // namespace voxel
