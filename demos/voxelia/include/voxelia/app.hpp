@@ -27,6 +27,7 @@ struct Options {
 	String generator;
 	std::vector<String> mods;
 	String saves = "data/voxelia/saves";
+	String structures;                                ///< échange de structures entre mondes (vide : à côté de `saves`)
 	String repository = "demos/voxelia/repository"; ///< mods disponibles à l'installation
 	String cache = "data/voxelia/cache";           ///< monde de fond des menus
 	String settingsPath = "data/voxelia/settings.json";

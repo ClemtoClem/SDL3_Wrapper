@@ -65,5 +65,7 @@ std::unique_ptr<Screen> MakeTrade(Shell &shell, voxel::UiRequest request);
 std::unique_ptr<Screen> MakeDialog(Shell &shell, voxel::UiRequest request);
 /// Rangement (coffre, armoire…) : demande « container » du jeu.
 std::unique_ptr<Screen> MakeContainer(Shell &shell, voxel::UiRequest request);
+/// Formulaire décrit par un mod (demande « form ») : « form_submit » à la validation.
+std::unique_ptr<Screen> MakeForm(Shell &shell, voxel::UiRequest request);
 
 } // namespace voxelia

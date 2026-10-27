@@ -47,6 +47,7 @@ struct PhysicsBody {
 	bool inSinking = false; ///< dans des sables mouvants
 	bool trapped = false;   ///< la tête dans un bloc plein (sable tombé dessus…) : immobilisé
 	float fluidViscosity = 0.f;
+	math::FVector3 current{0.f, 0.f, 0.f}; ///< courant du liquide traversé (blocs/s ; y < 0 : chute)
 	float groundSlipperiness = 0.f;
 	BlockId groundBlock = AIR;
 	float fallDistance = 0.f;

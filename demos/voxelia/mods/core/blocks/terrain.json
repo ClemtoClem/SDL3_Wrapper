@@ -71,6 +71,13 @@
 		"gameplay": {
 			"hardness": 100
 		},
+		"liquid": {
+			"range": 7,
+			"tick": 0.25,
+			"renewable": true,
+			"current": 2.2,
+			"flowingTexture": "core:water_flow"
+		},
 		"sounds": {
 			"step": "core:water"
 		}
@@ -313,6 +320,16 @@
 		"gameplay": {
 			"hardness": 100,
 			"damagePerSecond": 6
+		},
+		"liquid": {
+			"range": 3,
+			"tick": 1.5,
+			"current": 0.8,
+			"flowingTexture": "core:lava_flow",
+			"mix": [
+				{"with": "core:water", "source": "core:obsidian", "flowing": "core:stone"},
+				{"with": "core:hot_spring_water", "source": "core:obsidian", "flowing": "core:stone"}
+			]
 		}
 	}
 ]

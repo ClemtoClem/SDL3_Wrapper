@@ -86,7 +86,9 @@ public:
 	/// Miroir selon un axe (0 : x, 1 : y, 2 : z).
 	[[nodiscard]] Schematic Mirrored(int axis) const;
 	/// Ne garde que l'enveloppe : cellules pleines dont un voisin (6) est vide.
-	[[nodiscard]] Schematic Hollow() const;
+	/// `flatAxis` (0, 1, 2) : forme plate, seuls les voisins dans le plan
+	/// comptent (contour d'un disque, d'un rectangle).
+	[[nodiscard]] Schematic Hollow(int flatAxis = -1) const;
 	/// Remplace un bloc par un autre (vide : tous les blocs non-air).
 	int64_t Replace(const String &from, const String &to);
 

@@ -25,6 +25,13 @@
   "physics": {
    "solid": false,
    "viscosity": 0.6
+  },
+  "liquid": {
+   "range": 5,
+   "tick": 0.4,
+   "renewable": true,
+   "current": 1.5,
+   "flowingTexture": "core:hot_spring_water_flowing"
   }
  },
  {
@@ -50,6 +57,12 @@
   "physics": {
    "solid": false,
    "viscosity": 0.92
+  },
+  "liquid": {
+   "range": 3,
+   "tick": 2.0,
+   "current": 0.4,
+   "flowingTexture": "core:honey_flowing"
   }
  },
  {
@@ -77,6 +90,12 @@
   "physics": {
    "solid": false,
    "viscosity": 0.7
+  },
+  "liquid": {
+   "range": 5,
+   "tick": 0.5,
+   "current": 1.2,
+   "flowingTexture": "core:poison_flowing"
   }
  }
 ]

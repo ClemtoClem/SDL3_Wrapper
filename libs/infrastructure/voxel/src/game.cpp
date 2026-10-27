@@ -247,6 +247,12 @@ void Game::CreateWorld(const String &dimension) {
 		terrain->SetTuning(tuning);
 	}
 	m_world->SetGenerator(terrain);
+	m_fluids = std::make_unique<FluidSimulation>(*m_world);
+	// Un bloc emporté par le liquide (herbe haute, fleur…) laisse son butin.
+	m_fluids->onWashedAway = [this](const BlockPos &p, const BlockDef &def) {
+		if (!def.drops.IsEmpty() && def.dropChance >= 1.f)
+			(void)DropItem(ItemStack{def.drops, def.dropCount, 0, nullptr}, p.Center());
+	};
 	(void)m_world->onChunkLoaded.Connect([this](const ChunkPos &p) {
 		if (m_scripts->HasHandlers("chunk_generated"))
 			(void)m_scripts->Emit("chunk_generated", {Value::Int(p.x), Value::Int(p.y), Value::Int(p.z)});
@@ -378,6 +384,7 @@ void Game::DoTravel(ecs::Entity player, const String &target, Option<math::FVect
 		for (ecs::Entity e : gone)
 			if (m_registry.IsAlive(e))
 				(void)ecs::DespawnRecursive(m_registry, e);
+		m_fluids.reset();
 		m_world.reset();
 		CreateWorld(target);
 		if (Result<size_t, String> loaded = m_save->LoadEntities(m_registry); loaded.IsError())
@@ -510,6 +517,7 @@ void Game::CloseWorld() {
 		return;
 	(void)Save();
 	m_registry.Clear();
+	m_fluids.reset();
 	m_world.reset();
 	m_save.reset();
 	m_localPlayer = ecs::Entity{};
@@ -557,6 +565,10 @@ void Game::InstallSystems() {
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "physics", [this](ecs::SystemContext &c) { StepPhysics(m_registry, *m_world, c.dt, m_physics); }, 10);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "portals", [this](ecs::SystemContext &c) { StepPortals(c.dt); }, 15);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "falling_blocks", [this](ecs::SystemContext &) { StepFallingBlocks(); }, 20);
+	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "fluids", [this](ecs::SystemContext &c) {
+		if (m_fluids && Rule("liquidFlow"))
+			(void)m_fluids->Step(c.dt);
+	}, 25);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "items", [this](ecs::SystemContext &c) { StepItems(c.dt); }, 30);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "health", [this](ecs::SystemContext &c) { StepHealth(c.dt); }, 40);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "survival", [this](ecs::SystemContext &c) { StepSurvival(c.dt); }, 45);
@@ -1239,9 +1251,13 @@ bool Game::PlaceBlock(ecs::Entity actor, const BlockPos &pos, const String &bloc
 	PlayBlockSound(def->numeric, "place", pos);
 	if (!m_options.creative)
 		if (ItemStack *held = HeldItem(actor); held && !held->IsEmpty())
-			if (const ItemDef *item = m_content.FindItem(held->item); item && item->placesBlock == def->id)
-				if (--held->count <= 0)
+			if (const ItemDef *item = m_content.FindItem(held->item); item && item->placesBlock == def->id) {
+				// Seau plein : redevient le seau vide (« emptiesTo »).
+				if (const String empty = json::Str(item->raw, "emptiesTo"); !empty.IsEmpty() && m_content.FindItem(ContentRegistry::Qualify(empty, item->mod)))
+					*held = ItemStack{ContentRegistry::Qualify(empty, item->mod), 1, 0, nullptr};
+				else if (--held->count <= 0)
 					*held = ItemStack{};
+			}
 	return true;
 }
 
@@ -1270,6 +1286,45 @@ bool Game::UseHeldItem(ecs::Entity actor) {
 	const ItemDef *item = m_content.FindItem(held->item);
 	if (!item)
 		return false;
+	// Seau vide (« liquids » : liquide → seau plein) : prend une source visée.
+	if (NodePtr liquids = json::At(item->raw, "liquids"); liquids && liquids->IsObject() && m_world) {
+		auto t = m_registry.GetComponent<Transform>(actor);
+		auto player = m_registry.GetComponent<Player>(actor);
+		const float reach = player.IsSome() ? player.Unwrap()->reach : 5.f;
+		// Le rayon traverse le liquide qui coule jusqu'à une source (ou un bloc).
+		Option<BlockHit> wet = NONE;
+		if (t.IsSome()) {
+			const math::FVector3 eye = EyePosition(actor), dir = t.Unwrap()->Forward();
+			float travelled = 0.f;
+			for (int i = 0; i < 16 && travelled < reach; ++i) {
+				wet = RaycastBlocks(*m_world, eye + dir * travelled, dir, reach - travelled, true);
+				if (wet.IsNone() || !m_world->BlockAt(wet.Value().block).fluid || LiquidSource(m_world->GetParam(wet.Value().block)))
+					break;
+				travelled += wet.Value().distance + 0.05f;
+				wet = NONE;
+			}
+		}
+		if (wet.IsSome()) {
+			const BlockPos p = wet.Value().block;
+			const BlockDef &def = m_world->BlockAt(p);
+			const String filled = json::Str(liquids, def.id.CStr());
+			if (def.fluid && LiquidSource(m_world->GetParam(p)) && m_content.FindItem(filled)) {
+				(void)m_world->SetBlock(p, AIR, 0, ChangeCause::PLAYER);
+				PlayBlockSound(def.numeric, "place", p);
+				if (!m_options.creative) {
+					if (held->count > 1) {
+						--held->count;
+						auto inv = m_registry.GetComponent<InventoryComponent>(actor);
+						if (inv.IsNone() || inv.Unwrap()->inventory.Add(m_content, filled, 1) > 0)
+							(void)DropItem(ItemStack{filled, 1, 0, nullptr}, t.Unwrap()->position + math::FVector3{0.f, 1.f, 0.f});
+					} else {
+						*held = ItemStack{filled, 1, 0, nullptr};
+					}
+				}
+				return true;
+			}
+		}
+	}
 	if (!item->placesBlock.IsEmpty() && hit.IsSome()) {
 		const BlockHit &h = hit.Value();
 		const BlockPos at = m_world->BlockAt(h.block).replaceable ? h.block : h.previous;
@@ -1455,7 +1510,7 @@ const std::vector<std::pair<const char *, bool>> &Game::DefaultRules() {
 		{"daylightCycle", true},	  {"mobSpawning", true},  {"keepInventory", true}, {"naturalRegeneration", true},
 		{"fallDamage", true},		  {"mobGriefing", true},  {"commands", true},	   {"hunger", true},
 		{"showCoordinates", true},	  {"fireSpread", true},	  {"weather", true},	   {"announceDeaths", true},
-		{"fallingBlockSuffocation", true},
+		{"fallingBlockSuffocation", true}, {"liquidFlow", true},
 	};
 	return rules;
 }

@@ -1,4 +1,4 @@
-// Tests — le contenu livré (mods/core et mods/extra) se charge sans erreur,
+// Tests — le contenu livré (mods core, backrooms, edit, extra) se charge sans erreur,
 // ses scripts sont valides et une partie tourne sans fenêtre.
 #include "test.hpp"
 
@@ -36,9 +36,9 @@ TEST(Mods_ShippedContentLoadsCleanly) {
 		std::printf("AVERTISSEMENT %s\n", w.CStr());
 	CHECK(report.errors.empty());
 	CHECK(report.warnings.empty());
-	REQUIRE_EQ(report.mods.size(), size_t(3));
+	REQUIRE_EQ(report.mods.size(), size_t(4));
 	CHECK(report.mods[0].id == "core"); // dépendance d'abord
-	CHECK(report.mods[1].id == "backrooms" && report.mods[2].id == "extra");
+	CHECK(report.mods[1].id == "backrooms" && report.mods[2].id == "edit" && report.mods[3].id == "extra");
 	// Les dimensions : celles du mod core et les backrooms.
 	CHECK_EQ(game.Content().Dimensions().size(), size_t(7));
 	CHECK(game.Content().DefaultDimension() == "core:overworld");
@@ -278,5 +278,136 @@ TEST(Mods_EveryPieceOfFurnitureWorks) {
 	CHECK(containers >= 8);
 	CHECK(game.Content().FindRecipe("core:bed_blue") && game.Content().FindRecipe("core:oak_door") && game.Content().FindRecipe("core:chest"));
 	CHECK_EQ(ScriptErrors(game), size_t(0));
+	game.CloseWorld();
+}
+
+namespace {
+
+/// Le joueur regarde le sol, droit devant lui (vers +z), d'un peu haut.
+void LookDown(Game &game, ecs::Entity player) {
+	auto t = game.Registry().GetComponent<Transform>(player).Unwrap();
+	t->yaw = 0.f;
+	t->pitch = -1.2f;
+}
+
+String Run(Game &game, ecs::Entity player, const char *line) {
+	Result<String, String> r = game.Execute(String(line), player);
+	if (r.IsError())
+		std::printf("%s → ERREUR %s\n", line, r.Error().CStr());
+	return r.IsOk() ? r.Value() : r.Error();
+}
+
+} // namespace
+
+TEST(Mods_EditBuildsShapesFormulasAndStoresStructures) {
+	const char *dir = "build/tests/tmp/voxelia/edit";
+	std::filesystem::remove_all(dir);
+	GameOptions o = Options(dir);
+	o.structureDirectory = String(dir) + String("/exchange");
+	o.creative = true;
+	// Limites réduites (réglages du mod pour ce monde).
+	o.modSettings = json::Parse(String(R"({"edit": {"copy_max_x": 20, "copy_max_y": 20, "copy_max_z": 20,
+		"shape_max_x": 24, "shape_max_y": 24, "shape_max_z": 24}})")).Value();
+	Game game;
+	const ModReport report = game.LoadMods(o);
+	for (const String &e : report.errors)
+		std::printf("ERREUR %s\n", e.CStr());
+	REQUIRE(report.errors.empty());
+	REQUIRE(game.OpenWorld("edition", Some(uint32_t(5))).IsOk());
+	game.SetMode(GameMode::CREATIVE);
+	const ecs::Entity player = game.JoinPlayer("Testeur");
+	for (int i = 0; i < 60; ++i)
+		game.Tick(1.f / 60.f);
+	LookDown(game, player);
+	REQUIRE(game.TargetBlock(player).IsSome());
+	World &world = game.GetWorld();
+	const BlockPos ground = game.TargetBlock(player).Value().previous; // cellule où les formes sont posées
+
+	CHECK(Run(game, player, "/edit limits") == "Zone copiable : 20×20×20 · forme : 24×24×24 · annulations : 10");
+	// Toutes les formes : posées sur le sol, centrées, puis annulées.
+	const char *shapes[] = {"/edit shape line core:glass 8", "/edit shape circle core:glass 9 creuse", "/edit shape ellipse core:glass 11 1 7",
+							"/edit shape rectangle core:glass 6 1 4 creuse", "/edit shape parallelepiped core:glass 5 4 3 creuse",
+							"/edit shape sphere core:glass 9", "/edit shape ellipsoid core:glass 11 7 9", "/edit shape cylinder core:glass 7 6 7",
+							"/edit shape cone core:glass 9 8 9", "/edit shape pyramid core:glass 9 5 9 creuse", "/edit shape dome core:glass 12 6 12",
+							"/edit shape torus core:glass 15 4"};
+	for (const char *line : shapes) {
+		const String out = Run(game, player, line);
+		std::printf("%s → %s\n", line, out.CStr());
+		CHECK(out.Contains("blocs)"));
+		CHECK(world.BlockAt(ground).id == "core:glass" || String(line).Contains("torus") || String(line).Contains("creuse"));
+		CHECK(Run(game, player, "/edit undo").StartsWith("Annulé"));
+		CHECK(!(world.BlockAt(ground).id == "core:glass"));
+	}
+	// Sphère de 9 : 9 de haut, posée sur le sol.
+	(void)Run(game, player, "/edit shape sphere core:glass 9");
+	CHECK(world.BlockAt(ground + BlockPos{0, 8, 0}).id == "core:glass");
+	CHECK(!(world.BlockAt(ground + BlockPos{0, 9, 0}).id == "core:glass"));
+	CHECK(world.BlockAt(ground + BlockPos{4, 4, 0}).id == "core:glass");
+	CHECK(!(world.BlockAt(ground + BlockPos{5, 4, 0}).id == "core:glass"));
+	// Limites des formes.
+	CHECK(Run(game, player, "/edit shape sphere core:glass 30").Contains("Forme trop grande"));
+	CHECK(Run(game, player, "/edit shape sphere core:nope 5").Contains("Bloc inconnu"));
+	// Formule (z vers le haut) : un cône renversé.
+	CHECK(Run(game, player, "/edit plot core:glass x^2 + y^2 <= z^2 and z >= 0 and z <= 6").Contains("Formule construite"));
+	CHECK(Run(game, player, "/edit plot core:glass x^2 +").Contains("Formule"));
+
+	// Formulaires : forme, formule paramétrique, exemples.
+	(void)game.TakeUiRequests();
+	uint64_t cursor = 0;
+	auto submit = [&](const char *form, const char *values) {
+		game.SubmitForm(player, String(form), json::Parse(String(values)).Value());
+		ecs::EventsOf<GameMessage>(game.Registry()).Read(cursor, [&](const GameMessage &m) { std::printf("[%s] %s\n", form, m.text.CStr()); });
+	};
+	CHECK(Run(game, player, "/edit undo").StartsWith("Annulé"));
+	CHECK(Run(game, player, "/edit undo").StartsWith("Annulé"));
+	// Les outils : la baguette (deux coins), copier, coller.
+	(void)Run(game, player, "/edit tools");
+	auto inv = game.Registry().GetComponent<InventoryComponent>(player).Unwrap();
+	auto pl = game.Registry().GetComponent<Player>(player).Unwrap();
+	auto hold = [&](const char *tool) {
+		for (int i = 0; i < inv->inventory.Size(); ++i)
+			if (inv->inventory.Slot(i).item == tool)
+				std::swap(inv->inventory.Slot(i), inv->inventory.Slot(pl->selectedSlot));
+	};
+	hold("edit:tool_shape");
+	CHECK(game.UseHeldItem(player));
+	std::vector<UiRequest> ui = game.TakeUiRequests();
+	REQUIRE_EQ(ui.size(), size_t(1));
+	CHECK(ui[0].kind == "form" && json::Str(ui[0].data, "id") == "edit:shape");
+	submit("edit:shape", R"({"_button": "submit", "shape": "cylinder", "block": "core:glass", "sx": 5, "sy": 3, "sz": 5, "axis": "y", "hollow": false})");
+	CHECK(world.BlockAt(ground + BlockPos{0, 2, 0}).id == "core:glass");
+	hold("edit:tool_formula");
+	const BlockPos origin = game.TargetBlock(player).Value().previous; // sur le cylindre
+	CHECK(game.UseHeldItem(player));
+	ui = game.TakeUiRequests();
+	REQUIRE_EQ(ui.size(), size_t(1));
+	submit("edit:formula", R"({"_button": "example", "example": "helix"})"); // rouvre le formulaire avec l'exemple
+	ui = game.TakeUiRequests();
+	REQUIRE_EQ(ui.size(), size_t(1));
+	submit("edit:formula", R"J({"_button": "submit", "kind": "curve", "x": "5cos(t)", "y": "5sin(t)", "z": "t", "umin": "0", "umax": "2pi",
+		"un": "40", "scale": "1", "z_up": true, "hollow": false, "block": "core:glass"})J");
+	CHECK(world.BlockAt(origin + BlockPos{5, 0, 0}).id == "core:glass"); // t = 0 : (5, 0, 0)
+	CHECK(world.BlockAt(origin + BlockPos{-5, 3, 0}).id == "core:glass"); // t = π : (−5, 0, π), z vers le haut
+
+	// Sélection à la baguette (deux clics), copie, collage et limites de la zone.
+	hold("edit:tool_wand");
+	CHECK(game.UseHeldItem(player));
+	auto t = game.Registry().GetComponent<Transform>(player).Unwrap();
+	t->position.x += 3.f;
+	CHECK(game.UseHeldItem(player));
+	REQUIRE_EQ(game.Highlights().size(), size_t(1));
+	CHECK(Run(game, player, "/edit pos1 0 70 0").StartsWith("Coin 1"));
+	CHECK(Run(game, player, "/edit pos2 25 72 3").Contains("26×3×4"));
+	CHECK(Run(game, player, "/edit copy").Contains("trop grande"));
+	CHECK(Run(game, player, "/edit pos2 9 72 3").Contains("10×3×4"));
+	CHECK(Run(game, player, "/edit copy").StartsWith("Copié : 10×3×4"));
+	// Bibliothèque : enregistrer, exporter (Minetest), importer.
+	submit("edit:library", R"({"_button": "save", "name": "bloc"})");
+	submit("edit:library", R"({"_button": "export", "name": "bloc", "format": "mts"})");
+	CHECK(game.StructureFiles() == std::vector<String>{String("bloc.vxs.json")});
+	CHECK(game.StructureFiles(true) == std::vector<String>{String("bloc.mts")});
+	submit("edit:library", R"({"_button": "import", "name": "venu_d_ailleurs", "shared": "bloc.mts"})");
+	CHECK(game.StructureFiles().size() == size_t(2));
+	CHECK(ScriptErrors(game) == 0);
 	game.CloseWorld();
 }

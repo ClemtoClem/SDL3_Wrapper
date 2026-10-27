@@ -38,6 +38,7 @@
 
 #include "assets.hpp"
 #include "entities.hpp"
+#include "fluids.hpp"
 #include "mods.hpp"
 #include "physics.hpp"
 #include "save.hpp"
@@ -127,6 +128,8 @@ public:
 	[[nodiscard]] ecs::ArchetypeRegistry &Registry() noexcept { return m_registry; }
 	[[nodiscard]] ecs::Schedule &GetSchedule() noexcept { return m_schedule; }
 	[[nodiscard]] PhysicsSettings &Physics() noexcept { return m_physics; }
+	/// Écoulement des liquides du monde courant (règle « liquidFlow »).
+	[[nodiscard]] FluidSimulation &Fluids() noexcept { return *m_fluids; }
 
 	// ── Dimensions ──────────────────────────────────────────────────────────
 
@@ -361,6 +364,7 @@ private:
 	std::unique_ptr<AssetManager> m_assets;
 	std::unique_ptr<ScriptHost> m_scripts;
 	std::unique_ptr<World> m_world;
+	std::unique_ptr<FluidSimulation> m_fluids; ///< détruite avant le monde (connexions)
 	std::unique_ptr<WorldSave> m_save;
 	WorldMetadata m_metadata;
 	ecs::ArchetypeRegistry m_registry;

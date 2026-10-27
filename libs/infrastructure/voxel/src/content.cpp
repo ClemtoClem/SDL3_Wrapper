@@ -432,6 +432,21 @@ Result<String, String> ContentRegistry::LoadBlock(const NodePtr &def, const Load
 	b.climbable = json::Bool(def, "physics.climbable", b.HasTag("climbable"));
 	b.fluid = json::Bool(def, "physics.fluid", b.HasTag("fluid"));
 	b.viscosity = float(json::Num(def, "physics.viscosity", b.fluid ? 0.5 : 0.0));
+	if (b.fluid) {
+		// Écoulement : actif par défaut, « "liquid": false » pour un fluide immobile.
+		NodePtr l = json::At(def, "liquid");
+		b.liquid.flows = !(l && l->IsBool() && !l->boolValue) && json::Bool(l, "flows", true);
+		b.liquid.range = std::clamp(json::Int(l, "range", 7), 1, 15);
+		b.liquid.tick = std::clamp(float(json::Num(l, "tick", 0.25)), 0.05f, 60.f);
+		b.liquid.renewable = json::Bool(l, "renewable", false);
+		b.liquid.current = float(json::Num(l, "current", 2.0));
+		if (const String flowing = json::Str(l, "flowingTexture"); !flowing.IsEmpty())
+			b.liquid.flowingTexture = TextureRef(flowing, ctx);
+		if (NodePtr mixes = json::At(l, "mix"); mixes && mixes->IsArray())
+			for (size_t i = 0; i < mixes->GetSize(); ++i)
+				b.liquid.mixes.push_back(LiquidProps::Mix{Ref(mixes->At(i), "with", ctx.mod), Ref(mixes->At(i), "source", ctx.mod),
+														  Ref(mixes->At(i), "flowing", ctx.mod)});
+	}
 	b.sinking = std::max(0.f, float(json::Num(def, "physics.sinking", 0.0)));
 	b.selectable = json::Bool(def, "gameplay.selectable", true);
 	b.requiresSupport = json::Bool(def, "physics.structural.requiresSupport", false);
@@ -690,9 +705,15 @@ Result<String, String> ContentRegistry::LoadStructure(const NodePtr &def, const 
 	if (NodePtr list = json::At(def, "blocks"); list && list->IsArray()) {
 		for (size_t i = 0; i < list->GetSize(); ++i) {
 			NodePtr b = list->At(i);
-			if (b && b->IsArray() && b->GetSize() >= 4)
+			if (b && b->IsArray() && b->GetSize() >= 4) {
 				s.blocks.push_back({BlockPos{json::Int(b->At(0), ""), json::Int(b->At(1), ""), json::Int(b->At(2), "")},
 									Qualify(json::Str(b->At(3), ""), ctx.mod)});
+				// Orientation facultative (5e valeur) : structures exportées par l'éditeur.
+				if (b->GetSize() >= 5 && json::Int(b->At(4), "", 0) != 0) {
+					s.params.resize(s.blocks.size(), 0);
+					s.params.back() = uint8_t(json::Int(b->At(4), "", 0));
+				}
+			}
 			else if (b && b->IsObject()) {
 				const math::FVector3 p = json::Vec3(b, "pos");
 				s.blocks.push_back({BlockPos{int(p.x), int(p.y), int(p.z)}, Ref(b, "block", ctx.mod)});
@@ -720,6 +741,8 @@ Result<String, String> ContentRegistry::LoadStructure(const NodePtr &def, const 
 			}
 		}
 	}
+	if (!s.params.empty())
+		s.params.resize(s.blocks.size(), 0);
 	for (const auto &[pos, block] : s.blocks)
 		s.size = {std::max(s.size.x, pos.x + 1), std::max(s.size.y, pos.y + 1), std::max(s.size.z, pos.z + 1)};
 	if (s.blocks.empty())
@@ -1060,6 +1083,12 @@ std::vector<String> ContentRegistry::Validate() const {
 				warnings.push_back(String::Format("%s : la partie « %s » n'a pas de « partOf »", b.id.CStr(), part.block.CStr()));
 		}
 		block(b.id, b.toggle);
+		texture(b.id, b.liquid.flowingTexture);
+		for (const LiquidProps::Mix &mix : b.liquid.mixes) {
+			block(b.id, mix.with);
+			block(b.id, mix.source);
+			block(b.id, mix.flowing);
+		}
 		SoundSet extra;
 		extra.events["interact"] = b.toggleSound;
 		extra.events["open"] = Qualify(json::Str(b.raw, "container.openSound"), b.mod);

@@ -298,7 +298,70 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 	} else {
 		m_outline->SetVisible(false);
 	}
+	UpdateHighlights();
 	UpdateSky();
+}
+
+void WorldRenderer::UpdateHighlights() {
+	const std::vector<Game::Highlight> &wanted = m_game.Highlights();
+	auto same = [](const Game::Highlight &a, const Game::Highlight &b) {
+		return a.id == b.id && a.min == b.min && a.max == b.max && a.color == b.color;
+	};
+	if (wanted.size() == m_shownHighlights.size() && std::equal(wanted.begin(), wanted.end(), m_shownHighlights.begin(), same))
+		return;
+	m_shownHighlights = wanted;
+	if (m_highlightShape) {
+		(void)m_root.RemoveChild(m_highlightShape);
+		m_highlightShape = nullptr;
+	}
+	if (wanted.empty())
+		return;
+	// Douze baguettes par boîte, le long des arêtes, un peu à l'extérieur des blocs.
+	std::vector<render3d::Vertex3D> vertices;
+	std::vector<uint32_t> indices;
+	auto cuboid = [&](const math::FVector3 &lo, const math::FVector3 &hi, sdl3::Color color) {
+		static const int FACES[6][4][3] = {
+			{{1, 0, 0}, {1, 1, 0}, {1, 1, 1}, {1, 0, 1}}, {{0, 0, 1}, {0, 1, 1}, {0, 1, 0}, {0, 0, 0}},
+			{{0, 1, 0}, {0, 1, 1}, {1, 1, 1}, {1, 1, 0}}, {{0, 0, 1}, {0, 0, 0}, {1, 0, 0}, {1, 0, 1}},
+			{{1, 0, 1}, {1, 1, 1}, {0, 1, 1}, {0, 0, 1}}, {{0, 0, 0}, {0, 1, 0}, {1, 1, 0}, {1, 0, 0}},
+		};
+		static const math::FVector3 NORMALS[6] = {{1.f, 0.f, 0.f}, {-1.f, 0.f, 0.f}, {0.f, 1.f, 0.f},
+												  {0.f, -1.f, 0.f}, {0.f, 0.f, 1.f}, {0.f, 0.f, -1.f}};
+		for (int f = 0; f < 6; ++f) {
+			const uint32_t base = uint32_t(vertices.size());
+			for (const auto &c : FACES[f])
+				vertices.push_back(render3d::Vertex3D{{c[0] ? hi.x : lo.x, c[1] ? hi.y : lo.y, c[2] ? hi.z : lo.z}, NORMALS[f], {0.f, 0.f}, color});
+			for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u})
+				indices.push_back(base + i);
+		}
+	};
+	for (const Game::Highlight &h : wanted) {
+		const float t = 0.035f, m = 0.01f; // demi-épaisseur, marge
+		const math::FVector3 lo = h.min.ToVector() - math::FVector3{m, m, m};
+		const math::FVector3 hi = (h.max + BlockPos{1, 1, 1}).ToVector() + math::FVector3{m, m, m};
+		const sdl3::Color color{h.color[0], h.color[1], h.color[2], 255};
+		const float l[3] = {lo.x, lo.y, lo.z}, u[3] = {hi.x, hi.y, hi.z};
+		for (int axis = 0; axis < 3; ++axis)
+			for (int a = 0; a < 2; ++a)
+				for (int b = 0; b < 2; ++b) {
+					float mn[3], mx[3];
+					for (int k = 0; k < 3; ++k) {
+						if (k == axis) {
+							mn[k] = l[k] - t;
+							mx[k] = u[k] + t;
+						} else {
+							const float c = (k == (axis + 1) % 3 ? (a ? u[k] : l[k]) : (b ? u[k] : l[k]));
+							mn[k] = c - t;
+							mx[k] = c + t;
+						}
+					}
+					cuboid({mn[0], mn[1], mn[2]}, {mx[0], mx[1], mx[2]}, color);
+				}
+	}
+	auto shape = std::make_unique<render3d::Shape>(render3d::Mesh(std::move(vertices), std::move(indices)),
+												   render3d::Material::Unlit(sdl3::Color::WHITE()));
+	m_highlightShape = shape.get();
+	m_root.Add(std::move(shape));
 }
 
 std::shared_ptr<render3d::Mesh> WorldRenderer::EntityMesh(const Visual &visual, const String &mod, std::string &key) {

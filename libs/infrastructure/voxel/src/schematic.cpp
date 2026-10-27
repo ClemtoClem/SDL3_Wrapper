@@ -259,7 +259,7 @@ Schematic Schematic::Mirrored(int axis) const {
 	return out;
 }
 
-Schematic Schematic::Hollow() const {
+Schematic Schematic::Hollow(int flatAxis) const {
 	Schematic out = *this;
 	auto full = [&](const BlockPos &p) {
 		if (!Inside(p))
@@ -271,8 +271,14 @@ Schematic Schematic::Hollow() const {
 		for (int z = 0; z < m_size.z; ++z)
 			for (int x = 0; x < m_size.x; ++x) {
 				const BlockPos p{x, y, z};
-				if (full(p) && full(p + BlockPos{1, 0, 0}) && full(p + BlockPos{-1, 0, 0}) && full(p + BlockPos{0, 1, 0}) &&
-					full(p + BlockPos{0, -1, 0}) && full(p + BlockPos{0, 0, 1}) && full(p + BlockPos{0, 0, -1}))
+				if (!full(p))
+					continue;
+				bool inside = true;
+				for (const BlockPos &d : {BlockPos{1, 0, 0}, BlockPos{-1, 0, 0}, BlockPos{0, 1, 0}, BlockPos{0, -1, 0}, BlockPos{0, 0, 1},
+										  BlockPos{0, 0, -1}})
+					if (!((flatAxis == 0 && d.x != 0) || (flatAxis == 1 && d.y != 0) || (flatAxis == 2 && d.z != 0)))
+						inside = inside && full(p + d);
+				if (inside)
 					out.Clear(p);
 			}
 	return out;
@@ -943,37 +949,41 @@ Result<Schematic, String> Plot(const PlotSpec &spec) {
 							cells.Add({x, y, z});
 					}
 		} else {
-			// Expression : surface où elle s'annule — changement de signe entre
-			// les coins d'une cellule (ou zéro au centre). Coins calculés par
-			// tranches (deux plans en mémoire).
-			const int nx = box.x + 1, nz = box.z + 1;
-			std::vector<double> below(size_t(nx * nz)), above(size_t(nx * nz));
-			auto plane = [&](std::vector<double> &out, double gy) {
+			// Expression : surface où elle s'annule. Entre deux cellules
+			// voisines (6) de signes opposés, la plus proche de zéro est
+			// gardée : une coquille d'un bloc, sans trou. Valeurs aux centres
+			// par plans (trois en mémoire, boîte élargie d'une cellule).
+			const int nx = box.x + 2, nz = box.z + 2;
+			auto plane = [&](std::vector<double> &out, int gy) {
+				out.resize(size_t(nx * nz));
 				for (int z = 0; z < nz; ++z)
 					for (int x = 0; x < nx; ++x)
-						out[size_t(z * nx + x)] = eval(lo.x + x - 0.5, gy, lo.z + z - 0.5);
+						out[size_t(z * nx + x)] = eval(lo.x - 1 + x, gy, lo.z - 1 + z);
 			};
-			plane(below, lo.y - 0.5);
+			std::vector<double> below, here, above;
+			plane(below, lo.y - 1);
+			plane(here, lo.y);
 			for (int y = lo.y; y <= hi.y; ++y) {
-				plane(above, y + 0.5);
+				plane(above, y + 1);
 				for (int z = lo.z; z <= hi.z; ++z)
 					for (int x = lo.x; x <= hi.x; ++x) {
 						if (clock.Expired())
 							return Err(String("calcul trop long (temps maximal dépassé)"));
-						const int ix = x - lo.x, iz = z - lo.z;
-						bool negative = false, positive = false, zero = false;
-						for (const std::vector<double> *pl : {&below, &above})
-							for (int dz = 0; dz <= 1; ++dz)
-								for (int dx = 0; dx <= 1; ++dx) {
-									const double v = (*pl)[size_t((iz + dz) * nx + ix + dx)];
-									negative |= v < 0.0;
-									positive |= v > 0.0;
-									zero |= v == 0.0;
-								}
-						if (zero || (negative && positive) || eval(x, y, z) == 0.0)
+						const int ix = x - lo.x + 1, iz = z - lo.z + 1;
+						const double v = here[size_t(iz * nx + ix)];
+						if (std::isnan(v))
+							continue;
+						bool keep = v == 0.0;
+						const double neighbors[6] = {here[size_t(iz * nx + ix - 1)], here[size_t(iz * nx + ix + 1)],
+													 here[size_t((iz - 1) * nx + ix)], here[size_t((iz + 1) * nx + ix)],
+													 below[size_t(iz * nx + ix)], above[size_t(iz * nx + ix)]};
+						for (const double n : neighbors)
+							keep = keep || (!std::isnan(n) && (v < 0.0) != (n < 0.0) && n != 0.0 && std::fabs(v) <= std::fabs(n));
+						if (keep)
 							cells.Add({x, y, z});
 					}
-				std::swap(below, above);
+				std::swap(below, here);
+				std::swap(here, above);
 			}
 		}
 	} else {

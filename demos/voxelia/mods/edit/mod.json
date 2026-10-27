@@ -1,0 +1,22 @@
+{
+	"id": "edit",
+	"name": "Édition de structures",
+	"version": "1.0.0",
+	"author": "voxelia",
+	"category": "outils",
+	"tags": ["construction", "outils", "créatif"],
+	"description": "Sélectionner, copier, couper, coller, déplacer, tourner, remplir, effacer et remplacer des zones ; enregistrer, charger, importer et exporter des structures (.vxs.json, .json, WorldEdit .we, Minetest .mts) ; construire des formes (ligne, cercle, ellipse, rectangle, parallélépipède, sphère, ellipsoïde, cylindre, cône, pyramide, dôme, tore) et des objets mathématiques à partir d'une formule. Inspiré des mods Minetest « edit » et « mathplot ».",
+	"dependencies": ["core"],
+	"settings": [
+		{"id": "copy_max_x", "group": "Zone copiable", "type": "int", "label": "Largeur maximale (X)", "description": "Taille maximale de la zone sélectionnée pour copier, couper, déplacer, remplir, effacer, remplacer ou enregistrer — et des structures collées.", "default": 64, "min": 1, "max": 512, "unit": "blocs"},
+		{"id": "copy_max_y", "group": "Zone copiable", "type": "int", "label": "Hauteur maximale (Y)", "default": 64, "min": 1, "max": 512, "unit": "blocs"},
+		{"id": "copy_max_z", "group": "Zone copiable", "type": "int", "label": "Profondeur maximale (Z)", "default": 64, "min": 1, "max": 512, "unit": "blocs"},
+		{"id": "shape_max_x", "group": "Formes et formules", "type": "int", "label": "Largeur maximale d'une forme (X)", "description": "Ligne, cercle, ellipse, rectangle, parallélépipède, sphère, cône, pyramide… et constructions par formule.", "default": 64, "min": 1, "max": 256, "unit": "blocs"},
+		{"id": "shape_max_y", "group": "Formes et formules", "type": "int", "label": "Hauteur maximale d'une forme (Y)", "default": 64, "min": 1, "max": 256, "unit": "blocs"},
+		{"id": "shape_max_z", "group": "Formes et formules", "type": "int", "label": "Profondeur maximale d'une forme (Z)", "default": 64, "min": 1, "max": 256, "unit": "blocs"},
+		{"id": "formula_time", "group": "Formes et formules", "type": "int", "label": "Temps de calcul maximal d'une formule", "default": 10, "min": 1, "max": 60, "unit": "s", "advanced": true},
+		{"id": "undo_levels", "group": "Général", "type": "int", "label": "Annulations mémorisées", "description": "Nombre de modifications que l'outil « Annuler » peut défaire.", "default": 10, "min": 0, "max": 50},
+		{"id": "require_cheats", "group": "Général", "type": "bool", "label": "Réservé au mode créatif ou aux commandes", "description": "Les outils ne fonctionnent qu'en mode créatif ou si les commandes (triche) sont autorisées dans le monde.", "default": true},
+		{"id": "preview", "group": "Général", "type": "bool", "label": "Aperçu du collage", "description": "Montre où la structure sera collée quand on tient l'outil « Coller ».", "default": true}
+	]
+}

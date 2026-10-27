@@ -1,0 +1,964 @@
+# Mod « edit » : édition de structures, à la manière des mods Minetest
+# « edit » (outils : sélection, copier, coller, remplir…) et « mathplot »
+# (constructions d'après une formule).
+#
+# Outils (clic droit ; accroupi pour l'action secondaire) et commande
+# « /edit … » (aide : /edit help). Le moteur fournit les opérations
+# (structure.*, world.fill, world.replace, structure.plot) ; ce script les
+# relie aux joueurs : sélection, presse-papiers, annulations, limites.
+#
+# Limites (réglages du mod, par monde) : taille de la zone copiable
+# (copier, couper, déplacer, remplir, effacer, remplacer, enregistrer,
+# coller) et taille d'une forme ou d'une formule.
+
+let players = {}
+let SEL = [255, 214, 60, 255]
+let PREVIEW = [90, 200, 255, 255]
+let FORMATS = ["vxs.json", "json", "we", "mts"]
+let FORMAT_LABELS = ["Natif voxelia (.vxs.json)", "Structure de mod (.json)", "WorldEdit Minetest (.we)", "Schéma Minetest (.mts)"]
+
+# ── Joueurs, réglages, limites ──────────────────────────────────────────────
+
+fn player_key(p) { return format("{}", p) }
+
+fn player_state(p) {
+    let k = player_key(p)
+    if (not has(players, k)) {
+        players[k] = {pos1: nil, pos2: nil, undo: [], redo: [], serial: 0, at: nil, keep_air: true}
+    }
+    return players[k]
+}
+
+fn setting(id) { return math.floor(voxel.setting(id)) }
+fn copy_limits() { return {x: setting("copy_max_x"), y: setting("copy_max_y"), z: setting("copy_max_z")} }
+fn shape_limits() { return {x: setting("shape_max_x"), y: setting("shape_max_y"), z: setting("shape_max_z")} }
+
+fn allowed() {
+    if (not voxel.setting("require_cheats")) { return true }
+    return game.mode() == "creative" or game.rule("commands")
+}
+let FORBIDDEN = "Outils d'édition réservés au mode créatif (ou aux mondes où les commandes sont autorisées)."
+
+fn clip(p) { return format("edit:clip:{}", player_key(p)) }
+
+fn size_text(s) { return format("{}×{}×{}", s.x, s.y, s.z) }
+
+# Message d'erreur si `size` dépasse `limit` (nil sinon).
+fn too_big(size, limit, what) {
+    if (size.x > limit.x or size.y > limit.y or size.z > limit.z) {
+        return format("{} trop grande : {} (au plus {} — réglages du mod « edit »).", what, size_text(size), size_text(limit))
+    }
+    return nil
+}
+
+# Id de bloc complet (« stone » → « core:stone ») ; nil s'il est inconnu.
+fn block_id(id) {
+    if (id == nil or id == "") { return nil }
+    if (id == "air" or id == "core:air") { return "core:air" }
+    if (content.get("block", id) != nil) { return id }
+    let full = format("core:{}", id)
+    if (content.get("block", full) != nil) { return full }
+    return nil
+}
+
+# Bloc proposé dans les formulaires (les blocs de l'inventaire y sont aussi listés).
+fn favourite_block(p) { return "core:stone" }
+
+# ── Sélection ───────────────────────────────────────────────────────────────
+
+fn selection(p) {
+    let s = player_state(p)
+    if (s.pos1 == nil or s.pos2 == nil) { return nil }
+    let lo = {x: math.min(s.pos1.x, s.pos2.x), y: math.min(s.pos1.y, s.pos2.y), z: math.min(s.pos1.z, s.pos2.z)}
+    let hi = {x: math.max(s.pos1.x, s.pos2.x), y: math.max(s.pos1.y, s.pos2.y), z: math.max(s.pos1.z, s.pos2.z)}
+    return {min: lo, max: hi, size: {x: hi.x - lo.x + 1, y: hi.y - lo.y + 1, z: hi.z - lo.z + 1}}
+}
+
+fn show_selection(p) {
+    let s = player_state(p)
+    let id = format("edit:sel:{}", player_key(p))
+    if (s.pos1 == nil and s.pos2 == nil) { game.clear_highlight(id); return nil }
+    let a = s.pos1
+    let b = s.pos2
+    if (a == nil) { a = b }
+    if (b == nil) { b = a }
+    game.highlight(id, a.x, a.y, a.z, b.x, b.y, b.z, SEL)
+}
+
+fn set_corner(p, which, pos) {
+    let s = player_state(p)
+    if (which == 1) { s.pos1 = pos } else { s.pos2 = pos }
+    show_selection(p)
+    let sel = selection(p)
+    if (sel == nil) { return format("Coin {} : {} {} {}", which, pos.x, pos.y, pos.z) }
+    return format("Coin {} : {} {} {} — zone {} ({} blocs)", which, pos.x, pos.y, pos.z, size_text(sel.size),
+                  sel.size.x * sel.size.y * sel.size.z)
+}
+
+fn clear_selection(p) {
+    let s = player_state(p)
+    s.pos1 = nil
+    s.pos2 = nil
+    show_selection(p)
+    return "Sélection effacée."
+}
+
+# Zone sélectionnée dans les limites, ou message d'erreur (champ « error »).
+fn checked_selection(p, what) {
+    let sel = selection(p)
+    if (sel == nil) { return {error: "Sélectionnez d'abord une zone (baguette, ou /edit pos1 et /edit pos2)."} }
+    let big = too_big(sel.size, copy_limits(), what)
+    if (big != nil) { return {error: big} }
+    return sel
+}
+
+# ── Annuler / rétablir ──────────────────────────────────────────────────────
+
+fn snapshot(p, boxes) {
+    let s = player_state(p)
+    let parts = []
+    for (b in boxes) {
+        s.serial = s.serial + 1
+        let name = format("edit:undo:{}:{}", player_key(p), s.serial)
+        structure.copy(name, b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z)
+        push(parts, {name: name, min: b.min, max: b.max})
+    }
+    return parts
+}
+
+fn forget_entries(entries) {
+    for (e in entries) { for (part in e) { structure.forget(part.name) } }
+}
+
+# À appeler AVANT une modification des zones `boxes` ({min, max}).
+fn remember(p, boxes) {
+    let s = player_state(p)
+    let levels = setting("undo_levels")
+    forget_entries(s.redo)
+    s.redo = []
+    if (levels <= 0) { return nil }
+    push(s.undo, snapshot(p, boxes))
+    while (len(s.undo) > levels) {
+        forget_entries([s.undo[0]])
+        remove(s.undo, 0)
+    }
+}
+
+fn restore_parts(parts) {
+    let n = 0
+    let i = len(parts) - 1
+    while (i >= 0) {
+        let part = parts[i]
+        n += structure.paste(part.name, part.min.x, part.min.y, part.min.z)
+        i -= 1
+    }
+    return n
+}
+
+fn do_undo(p) {
+    let s = player_state(p)
+    if (len(s.undo) == 0) { return "Rien à annuler." }
+    let parts = pop(s.undo)
+    let boxes = []
+    for (part in parts) { push(boxes, {min: part.min, max: part.max}) }
+    push(s.redo, snapshot(p, boxes))
+    let n = restore_parts(parts)
+    forget_entries([parts])
+    return format("Annulé ({} blocs). Accroupi + clic, ou /edit redo, pour rétablir.", n)
+}
+
+fn do_redo(p) {
+    let s = player_state(p)
+    if (len(s.redo) == 0) { return "Rien à rétablir." }
+    let parts = pop(s.redo)
+    let boxes = []
+    for (part in parts) { push(boxes, {min: part.min, max: part.max}) }
+    push(s.undo, snapshot(p, boxes))
+    let n = restore_parts(parts)
+    forget_entries([parts])
+    return format("Rétabli ({} blocs).", n)
+}
+
+# ── Copier, couper, coller, déplacer ────────────────────────────────────────
+
+fn do_copy(p, cut) {
+    let sel = checked_selection(p, "Zone à copier")
+    if (has(sel, "error")) { return sel.error }
+    let s = player_state(p)
+    # Point d'ancrage : le premier coin (posé au point de collage).
+    let info = structure.copy(clip(p), sel.min.x, sel.min.y, sel.min.z, sel.max.x, sel.max.y, sel.max.z, s.pos1.x, s.pos1.y, s.pos1.z)
+    if (cut) {
+        remember(p, [sel])
+        world.fill(sel.min.x, sel.min.y, sel.min.z, sel.max.x, sel.max.y, sel.max.z, "core:air")
+        return format("Coupé : {} ({} blocs).", size_text(info.size), info.blocks)
+    }
+    return format("Copié : {} ({} blocs, {} rangement(s)).", size_text(info.size), info.blocks, info.containers)
+}
+
+fn paste_at(p, name, at, keep_air) {
+    let info = structure.info(name)
+    if (info == nil) { return "Presse-papiers vide : copiez une zone ou chargez une structure." }
+    let big = too_big(info.size, copy_limits(), "Structure à coller")
+    if (big != nil) { return big }
+    let b = structure.bounds(name, at.x, at.y, at.z)
+    remember(p, [{min: b.min, max: b.max}])
+    let n = structure.paste(name, at.x, at.y, at.z, {keep_air: keep_air})
+    return format("Collé en {} {} {} : {} bloc(s) modifié(s).", at.x, at.y, at.z, n)
+}
+
+fn do_paste(p, at) { return paste_at(p, clip(p), at, player_state(p).keep_air) }
+
+fn move_to(p, at) {
+    let sel = checked_selection(p, "Zone à déplacer")
+    if (has(sel, "error")) { return sel.error }
+    let s = player_state(p)
+    let tmp = format("edit:move:{}", player_key(p))
+    structure.copy(tmp, sel.min.x, sel.min.y, sel.min.z, sel.max.x, sel.max.y, sel.max.z, s.pos1.x, s.pos1.y, s.pos1.z)
+    let b = structure.bounds(tmp, at.x, at.y, at.z)
+    remember(p, [sel, {min: b.min, max: b.max}])
+    world.fill(sel.min.x, sel.min.y, sel.min.z, sel.max.x, sel.max.y, sel.max.z, "core:air")
+    structure.paste(tmp, at.x, at.y, at.z)
+    structure.forget(tmp)
+    # La sélection suit la zone déplacée.
+    let dx = at.x - s.pos1.x
+    let dy = at.y - s.pos1.y
+    let dz = at.z - s.pos1.z
+    s.pos1 = {x: s.pos1.x + dx, y: s.pos1.y + dy, z: s.pos1.z + dz}
+    s.pos2 = {x: s.pos2.x + dx, y: s.pos2.y + dy, z: s.pos2.z + dz}
+    show_selection(p)
+    return format("Zone déplacée de {} {} {}.", dx, dy, dz)
+}
+
+fn rotate_clip(p, degrees) {
+    if (not structure.exists(clip(p))) { return "Presse-papiers vide." }
+    let q = math.floor(degrees / 90)
+    let info = structure.rotate(clip(p), q)
+    return format("Presse-papiers tourné de {}° : {}.", q * 90, size_text(info.size))
+}
+
+fn flip_clip(p, axis) {
+    if (not structure.exists(clip(p))) { return "Presse-papiers vide." }
+    if (axis != "x" and axis != "y" and axis != "z") { return "Axe x, y ou z attendu." }
+    structure.mirror(clip(p), axis)
+    return format("Presse-papiers retourné selon {}.", axis)
+}
+
+# ── Remplir, effacer, remplacer ─────────────────────────────────────────────
+
+let FILL_MODES = ["all", "hollow", "walls", "outline", "keep"]
+let FILL_LABELS = ["Plein", "Creux (enveloppe)", "Murs", "Arêtes", "Air seulement"]
+let FILL_ALIASES = {plein: "all", creux: "hollow", murs: "walls", aretes: "outline", air: "keep"}
+
+fn do_fill(p, block, mode) {
+    let sel = checked_selection(p, "Zone à remplir")
+    if (has(sel, "error")) { return sel.error }
+    let id = block_id(block)
+    if (id == nil) { return format("Bloc inconnu « {} ».", block) }
+    if (has(FILL_ALIASES, mode)) { mode = FILL_ALIASES[mode] }
+    if (index_of(FILL_MODES, mode) < 0) { return format("Mode inconnu « {} » (plein, creux, murs, aretes, air).", mode) }
+    remember(p, [sel])
+    let n = world.fill(sel.min.x, sel.min.y, sel.min.z, sel.max.x, sel.max.y, sel.max.z, id, mode)
+    return format("Zone remplie de {} : {} bloc(s) modifié(s).", id, n)
+}
+
+fn do_delete(p) {
+    let sel = checked_selection(p, "Zone à effacer")
+    if (has(sel, "error")) { return sel.error }
+    remember(p, [sel])
+    let n = world.fill(sel.min.x, sel.min.y, sel.min.z, sel.max.x, sel.max.y, sel.max.z, "core:air")
+    return format("Zone effacée : {} bloc(s).", n)
+}
+
+fn replace_in(p, from, to) {
+    let sel = checked_selection(p, "Zone à modifier")
+    if (has(sel, "error")) { return sel.error }
+    let a = ""
+    if (from != "" and from != "*") {
+        a = block_id(from)
+        if (a == nil) { return format("Bloc inconnu « {} ».", from) }
+    }
+    let b = block_id(to)
+    if (b == nil) { return format("Bloc inconnu « {} ».", to) }
+    remember(p, [sel])
+    let n = world.replace(sel.min.x, sel.min.y, sel.min.z, sel.max.x, sel.max.y, sel.max.z, a, b)
+    return format("{} bloc(s) remplacé(s) par {}.", n, b)
+}
+
+# ── Formes ──────────────────────────────────────────────────────────────────
+
+let SHAPES = ["line", "circle", "ellipse", "rectangle", "parallelepiped", "sphere", "ellipsoid", "cylinder", "cone", "pyramid", "dome", "torus"]
+let SHAPE_LABELS = ["Ligne", "Cercle", "Ellipse", "Rectangle", "Parallélépipède", "Sphère", "Ellipsoïde", "Cylindre", "Cône", "Pyramide",
+                    "Dôme (demi-sphère)", "Tore"]
+let FLAT = ["circle", "ellipse", "rectangle"]
+
+# Coordonnée normalisée centrée (−1..1) sur `s` cellules : une taille paire
+# reste exacte (centre entre deux cellules).
+fn centred(v, s) {
+    let o = 0
+    if (s % 2 == 0) { o = 0.5 }
+    return format("(({}-{})/{})", v, o, s / 2)
+}
+fn low(s) { return 0 - math.floor((s - 1) / 2) }
+# Même chose en hauteur : la forme est posée sur le sol (y de 0 à s − 1).
+fn from_base(v, s) { return format("(({}-{})/{})", v, (s - 1) / 2, s / 2) }
+
+# Taille de la forme (x, y, z en blocs) d'après les paramètres.
+fn shape_size(kind, a) {
+    if (kind == "line") { return {x: math.abs(a.dx) + 1, y: math.abs(a.dy) + 1, z: math.abs(a.dz) + 1} }
+    if (kind == "sphere" or kind == "circle") {
+        if (kind == "circle") {
+            if (a.axis == "x") { return {x: 1, y: a.sx, z: a.sx} }
+            if (a.axis == "z") { return {x: a.sx, y: a.sx, z: 1} }
+            return {x: a.sx, y: 1, z: a.sx}
+        }
+        return {x: a.sx, y: a.sx, z: a.sx}
+    }
+    if (kind == "ellipse" or kind == "rectangle") {
+        if (a.axis == "x") { return {x: 1, y: a.sy, z: a.sz} }
+        if (a.axis == "z") { return {x: a.sx, y: a.sy, z: 1} }
+        return {x: a.sx, y: 1, z: a.sz}
+    }
+    if (kind == "torus") { return {x: a.sx, y: a.sy, z: a.sx} }
+    if (kind == "cone" or kind == "pyramid" or kind == "dome") { return {x: a.sx, y: a.sy, z: a.sz} }
+    return {x: a.sx, y: a.sy, z: a.sz}
+}
+
+# Construit la forme dans le presse-papiers `name` ; rend nil ou un message.
+fn build_shape(p, name, kind, a) {
+    if (index_of(SHAPES, kind) < 0) { return format("Forme inconnue « {} ». Formes : {}", kind, join(SHAPES, ", ")) }
+    let id = block_id(a.block)
+    if (id == nil) { return format("Bloc inconnu « {} ».", a.block) }
+    let size = shape_size(kind, a)
+    if (size.x < 1 or size.y < 1 or size.z < 1) { return "Tailles d'au moins 1 bloc." }
+    let big = too_big(size, shape_limits(), "Forme")
+    if (big != nil) { return big }
+    if (kind == "parallelepiped" or kind == "rectangle") {
+        structure.box(name, size.x, size.y, size.z, id)
+        structure.set_anchor(name, math.floor((size.x - 1) / 2), 0, math.floor((size.z - 1) / 2))
+        if (a.hollow) {
+            if (kind == "rectangle") { structure.hollow(name, a.axis) } else { structure.hollow(name) }
+        }
+        return nil
+    }
+    let spec = {block: id, z_up: false, max_size: [size.x, size.y, size.z], time_limit: setting("formula_time")}
+    if (kind == "line") {
+        spec.kind = "curve"
+        spec.x = format("{}*t", a.dx)
+        spec.y = format("{}*t", a.dy)
+        spec.z = format("{}*t", a.dz)
+        spec.t = [0, 1, math.max(math.abs(a.dx), math.abs(a.dy), math.abs(a.dz)) + 2]
+    } else {
+        let nx = centred("x", size.x)
+        let ny = from_base("y", size.y)
+        let nz = centred("z", size.z)
+        let base = format("((y+0.5)/{})", size.y)       # 0 en bas, 1 en haut
+        let up = format("(({}-y)/{})", size.y, size.y)  # 1 en bas, 0 en haut
+        let e = ""
+        if (kind == "sphere" or kind == "ellipsoid") { e = format("{}^2+{}^2+{}^2 <= 1", nx, ny, nz) }
+        if (kind == "cylinder" or kind == "circle" or kind == "ellipse") {
+            if (a.axis == "x") { e = format("{}^2+{}^2 <= 1", ny, nz) }
+            if (a.axis == "z") { e = format("{}^2+{}^2 <= 1", nx, ny) }
+            if (a.axis != "x" and a.axis != "z") { e = format("{}^2+{}^2 <= 1", nx, nz) }
+        }
+        if (kind == "cone") { e = format("{}^2+{}^2 <= {}^2", nx, nz, up) }
+        if (kind == "pyramid") { e = format("max(abs({}), abs({})) <= {}", nx, nz, up) }
+        if (kind == "dome") { e = format("{}^2+{}^2+{}^2 <= 1", nx, nz, base) }
+        if (kind == "torus") {
+            let r = size.y / 2
+            let big_r = size.x / 2 - r
+            if (big_r <= 0) { return "Tore : le diamètre (X) doit dépasser deux fois l'épaisseur (Y)." }
+            e = format("(sqrt(({}*{})^2+({}*{})^2)-{})^2+({}*{})^2 <= {}^2", nx, size.x / 2, nz, size.x / 2, big_r, ny, r, r)
+        }
+        spec.kind = "implicit"
+        spec.expression = e
+        spec.box = [low(size.x), 0, low(size.z), low(size.x) + size.x - 1, size.y - 1, low(size.z) + size.z - 1]
+        if (index_of(FLAT, kind) >= 0) {
+            # Forme plate dans le plan choisi : boîte d'une épaisseur.
+            if (a.axis == "x") { spec.box = [0, 0, low(size.z), 0, size.y - 1, low(size.z) + size.z - 1] }
+            if (a.axis == "z") { spec.box = [low(size.x), 0, 0, low(size.x) + size.x - 1, size.y - 1, 0] }
+            if (a.axis != "x" and a.axis != "z") { spec.box = [low(size.x), 0, low(size.z), low(size.x) + size.x - 1, 0, low(size.z) + size.z - 1] }
+        }
+        spec.hollow = a.hollow and index_of(FLAT, kind) < 0
+    }
+    let r = structure.plot(name, spec)
+    if (not r.ok) { return r.error }
+    if (a.hollow and index_of(FLAT, kind) >= 0) {
+        let axis = "y"
+        if (a.axis == "x" or a.axis == "z") { axis = a.axis }
+        structure.hollow(name, axis)
+    }
+    return nil
+}
+
+fn place_shape(p, at, kind, a) {
+    let name = format("edit:shape:{}", player_key(p))
+    let error = build_shape(p, name, kind, a)
+    if (error != nil) { return error }
+    let info = structure.info(name)
+    let b = structure.bounds(name, at.x, at.y, at.z)
+    remember(p, [{min: b.min, max: b.max}])
+    structure.paste(name, at.x, at.y, at.z, {keep_air: false})
+    structure.duplicate(name, clip(p)) # la forme devient aussi le presse-papiers
+    return format("{} : {} ({} blocs).", SHAPE_LABELS[index_of(SHAPES, kind)], size_text(info.size), info.blocks)
+}
+
+# ── Formules (à la manière de mathplot) ─────────────────────────────────────
+
+let PLOT_KINDS = ["implicit", "curve", "surface", "solid"]
+let PLOT_LABELS = ["Relation f(x, y, z)", "Courbe (t)", "Surface (u, v)", "Solide (u, v, w)"]
+let EXAMPLE_NAMES = ["hemisphere", "solid_hemisphere", "tunnel", "saddle", "helix", "torus", "ball"]
+let EXAMPLE_LABELS = ["Hémisphère (surface)", "Hémisphère plein", "Cylindre percé d'un tunnel", "Selle de cheval", "Hélice", "Tore",
+                      "Boule (solide paramétré)"]
+
+# Nombre écrit par le joueur, éventuellement une expression (« 2pi »).
+fn read_number(raw, fallback) {
+    if (raw == nil) { return fallback }
+    let text = trim(format("{}", raw))
+    if (text == "") { return fallback }
+    if (formula.check(text, []) != nil) { return nil }
+    return formula.eval(text)
+}
+
+fn place_formula(p, at, v) {
+    let id = block_id(v.block)
+    if (id == nil) { return format("Bloc inconnu « {} ».", v.block) }
+    let limit = shape_limits()
+    let spec = {kind: v.kind, block: id, z_up: v.z_up, hollow: v.hollow, scale: read_number(v.scale, 1),
+                max_size: [limit.x, limit.y, limit.z], time_limit: setting("formula_time")}
+    if (spec.scale == nil or spec.scale <= 0) { return "Échelle invalide." }
+    if (v.kind == "implicit") {
+        let err = formula.check(v.expression, ["x", "y", "z"])
+        if (err != nil) { return format("Formule : {}", err) }
+        let b = []
+        for (k in ["xmin", "ymin", "zmin", "xmax", "ymax", "zmax"]) {
+            let n = read_number(v[k], nil)
+            if (n == nil) { return format("Borne « {} » invalide.", k) }
+            push(b, math.floor(n))
+        }
+        spec.expression = v.expression
+        spec.box = b
+    } else {
+        for (axis in ["x", "y", "z"]) {
+            let err = formula.check(v[axis], ["u", "v", "w", "t"])
+            if (err != nil) { return format("{}(…) : {}", axis, err) }
+        }
+        spec.x = v.x
+        spec.y = v.y
+        spec.z = v.z
+        for (param in ["u", "v", "w"]) {
+            let a = read_number(v[format("{}min", param)], 0)
+            let b = read_number(v[format("{}max", param)], 1)
+            let n = read_number(v[format("{}n", param)], 32)
+            if (a == nil or b == nil or n == nil) { return format("Intervalle de {} invalide.", param) }
+            spec[param] = [a, b, math.floor(n)]
+        }
+    }
+    let name = format("edit:plot:{}", player_key(p))
+    let r = structure.plot(name, spec)
+    if (not r.ok) { return r.error }
+    let bounds = structure.bounds(name, at.x, at.y, at.z)
+    remember(p, [{min: bounds.min, max: bounds.max}])
+    structure.paste(name, at.x, at.y, at.z, {keep_air: false})
+    structure.duplicate(name, clip(p))
+    return format("Formule construite : {} ({} blocs).", size_text(r.size), r.blocks)
+}
+
+# Exemples (repris de mathplot, z vers le haut).
+let EXAMPLES = {
+    hemisphere: {kind: "implicit", expression: "x^2 + y^2 + (z-10)^2 - 20^2", xmin: -20, ymin: -20, zmin: 10, xmax: 20, ymax: 20, zmax: 30},
+    solid_hemisphere: {kind: "implicit", expression: "x^2 + y^2 + (z-10)^2 <= 20^2", xmin: -20, ymin: -20, zmin: 10, xmax: 20, ymax: 20, zmax: 30},
+    tunnel: {kind: "implicit", expression: "x^2 + y^2 <= 20^2 and x^2 + z^2 >= 10^2", xmin: -20, ymin: -20, zmin: 0, xmax: 20, ymax: 20, zmax: 20},
+    saddle: {kind: "implicit", expression: "z - (x^2 - y^2)/20", xmin: -15, ymin: -15, zmin: -12, xmax: 15, ymax: 15, zmax: 12},
+    helix: {kind: "curve", x: "10cos(t)", y: "10sin(t)", z: "1.5t", umin: "0", umax: "6pi", un: "200"},
+    torus: {kind: "surface", x: "(12 + 4cos(v)) cos(u)", y: "(12 + 4cos(v)) sin(u)", z: "4sin(v) + 4", umin: "0", umax: "2pi", un: "96",
+            vmin: "0", vmax: "2pi", vn: "48"},
+    ball: {kind: "solid", x: "w sin(v) cos(u)", y: "w sin(v) sin(u)", z: "w cos(v) + 8", umin: "0", umax: "2pi", un: "60",
+           vmin: "0", vmax: "pi", vn: "30", wmin: "0", wmax: "8", wn: "12"}
+}
+
+# ── Bibliothèque (fichiers du monde et d'échange) ───────────────────────────
+
+fn save_clip(p, name) {
+    if (not structure.exists(clip(p))) { return "Presse-papiers vide." }
+    let r = structure.save(clip(p), name)
+    if (not r.ok) { return r.error }
+    return format("Structure enregistrée dans le monde : {}", r.path)
+}
+
+fn save_selection(p, name) {
+    let msg = do_copy(p, false)
+    if (not structure.exists(clip(p))) { return msg }
+    return save_clip(p, name)
+}
+
+fn do_load(p, file) {
+    let r = structure.load(file, clip(p))
+    if (not r.ok) { return r.error }
+    let note = ""
+    if (len(r.unknown) > 0) { note = format(" Blocs inconnus ignorés : {}.", join(r.unknown, ", ")) }
+    return format("« {} » chargée dans le presse-papiers : {} ({} blocs).{}", file, size_text(r.size), r.blocks, note)
+}
+
+fn do_export(p, name, fmt) {
+    if (not structure.exists(clip(p))) { return "Presse-papiers vide." }
+    if (index_of(FORMATS, fmt) < 0) { return format("Format inconnu « {} » ({}).", fmt, join(FORMATS, ", ")) }
+    let r = structure.save(clip(p), format("{}.{}", name, fmt), true)
+    if (not r.ok) { return r.error }
+    return format("Exporté : {}", r.path)
+}
+
+fn do_import(p, file, name) {
+    let r = structure.load(file, clip(p), true)
+    if (not r.ok) { return r.error }
+    let note = ""
+    if (len(r.unknown) > 0) { note = format(" Blocs inconnus ignorés : {}.", join(r.unknown, ", ")) }
+    let saved = structure.save(clip(p), name)
+    if (not saved.ok) { return saved.error }
+    return format("« {} » importée dans le monde ({}) et le presse-papiers : {} ({} blocs).{}", file, name, size_text(r.size), r.blocks, note)
+}
+
+# ── Formulaires ─────────────────────────────────────────────────────────────
+
+fn target_cell(p) {
+    let t = entity.target(p)
+    if (t == nil) { return nil }
+    return {x: t.ax, y: t.ay, z: t.az}
+}
+
+fn open_fill(p) {
+    let sel = selection(p)
+    let desc = "Sélectionnez d'abord une zone avec la baguette."
+    if (sel != nil) { desc = format("Zone sélectionnée : {} ({} blocs).", size_text(sel.size), sel.size.x * sel.size.y * sel.size.z) }
+    game.open_ui(p, "form", {id: "edit:fill", title: "Remplir la zone", description: desc, submit: "Remplir", fields: [
+        {id: "block", type: "block", label: "Bloc", default: favourite_block(p)},
+        {id: "mode", type: "choice", label: "Remplissage", options: FILL_MODES, labels: FILL_LABELS, default: "all"}]})
+}
+
+fn open_replace(p) {
+    let sel = selection(p)
+    if (sel == nil) { game.say("Sélectionnez d'abord une zone avec la baguette."); return nil }
+    let big = too_big(sel.size, copy_limits(), "Zone à modifier")
+    if (big != nil) { game.say(big); return nil }
+    let counts = world.count(sel.min.x, sel.min.y, sel.min.z, sel.max.x, sel.max.y, sel.max.z)
+    let present = ["*"]
+    let labels = ["Tous les blocs (sauf l'air)"]
+    for (id in keys(counts)) {
+        push(present, id)
+        push(labels, format("{} ({})", id, counts[id]))
+    }
+    game.open_ui(p, "form", {id: "edit:replace", title: "Remplacer des blocs", submit: "Remplacer", fields: [
+        {id: "from", type: "choice", label: "Remplacer", options: present, labels: labels, default: "*"},
+        {id: "to", type: "block", label: "Par", default: favourite_block(p)}]})
+}
+
+fn open_paste(p) {
+    let s = player_state(p)
+    let info = structure.info(clip(p))
+    if (info == nil) { game.say("Presse-papiers vide : copiez une zone ou chargez une structure."); return nil }
+    game.open_ui(p, "form", {id: "edit:paste", title: "Options de collage",
+        description: format("Presse-papiers : {} ({} blocs).", size_text(info.size), info.blocks), submit: "Appliquer", fields: [
+        {id: "rotate", type: "choice", label: "Tourner", options: ["0", "90", "180", "270"], labels: ["Non", "90°", "180°", "270°"], default: "0"},
+        {id: "mirror", type: "choice", label: "Retourner", options: ["", "x", "z", "y"],
+         labels: ["Non", "Est ↔ ouest (x)", "Nord ↔ sud (z)", "Haut ↔ bas (y)"], default: ""},
+        {id: "keep_air", type: "bool", label: "L'air copié efface", description: "Désactivé : l'air copié laisse les blocs en place (fusion).",
+         default: s.keep_air}]})
+}
+
+fn shape_fields(p) {
+    let lim = shape_limits()
+    let sizes = ["circle", "sphere"]
+    return [
+        {id: "shape", type: "choice", label: "Forme", options: SHAPES, labels: SHAPE_LABELS, default: "sphere"},
+        {id: "block", type: "block", label: "Bloc", default: favourite_block(p)},
+        {id: "sx", type: "slider", label: "Largeur / diamètre (X)", min: 1, max: lim.x, step: 1, default: 9,
+         visible_if: {field: "shape", in: ["circle", "ellipse", "rectangle", "parallelepiped", "sphere", "ellipsoid", "cylinder", "cone", "pyramid", "dome", "torus"]}},
+        {id: "sy", type: "slider", label: "Hauteur (Y)", min: 1, max: lim.y, step: 1, default: 9,
+         visible_if: {field: "shape", in: ["ellipse", "rectangle", "parallelepiped", "ellipsoid", "cylinder", "cone", "pyramid", "dome", "torus"]}},
+        {id: "sz", type: "slider", label: "Profondeur (Z)", min: 1, max: lim.z, step: 1, default: 9,
+         visible_if: {field: "shape", in: ["ellipse", "rectangle", "parallelepiped", "ellipsoid", "cylinder", "cone", "pyramid", "dome"]}},
+        {id: "axis", type: "choice", label: "Orientation", options: ["y", "x", "z"], labels: ["Horizontale / verticale (axe y)", "Axe est-ouest (x)", "Axe nord-sud (z)"],
+         default: "y", visible_if: {field: "shape", in: ["circle", "ellipse", "rectangle", "cylinder"]}},
+        {id: "dx", type: "number", label: "Vers l'est (x)", default: 10, visible_if: {field: "shape", in: ["line"]}},
+        {id: "dy", type: "number", label: "Vers le haut (y)", default: 0, visible_if: {field: "shape", in: ["line"]}},
+        {id: "dz", type: "number", label: "Vers le sud (z)", default: 0, visible_if: {field: "shape", in: ["line"]}},
+        {id: "hollow", type: "bool", label: "Creuse (contour seulement)", default: false,
+         visible_if: {field: "shape", in: ["circle", "ellipse", "rectangle", "parallelepiped", "sphere", "ellipsoid", "cylinder", "cone", "pyramid", "dome", "torus"]}}]
+}
+
+fn open_shape(p) {
+    let at = target_cell(p)
+    if (at == nil) { game.say("Visez le bloc contre lequel construire la forme."); return nil }
+    player_state(p).at = at
+    let lim = shape_limits()
+    game.open_ui(p, "form", {id: "edit:shape", title: "Construire une forme", width: 680,
+        description: format("Posée sur le bloc visé ({} {} {}), centrée. Taille maximale : {}.", at.x, at.y, at.z, size_text(lim)),
+        submit: "Construire", fields: shape_fields(p)})
+}
+
+fn pick(d, k, fallback) {
+    if (d != nil and has(d, k)) { return d[k] }
+    return fallback
+}
+
+fn formula_fields(p, d) {
+    let lim = shape_limits()
+    let param = ["curve", "surface", "solid"]
+    let two = ["surface", "solid"]
+    return [
+        {id: "kind", type: "choice", label: "Type", options: PLOT_KINDS, labels: PLOT_LABELS, default: pick(d, "kind", "implicit")},
+        {id: "expression", type: "text", label: "f(x, y, z)", description: "Condition (« x^2+y^2+z^2 <= 10^2 » : solide) ou expression (« x^2+y^2-z » : surface où elle s'annule).",
+         default: pick(d, "expression", "x^2 + y^2 + z^2 <= 10^2"), visible_if: {field: "kind", in: ["implicit"]}},
+        {id: "xmin", type: "text", label: "x min", default: format("{}", pick(d, "xmin", -10)), visible_if: {field: "kind", in: ["implicit"]}},
+        {id: "xmax", type: "text", label: "x max", default: format("{}", pick(d, "xmax", 10)), visible_if: {field: "kind", in: ["implicit"]}},
+        {id: "ymin", type: "text", label: "y min", default: format("{}", pick(d, "ymin", -10)), visible_if: {field: "kind", in: ["implicit"]}},
+        {id: "ymax", type: "text", label: "y max", default: format("{}", pick(d, "ymax", 10)), visible_if: {field: "kind", in: ["implicit"]}},
+        {id: "zmin", type: "text", label: "z min", default: format("{}", pick(d, "zmin", -10)), visible_if: {field: "kind", in: ["implicit"]}},
+        {id: "zmax", type: "text", label: "z max", default: format("{}", pick(d, "zmax", 10)), visible_if: {field: "kind", in: ["implicit"]}},
+        {id: "x", type: "text", label: "x(u, v, w)", description: "t est un autre nom de u.", default: pick(d, "x", "10cos(t)"), visible_if: {field: "kind", in: param}},
+        {id: "y", type: "text", label: "y(u, v, w)", default: pick(d, "y", "10sin(t)"), visible_if: {field: "kind", in: param}},
+        {id: "z", type: "text", label: "z(u, v, w)", default: pick(d, "z", "t"), visible_if: {field: "kind", in: param}},
+        {id: "umin", type: "text", label: "u (ou t) de", default: pick(d, "umin", "0"), visible_if: {field: "kind", in: param}},
+        {id: "umax", type: "text", label: "u (ou t) à", default: pick(d, "umax", "4pi"), visible_if: {field: "kind", in: param}},
+        {id: "un", type: "text", label: "Points sur u", default: pick(d, "un", "120"), visible_if: {field: "kind", in: param}},
+        {id: "vmin", type: "text", label: "v de", default: pick(d, "vmin", "0"), visible_if: {field: "kind", in: two}},
+        {id: "vmax", type: "text", label: "v à", default: pick(d, "vmax", "1"), visible_if: {field: "kind", in: two}},
+        {id: "vn", type: "text", label: "Points sur v", default: pick(d, "vn", "32"), visible_if: {field: "kind", in: two}},
+        {id: "wmin", type: "text", label: "w de", default: pick(d, "wmin", "0"), visible_if: {field: "kind", in: ["solid"]}},
+        {id: "wmax", type: "text", label: "w à", default: pick(d, "wmax", "1"), visible_if: {field: "kind", in: ["solid"]}},
+        {id: "wn", type: "text", label: "Points sur w", default: pick(d, "wn", "8"), visible_if: {field: "kind", in: ["solid"]}},
+        {id: "scale", type: "text", label: "Échelle (blocs par unité)", default: pick(d, "scale", "1")},
+        {id: "z_up", type: "bool", label: "z vers le haut (convention mathématique)", description: "Désactivé : y vers le haut, comme dans le jeu.", default: true},
+        {id: "hollow", type: "bool", label: "Creuser (enveloppe seulement)", default: false},
+        {id: "block", type: "block", label: "Bloc", default: favourite_block(p)},
+        {id: "note", type: "label", text: format("Origine (0, 0, 0) : le bloc visé. Taille maximale : {}. Fonctions : sin cos tan sqrt abs exp log min max if… ; and, or, not.", size_text(lim))}]
+}
+
+fn open_formula(p, example) {
+    let at = target_cell(p)
+    if (at == nil and player_state(p).at == nil) { game.say("Visez le bloc où placer l'origine de la formule."); return nil }
+    if (at != nil) { player_state(p).at = at }
+    let d = nil
+    if (example != nil and has(EXAMPLES, example)) { d = EXAMPLES[example] }
+    let fields = formula_fields(p, d)
+    let chosen = "hemisphere"
+    if (d != nil) { chosen = example }
+    push(fields, {id: "example", type: "choice", label: "Exemple (de mathplot)", options: EXAMPLE_NAMES, labels: EXAMPLE_LABELS, default: chosen})
+    game.open_ui(p, "form", {id: "edit:formula", title: "Construire d'après une formule", width: 760, submit: "Construire",
+        description: "Comme le mod Minetest « mathplot » : relation implicite, courbe, surface ou solide paramétrés.",
+        fields: fields, buttons: [{id: "example", label: "Charger l'exemple"}]})
+}
+
+fn open_library(p) {
+    let files = structure.list()
+    let shared = structure.list(true)
+    let fields = [
+        {id: "name", type: "text", label: "Nom", description: "Pour enregistrer, exporter ou importer.", default: "maison"},
+        {id: "format", type: "choice", label: "Format d'export", options: FORMATS, labels: FORMAT_LABELS, default: "vxs.json"}]
+    if (len(files) > 0) {
+        push(fields, {id: "file", type: "choice", label: "Structures du monde", options: files, default: files[0]})
+    } else {
+        push(fields, {id: "nofile", type: "label", text: "Aucune structure enregistrée dans ce monde."})
+    }
+    if (len(shared) > 0) {
+        push(fields, {id: "shared", type: "choice", label: "Dossier d'échange", options: shared, default: shared[0]})
+    } else {
+        push(fields, {id: "noshared", type: "label", text: format("Dossier d'échange vide : {}", structure.directory(true))})
+    }
+    let info = structure.info(clip(p))
+    let desc = "Presse-papiers vide."
+    if (info != nil) { desc = format("Presse-papiers : {} ({} blocs).", size_text(info.size), info.blocks) }
+    game.open_ui(p, "form", {id: "edit:library", title: "Bibliothèque de structures", width: 700, submit: "",
+        description: format("{} Structures du monde : {}", desc, structure.directory()), fields: fields, buttons: [
+            {id: "save_selection", label: "Enregistrer la sélection"}, {id: "save", label: "Enregistrer le presse-papiers"},
+            {id: "load", label: "Charger"}, {id: "delete", label: "Supprimer"},
+            {id: "export", label: "Exporter"}, {id: "import", label: "Importer"}]})
+}
+
+voxel.on("form_submit", fn(p, form, v) {
+    if (not form.starts_with("edit:")) { return nil }
+    if (not allowed()) { game.say(FORBIDDEN); return nil }
+    let s = player_state(p)
+    let msg = nil
+    if (form == "edit:fill") { msg = do_fill(p, v.block, v.mode) }
+    if (form == "edit:replace") { msg = replace_in(p, v.from, v.to) }
+    if (form == "edit:paste") {
+        s.keep_air = v.keep_air
+        msg = "Options de collage enregistrées."
+        if (v.rotate != "0") { msg = rotate_clip(p, num(v.rotate)) }
+        if (v.mirror != "") { msg = flip_clip(p, v.mirror) }
+    }
+    if (form == "edit:shape") {
+        msg = place_shape(p, s.at, v.shape, {block: v.block, sx: math.floor(v.sx), sy: math.floor(v.sy), sz: math.floor(v.sz),
+                                               axis: v.axis, hollow: v.hollow, dx: math.floor(read_number(v.dx, 0)),
+                                               dy: math.floor(read_number(v.dy, 0)), dz: math.floor(read_number(v.dz, 0))})
+    }
+    if (form == "edit:formula") {
+        if (v._button == "example") {
+            open_formula(p, v.example)
+            return nil
+        }
+        msg = place_formula(p, s.at, v)
+    }
+    if (form == "edit:library") {
+        let b = v._button
+        if (b == "save_selection") { msg = save_selection(p, v.name) }
+        if (b == "save") { msg = save_clip(p, v.name) }
+        if (b == "load" or b == "delete") {
+            if (not has(v, "file")) { msg = "Aucune structure dans ce monde." }
+            if (has(v, "file") and b == "load") { msg = do_load(p, v.file) }
+            if (has(v, "file") and b == "delete") {
+                let r = structure.delete(v.file)
+                msg = format("« {} » supprimée.", v.file)
+                if (not r.ok) { msg = r.error }
+            }
+        }
+        if (b == "export") { msg = do_export(p, v.name, v.format) }
+        if (b == "import") {
+            if (has(v, "shared")) { msg = do_import(p, v.shared, v.name) } else { msg = "Le dossier d'échange est vide." }
+        }
+    }
+    if (msg != nil) { game.say(msg) }
+})
+
+# ── Outils ──────────────────────────────────────────────────────────────────
+
+fn is_tool(item) { return item != nil and item.starts_with("edit:tool_") }
+
+# Clic droit avec un outil ; `t` : bloc visé (ou nil).
+fn use_tool(p, item, t) {
+    if (not allowed()) { return FORBIDDEN }
+    let sneak = entity.sneaking(p)
+    let tool = item.sub(10)
+    let s = player_state(p)
+    let at = nil
+    if (t != nil) { at = {x: t.ax, y: t.ay, z: t.az} }
+    if (tool == "wand") {
+        if (sneak) { return clear_selection(p) }
+        if (t == nil) { return "Visez un bloc pour marquer un coin." }
+        let pos = {x: t.x, y: t.y, z: t.z}
+        if (s.pos1 == nil or (s.pos1 != nil and s.pos2 != nil)) {
+            s.pos2 = nil
+            return set_corner(p, 1, pos)
+        }
+        return set_corner(p, 2, pos)
+    }
+    if (tool == "copy") { return do_copy(p, sneak) }
+    if (tool == "paste") {
+        if (sneak) { open_paste(p); return nil }
+        if (at == nil) { return "Visez le bloc contre lequel coller." }
+        return do_paste(p, at)
+    }
+    if (tool == "move") {
+        if (at == nil) { return "Visez le bloc où amener la zone." }
+        return move_to(p, at)
+    }
+    if (tool == "fill") { open_fill(p); return nil }
+    if (tool == "delete") { return do_delete(p) }
+    if (tool == "replace") { open_replace(p); return nil }
+    if (tool == "undo") {
+        if (sneak) { return do_redo(p) }
+        return do_undo(p)
+    }
+    if (tool == "shape") { open_shape(p); return nil }
+    if (tool == "formula") { open_formula(p, nil); return nil }
+    if (tool == "library") { open_library(p); return nil }
+    return nil
+}
+
+voxel.on("block_use", fn(x, y, z, block, actor) {
+    let item = entity.held(actor)
+    if (not is_tool(item)) { return true }
+    let msg = use_tool(actor, item, entity.target(actor))
+    if (msg != nil) { game.say(msg) }
+    return false # l'outil a pris le clic (pas de porte ouverte, de bloc posé…)
+})
+
+voxel.on("item_use", fn(actor, item) {
+    if (not is_tool(item)) { return true }
+    let msg = use_tool(actor, item, nil)
+    if (msg != nil) { game.say(msg) }
+    return false
+})
+
+# Aperçu du collage : la boîte où arriverait le presse-papiers.
+voxel.system("edit_preview", fn(dt) {
+    for (p in entity.players()) {
+        let id = format("edit:preview:{}", player_key(p))
+        let shown = false
+        if (entity.held(p) == "edit:tool_paste" and voxel.setting("preview") and structure.exists(clip(p))) {
+            let at = target_cell(p)
+            if (at != nil) {
+                let b = structure.bounds(clip(p), at.x, at.y, at.z)
+                game.highlight(id, b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z, PREVIEW)
+                shown = true
+            }
+        }
+        if (not shown) { game.clear_highlight(id) }
+    }
+})
+
+# ── Commande /edit ──────────────────────────────────────────────────────────
+
+let HELP = join([
+    "/edit tools — donne les outils",
+    "/edit pos1 [x y z] · pos2 [x y z] — coins (bloc visé par défaut) · sel · clear",
+    "/edit copy · cut · paste [rotation] · move <dx> <dy> <dz> · rotate <90|180|270> · flip <x|y|z>",
+    "/edit fill <bloc> [plein|creux|murs|aretes|air] · delete · replace <de|*> <vers>",
+    "/edit undo · redo",
+    format("/edit shape <forme> <bloc> <x> [y] [z] [creuse] — formes : {}", join(SHAPES, ", ")),
+    "/edit plot <bloc> <formule…> — relation en x, y, z (z vers le haut), origine au bloc visé",
+    "/edit save <nom> · load <nom> · list · remove <nom> — structures du monde",
+    "/edit export <nom> [vxs.json|json|we|mts] · import <fichier> [nom] · shared — dossier d'échange",
+    "/edit form <shape|formula|library|fill|replace|paste> — ouvre le formulaire de l'outil",
+    "/edit limits — limites (réglages du mod)"], "\n")
+
+fn point(p, args, i) {
+    if (len(args) > i + 2) { return {x: math.floor(num(args[i])), y: math.floor(num(args[i + 1])), z: math.floor(num(args[i + 2]))} }
+    let t = entity.target(p)
+    if (t != nil) { return {x: t.x, y: t.y, z: t.z} }
+    let feet = entity.pos(p)
+    return {x: math.floor(feet.x), y: math.floor(feet.y), z: math.floor(feet.z)}
+}
+
+fn rest(args, from) {
+    let out = []
+    let i = from
+    while (i < len(args)) {
+        push(out, args[i])
+        i += 1
+    }
+    return join(out, " ")
+}
+
+voxel.command("edit", "/edit <action> … (/edit help)", "édition de structures : sélection, copier, coller, formes, formules, fichiers",
+fn(p, args) {
+    if (len(args) == 0 or args[0] == "help") { return HELP }
+    if (not allowed()) { return FORBIDDEN }
+    let a = args[0]
+    let at = target_cell(p)
+    if (a == "tools") {
+        for (t in ["wand", "copy", "paste", "move", "fill", "delete", "replace", "undo", "shape", "formula", "library"]) {
+            entity.give(p, format("edit:tool_{}", t), 1)
+        }
+        return "Outils d'édition ajoutés à l'inventaire."
+    }
+    if (a == "pos1") { return set_corner(p, 1, point(p, args, 1)) }
+    if (a == "pos2") { return set_corner(p, 2, point(p, args, 1)) }
+    if (a == "clear") { return clear_selection(p) }
+    if (a == "sel") {
+        let sel = selection(p)
+        if (sel == nil) { return "Aucune zone sélectionnée." }
+        return format("Zone : {} {} {} → {} {} {} ({}).", sel.min.x, sel.min.y, sel.min.z, sel.max.x, sel.max.y, sel.max.z, size_text(sel.size))
+    }
+    if (a == "copy") { return do_copy(p, false) }
+    if (a == "cut") { return do_copy(p, true) }
+    if (a == "paste") {
+        if (at == nil) { return "Visez le bloc contre lequel coller." }
+        if (len(args) > 1) { rotate_clip(p, num(args[1])) }
+        return do_paste(p, at)
+    }
+    if (a == "move") {
+        let sel = selection(p)
+        if (sel == nil or len(args) < 4) { return "/edit move <dx> <dy> <dz> (zone sélectionnée)" }
+        let s = player_state(p)
+        return move_to(p, {x: s.pos1.x + math.floor(num(args[1])), y: s.pos1.y + math.floor(num(args[2])), z: s.pos1.z + math.floor(num(args[3]))})
+    }
+    if (a == "rotate") {
+        if (len(args) < 2) { return "/edit rotate <90|180|270>" }
+        return rotate_clip(p, num(args[1]))
+    }
+    if (a == "flip") {
+        if (len(args) < 2) { return "/edit flip <x|y|z>" }
+        return flip_clip(p, args[1])
+    }
+    if (a == "fill") {
+        if (len(args) < 2) { return "/edit fill <bloc> [plein|creux|murs|aretes|air]" }
+        let mode = "all"
+        if (len(args) > 2) { mode = args[2] }
+        return do_fill(p, args[1], mode)
+    }
+    if (a == "delete") { return do_delete(p) }
+    if (a == "replace") {
+        if (len(args) < 3) { return "/edit replace <de|*> <vers>" }
+        return replace_in(p, args[1], args[2])
+    }
+    if (a == "undo") { return do_undo(p) }
+    if (a == "redo") { return do_redo(p) }
+    if (a == "shape") {
+        if (len(args) < 4) { return format("/edit shape <forme> <bloc> <x> [y] [z] [creuse] — {}", join(SHAPES, ", ")) }
+        if (at == nil) { return "Visez le bloc contre lequel construire." }
+        let sx = math.floor(num(args[3]))
+        let sy = sx
+        let sz = sx
+        let hollow = false
+        let i = 4
+        if (len(args) > i and args[i] != "creuse") { sy = math.floor(num(args[i])); i += 1 }
+        if (len(args) > i and args[i] != "creuse") { sz = math.floor(num(args[i])); i += 1 }
+        if (len(args) > i and args[i] == "creuse") { hollow = true }
+        let shape = {block: args[2], sx: sx, sy: sy, sz: sz, axis: "y", hollow: hollow, dx: sx, dy: sy, dz: sz}
+        if (args[1] == "line" and len(args) < 6) { shape.dy = 0; shape.dz = 0 }
+        return place_shape(p, at, args[1], shape)
+    }
+    if (a == "plot") {
+        if (len(args) < 3) { return "/edit plot <bloc> <formule…>" }
+        if (at == nil) { return "Visez le bloc où placer l'origine." }
+        let lim = shape_limits()
+        let hx = math.floor((lim.x - 1) / 2)
+        let hy = math.floor((lim.z - 1) / 2)
+        let hz = math.floor((lim.y - 1) / 2)
+        return place_formula(p, at, {kind: "implicit", expression: rest(args, 2), block: args[1], z_up: true, hollow: false, scale: 1,
+                                     xmin: 0 - hx, xmax: hx, ymin: 0 - hy, ymax: hy, zmin: 0 - hz, zmax: hz})
+    }
+    if (a == "save") {
+        if (len(args) < 2) { return "/edit save <nom>" }
+        if (selection(p) != nil and not structure.exists(clip(p))) { return save_selection(p, args[1]) }
+        return save_clip(p, args[1])
+    }
+    if (a == "load") {
+        if (len(args) < 2) { return "/edit load <nom>" }
+        return do_load(p, args[1])
+    }
+    if (a == "list") {
+        let files = structure.list()
+        if (len(files) == 0) { return format("Aucune structure dans ce monde ({}).", structure.directory()) }
+        return format("Structures du monde : {}", join(files, ", "))
+    }
+    if (a == "shared") {
+        let files = structure.list(true)
+        if (len(files) == 0) { return format("Dossier d'échange vide ({}).", structure.directory(true)) }
+        return format("Dossier d'échange : {}", join(files, ", "))
+    }
+    if (a == "remove") {
+        if (len(args) < 2) { return "/edit remove <nom>" }
+        let r = structure.delete(args[1])
+        if (not r.ok) { return r.error }
+        return format("« {} » supprimée.", args[1])
+    }
+    if (a == "export") {
+        if (len(args) < 2) { return "/edit export <nom> [vxs.json|json|we|mts]" }
+        let fmt = "vxs.json"
+        if (len(args) > 2) { fmt = args[2] }
+        return do_export(p, args[1], fmt)
+    }
+    if (a == "import") {
+        if (len(args) < 2) { return "/edit import <fichier> [nom]" }
+        let name = split(args[1], ".")[0]
+        if (len(args) > 2) { name = args[2] }
+        return do_import(p, args[1], name)
+    }
+    if (a == "form") {
+        let f = "shape"
+        if (len(args) > 1) { f = args[1] }
+        if (f == "shape") { open_shape(p) }
+        if (f == "formula") { open_formula(p, nil) }
+        if (f == "library") { open_library(p) }
+        if (f == "fill") { open_fill(p) }
+        if (f == "replace") { open_replace(p) }
+        if (f == "paste") { open_paste(p) }
+        return nil
+    }
+    if (a == "limits") {
+        return format("Zone copiable : {} · forme : {} · annulations : {}", size_text(copy_limits()), size_text(shape_limits()), setting("undo_levels"))
+    }
+    return format("Action inconnue « {} ». {}", a, HELP)
+})

@@ -1,5 +1,6 @@
 // Définitions de voxel/meshing.hpp
 #include <voxel/meshing.hpp>
+#include <voxel/fluids.hpp>
 #include <voxel/worldgen.hpp>
 #include <voxel/physics.hpp>
 
@@ -34,6 +35,7 @@ void TextureAtlas::Build(AssetManager &assets, const ContentRegistry &content, i
 	for (const BlockDef &b : content.Blocks()) {
 		for (const String &f : b.look.faces)
 			add(f);
+		add(b.liquid.flowingTexture); // liquide qui coule
 		addModel(b.shape, b.mod);
 	}
 	for (const ItemDef *i : content.Items())
@@ -214,7 +216,7 @@ ChunkMesher::ChunkMesher(const ContentRegistry &content, const TextureAtlas &atl
 		BlockRender r;
 		r.id = b.numeric;
 		r.visible = !b.IsAir() && b.shape.kind != ShapeKind::NONE && b.look.material != RenderMaterial::INVISIBLE;
-		r.opaqueCube = b.IsOpaqueCube();
+		r.opaqueCube = b.IsOpaqueCube() && !b.fluid; // un liquide qui coule laisse voir ses voisins
 		r.translucent = b.look.material == RenderMaterial::TRANSLUCENT || b.look.material == RenderMaterial::TRANSPARENT;
 		r.fluid = b.fluid;
 		r.shape = b.shape.kind;
@@ -518,11 +520,58 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 				MeshBuffer &out = r.translucent ? mesh.translucent : mesh.opaque;
 				const math::FVector3 offset{float(x), float(y), float(z)};
 				const uint8_t param = pad.params[size_t(Padded::Index(x, y, z))];
-				if (r.shape == ShapeKind::CUBE) {
+				if (r.fluid && r.shape == ShapeKind::CUBE) {
+					// Liquide : surface en pente d'après les niveaux voisins
+					// (hauteur de chaque coin : moyenne des cellules du même
+					// liquide qui le partagent ; pleine sous le même liquide).
+					auto same = [&](int ax, int ay, int az) { return pad.At(ax, ay, az) == id; };
+					auto height = [&](int ax, int ay, int az) {
+						return LiquidHeight(def, pad.params[size_t(Padded::Index(ax, ay, az))], same(ax, ay + 1, az));
+					};
+					float corner[2][2]; // [x][z]
+					for (int cx = 0; cx <= 1; ++cx)
+						for (int cz = 0; cz <= 1; ++cz) {
+							float sum = 0.f;
+							int count = 0;
+							bool full = false;
+							for (int dx = cx - 1; dx <= cx; ++dx)
+								for (int dz = cz - 1; dz <= cz; ++dz)
+									if (same(x + dx, y, z + dz)) {
+										const float h = height(x + dx, y, z + dz);
+										full = full || h >= 1.f;
+										sum += h;
+										++count;
+									}
+							corner[cx][cz] = full ? 1.f : count > 0 ? sum / float(count) : height(x, y, z);
+						}
+					BlockRender liquid = r;
+					if (!LiquidSource(param) && !def.liquid.flowingTexture.IsEmpty())
+						liquid.faces.fill(m_atlas.Lookup(def.liquid.flowingTexture));
+					const float light = sky(x, y, z);
+					for (int fi = 0; fi < FACE_COUNT; ++fi) {
+						const Face f = Face(fi);
+						const BlockPos n = BlockPos{x, y, z}.Neighbor(f);
+						if (same(n.x, n.y, n.z) || (f != Face::TOP && occludes(n.x, n.y, n.z)) ||
+							(f == Face::TOP && occludes(n.x, n.y, n.z) && corner[0][0] >= 1.f && corner[1][1] >= 1.f))
+							continue;
+						math::FVector3 corners[4];
+						FaceCorners(f, Box{{0.f, 0.f, 0.f}, {1.f, 1.f, 1.f}}, corners);
+						for (math::FVector3 &c : corners)
+							if (c.y > 0.5f)
+								c.y = corner[c.x > 0.5f ? 1 : 0][c.z > 0.5f ? 1 : 0];
+						const TextureAtlas::Rect &rect = liquid.faces[size_t(fi)];
+						math::FVector2 uvs[4];
+						math::FVector3 placed[4];
+						for (int k = 0; k < 4; ++k) {
+							const math::FVector2 t = FaceUv(f, corners[k]);
+							uvs[k] = {rect.u0 + (rect.u1 - rect.u0) * t.x, rect.v0 + (rect.v1 - rect.v0) * t.y};
+							placed[k] = corners[k] + offset;
+						}
+						PushQuad(out, placed, uvs, NormalOf(f), (liquid.tintFaces >> fi) & 1 ? liquid.tinted : liquid.tint,
+								 {light, light, light, light});
+					}
+				} else if (r.shape == ShapeKind::CUBE) {
 					Box box{{0.f, 0.f, 0.f}, {1.f, 1.f, 1.f}};
-					// Fluide sous l'air : surface abaissée.
-					if (r.fluid && render(pad.At(x, y + 1, z)).id != id)
-						box.max.y = 0.875f;
 					if (def.shape.size.x != 1.f || def.shape.size.y != 1.f || def.shape.size.z != 1.f) {
 						const math::FVector3 s = def.shape.size;
 						box = Box{{0.5f - s.x * 0.5f, 0.f, 0.5f - s.z * 0.5f}, {0.5f + s.x * 0.5f, s.y, 0.5f + s.z * 0.5f}};

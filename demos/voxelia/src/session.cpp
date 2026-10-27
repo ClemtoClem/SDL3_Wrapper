@@ -74,6 +74,7 @@ bool Session::Prepare(float &progress, String &status) {
 		GameOptions o;
 		o.modDirectories = m_shell.Opts().mods;
 		o.savesDirectory = m_shell.Opts().saves;
+		o.structureDirectory = m_shell.Opts().structures;
 		o.viewRadius = prefs.viewDistance;
 		o.verticalRadius = std::clamp(prefs.viewDistance / 2, 2, 4);
 		o.chunkBudget = 8;
@@ -1125,6 +1126,8 @@ void Session::HandleUiRequests() {
 			m_shell.Push(MakeDialog(m_shell, std::move(r)));
 		else if (r.kind == "container")
 			m_shell.Push(MakeContainer(m_shell, std::move(r)));
+		else if (r.kind == "form")
+			m_shell.Push(MakeForm(m_shell, std::move(r)));
 	}
 }
 

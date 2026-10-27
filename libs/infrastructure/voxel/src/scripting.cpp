@@ -332,6 +332,7 @@ void ScriptHost::InstallApi() {
 	InstallWorldApi();
 	InstallEntityApi();
 	InstallContentApi();
+	InstallStructureApi();
 }
 
 void ScriptHost::InstallWorldApi() {

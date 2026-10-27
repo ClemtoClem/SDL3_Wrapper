@@ -107,6 +107,9 @@ private:
 	void UpdateLights(const render3d::Camera &camera);
 	void UpdateClouds(const render3d::Camera &camera);
 	void UpdateParticles(float dt);
+	/// Boîtes surlignées par les mods (Game::Highlights) : arêtes d'épaisseur
+	/// constante, refaites quand la liste change.
+	void UpdateHighlights();
 	void UpdateShadow(EntityView &view, const math::FVector3 &feet, float width, bool visible);
 	[[nodiscard]] std::shared_ptr<render3d::Mesh> EntityMesh(const voxel::Visual &visual, const String &mod, std::string &key);
 	[[nodiscard]] static render3d::Mesh ToMesh(const voxel::MeshBuffer &buffer);
@@ -116,6 +119,8 @@ private:
 	render3d::Object3D m_root;
 	render3d::Object3D *m_chunkRoot = nullptr, *m_entityRoot = nullptr;
 	render3d::Shape *m_outline = nullptr;
+	render3d::Shape *m_highlightShape = nullptr;
+	std::vector<voxel::Game::Highlight> m_shownHighlights;
 	voxel::TextureAtlas m_atlas;
 	std::unique_ptr<voxel::ChunkMesher> m_mesher;
 	Option<sdl3::GpuTexture> m_atlasTexture = NONE;

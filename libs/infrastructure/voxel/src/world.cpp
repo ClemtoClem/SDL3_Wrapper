@@ -161,15 +161,18 @@ void World::GenerationWrite(const BlockPos &p, BlockId id, bool replaceSolid) {
 
 void World::PlaceStructure(const StructureDef &structure, const BlockPos &origin, int rotation, bool generation) {
 	rotation = ((rotation % 4) + 4) % 4;
-	for (const auto &[rel, blockId] : structure.blocks) {
+	for (size_t i = 0; i < structure.blocks.size(); ++i) {
+		const auto &[rel, blockId] = structure.blocks[i];
 		BlockPos r = rel - structure.anchor;
-		for (int i = 0; i < rotation; ++i)
+		for (int k = 0; k < rotation; ++k)
 			r = {-r.z, r.y, r.x};
 		const BlockId id = m_content.BlockIdOf(blockId);
+		const uint8_t stored = i < structure.params.size() ? structure.params[i] : 0;
+		const uint8_t param = uint8_t((stored & ~3u) | ((stored + unsigned(rotation)) & 3u));
 		if (generation)
 			GenerationWrite(origin + r, id, structure.replaceSolid);
 		else
-			(void)SetBlock(origin + r, id, 0, ChangeCause::SCRIPT);
+			(void)SetBlock(origin + r, id, param, ChangeCause::SCRIPT);
 	}
 }
 

@@ -393,6 +393,7 @@ const std::vector<std::tuple<const char *, const char *, const char *>> &RuleTex
 		{"naturalRegeneration", "Régénération naturelle", "La santé remonte quand la faim est rassasiée."},
 		{"hunger", "Faim", "La course, les sauts et le minage creusent l'appétit."},
 		{"fallDamage", "Dégâts de chute", "Une chute trop haute blesse."},
+		{"liquidFlow", "Écoulement des liquides", "L'eau et la lave coulent, tombent et se figent au contact l'une de l'autre."},
 		{"fallingBlockSuffocation", "Suffocation sous les blocs qui tombent",
 		 "Du sable ou du gravier tombé sur la tête étouffe le joueur ; désactivé, il reste coincé sans perdre d'air."},
 		{"mobGriefing", "Dégâts des créatures", "Les explosions de creepers détruisent les blocs."},
@@ -502,7 +503,7 @@ public:
 		right.Width(450.f * s).GrowHeight();
 		ui::Widget r = b.Append(right);
 		kit.SectionTitle(r, "Créatures et événements", Some(MaterialIcons::PETS));
-		for (const char *rule : {"mobSpawning", "daylightCycle", "mobGriefing", "weather"})
+		for (const char *rule : {"mobSpawning", "daylightCycle", "mobGriefing", "weather", "liquidFlow"})
 			for (const auto &[id, label, help] : RuleTexts())
 				if (std::string(id) == rule)
 					kit.ToggleRow(r, label, help, m_form.rules[rule], [this, rule](bool v) { m_form.rules[rule] = v; });

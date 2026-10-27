@@ -88,6 +88,22 @@ struct SoundSet {
 	[[nodiscard]] String Get(const char *event) const;
 };
 
+/// Écoulement d'un liquide (« liquid » d'un bloc fluide ; voir fluids.hpp).
+struct LiquidProps {
+	bool flows = false;        ///< faux : liquide immobile (« "liquid": false »)
+	int range = 7;             ///< cellules parcourues depuis une source (1..15)
+	float tick = 0.25f;        ///< secondes entre deux pas d'écoulement
+	bool renewable = false;    ///< deux sources voisines en créent une troisième
+	float current = 2.f;       ///< force du courant sur les entités
+	String flowingTexture;     ///< faces d'une cellule qui coule (sinon celles du bloc)
+	struct Mix {
+		String with;    ///< autre liquide
+		String source;  ///< bloc que devient une SOURCE à son contact
+		String flowing; ///< … et une cellule qui coule
+	};
+	std::vector<Mix> mixes;
+};
+
 struct BlockDef {
 	String id, mod, displayName;
 	BlockId numeric = AIR;
@@ -108,6 +124,7 @@ struct BlockDef {
 	/// Faux : le regard (visée, raycasts) traverse le bloc — champs, brumes.
 	bool selectable = true;
 	bool fluid = false;
+	LiquidProps liquid;              ///< écoulement (fluides)
 	bool replaceable = false;        ///< herbe haute, fluides : remplacés en posant un bloc
 	bool requiresSupport = false;
 	float supportStrength = 0.f;
@@ -228,6 +245,7 @@ struct RecipeDef {
 struct StructureDef {
 	String id, mod;
 	std::vector<std::pair<BlockPos, String>> blocks; ///< position relative → bloc
+	std::vector<uint8_t> params;                     ///< orientations (parallèle à `blocks`, vide : toutes nulles)
 	BlockPos size{0, 0, 0};
 	BlockPos anchor{0, 0, 0};                         ///< point posé sur le sol
 	bool replaceSolid = false;

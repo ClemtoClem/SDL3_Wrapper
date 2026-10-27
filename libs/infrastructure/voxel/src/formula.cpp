@@ -199,7 +199,7 @@ private:
 			else if (Is("%"))
 				op = Formula::Op::MOD;
 			else if (m_implicit && ((m_kind == Kind::NAME && !IsWord("and") && !IsWord("or") && !IsWord("not")) || Is("("))) {
-				op = Formula::Op::MUL; // « 2x », « 3(x+1) » : produit implicite après un nombre
+				op = Formula::Op::MUL; // « 2x », « 3(x+1) », « u cos(v) » : produit implicite
 				consume = false;
 			} else {
 				break;
@@ -244,7 +244,7 @@ private:
 		if (m_kind == Kind::NUMBER) {
 			Emit(Formula::Op::CONST, 0, 0, m_number);
 			Next();
-			m_implicit = true; // un nombre suivi d'un nom ou d'une parenthèse : produit
+			m_implicit = true; // une valeur suivie d'un nom ou d'une parenthèse : produit
 			return Ok(true);
 		}
 		if (Is("(")) {
@@ -255,6 +255,7 @@ private:
 			if (!Is(")"))
 				return Fail("« ) » attendu");
 			Next();
+			m_implicit = true; // « (x+1)(x-1) »
 			return Ok(true);
 		}
 		if (m_kind == Kind::NAME) {
@@ -287,11 +288,13 @@ private:
 				if (args < fn->minArgs || (fn->maxArgs >= 0 && args > fn->maxArgs) || args > 255)
 					return Err(String::Format("%s : %d argument(s) donné(s)", name.c_str(), args));
 				Emit(fn->op, uint8_t(args));
+				m_implicit = true; // « 2 sin(x) cos(y) »
 				return Ok(true);
 			}
 			for (size_t i = 0; i < m_variables.size(); ++i)
 				if (m_variables[i] == name.c_str()) {
 					Emit(Formula::Op::VAR, 0, uint16_t(i));
+					m_implicit = true; // « u cos(v) », « x y »
 					return Ok(true);
 				}
 			if (name == "pi")
@@ -302,6 +305,7 @@ private:
 				Emit(Formula::Op::CONST, 0, 0, M_E);
 			else
 				return Err(String::Format("nom inconnu « %s »", name.c_str()));
+			m_implicit = true;
 			return Ok(true);
 		}
 		if (m_kind == Kind::END)

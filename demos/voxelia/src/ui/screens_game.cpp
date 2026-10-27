@@ -1462,6 +1462,188 @@ private:
 	ui::Widget m_fill{};
 };
 
+// ── Formulaire d'un mod ──────────────────────────────────────────────────────
+
+/// Formulaire décrit par un script (`game.open_ui(joueur, "form", {…})`) :
+///   {id, title, description, submit, cancel, buttons: [{id, label}],
+///    fields: [{id, type, label, description, default, options, labels, min, max, step,
+///              visible_if: {field, in: [...]}}]}
+/// Types : text, number, slider, bool, choice, block (texte + blocs de
+/// l'inventaire), label. Validation : événement « form_submit » (joueur, id,
+/// valeurs ; « _button » : bouton utilisé).
+class FormScreen final : public Screen {
+public:
+	FormScreen(Shell &shell_, UiRequest request) : Screen(shell_), m_request(std::move(request)), m_values(dataio::Node::MakeObject()) {
+		NodePtr fields = json::At(m_request.data, "fields");
+		for (size_t i = 0; fields && fields->IsArray() && i < fields->GetSize(); ++i)
+			if (NodePtr def = json::At(fields->At(i), "default"); def && !json::Str(fields->At(i), "id").IsEmpty())
+				m_values->Set(json::Str(fields->At(i), "id"), def->Clone());
+	}
+	String Id() const override { return "form"; }
+	bool Overlay() const override { return true; }
+
+	void Build(ui::Widget root) override {
+		Session *s = Live(shell);
+		if (!s)
+			return;
+		const Palette &p = kit.Colors();
+		const float sc = kit.Scale();
+		ui::Widget card = ModalCard(kit, root, float(json::Num(m_request.data, "width", 640.0)));
+		WidgetBuilder head = kit.Row(12.f);
+		head.GrowWidth();
+		ui::Widget h = card.Append(head);
+		h.Append(kit.Icon(MaterialIcons::EDIT, 26.f, Some(p.primary)));
+		h.Append(kit.Label(json::Str(m_request.data, "title", "Formulaire"), Text::H2).GrowWidth());
+		h.Append(kit.IconButton(MaterialIcons::CLOSE, "Fermer", [this] { shell.Pop(); }));
+		if (const String d = json::Str(m_request.data, "description"); !d.IsEmpty())
+			card.Append(kit.Paragraph(d, Text::SMALL).Color(p.textMuted));
+		WidgetBuilder scroll = kit.Scroll(6.f);
+		scroll.GrowWidth().MaxHeight(ui::Length::Px(560.f * sc));
+		ui::Widget body = card.Append(scroll);
+		NodePtr fields = json::At(m_request.data, "fields");
+		for (size_t i = 0; fields && fields->IsArray() && i < fields->GetSize(); ++i)
+			if (Visible(fields->At(i)))
+				Field(body, fields->At(i));
+		m_error = card.Append(kit.Label(String(), Text::SMALL).Color(p.danger));
+		kit.SetHidden(m_error, true);
+		WidgetBuilder buttons = kit.Row(10.f);
+		buttons.GrowWidth().JustifyContent(ui::Justify::End).Wrap(true);
+		ui::Widget bt = card.Append(buttons);
+		bt.Append(kit.Button(json::Str(m_request.data, "cancel", "Annuler"), [this] { shell.Pop(); }));
+		NodePtr extra = json::At(m_request.data, "buttons");
+		for (size_t i = 0; extra && extra->IsArray() && i < extra->GetSize(); ++i) {
+			const String id = json::Str(extra->At(i), "id"), label = json::Str(extra->At(i), "label", id);
+			bt.Append(kit.Button(label, [this, id] { Submit(id); }));
+		}
+		if (const String submit = json::Str(m_request.data, "submit", "Valider"); !submit.IsEmpty()) // vide : boutons d'action seulement
+			bt.Append(kit.PrimaryButton(submit, [this] { Submit(String("submit")); }));
+	}
+
+	bool OnKey(int code) override {
+		if (code == SDLK_RETURN && !kit.Ui().Focused()) {
+			Submit(String("submit"));
+			return true;
+		}
+		return false;
+	}
+
+private:
+	/// « visible_if » : {field, in: [valeurs]} — le champ suit un choix.
+	bool Visible(const NodePtr &field) const {
+		NodePtr cond = json::At(field, "visible_if");
+		if (!cond)
+			return true;
+		const String other = json::Str(cond, "field");
+		NodePtr current = json::At(m_values, other.CStr());
+		const String value = current && current->IsString() ? current->stringValue
+							 : current && current->IsBool()	 ? String(current->boolValue ? "true" : "false")
+															 : String();
+		const std::vector<String> in = json::StrList(cond, "in");
+		return std::find(in.begin(), in.end(), value) != in.end();
+	}
+
+	void Field(ui::Widget parent, const NodePtr &field) {
+		const String id = json::Str(field, "id"), type = json::Str(field, "type", "text");
+		const String label = json::Str(field, "label", id), help = json::Str(field, "description");
+		NodePtr value = json::At(m_values, id.CStr());
+		if (type == "label") {
+			parent.Append(kit.Paragraph(json::Str(field, "text", label), Text::SMALL));
+		} else if (type == "bool") {
+			kit.ToggleRow(parent, label, help, value && value->IsBool() && value->boolValue,
+						  [this, id](bool v) { Set(id, json::MakeBool(v), true); });
+		} else if (type == "slider") {
+			const float min = float(json::Num(field, "min", 0.0)), max = float(json::Num(field, "max", 100.0));
+			const float step = float(json::Num(field, "step", 1.0));
+			const float v = float(json::Num(value, "", json::Num(field, "default", double(min))));
+			const String unit = json::Str(field, "unit");
+			kit.SliderRow(parent, label, help, min, max, v, step,
+						  [step, unit](float x) {
+							  return (step >= 1.f ? String::Format("%d", int(std::lround(x))) : String::Format("%.2f", double(x))) +
+									 (unit.IsEmpty() ? String() : String(" ") + unit);
+						  },
+						  [this, id](float x) { Set(id, json::MakeNum(x), false); });
+		} else if (type == "choice") {
+			const std::vector<String> options = json::StrList(field, "options");
+			std::vector<String> labels = json::StrList(field, "labels");
+			if (labels.size() != options.size())
+				labels = options;
+			const String current = value && value->IsString() ? value->stringValue : String();
+			int selected = 0;
+			for (size_t k = 0; k < options.size(); ++k)
+				if (options[k] == current)
+					selected = int(k);
+			kit.ComboRow(parent, label, help, labels, selected, [this, id, options](int k) {
+				if (k >= 0 && size_t(k) < options.size())
+					Set(id, json::MakeStr(options[size_t(k)]), true);
+			});
+		} else {
+			// text, number, block : champ de saisie (et, pour un bloc, ceux de l'inventaire).
+			const String text = !value ? String() : value->IsString() ? value->stringValue
+												   : value->IsNumber() ? json::Encode(value) : String();
+			WidgetBuilder input = kit.Input(json::Str(field, "placeholder"), text);
+			input.Width(260.f * kit.Scale()).OnTextChange([this, id, type](const String &t) {
+				if (type == "number") {
+					char *end = nullptr;
+					const double n = std::strtod(t.CStr(), &end);
+					Set(id, end && *end == '\0' && !t.Trim().IsEmpty() ? json::MakeNum(n) : json::MakeStr(t), false);
+				} else {
+					Set(id, json::MakeStr(t.Trim()), false);
+				}
+			});
+			kit.SettingRow(parent, label, help, input);
+			if (type == "block")
+				BlockPicker(parent, id);
+		}
+	}
+
+	/// Blocs de l'inventaire : un clic remplit le champ.
+	void BlockPicker(ui::Widget parent, const String &id) {
+		Session *s = Live(shell);
+		Inventory *inv = s ? s->Inventory() : nullptr;
+		if (!inv)
+			return;
+		std::vector<String> blocks;
+		for (int i = 0; i < inv->Size(); ++i)
+			if (const ItemStack &st = inv->Slot(i); !st.IsEmpty())
+				if (const ItemDef *item = s->Game().Content().FindItem(st.item); item && !item->placesBlock.IsEmpty() &&
+																				  std::find(blocks.begin(), blocks.end(), item->placesBlock) == blocks.end())
+					blocks.push_back(item->placesBlock);
+		if (blocks.empty())
+			return;
+		WidgetBuilder row = kit.Row(4.f);
+		row.GrowWidth().Wrap(true);
+		ui::Widget r = parent.Append(row);
+		for (size_t k = 0; k < blocks.size() && k < 18; ++k) {
+			const String block = blocks[k];
+			WidgetBuilder icon = ItemIcon(shell, ItemStack{block, 1, 0, nullptr}, 34.f);
+			icon.Tooltip(s->ItemName(block) + String(" — ") + block).OnClick([this, id, block] { Set(id, json::MakeStr(block), true); });
+			r.Append(icon);
+		}
+	}
+
+	void Set(const String &id, NodePtr value, bool rebuild) {
+		m_values->Set(id, std::move(value));
+		if (rebuild)
+			shell.Rebuild();
+	}
+
+	void Submit(const String &button) {
+		Session *s = Live(shell);
+		if (!s)
+			return;
+		NodePtr values = m_values->Clone();
+		values->Set("_button", json::MakeStr(button));
+		const String form = json::Str(m_request.data, "id");
+		shell.UiSound("ui_click");
+		shell.Pop(); // avant l'événement : le script peut ouvrir un autre formulaire
+		s->Game().SubmitForm(s->Player(), form, values);
+	}
+
+	UiRequest m_request;
+	NodePtr m_values;
+	ui::Widget m_error{};
+};
+
 class Dialog final : public Screen {
 public:
 	Dialog(Shell &shell_, UiRequest request) : Screen(shell_), m_request(std::move(request)) {}
@@ -1507,5 +1689,6 @@ std::unique_ptr<Screen> MakeWorldInfo(Shell &shell) { return std::make_unique<Wo
 std::unique_ptr<Screen> MakeTrade(Shell &shell, UiRequest request) { return std::make_unique<Trade>(shell, std::move(request)); }
 std::unique_ptr<Screen> MakeDialog(Shell &shell, UiRequest request) { return std::make_unique<Dialog>(shell, std::move(request)); }
 std::unique_ptr<Screen> MakeContainer(Shell &shell, UiRequest request) { return std::make_unique<ContainerScreen>(shell, std::move(request)); }
+std::unique_ptr<Screen> MakeForm(Shell &shell, UiRequest request) { return std::make_unique<FormScreen>(shell, std::move(request)); }
 
 } // namespace voxelia

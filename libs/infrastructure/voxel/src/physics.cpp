@@ -1,4 +1,5 @@
 // Définitions de voxel/physics.hpp
+#include <voxel/fluids.hpp>
 #include <voxel/physics.hpp>
 
 #include <algorithm>
@@ -332,6 +333,17 @@ void StepPhysics(ecs::ArchetypeRegistry &registry, const World &world, float dt,
 		math::FVector3 target{0.f, 0.f, 0.f};
 		if (wishLength > 1e-4f)
 			target = math::FVector3{intent.wish.x, 0.f, intent.wish.z} * (speed / std::max(std::hypot(intent.wish.x, intent.wish.z), 1e-6f) * wishLength);
+		// Courant : un liquide qui coule entraîne ce qui s'y trouve (objets,
+		// créatures, joueur qui ne nage pas contre).
+		body.current = {0.f, 0.f, 0.f};
+		if (body.inFluid && !body.flies && !body.noclip) {
+			const BlockPos cell = medium.fluid ? mid : BlockPos::FromWorld(t.position + math::FVector3{0.f, 0.05f, 0.f});
+			const math::FVector3 flow = LiquidFlow(world, cell);
+			const float strength = world.BlockAt(cell).liquid.current;
+			body.current = flow * strength;
+			target.x += flow.x * strength;
+			target.z += flow.z * strength;
+		}
 		// Contrôle : plein au sol (réduit par la glissance), partiel en l'air.
 		float control = body.onGround ? settings.groundAcceleration * (1.f - 0.92f * body.groundSlipperiness)
 									  : settings.groundAcceleration * settings.airControl;
@@ -362,6 +374,7 @@ void StepPhysics(ecs::ArchetypeRegistry &registry, const World &world, float dt,
 			v.linear.y = std::clamp(v.linear.y - g * dt * gdir, -settings.terminalVelocity, settings.terminalVelocity);
 			if (body.inFluid) {
 				v.linear.y *= std::max(0.f, 1.f - body.fluidViscosity * 4.f * dt);
+				v.linear.y += body.current.y * 6.f * dt; // une chute d'eau pousse vers le bas
 				if (intent.jump && body.swims)
 					v.linear.y = gdir > 0.f ? std::min(v.linear.y + 30.f * dt, 3.f) : std::max(v.linear.y - 30.f * dt, -3.f);
 			} else if (intent.jump && body.onGround) {

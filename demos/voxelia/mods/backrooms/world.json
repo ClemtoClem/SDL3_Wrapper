@@ -490,6 +490,12 @@
   "physics": {
    "solid": false,
    "viscosity": 0.5
+  },
+  "liquid": {
+   "range": 4,
+   "tick": 0.3,
+   "renewable": true,
+   "flowingTexture": "backrooms:backrooms_water"
   }
  },
  {

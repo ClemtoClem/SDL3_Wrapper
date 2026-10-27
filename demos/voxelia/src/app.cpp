@@ -33,6 +33,7 @@ const char *Usage() {
 		   "  --mods=DIR             dossier de mods (répétable ; défaut : demos/voxelia/mods)\n"
 		   "  --repository=DIR       mods disponibles à l'installation (défaut : demos/voxelia/repository)\n"
 		   "  --saves=DIR            dossier des sauvegardes (défaut : data/voxelia/saves)\n"
+		   "  --structures=DIR       structures à importer / exporter entre mondes (défaut : à côté des sauvegardes)\n"
 		   "  --settings=FICHIER     préférences (défaut : data/voxelia/settings.json)\n"
 		   "  --view=N               distance d'affichage en chunks (sans fenêtre)\n"
 		   "  --creative             mode créatif (nouveau monde)\n"
@@ -81,6 +82,8 @@ Option<String> ParseOptions(int argc, char **argv, Options &o) {
 			o.repository = repositoryArg.Unwrap();
 		else if (auto savesArg = value("--saves"); savesArg.IsSome())
 			o.saves = savesArg.Unwrap();
+		else if (auto structuresArg = value("--structures"); structuresArg.IsSome())
+			o.structures = structuresArg.Unwrap();
 		else if (auto settingsArg = value("--settings"); settingsArg.IsSome())
 			o.settingsPath = settingsArg.Unwrap();
 		else if (auto viewArg = value("--view"); viewArg.IsSome())
@@ -102,6 +105,13 @@ Option<String> ParseOptions(int argc, char **argv, Options &o) {
 	}
 	if (o.mods.empty())
 		o.mods.push_back(String("demos/voxelia/mods"));
+	if (o.structures.IsEmpty()) { // <saves>/../structures, comme les copies de sécurité
+		std::string saves(o.saves.CStr());
+		while (!saves.empty() && saves.back() == '/')
+			saves.pop_back();
+		const size_t slash = saves.rfind('/');
+		o.structures = String(slash == std::string::npos ? "structures" : (saves.substr(0, slash) + "/structures").c_str());
+	}
 	return NONE;
 }
 
@@ -123,6 +133,7 @@ int App::RunHeadless() {
 	GameOptions options;
 	options.modDirectories = m_options.mods;
 	options.savesDirectory = m_options.saves;
+	options.structureDirectory = m_options.structures;
 	options.viewRadius = m_options.view;
 	options.verticalRadius = std::max(2, m_options.view / 2);
 	options.creative = m_options.creative;

@@ -493,14 +493,21 @@
   "type": "item",
   "id": "bucket",
   "displayName": "Seau",
-  "icon": "core:items/bucket"
+  "icon": "core:items/bucket",
+  "liquids": {
+   "core:water": "core:water_bucket",
+   "core:lava": "core:lava_bucket"
+  },
+  "description": "Clic droit sur une source d'eau ou de lave pour la recueillir."
  },
  {
   "type": "item",
   "id": "water_bucket",
   "displayName": "Seau d'eau",
   "icon": "core:items/water_bucket",
-  "places": "core:water"
+  "places": "core:water",
+  "emptiesTo": "core:bucket",
+  "maxStack": 1
  },
  {
   "type": "item",
@@ -510,7 +517,9 @@
   "tags": [
    "fuel"
   ],
-  "places": "core:lava"
+  "places": "core:lava",
+  "emptiesTo": "core:bucket",
+  "maxStack": 1
  },
  {
   "type": "item",

@@ -103,6 +103,7 @@ private:
 	void InstallWorldApi();
 	void InstallEntityApi();
 	void InstallContentApi();
+	void InstallStructureApi();
 	void Report(const String &where, const script::ScriptError &error);
 	Result<script::Value, script::ScriptError> Call(const script::Value &fn, std::vector<script::Value> args);
 	/// Fonction d'un mod : appelée avec ce mod pour contexte (voxel.setting,
