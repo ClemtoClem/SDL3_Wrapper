@@ -36,6 +36,11 @@ struct PhysicsSettings {
 
 /// Boîte d'un bloc orientée (param & 3 = quarts de tour autour de Y).
 [[nodiscard]] Box RotateBlockBox(const Box &box, uint8_t param) noexcept;
+/// Décalage entre cellules tourné comme RotateBlockBox (parties d'un bloc).
+[[nodiscard]] BlockPos RotateOffset(const BlockPos &offset, uint8_t param) noexcept;
+/// Orientation d'un bloc posé par un acteur qui regarde vers `yaw` : à
+/// l'orientation 0, le joueur regarde vers +z (sa face « nord » lui fait face).
+[[nodiscard]] uint8_t FacingParam(float yaw) noexcept;
 
 /// Boîtes de collision MONDE des blocs solides qui touchent `region`.
 void CollectBlockBoxes(const World &world, const Box &region, std::vector<Box> &out);

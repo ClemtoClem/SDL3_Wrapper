@@ -322,6 +322,8 @@ private:
 						 [&g](int i) { g.SetDifficulty(voxel::Difficulty(i)); });
 			kit.ToggleRow(c, "Faim (monde)", "", g.Rule("hunger"), [&g](bool v) { g.SetRule("hunger", v); });
 			kit.ToggleRow(c, "Conserver l'inventaire (monde)", "", g.Rule("keepInventory"), [&g](bool v) { g.SetRule("keepInventory", v); });
+			kit.ToggleRow(c, "Suffocation sous les blocs qui tombent (monde)", "", g.Rule("fallingBlockSuffocation"),
+						  [&g](bool v) { g.SetRule("fallingBlockSuffocation", v); });
 			c.Append(kit.Button("Tous les paramètres du monde…", [this] { shell.Push(MakeWorldSettings(shell, String())); }));
 		}
 	}

@@ -63,5 +63,7 @@ std::unique_ptr<Screen> MakeConsole(Shell &shell, String prefix);
 std::unique_ptr<Screen> MakeWorldInfo(Shell &shell);
 std::unique_ptr<Screen> MakeTrade(Shell &shell, voxel::UiRequest request);
 std::unique_ptr<Screen> MakeDialog(Shell &shell, voxel::UiRequest request);
+/// Rangement (coffre, armoire…) : demande « container » du jeu.
+std::unique_ptr<Screen> MakeContainer(Shell &shell, voxel::UiRequest request);
 
 } // namespace voxelia

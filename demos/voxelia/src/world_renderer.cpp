@@ -31,7 +31,41 @@ WorldRenderer::WorldRenderer(Game &game, render3d::Canvas &canvas) : m_game(game
 	m_cloudRoot = &m_root.Add(std::make_unique<render3d::Object3D>());
 }
 
-WorldRenderer::~WorldRenderer() = default;
+WorldRenderer::~WorldRenderer() {
+	if (m_skyboxActive)
+		m_canvas.ClearSkybox(); // le Canvas ne garde qu'une référence vers nos cubemaps
+}
+
+const sdl3::GpuTexture *WorldRenderer::Skybox(const String &texture) {
+	auto it = m_skyboxes.find(texture.CStr());
+	if (it != m_skyboxes.end())
+		return it->second.get();
+	std::unique_ptr<sdl3::GpuTexture> built;
+	if (std::shared_ptr<TextureImage> image = m_game.Assets().Texture(texture)) {
+		const Image &img = image->Pixels();
+		const int size = img.width / 4;
+		if (size > 0 && img.height == size * 3) {
+			// Croix horizontale : dessus (1, 0) ; -X, +Z, +X, -Z sur la ligne du
+			// milieu ; dessous (1, 2). Ordre des couches GPU : +X, -X, +Y, -Y, +Z, -Z.
+			static constexpr int CELLS[6][2] = {{2, 1}, {0, 1}, {1, 0}, {1, 2}, {1, 1}, {3, 1}};
+			std::vector<std::vector<uint8_t>> faces(6, std::vector<uint8_t>(size_t(size) * size_t(size) * 4));
+			std::array<const uint8_t *, 6> pointers{};
+			for (size_t f = 0; f < 6; ++f) {
+				for (int y = 0; y < size; ++y) {
+					const uint8_t *src = img.At(CELLS[f][0] * size, CELLS[f][1] * size + y);
+					std::copy(src, src + size_t(size) * 4, faces[f].begin() + std::ptrdiff_t(size_t(y) * size_t(size) * 4));
+				}
+				pointers[f] = faces[f].data();
+			}
+			auto cubemap = render3d::CreateCubemapFromFaces(m_canvas.Device(), pointers, uint32_t(size));
+			if (cubemap.IsOk())
+				built = std::make_unique<sdl3::GpuTexture>(std::move(cubemap.Value()));
+		}
+	}
+	const sdl3::GpuTexture *result = built.get();
+	m_skyboxes[texture.CStr()] = std::move(built);
+	return result;
+}
 
 render3d::Mesh WorldRenderer::ToMesh(const MeshBuffer &buffer) {
 	std::vector<render3d::Vertex3D> vertices;
@@ -512,6 +546,22 @@ void WorldRenderer::UpdateSky() {
 	ambient.color = Mix({200, 205, 220}, std::min(1.f, light));
 	m_canvas.SetLighting(sun, ambient);
 	m_canvas.SetBackgroundColor(Mix(sky, dim && !dim->dayCycle ? std::min(1.f, daylight + 0.2f) : daylight));
+	// Ciel en cubemap : celui de nuit quand il fait sombre (s'il existe),
+	// assombri selon l'heure et l'obscurité.
+	const bool night = dim && !dim->nightCubemap.IsEmpty() && daylight < 0.32f;
+	const String skyTexture = !dim ? String() : night ? dim->nightCubemap : dim->cubemap;
+	const sdl3::GpuTexture *cubemap = skyTexture.IsEmpty() ? nullptr : Skybox(skyTexture);
+	if (cubemap) {
+		float k = night ? 0.75f : dim->dayCycle ? std::clamp(daylight * 1.15f, 0.22f, 1.f) : 1.f;
+		if (darkness > 0)
+			k /= 1.f + 1.6f * float(darkness);
+		m_canvas.SetSkybox(*cubemap);
+		m_canvas.SetSkyboxTint(k, k, k);
+		m_skyboxActive = true;
+	} else if (m_skyboxActive) {
+		m_canvas.ClearSkybox();
+		m_skyboxActive = false;
+	}
 }
 
 void WorldRenderer::Configure(const WorldRenderSettings &settings) {

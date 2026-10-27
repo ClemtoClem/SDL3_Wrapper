@@ -158,6 +158,18 @@ math::FVector2 FaceUv(Face f, const math::FVector3 &p) {
 	return {0.f, 0.f};
 }
 
+/// Face d'origine d'une face d'un bloc tourné d'un quart de tour (inverse de
+/// RotateBlockBox : sud → ouest → nord → est → sud).
+Face UnrotateFace(Face f) {
+	switch (f) {
+	case Face::WEST: return Face::SOUTH;
+	case Face::NORTH: return Face::WEST;
+	case Face::EAST: return Face::NORTH;
+	case Face::SOUTH: return Face::EAST;
+	default: return f;
+	}
+}
+
 math::FVector3 NormalOf(Face f) {
 	const BlockPos n = FaceNormal(f);
 	return {float(n.x), float(n.y), float(n.z)};
@@ -262,24 +274,37 @@ std::array<std::array<uint8_t, 3>, 3> ChunkMesher::BiomeColors(const BiomeDef *b
 
 void ChunkMesher::EmitBox(MeshBuffer &out, const Box &box, const BlockRender &render, const math::FVector3 &offset,
 						  const std::function<bool(Face)> &cull,
-						  const std::function<std::array<float, 4>(Face, const math::FVector3 *)> &ao) const {
+						  const std::function<std::array<float, 4>(Face, const math::FVector3 *)> &ao, uint8_t rotation) const {
+	rotation &= 3;
+	// Boîte qui dépasse de sa cellule (volet ouvert contre le mur) : UV pris
+	// dans la cellule voisine qu'elle occupe, plutôt qu'un bord étiré.
+	const math::FVector3 shift{std::floor((box.min.x + box.max.x) * 0.5f), std::floor((box.min.y + box.max.y) * 0.5f),
+							   std::floor((box.min.z + box.max.z) * 0.5f)};
 	for (int fi = 0; fi < FACE_COUNT; ++fi) {
 		const Face f = Face(fi);
 		if (cull && cull(f))
 			continue;
 		math::FVector3 corners[4];
 		FaceCorners(f, box, corners);
-		const TextureAtlas::Rect &rect = render.faces[size_t(fi)];
+		// Bloc tourné : la face et les coins vus dans le repère du bloc d'origine.
+		Face local = f;
+		math::FVector3 at[4] = {corners[0] - shift, corners[1] - shift, corners[2] - shift, corners[3] - shift};
+		for (int r = 0; r < rotation; ++r) {
+			local = UnrotateFace(local);
+			for (math::FVector3 &c : at)
+				c = math::FVector3{c.z, c.y, 1.f - c.x};
+		}
+		const TextureAtlas::Rect &rect = render.faces[size_t(local)];
 		math::FVector2 uvs[4];
 		for (int k = 0; k < 4; ++k) {
-			const math::FVector2 t = FaceUv(f, corners[k]);
+			const math::FVector2 t = FaceUv(local, at[k]);
 			uvs[k] = {rect.u0 + (rect.u1 - rect.u0) * t.x, rect.v0 + (rect.v1 - rect.v0) * t.y};
 		}
 		const std::array<float, 4> occlusion = ao ? ao(f, corners) : std::array<float, 4>{1.f, 1.f, 1.f, 1.f};
 		math::FVector3 placed[4];
 		for (int k = 0; k < 4; ++k)
 			placed[k] = corners[k] + offset;
-		PushQuad(out, placed, uvs, NormalOf(f), (render.tintFaces >> fi) & 1 ? render.tinted : render.tint, occlusion);
+		PushQuad(out, placed, uvs, NormalOf(f), (render.tintFaces >> int(local)) & 1 ? render.tinted : render.tint, occlusion);
 	}
 }
 
@@ -551,7 +576,7 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 						}
 						return levels;
 					};
-					EmitBox(out, box, r, offset, cull, ao);
+					EmitBox(out, box, r, offset, cull, ao, param);
 				} else if (r.shape == ShapeKind::NODEBOX) {
 					for (const Box &local : def.shape.boxes) {
 						const Box b = RotateBlockBox(local, param);
@@ -567,7 +592,7 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 						const float light = sky(x, y, z);
 						EmitBox(out, b, r, offset, cull, [light](Face, const math::FVector3 *) {
 							return std::array<float, 4>{light, light, light, light};
-						});
+						}, param);
 					}
 				} else if (r.shape == ShapeKind::CROSS) {
 					// Densité de végétation : une partie des plantes seulement.
@@ -600,7 +625,7 @@ MeshBuffer ChunkMesher::BuildShape(const ShapeDesc &shape, const Appearance &loo
 	}
 	case ShapeKind::NODEBOX:
 		for (const Box &b : shape.boxes)
-			EmitBox(out, RotateBlockBox(b, param), r, center, {}, {});
+			EmitBox(out, RotateBlockBox(b, param), r, center, {}, {}, param);
 		break;
 	case ShapeKind::CROSS: EmitCross(out, r, center); break;
 	case ShapeKind::MODEL: EmitModel(out, shape.model, r, {0.f, 0.f, 0.f}, param, mod, false); break;

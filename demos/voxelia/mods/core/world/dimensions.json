@@ -12,7 +12,12 @@
    110,
    170,
    90
-  ]
+  ],
+  "sky": {
+   "fromBiome": true,
+   "cubemap": "sky_05",
+   "nightCubemap": "sky_12"
+  }
  },
  {
   "type": "dimension",
@@ -37,7 +42,8 @@
     130
    ],
    "sun": false,
-   "clouds": false
+   "clouds": false,
+   "cubemap": "sky_11"
   },
   "time": {
    "cycle": false,
@@ -83,7 +89,8 @@
     90
    ],
    "sun": true,
-   "clouds": false
+   "clouds": false,
+   "cubemap": "sky_14"
   },
   "time": {
    "cycle": true
@@ -112,7 +119,8 @@
    90
   ],
   "sky": {
-   "fromBiome": true
+   "fromBiome": true,
+   "cubemap": "sky_13"
   },
   "time": {
    "cycle": true
@@ -144,7 +152,8 @@
     6
    ],
    "sun": false,
-   "clouds": false
+   "clouds": false,
+   "cubemap": "sky_22"
   },
   "time": {
    "cycle": false,
@@ -182,7 +191,8 @@
    ],
    "sun": false,
    "clouds": false,
-   "stars": false
+   "stars": false,
+   "cubemap": "sky_15"
   },
   "time": {
    "cycle": false,

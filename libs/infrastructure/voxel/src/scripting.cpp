@@ -83,6 +83,14 @@ void ScriptHost::Report(const String &where, const SE &error) {
 
 Result<Value, SE> ScriptHost::Call(const Value &fn, std::vector<Value> args) { return m_vm.CallValue(fn, std::move(args), 0, 0); }
 
+Result<Value, SE> ScriptHost::Call(const Owned &callback, std::vector<Value> args) {
+	const String previous = m_currentMod;
+	m_currentMod = callback.mod;
+	Result<Value, SE> r = m_vm.CallValue(callback.fn, std::move(args), 0, 0);
+	m_currentMod = previous;
+	return r;
+}
+
 Option<String> ScriptHost::Validate(const String &source, const String &name) const {
 	Result<script::Program, SE> program = script::Parser::Compile(source.View());
 	if (program.IsError())
@@ -124,8 +132,8 @@ bool ScriptHost::Emit(const String &event, std::vector<Value> args) {
 	if (it == m_handlers.end())
 		return true;
 	bool allowed = true;
-	const std::vector<Value> handlers = it->second; // un gestionnaire peut en ajouter
-	for (const Value &fn : handlers) {
+	const std::vector<Owned> handlers = it->second; // un gestionnaire peut en ajouter
+	for (const Owned &fn : handlers) {
 		Result<Value, SE> r = Call(fn, args);
 		if (r.IsError())
 			Report(event, r.Error());
@@ -136,14 +144,14 @@ bool ScriptHost::Emit(const String &event, std::vector<Value> args) {
 }
 
 bool ScriptHost::RunBehavior(ecs::Entity entity, BehaviorState &state, float dt) {
-	Value fn;
+	Owned fn;
 	if (auto it = m_behaviors.find(state.id.CStr()); it != m_behaviors.end()) {
 		fn = it->second;
 	} else if (const BehaviorDef *def = m_game.Content().FindBehavior(state.id); def && !def->script.IsEmpty()) {
 		Option<Value> global = m_vm.GetGlobal(def->script);
 		if (global.IsNone())
 			return false;
-		fn = global.Unwrap();
+		fn = Owned{global.Unwrap(), def->mod};
 		if (!state.params && def->params)
 			state.params = def->params;
 	} else {
@@ -160,11 +168,11 @@ bool ScriptHost::RunBehavior(ecs::Entity entity, BehaviorState &state, float dt)
 
 TerrainGenerator::ScriptFn ScriptHost::Generator() {
 	return [this](Chunk &chunk, World &world, const GeneratorDef &def) {
-		Value fn;
+		Owned fn;
 		if (auto it = m_generators.find(def.id.CStr()); it != m_generators.end())
 			fn = it->second;
 		else if (Option<Value> global = m_vm.GetGlobal(def.script); global.IsSome())
-			fn = global.Unwrap();
+			fn = Owned{global.Unwrap(), def.mod};
 		else
 			return;
 		m_genChunk = &chunk;
@@ -208,7 +216,7 @@ void ScriptHost::InstallApi() {
 		TRY(event, sd::ArgString(args, 0, "voxel.on"));
 		if (!args[1].IsCallable())
 			return Err(Error("voxel.on", String("fonction attendue")));
-		m_handlers[event.CStr()].push_back(args[1]);
+		m_handlers[event.CStr()].push_back(Owned{args[1], m_currentMod});
 		return Ok(Value::Nil());
 	});
 	vm.RegisterNamespacedNative("voxel", "command", 4, 4, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
@@ -217,7 +225,7 @@ void ScriptHost::InstallApi() {
 		TRY(help, sd::ArgString(args, 2, "voxel.command"));
 		if (!args[3].IsCallable())
 			return Err(Error("voxel.command", String("fonction attendue")));
-		const Value fn = args[3];
+		const Owned fn{args[3], m_currentMod};
 		m_game.RegisterCommand(name, usage, help, [this, fn](Game &, ecs::Entity sender, const std::vector<String> &argv) -> Result<String, String> {
 			auto list = std::make_shared<script::ListObject>();
 			for (const String &a : argv)
@@ -234,7 +242,7 @@ void ScriptHost::InstallApi() {
 		if (!args[1].IsCallable())
 			return Err(Error("voxel.behavior", String("fonction attendue")));
 		const String qualified = Qualified(id, m_currentMod);
-		m_behaviors[qualified.CStr()] = args[1];
+		m_behaviors[qualified.CStr()] = Owned{args[1], m_currentMod};
 		// Déclaré aussi au registre : les définitions qui l'utilisent sont valides.
 		if (!m_game.Content().FindBehavior(qualified)) {
 			NodePtr def = dataio::Node::MakeObject();
@@ -250,7 +258,7 @@ void ScriptHost::InstallApi() {
 		if (!args[1].IsCallable())
 			return Err(Error("voxel.generator", String("fonction attendue")));
 		const String qualified = Qualified(id, m_currentMod);
-		m_generators[qualified.CStr()] = args[1];
+		m_generators[qualified.CStr()] = Owned{args[1], m_currentMod};
 		// Déclare aussi le GeneratorDef correspondant s'il n'existe pas.
 		if (!m_game.Content().FindGenerator(qualified)) {
 			NodePtr def = dataio::Node::MakeObject();
@@ -265,7 +273,7 @@ void ScriptHost::InstallApi() {
 		TRY(name, sd::ArgString(args, 0, "voxel.system"));
 		if (!args[1].IsCallable())
 			return Err(Error("voxel.system", String("fonction attendue")));
-		m_systems.push_back({name, args[1]});
+		m_systems.push_back({name, Owned{args[1], m_currentMod}});
 		return Ok(Value::Nil());
 	});
 	vm.RegisterNamespacedNative("voxel", "mod", 0, 0, [this](script::Interpreter &, std::vector<Value> &) -> NativeResult {
@@ -353,6 +361,47 @@ void ScriptHost::InstallWorldApi() {
 		if (!def)
 			return Err(Error("world.set", String::Format("bloc inconnu « %s »", qualified.CStr())));
 		return Ok(Value::Boolean(m_game.GetWorld().SetBlock(p, def->numeric, param, ChangeCause::SCRIPT)));
+	});
+	// Rangements (coffres…) et blocs à bascule (portes).
+	vm.RegisterNamespacedNative("world", "container", 3, 3, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(p, ArgPos(args, 0, "world.container"));
+		Inventory *inventory = m_game.HasWorld() ? m_game.BlockInventory(p) : nullptr;
+		if (!inventory)
+			return Ok(Value::Nil());
+		auto list = std::make_shared<script::ListObject>();
+		for (int i = 0; i < inventory->Size(); ++i) {
+			const ItemStack &stack = inventory->Slot(i);
+			if (stack.IsEmpty()) {
+				list->Push(Value::Nil());
+				continue;
+			}
+			auto map = std::make_shared<script::MapObject>();
+			map->SetKey("item", Value::Str(stack.item));
+			map->SetKey("count", Value::Int(stack.count));
+			list->Push(Value::Map(map));
+		}
+		return Ok(Value::List(list));
+	});
+	vm.RegisterNamespacedNative("world", "container_add", 5, 5, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(p, ArgPos(args, 0, "world.container_add"));
+		TRY(item, sd::ArgString(args, 3, "world.container_add"));
+		TRY(count, sd::ArgNumber(args, 4, "world.container_add"));
+		Inventory *inventory = m_game.HasWorld() ? m_game.BlockInventory(p) : nullptr;
+		if (!inventory)
+			return Err(Error("world.container_add", String("pas de rangement à cette position")));
+		const String qualified = Qualified(item, m_currentMod);
+		if (!m_game.Content().FindItem(qualified))
+			return Err(Error("world.container_add", String::Format("objet inconnu « %s »", qualified.CStr())));
+		return Ok(Value::Int(inventory->Add(m_game.Content(), qualified, int(count)))); // reste qui n'a pas trouvé de place
+	});
+	vm.RegisterNamespacedNative("world", "toggle", 3, 3, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(p, ArgPos(args, 0, "world.toggle"));
+		return Ok(Value::Boolean(m_game.HasWorld() && m_game.ToggleBlock(p)));
+	});
+	vm.RegisterNamespacedNative("world", "use", 3, 4, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(p, ArgPos(args, 0, "world.use"));
+		const ecs::Entity actor = args.size() > 3 ? EntityOf(args[3]) : m_game.LocalPlayer();
+		return Ok(Value::Boolean(m_game.HasWorld() && m_game.UseBlock(actor, p)));
 	});
 	vm.RegisterNamespacedNative("world", "surface", 2, 2, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
 		TRY(x, sd::ArgNumber(args, 0, "world.surface"));

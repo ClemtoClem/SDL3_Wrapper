@@ -68,6 +68,20 @@ Box RotateBlockBox(const Box &box, uint8_t param) noexcept {
 	return out;
 }
 
+BlockPos RotateOffset(const BlockPos &offset, uint8_t param) noexcept {
+	BlockPos out = offset;
+	for (int r = 0; r < (param & 3); ++r)
+		out = BlockPos{-out.z, out.y, out.x}; // centre (x+½, z+½) → (1−z−½, x+½)
+	return out;
+}
+
+uint8_t FacingParam(float yaw) noexcept {
+	// Un quart de tour de RotateBlockBox va de +z vers −x, le regard de +z
+	// vers +x : sens opposés.
+	const int quarter = ((int(std::lround(yaw / 1.5707963f)) % 4) + 4) % 4;
+	return uint8_t((4 - quarter) % 4);
+}
+
 void CollectBlockBoxes(const World &world, const Box &region, std::vector<Box> &out) {
 	const ContentRegistry &content = world.Content();
 	// Une nodebox peut dépasser de sa cellule (jusqu'à un bloc) : marge d'un bloc.

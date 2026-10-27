@@ -25,7 +25,9 @@
 //    projection en perspective symétrique standard.
 #include "test.hpp"
 #include <iostream>
+#include <render3d/cubemap.hpp>
 #include <render3d/offscreen.hpp>
+#include <render3d/texture_loader.hpp>
 #include <render3d/shape.hpp>
 #include <sdl3/sdl3.hpp>
 #include <cmath>
@@ -347,4 +349,130 @@ TEST(OffscreenSmokeTest, CanvasCreateFromGpuBackedRendererSharesDeviceAndRenders
     // — c'est exactement l'ordre qui planterait (double-free du device) si
     // m_ownsDevice/le destructeur personnalisé de Canvas n'étaient pas
     // corrects : ASan aurait signalé un crash à la sortie de ce test sinon.
+}
+
+TEST(OffscreenSmokeTest, SkyboxFacesShowInTheirDirectionTinted) {
+    auto windowResult = Window::Create(String("offscreen_smoke_test"), 64, 64, 0);
+    ASSERT_TRUE(windowResult.IsOk());
+    Window window = std::move(windowResult.Value());
+    auto canvasResult = Canvas::Create(window, 64, 64);
+    ASSERT_TRUE(canvasResult.IsOk());
+    Canvas canvas = std::move(canvasResult.Value());
+
+    // Six faces unies (+X, -X, +Y, -Y, +Z, -Z), 8 × 8.
+    const uint8_t colors[6][3] = {{200, 0, 0}, {0, 200, 0}, {0, 0, 200}, {200, 200, 0}, {0, 200, 200}, {200, 0, 200}};
+    std::vector<std::vector<uint8_t>> faces(6, std::vector<uint8_t>(8 * 8 * 4));
+    std::array<const uint8_t *, 6> pointers{};
+    for (size_t f = 0; f < 6; ++f) {
+        for (size_t i = 0; i < 64; ++i) {
+            faces[f][i * 4 + 0] = colors[f][0];
+            faces[f][i * 4 + 1] = colors[f][1];
+            faces[f][i * 4 + 2] = colors[f][2];
+            faces[f][i * 4 + 3] = 255;
+        }
+        pointers[f] = faces[f].data();
+    }
+    auto cubemap = CreateCubemapFromFaces(canvas.Device(), pointers, 8);
+    ASSERT_TRUE(cubemap.IsOk());
+    canvas.SetSkybox(cubemap.Value(), false); // repère de render3d : chaque direction, sa face
+    canvas.SetSkyboxTint(0.5f, 0.5f, 0.5f);
+
+    OffscreenTarget target;
+    ASSERT_TRUE(target.EnsureSize(canvas.Device(), 64, 64, OFFSCREEN_COLOR_FORMAT, OFFSCREEN_DEPTH_FORMAT).IsOk());
+    Object3D empty;
+    const math::FVector3 dirs[6] = {{1.f, 0.f, 0.f}, {-1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {0.f, -1.f, 0.f}, {0.f, 0.f, 1.f}, {0.f, 0.f, -1.f}};
+    for (int f = 0; f < 6; ++f) {
+        render3d::Camera camera;
+        camera.position = {0.f, 0.f, 0.f};
+        camera.target = dirs[f];
+        camera.up = f == 2 || f == 3 ? math::FVector3{0.f, 0.f, 1.f} : math::FVector3{0.f, 1.f, 0.f};
+        std::vector<uint8_t> pixels;
+        ASSERT_TRUE(RenderObjectToTexture(canvas, empty, camera, target, pixels).IsOk());
+        const size_t centre = (size_t(32) * 64 + 32) * 4;
+        for (int c = 0; c < 3; ++c)
+            EXPECT_TRUE(std::abs(int(pixels[centre + size_t(c)]) - int(colors[f][c]) / 2) <= 3); // teinte 0,5
+    }
+    canvas.ClearSkybox();
+}
+
+TEST(OffscreenSmokeTest, CrossSkyboxIsNotMirrored) {
+    auto windowResult = Window::Create(String("offscreen_smoke_test"), 64, 64, 0);
+    ASSERT_TRUE(windowResult.IsOk());
+    Window window = std::move(windowResult.Value());
+    auto canvasResult = Canvas::Create(window, 64, 64);
+    ASSERT_TRUE(canvasResult.IsOk());
+    Canvas canvas = std::move(canvasResult.Value());
+
+    // Faces au repère « main gauche » d'OpenGL (images en croix) : +X en
+    // vert ; +Z moitié gauche rouge, moitié droite bleue ; les autres grises.
+    constexpr int N = 8;
+    std::vector<std::vector<uint8_t>> faces(6, std::vector<uint8_t>(N * N * 4, 128));
+    std::array<const uint8_t *, 6> pointers{};
+    for (int y = 0; y < N; ++y)
+        for (int x = 0; x < N; ++x) {
+            uint8_t *green = &faces[0][size_t(y * N + x) * 4];
+            green[0] = 0, green[1] = 220, green[2] = 0;
+            uint8_t *front = &faces[4][size_t(y * N + x) * 4];
+            front[0] = x < N / 2 ? 220 : 0, front[1] = 0, front[2] = x < N / 2 ? 0 : 220;
+        }
+    for (size_t f = 0; f < 6; ++f)
+        pointers[f] = faces[f].data();
+    auto cubemap = CreateCubemapFromFaces(canvas.Device(), pointers, N);
+    ASSERT_TRUE(cubemap.IsOk());
+    canvas.SetSkybox(cubemap.Value()); // convention OpenGL par défaut
+
+    OffscreenTarget target;
+    ASSERT_TRUE(target.EnsureSize(canvas.Device(), 64, 64, OFFSCREEN_COLOR_FORMAT, OFFSCREEN_DEPTH_FORMAT).IsOk());
+    Object3D empty;
+    auto look = [&](math::FVector3 dir, std::vector<uint8_t> &pixels) {
+        render3d::Camera camera;
+        camera.position = {0.f, 0.f, 0.f};
+        camera.target = dir;
+        return RenderObjectToTexture(canvas, empty, camera, target, pixels).IsOk();
+    };
+    auto at = [](const std::vector<uint8_t> &p, int x, int y) { return &p[(size_t(y) * 64 + size_t(x)) * 4]; };
+    std::vector<uint8_t> pixels;
+    // Face à +Z : la moitié gauche de l'image à gauche de l'écran.
+    ASSERT_TRUE(look({0.f, 0.f, 1.f}, pixels));
+    EXPECT_TRUE(at(pixels, 16, 32)[0] > 180 && at(pixels, 16, 32)[2] < 40);
+    EXPECT_TRUE(at(pixels, 48, 32)[2] > 180 && at(pixels, 48, 32)[0] < 40);
+    // La face +X est à DROITE quand on regarde +Z — côté -X du repère « main droite ».
+    ASSERT_TRUE(look({-1.f, 0.f, 0.f}, pixels));
+    EXPECT_TRUE(at(pixels, 32, 32)[1] > 180 && at(pixels, 32, 32)[0] < 40);
+    canvas.ClearSkybox();
+}
+
+TEST(OffscreenSmokeTest, UnlitMaterialSamplesItsTextureAndItsAlpha) {
+    auto windowResult = Window::Create(String("offscreen_smoke_test"), 64, 64, 0);
+    ASSERT_TRUE(windowResult.IsOk());
+    Window window = std::move(windowResult.Value());
+    auto canvasResult = Canvas::Create(window, 64, 64);
+    ASSERT_TRUE(canvasResult.IsOk());
+    Canvas canvas = std::move(canvasResult.Value());
+    canvas.SetBackgroundColor(Color(0, 0, 255, 255));
+
+    // Texture 2 × 1 : un texel rouge opaque, un texel entièrement transparent
+    // (comme les trous d'une carte de nuages).
+    const std::vector<uint8_t> texels = {220, 30, 30, 255, 255, 255, 255, 0};
+    auto texture = CreateTextureFromPixels(canvas.Device(), 2, 1, texels);
+    ASSERT_TRUE(texture.IsOk());
+    Material material = Material::Unlit(Color::WHITE());
+    material.albedo = Some(MakeRef(texture.Value()));
+    material.blend = true;
+    material.nearestFilter = true;
+    Shape cube(Mesh::Cube(6.f), material);
+
+    OffscreenTarget target;
+    ASSERT_TRUE(target.EnsureSize(canvas.Device(), 64, 64, OFFSCREEN_COLOR_FORMAT, OFFSCREEN_DEPTH_FORMAT).IsOk());
+    std::vector<uint8_t> pixels;
+    ASSERT_TRUE(RenderObjectToTexture(canvas, cube, render3d::Camera{}, target, pixels).IsOk());
+    int red = 0, background = 0, white = 0;
+    for (size_t i = 0; i < pixels.size(); i += 4) {
+        red += pixels[i] > 180 && pixels[i + 2] < 60;
+        background += pixels[i] < 40 && pixels[i + 2] > 200;
+        white += pixels[i] > 200 && pixels[i + 1] > 200 && pixels[i + 2] > 200;
+    }
+    EXPECT_TRUE(red > 400);        // le texel opaque
+    EXPECT_TRUE(background > 400); // le texel transparent laisse voir le fond
+    EXPECT_EQ(white, 0);           // et non un aplat blanc (texture ignorée)
 }

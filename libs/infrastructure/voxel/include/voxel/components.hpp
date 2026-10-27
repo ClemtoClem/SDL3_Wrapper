@@ -182,6 +182,10 @@ struct Player {
 	math::FVector3 returnPosition{0.f, 0.f, 0.f};
 	float portalTime = 0.f; ///< secondes passées dans un portail
 	bool portalCooldown = false; ///< arrivé par un portail : il faut en sortir avant d'en reprendre un
+	/// Dernier lit utilisé : point de réapparition (tant qu'il existe).
+	bool hasBed = false;
+	BlockPos bed{0, 0, 0};
+	String bedDimension;
 };
 
 /// Entité enregistrée avec le monde (sinon : éphémère).

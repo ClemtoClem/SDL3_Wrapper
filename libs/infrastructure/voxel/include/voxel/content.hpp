@@ -122,10 +122,25 @@ struct BlockDef {
 	int dropCount = 1;
 	SoundSet sounds;
 	String behavior;                 ///< comportement scripté facultatif
+	// Blocs en plusieurs cellules (porte : deux de haut, lit : deux de long),
+	// posés et cassés ensemble. Décalages donnés pour l'orientation 0 (le
+	// joueur regarde vers +z), tournés avec le bloc (RotateOffset).
+	struct Part {
+		BlockPos offset;
+		String block;
+	};
+	std::vector<Part> parts;          ///< « parts » : autres cellules du bloc principal
+	std::optional<BlockPos> partOf;   ///< « partOf » : position du bloc principal vue de cette partie
+	// Clic droit (« interact »).
+	String toggle;                   ///< bloc qui remplace celui-ci (porte ouverte ↔ fermée), orientation gardée
+	String toggleSound;              ///< son joué en basculant VERS `toggle`
+	String use;                      ///< action intégrée : « sleep » (lit), « container » (rangement)
+	int containerSlots = 0;          ///< « container.slots » : emplacements d'un rangement
 	NodePtr raw;
 
 	[[nodiscard]] bool HasTag(const String &tag) const;
 	[[nodiscard]] bool IsAir() const noexcept { return numeric == AIR; }
+	[[nodiscard]] bool IsContainer() const noexcept { return containerSlots > 0; }
 	[[nodiscard]] bool IsOpaqueCube() const noexcept {
 		return shape.kind == ShapeKind::CUBE && look.material == RenderMaterial::OPAQUE && shape.size.x >= 1.f &&
 			   shape.size.y >= 1.f && shape.size.z >= 1.f;
@@ -270,6 +285,9 @@ struct DimensionDef {
 	// Ciel et lumière
 	std::array<uint8_t, 3> skyColor{140, 190, 245}, fogColor{180, 210, 240};
 	bool skyFromBiome = true; ///< ciel du biome (sinon `skyColor`)
+	/// Ciel en cubemap : image « en croix » (4 × 3 faces : dessus, puis -X,
+	/// +Z, +X, -Z, puis dessous), de jour et (facultatif) de nuit.
+	String cubemap, nightCubemap;
 	bool sun = true, clouds = true, stars = true;
 	bool dayCycle = true;  ///< faux : heure figée à `fixedTime` (0..1)
 	float fixedTime = 0.5f;

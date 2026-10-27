@@ -16,6 +16,8 @@
  *        "chunk_generated" (cx, cy, cz)       "tick" (dt)
  *        "dimension_changed" (player, to, from)  "portal_used" (player, to)
  *        "player_respawn" (player, cause, dimension)
+ *        "block_toggled" (pos, from, to, actor)   "container_open" (pos, block, actor)
+ *        "player_sleep" (player, pos)
  *   voxel.command(name, usage, help, fn(sender, args))  commande de console
  *   voxel.behavior(id, fn(e, state, dt))  comportement de créature
  *   voxel.generator(id, fn(gen))          générateur de terrain ("script")
@@ -26,6 +28,9 @@
  *   world.spawn(id, x, y, z) → e         world.drop(item, count, x, y, z)
  *   world.entities(x, y, z, r [, kind]) → [e…]   world.raycast(x,y,z, dx,dy,dz, dist)
  *   world.ground(x, z, top, bottom) → y | nil   (chunks chargés)
+ *   world.container(x, y, z) → [{item, count} | nil…] | nil   world.container_add(x, y, z, item, n) → reste
+ *   world.toggle(x, y, z)   porte, trappe, volet : ouvre / ferme
+ *   world.use(x, y, z [, e])   clic droit sur le bloc (porte, lit, rangement) au nom de `e` (défaut : le joueur local)
  *   world.dimension() / world.default_dimension() / world.dimensions() / world.time_here()
  *   world.data(key [, dim]) / world.set_data(key, value [, dim])   état persistant d'une dimension
  *
@@ -100,13 +105,20 @@ private:
 	void InstallContentApi();
 	void Report(const String &where, const script::ScriptError &error);
 	Result<script::Value, script::ScriptError> Call(const script::Value &fn, std::vector<script::Value> args);
+	/// Fonction d'un mod : appelée avec ce mod pour contexte (voxel.setting,
+	/// ids sans espace de noms…), comme pendant le chargement de ses scripts.
+	struct Owned {
+		script::Value fn;
+		String mod;
+	};
+	Result<script::Value, script::ScriptError> Call(const Owned &callback, std::vector<script::Value> args);
 
 	Game &m_game;
 	script::Interpreter m_vm;
 	String m_currentMod = "core";
-	std::map<std::string, std::vector<script::Value>> m_handlers;
-	std::map<std::string, script::Value> m_behaviors, m_generators;
-	std::vector<std::pair<String, script::Value>> m_systems;
+	std::map<std::string, std::vector<Owned>> m_handlers;
+	std::map<std::string, Owned> m_behaviors, m_generators;
+	std::vector<std::pair<String, Owned>> m_systems;
 	// Générateur scripté en cours : le chunk à remplir.
 	Chunk *m_genChunk = nullptr;
 	World *m_genWorld = nullptr;

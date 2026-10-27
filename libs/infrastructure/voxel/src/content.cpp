@@ -456,6 +456,23 @@ Result<String, String> ContentRegistry::LoadBlock(const NodePtr &def, const Load
 		sound = Qualify(sound, ctx.mod);
 	b.sounds.group = Qualify(b.sounds.group, ctx.mod);
 	b.behavior = Ref(def, "behavior", ctx.mod);
+	// Plusieurs cellules, clic droit, rangement.
+	auto cell = [](const NodePtr &n) {
+		if (!n || !n->IsArray() || n->GetSize() < 3)
+			return BlockPos{0, 0, 0};
+		return BlockPos{json::Int(n->At(0), "", 0), json::Int(n->At(1), "", 0), json::Int(n->At(2), "", 0)};
+	};
+	if (NodePtr parts = json::At(def, "parts"); parts && parts->IsArray())
+		for (size_t i = 0; i < parts->GetSize(); ++i)
+			b.parts.push_back(BlockDef::Part{cell(json::At(parts->At(i), "offset")), Ref(parts->At(i), "block", ctx.mod)});
+	if (json::Has(def, "partOf"))
+		b.partOf = cell(json::At(def, "partOf"));
+	b.toggle = Ref(def, "interact.toggle", ctx.mod);
+	b.toggleSound = Qualify(json::Str(def, "interact.sound"), ctx.mod);
+	b.use = json::Str(def, "interact.action");
+	b.containerSlots = std::clamp(json::Int(def, "container.slots", 0), 0, 108);
+	if (b.containerSlots > 0 && b.use.IsEmpty())
+		b.use = "container";
 	b.raw = def;
 
 	// Identifiant numérique : conservé quand un mod surcharge un bloc.
@@ -479,6 +496,8 @@ Result<String, String> ContentRegistry::LoadBlock(const NodePtr &def, const Load
 		item.displayName = b.displayName;
 		item.tags = b.tags;
 		item.icon = b.look.Texture(Face::SOUTH).IsEmpty() ? b.look.Texture(Face::TOP) : b.look.Texture(Face::SOUTH);
+		if (json::Has(def, "icon")) // objet dessiné à plat (porte, lit…)
+			item.icon = TextureRef(json::Str(def, "icon"), ctx);
 		item.placesBlock = b.id;
 		item.maxStack = json::Int(def, "gameplay.maxStack", 64);
 		item.raw = def;
@@ -723,6 +742,8 @@ Result<String, String> ContentRegistry::LoadDimension(const NodePtr &def, const 
 	d.fogColor = {fog[0], fog[1], fog[2]};
 	d.skyFromBiome = json::Bool(def, "sky.fromBiome", !json::Has(def, "sky.color"));
 	d.sun = json::Bool(def, "sky.sun", true);
+	d.cubemap = json::Str(def, "sky.cubemap").IsEmpty() ? String() : TextureRef(json::Str(def, "sky.cubemap"), ctx);
+	d.nightCubemap = json::Str(def, "sky.nightCubemap").IsEmpty() ? String() : TextureRef(json::Str(def, "sky.nightCubemap"), ctx);
 	d.clouds = json::Bool(def, "sky.clouds", true);
 	d.stars = json::Bool(def, "sky.stars", true);
 	d.fogDistance = float(json::Num(def, "sky.fogDistance", 0.0));
@@ -1032,6 +1053,20 @@ std::vector<String> ContentRegistry::Validate() const {
 		item(b.id, b.drops);
 		sound(b.id, b.sounds);
 		model(b.id, b.shape);
+		// Blocs interactifs : parties, bascule, sons d'ouverture.
+		for (const BlockDef::Part &part : b.parts) {
+			block(b.id, part.block);
+			if (const BlockDef *other = FindBlock(part.block); other && !other->partOf)
+				warnings.push_back(String::Format("%s : la partie « %s » n'a pas de « partOf »", b.id.CStr(), part.block.CStr()));
+		}
+		block(b.id, b.toggle);
+		SoundSet extra;
+		extra.events["interact"] = b.toggleSound;
+		extra.events["open"] = Qualify(json::Str(b.raw, "container.openSound"), b.mod);
+		extra.events["close"] = Qualify(json::Str(b.raw, "container.closeSound"), b.mod);
+		sound(b.id, extra);
+		if (!b.use.IsEmpty() && b.use != "sleep" && b.use != "container")
+			warnings.push_back(String::Format("%s : action inconnue « %s »", b.id.CStr(), b.use.CStr()));
 	}
 	for (const ItemDef *i : Items()) {
 		texture(i->id, i->icon);
@@ -1096,6 +1131,9 @@ std::vector<String> ContentRegistry::Validate() const {
 		if (!d->generator.IsEmpty() && !FindGenerator(d->generator))
 			warnings.push_back(String::Format("%s : générateur inconnu « %s »", d->id.CStr(), d->generator.CStr()));
 		block(d->id, d->arrivalPortal);
+		for (const String &sky : {d->cubemap, d->nightCubemap})
+			if (!sky.IsEmpty() && !FindTexture(sky))
+				warnings.push_back(String::Format("%s : texture de ciel inconnue « %s »", d->id.CStr(), sky.CStr()));
 		if (!d->music.IsEmpty() && !FindSound(d->music))
 			warnings.push_back(String::Format("%s : son inconnu « %s »", d->id.CStr(), d->music.CStr()));
 	}

@@ -106,7 +106,16 @@ class Canvas {
 	Option<Ref<sdl3::GpuTexture>> m_environmentIrradiance = NONE;
 	Option<Ref<sdl3::GpuTexture>> m_environmentPrefiltered = NONE;
 	Option<Ref<sdl3::GpuTexture>> m_environmentBrdfLut = NONE;
-	Option<sdl3::GpuGraphicsPipeline> m_skyboxPipeline = NONE;
+	/// Ciel seul (sans IBL), prioritaire sur la cubemap d'environnement.
+	Option<Ref<sdl3::GpuTexture>> m_skyboxCubemap = NONE;
+	float m_skyboxTint[3] = {1.f, 1.f, 1.f};
+	float m_skyboxMirror = -1.f; ///< signe de x à l'échantillonnage (cf. SetSkybox)
+	/// Un pipeline par couple de formats (fenêtre, cibles hors écran).
+	struct SkyboxPipeline {
+		sdl3::GpuTextureFormat color, depth;
+		sdl3::GpuGraphicsPipeline pipeline;
+	};
+	std::vector<SkyboxPipeline> m_skyboxPipelines;
 	Option<sdl3::GpuBuffer> m_skyboxVertexBuffer = NONE;
 	Option<sdl3::GpuSampler> m_skyboxSampler = NONE;
 	uint32_t m_skyboxVertexCount = 0;
@@ -201,9 +210,17 @@ private:
 
 	/// Crée le pipeline/sampler/vertex buffer du skybox au premier appel où
 	/// un environnement est défini — best-effort comme EnsureShadowResources :
-	/// un échec laisse m_skyboxPipeline à NONE, End() saute alors le skybox
+	/// un échec laisse les ressources absentes, End() saute alors le skybox
 	/// plutôt que de faire échouer la frame.
 	[[nodiscard]] bool EnsureSkyboxResources();
+	/// Pipeline skybox pour ces formats (créé au premier besoin) ; nullptr si impossible.
+	[[nodiscard]] sdl3::GpuGraphicsPipeline *SkyboxPipelineFor(sdl3::GpuTextureFormat color, sdl3::GpuTextureFormat depth);
+	/// Matériau non éclairé : couleur seule (basique précompilé) ou, si
+	/// `generated` (texturé, instancié, squelette), UBO complet + texture.
+	void BindUnlitMaterial(sdl3::GpuCommandBuffer &cmd, sdl3::GpuRenderPass &pass, const Material &material, bool generated);
+	/// Dessine le ciel (cubemap du skybox, sinon de l'environnement) en début de passe.
+	void DrawSkybox(sdl3::GpuCommandBuffer &cmd, sdl3::GpuRenderPass &pass, const Camera &camera,
+					sdl3::GpuTextureFormat color, sdl3::GpuTextureFormat depth);
 
 	/// Samplers IBL (M14) — un pour les 2 cubemaps (irradiance/préfiltré,
 	/// LINEAR+mipmaps pour le préfiltré), un pour la LUT 2D (pas besoin de
@@ -274,6 +291,22 @@ public:
 	/// actif (même contrat que Material::albedo pour les textures).
 	void SetEnvironment(const Environment &env) noexcept;
 	void ClearEnvironment() noexcept;
+
+	/// Ciel seul (cubemap, voir CreateCubemapFromFaces) — sans éclairage
+	/// IBL ; dessiné aussi dans les rendus hors écran (Viewport3D). Même
+	/// contrat de durée de vie que SetEnvironment.
+	/// `glConvention` : faces au repère « main gauche » d'OpenGL (images en
+	/// croix usuelles) — l'axe X est retourné pour qu'elles ne paraissent pas
+	/// en miroir dans le repère « main droite » de render3d.
+	void SetSkybox(const sdl3::GpuTexture &cubemap, bool glConvention = true) noexcept;
+	void ClearSkybox() noexcept { m_skyboxCubemap = NONE; }
+	/// Teinte multipliée au ciel (assombri la nuit…), 1 par défaut.
+	void SetSkyboxTint(float r, float g, float b) noexcept {
+		m_skyboxTint[0] = r;
+		m_skyboxTint[1] = g;
+		m_skyboxTint[2] = b;
+	}
+	[[nodiscard]] bool HasSkybox() const noexcept { return m_skyboxCubemap.IsSome() || m_environmentCubemap.IsSome(); }
 
 	[[nodiscard]] ShaderProgram &PhongShader() noexcept { return m_phongShader; }
 	[[nodiscard]] ShaderProgram &BasicShader() noexcept { return m_basicShader; }

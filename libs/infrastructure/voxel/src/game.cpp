@@ -366,6 +366,8 @@ void Game::DoTravel(ecs::Entity player, const String &target, Option<math::FVect
 		}
 		// L'autre dimension : tout ce qui vit ici est enregistré puis retiré.
 		(void)m_world->SaveModifiedChunks();
+		SaveContainers();
+		m_containers.clear();
 		if (Result<bool, String> r = m_save->SaveEntities(m_registry); r.IsError())
 			LogLine(String("[sauvegarde] ") + r.Error());
 		std::vector<ecs::Entity> gone;
@@ -485,6 +487,7 @@ Result<bool, String> Game::Save() {
 	if (!m_world)
 		return Err(String("aucun monde ouvert"));
 	const size_t chunks = m_world->SaveModifiedChunks();
+	SaveContainers();
 	if (Result<bool, String> r = m_save->SaveEntities(m_registry); r.IsError())
 		return r;
 	std::vector<ecs::Entity> players;
@@ -510,6 +513,8 @@ void Game::CloseWorld() {
 	m_world.reset();
 	m_save.reset();
 	m_localPlayer = ecs::Entity{};
+	m_highlights.clear();
+	m_clipboards.clear();
 }
 
 void Game::Tick(float dt) {
@@ -1020,11 +1025,25 @@ void Game::Kill(ecs::Entity target) {
 			v.Unwrap()->linear = {0.f, 0.f, 0.f};
 		if (auto body = m_registry.GetComponent<PhysicsBody>(target); body.IsSome())
 			body.Unwrap()->gravityDirection = 1.f;
+		// Lit (dans la dimension d'arrivée) : on se réveille dessus, s'il existe encore.
+		Option<math::FVector3> bed;
+		if (auto pl = m_registry.GetComponent<Player>(target); pl.IsSome() && pl.Unwrap()->hasBed && !through) {
+			const String &where = pl.Unwrap()->bedDimension;
+			const bool same = where == destination || (IsDefaultDimension(where) && IsDefaultDimension(destination));
+			const BlockPos b = pl.Unwrap()->bed;
+			if (same && destination == m_dimension && m_world->IsLoaded(b) && m_world->BlockAt(b).use != "sleep") {
+				pl.Unwrap()->hasBed = false;
+				Message(String("Votre lit a disparu : retour au point de départ."), String("event"));
+			} else if (same) {
+				bed = Some(math::FVector3{float(b.x) + 0.5f, float(b.y) + 0.6f, float(b.z) + 0.5f});
+			}
+		}
 		if (destination == m_dimension || destination.IsEmpty()) {
 			if (auto tr = m_registry.GetComponent<Transform>(target); tr.IsSome())
-				tr.Unwrap()->position = tr.Unwrap()->previous = destination.IsEmpty() ? SpawnPoint() : DimensionSpawn();
+				tr.Unwrap()->position = tr.Unwrap()->previous =
+					bed.IsSome() ? bed.Unwrap() : destination.IsEmpty() ? SpawnPoint() : DimensionSpawn();
 		} else {
-			(void)TravelTo(target, destination);
+			(void)TravelTo(target, destination, bed);
 		}
 		if (through)
 			Message(String::Format(cause == "suffocation" ? "Vous suffoquez… et vous réveillez ailleurs : %s." : "Vous vous réveillez ailleurs : %s.",
@@ -1113,6 +1132,9 @@ float Game::BreakTime(ecs::Entity actor, const BlockPos &pos) {
 bool Game::BreakBlock(ecs::Entity actor, const BlockPos &pos) {
 	if (!m_world)
 		return false;
+	// Partie d'un bloc en plusieurs cellules : c'est le bloc principal qui casse.
+	if (const BlockPos main = MainPart(pos); !(main == pos) && !m_world->BlockAt(main).parts.empty())
+		return BreakBlock(actor, main);
 	const BlockDef &def = m_world->BlockAt(pos);
 	if (def.IsAir() || def.hardness < 0.f || def.fluid)
 		return false;
@@ -1121,9 +1143,19 @@ bool Game::BreakBlock(ecs::Entity actor, const BlockPos &pos) {
 	if (!m_scripts->Emit("block_broken", {Value::Int(pos.x), Value::Int(pos.y), Value::Int(pos.z), Value::Str(def.id), m_scripts->EntityValue(actor)}))
 		return false;
 	const BlockId id = def.numeric;
+	const uint8_t param = m_world->GetParam(pos);
+	const std::vector<ItemStack> contents = TakeContainer(pos);
 	(void)m_world->SetBlock(pos, AIR, 0, ChangeCause::PLAYER);
 	PlayBlockSound(id, "break", pos);
 	const BlockDef &broken = m_content.Block(id);
+	// Les autres cellules partent avec lui (celles qui s'y rattachent encore).
+	for (const BlockDef::Part &part : broken.parts) {
+		const BlockPos at = pos + RotateOffset(part.offset, param);
+		if (const BlockDef &other = m_world->BlockAt(at); other.partOf && at + RotateOffset(*other.partOf, m_world->GetParam(at)) == pos)
+			(void)m_world->SetBlock(at, AIR, 0, ChangeCause::PLAYER);
+	}
+	for (size_t i = 0; i < contents.size(); ++i)
+		(void)DropItem(contents[i], pos.Center(), {std::sin(float(i)) * 1.5f, 3.f, std::cos(float(i)) * 1.5f});
 	if (!m_options.creative && !broken.drops.IsEmpty() &&
 		(broken.dropChance >= 1.f || RandomAt(m_metadata.seed ^ uint32_t(++m_soundSerial), pos.x, pos.y, pos.z, 13) < broken.dropChance))
 		(void)DropItem(ItemStack{broken.drops, broken.dropCount, 0, nullptr}, pos.Center());
@@ -1162,15 +1194,32 @@ bool Game::PlaceBlock(ecs::Entity actor, const BlockPos &pos, const String &bloc
 		if (!ok)
 			return false;
 	}
+	// Orientation : face au joueur (blocs non cubiques et faces différentes).
+	uint8_t param = 0;
+	if (auto t = m_registry.GetComponent<Transform>(actor); t.IsSome())
+		param = FacingParam(t.Unwrap()->yaw);
+	// Toutes les cellules du bloc (porte : deux de haut…) doivent être libres.
+	std::vector<std::pair<BlockPos, const BlockDef *>> cells{{pos, def}};
+	for (const BlockDef::Part &part : def->parts) {
+		const BlockPos at = pos + RotateOffset(part.offset, param);
+		const BlockDef *other = m_content.FindBlock(part.block);
+		if (!other || !m_world->IsLoaded(at) || !m_world->BlockAt(at).replaceable)
+			return false;
+		cells.emplace_back(at, other);
+	}
 	// Pas dans une entité (pour un bloc solide).
-	if (def->solid && def->collision != CollisionKind::NONE) {
-		std::vector<Box> boxes;
-		const math::FVector3 o = pos.ToVector();
-		if (def->collision == CollisionKind::FULL_CUBE)
+	std::vector<Box> boxes;
+	for (const auto &[at, cell] : cells) {
+		if (!cell->solid || cell->collision == CollisionKind::NONE)
+			continue;
+		const math::FVector3 o = at.ToVector();
+		if (cell->collision == CollisionKind::FULL_CUBE)
 			boxes.push_back(Box{o, o + math::FVector3{1.f, 1.f, 1.f}});
 		else
-			for (const Box &b : def->collisionBoxes)
-				boxes.push_back(b.Offset(o));
+			for (const Box &b : cell->collisionBoxes)
+				boxes.push_back(RotateBlockBox(b, param).Offset(o));
+	}
+	if (!boxes.empty()) {
 		bool blocked = false;
 		m_registry.Query<Transform, Collider>([&](ecs::Entity e, Transform &t, Collider &c) {
 			if (m_registry.HasComponent<DroppedItem>(e) || m_registry.HasComponent<FallingBlock>(e))
@@ -1181,15 +1230,12 @@ bool Game::PlaceBlock(ecs::Entity actor, const BlockPos &pos, const String &bloc
 		if (blocked)
 			return false;
 	}
-	// Orientation : face au joueur (blocs non cubiques et faces différentes).
-	uint8_t param = 0;
-	if (auto t = m_registry.GetComponent<Transform>(actor); t.IsSome()) {
-		const float yaw = t.Unwrap()->yaw;
-		param = uint8_t((int(std::lround(yaw / 1.5707963f)) % 4 + 4) % 4);
-	}
 	if (!m_scripts->Emit("block_placed", {Value::Int(pos.x), Value::Int(pos.y), Value::Int(pos.z), Value::Str(def->id), m_scripts->EntityValue(actor)}))
 		return false;
-	(void)m_world->SetBlock(pos, def->numeric, param, ChangeCause::PLAYER);
+	for (const auto &[at, cell] : cells) {
+		(void)TakeContainer(at); // contenu d'un ancien rangement disparu sans être cassé
+		(void)m_world->SetBlock(at, cell->numeric, param, ChangeCause::PLAYER);
+	}
 	PlayBlockSound(def->numeric, "place", pos);
 	if (!m_options.creative)
 		if (ItemStack *held = HeldItem(actor); held && !held->IsEmpty())
@@ -1210,6 +1256,13 @@ bool Game::UseHeldItem(ecs::Entity actor) {
 			!m_scripts->Emit("block_use", {Value::Int(h.block.x), Value::Int(h.block.y), Value::Int(h.block.z), Value::Str(target.id),
 										   m_scripts->EntityValue(actor)}))
 			return true; // un script a pris en charge l'utilisation du bloc
+		// Porte, lit, coffre : utilisés, sauf accroupi avec un bloc à poser.
+		const ItemStack *inHand = HeldItem(actor);
+		const ItemDef *handItem = inHand && !inHand->IsEmpty() ? m_content.FindItem(inHand->item) : nullptr;
+		auto intent = m_registry.GetComponent<MoveIntent>(actor);
+		const bool placing = intent.IsSome() && intent.Unwrap()->sneak && handItem && !handItem->placesBlock.IsEmpty();
+		if (!placing && m_mode != GameMode::SPECTATOR && UseBlock(actor, h.block))
+			return true;
 	}
 	ItemStack *held = HeldItem(actor);
 	if (!held || held->IsEmpty())
@@ -1240,6 +1293,161 @@ bool Game::UseHeldItem(ecs::Entity actor) {
 	return used;
 }
 
+// ── Blocs interactifs ────────────────────────────────────────────────────────
+
+BlockPos Game::MainPart(const BlockPos &pos) {
+	if (!m_world)
+		return pos;
+	const BlockDef &def = m_world->BlockAt(pos);
+	return def.partOf ? pos + RotateOffset(*def.partOf, m_world->GetParam(pos)) : pos;
+}
+
+bool Game::UseBlock(ecs::Entity actor, const BlockPos &pos) {
+	if (!m_world)
+		return false;
+	const BlockPos main = MainPart(pos);
+	const BlockDef &def = m_world->BlockAt(main);
+	if (!def.toggle.IsEmpty())
+		return ToggleBlock(main, actor);
+	if (def.use == "sleep")
+		return Sleep(actor, main);
+	if (def.IsContainer()) {
+		Inventory *inventory = BlockInventory(main);
+		if (!inventory)
+			return false;
+		NodePtr data = dataio::Node::MakeObject();
+		data->Set("x", json::MakeInt(main.x));
+		data->Set("y", json::MakeInt(main.y));
+		data->Set("z", json::MakeInt(main.z));
+		data->Set("block", json::MakeStr(def.id));
+		data->Set("title", json::MakeStr(json::Str(def.raw, "container.title", def.displayName)));
+		data->Set("slots", json::MakeInt(inventory->Size()));
+		data->Set("columns", json::MakeInt(json::Int(def.raw, "container.columns", 9)));
+		data->Set("closeSound", json::MakeStr(ContentRegistry::Qualify(json::Str(def.raw, "container.closeSound"), def.mod)));
+		if (!m_scripts->Emit("container_open", {Value::Int(main.x), Value::Int(main.y), Value::Int(main.z), Value::Str(def.id),
+												m_scripts->EntityValue(actor)}))
+			return true;
+		PlaySound(ContentRegistry::Qualify(json::Str(def.raw, "container.openSound"), def.mod), main.Center());
+		RequestUi(UiRequest{String("container"), data, actor, ecs::Entity{}});
+		return true;
+	}
+	return false;
+}
+
+bool Game::ToggleBlock(const BlockPos &pos, ecs::Entity actor) {
+	if (!m_world)
+		return false;
+	const BlockPos main = MainPart(pos);
+	const BlockDef &def = m_world->BlockAt(main);
+	const BlockDef *to = m_content.FindBlock(def.toggle);
+	if (!to || to->IsAir())
+		return false;
+	if (!m_scripts->Emit("block_toggled", {Value::Int(main.x), Value::Int(main.y), Value::Int(main.z), Value::Str(def.id), Value::Str(to->id),
+										   m_scripts->EntityValue(actor)}))
+		return false;
+	const uint8_t param = m_world->GetParam(main);
+	// Parties d'abord relevées (le bloc principal change de définition ensuite).
+	std::vector<std::pair<BlockPos, BlockId>> changes{{main, to->numeric}};
+	for (size_t i = 0; i < def.parts.size() && i < to->parts.size(); ++i) {
+		const BlockPos at = main + RotateOffset(def.parts[i].offset, param);
+		const BlockDef *target = m_content.FindBlock(to->parts[i].block);
+		if (target && m_world->BlockAt(at).id == def.parts[i].block)
+			changes.emplace_back(at, target->numeric);
+	}
+	const String sound = def.toggleSound;
+	for (const auto &[at, id] : changes)
+		(void)m_world->SetBlock(at, id, param, ChangeCause::PLAYER);
+	PlaySound(sound, main.Center());
+	return true;
+}
+
+bool Game::Sleep(ecs::Entity player, const BlockPos &bed) {
+	auto pl = m_registry.GetComponent<Player>(player);
+	if (pl.IsNone() || !m_world)
+		return false;
+	const DimensionDef *dimension = CurrentDimensionDef();
+	if (dimension && !dimension->dayCycle) {
+		Message(String("Impossible de dormir ici : le temps ne passe pas dans cette dimension."), String("event"));
+		return true;
+	}
+	const BlockPos main = MainPart(bed);
+	const bool changed = !pl.Unwrap()->hasBed || !(pl.Unwrap()->bed == main) || pl.Unwrap()->bedDimension != m_dimension;
+	pl.Unwrap()->hasBed = true;
+	pl.Unwrap()->bed = main;
+	pl.Unwrap()->bedDimension = m_dimension;
+	const float f = DayFraction();
+	if (f > 0.23f && f < 0.77f) {
+		Message(changed ? String("Point de réapparition défini. On ne peut dormir que la nuit.") : String("On ne peut dormir que la nuit."),
+				String("event"));
+		return true;
+	}
+	// Pas de sommeil avec un monstre à moins de 8 blocs.
+	const math::FVector3 at = main.Center();
+	bool threatened = false;
+	m_registry.Query<EntityKind, Transform>([&](ecs::Entity, EntityKind &kind, Transform &t) {
+		if (kind.def && std::find(kind.def->tags.begin(), kind.def->tags.end(), String("hostile")) != kind.def->tags.end() &&
+			(t.position - at).Length() < 8.f)
+			threatened = true;
+	});
+	if (threatened) {
+		Message(String("Impossible de dormir : des monstres rôdent tout près."), String("event"));
+		return true;
+	}
+	if (!m_scripts->Emit("player_sleep", {m_scripts->EntityValue(player), Value::Int(main.x), Value::Int(main.y), Value::Int(main.z)}))
+		return true;
+	// Jusqu'au matin (0,25 du jour suivant si l'on est avant minuit).
+	const double day = std::max(1.0, double(m_options.dayLength));
+	m_metadata.gameTime += double((f < 0.25f ? 0.25f : 1.25f) - f) * day;
+	if (auto h = m_registry.GetComponent<Health>(player); h.IsSome())
+		h.Unwrap()->current = std::min(h.Unwrap()->max, h.Unwrap()->current + 4.f);
+	Message(String("Vous dormez jusqu'au matin."), String("event"));
+	return true;
+}
+
+Inventory *Game::BlockInventory(const BlockPos &pos) {
+	if (!m_world || !m_save)
+		return nullptr;
+	const BlockPos main = MainPart(pos);
+	const BlockDef &def = m_world->BlockAt(main);
+	if (!def.IsContainer())
+		return nullptr;
+	const std::string key(main.ToString().CStr());
+	auto it = m_containers.find(key);
+	if (it == m_containers.end()) {
+		Inventory inventory(def.containerSlots);
+		if (NodePtr stored = m_save->LoadContainer(main)) {
+			const Inventory saved = Inventory::FromJson(stored, def.containerSlots);
+			for (int i = 0; i < std::min(saved.Size(), inventory.Size()); ++i)
+				inventory.Slot(i) = saved.Slot(i);
+		}
+		it = m_containers.emplace(key, std::make_pair(main, std::move(inventory))).first;
+	}
+	return &it->second.second;
+}
+
+std::vector<ItemStack> Game::TakeContainer(const BlockPos &pos) {
+	std::vector<ItemStack> out;
+	if (!m_world || !m_save)
+		return out;
+	if (m_world->BlockAt(pos).IsContainer())
+		if (Inventory *inventory = BlockInventory(pos))
+			for (int i = 0; i < inventory->Size(); ++i)
+				if (!inventory->Slot(i).IsEmpty())
+					out.push_back(inventory->Slot(i));
+	m_containers.erase(std::string(pos.ToString().CStr()));
+	if (m_save->LoadContainer(pos))
+		(void)m_save->SaveContainer(pos, nullptr);
+	return out;
+}
+
+void Game::SaveContainers() {
+	if (!m_save)
+		return;
+	for (const auto &[key, entry] : m_containers)
+		if (Result<bool, String> r = m_save->SaveContainer(entry.first, entry.second.ToJson()); r.IsError())
+			LogLine(String("[sauvegarde] ") + r.Error());
+}
+
 // ── Règles du monde ──────────────────────────────────────────────────────────
 
 const std::vector<std::pair<const char *, bool>> &Game::DefaultRules() {
@@ -1247,6 +1455,7 @@ const std::vector<std::pair<const char *, bool>> &Game::DefaultRules() {
 		{"daylightCycle", true},	  {"mobSpawning", true},  {"keepInventory", true}, {"naturalRegeneration", true},
 		{"fallDamage", true},		  {"mobGriefing", true},  {"commands", true},	   {"hunger", true},
 		{"showCoordinates", true},	  {"fireSpread", true},	  {"weather", true},	   {"announceDeaths", true},
+		{"fallingBlockSuffocation", true},
 	};
 	return rules;
 }
@@ -1428,6 +1637,7 @@ Result<bool, String> Game::Trade(ecs::Entity player, const String &giveItem, int
 void Game::StepSurvival(float dt) {
 	const bool peaceful = m_difficulty == Difficulty::PEACEFUL;
 	const bool regenRule = Rule("naturalRegeneration");
+	const bool fallingBlocksSuffocate = Rule("fallingBlockSuffocation");
 	struct Hurt {
 		ecs::Entity e;
 		float amount;
@@ -1480,9 +1690,12 @@ void Game::StepSurvival(float dt) {
 		const BlockPos head = BlockPos::FromWorld(t.position + math::FVector3{0.f, inverted ? 1.8f - EYE_HEIGHT : EYE_HEIGHT, 0.f});
 		const BlockDef &headBlock = m_world->BlockAt(head);
 		const bool drowning = headBlock.fluid;
+		// Règle « fallingBlockSuffocation » désactivée : un bloc qui tombe
+		// (sable, gravier…) immobilise encore mais n'étouffe plus.
+		const bool fallenOn = headBlock.falling && headBlock.sinking <= 0.f;
 		const bool suffocating = m_world->IsLoaded(head) && !headBlock.fluid &&
 								 ((headBlock.solid && headBlock.collision == CollisionKind::FULL_CUBE) || headBlock.sinking > 0.f) &&
-								 !(body.IsSome() && (body.Unwrap()->noclip || body.Unwrap()->flies));
+								 !(fallenOn && !fallingBlocksSuffocate) && !(body.IsSome() && (body.Unwrap()->noclip || body.Unwrap()->flies));
 		s.suffocating = suffocating && !m_options.creative;
 		if ((drowning || suffocating) && !m_options.creative) {
 			s.air = std::max(0.f, s.air - dt * (suffocating ? 2.f : 1.f));
@@ -1872,13 +2085,20 @@ void Game::InstallCommands() {
 			g.Kill(v);
 		return Ok(String::Format("%d entité(s)", int(victims.size())));
 	});
-	RegisterCommand("setblock", "/setblock <x> <y> <z> <bloc>", "pose un bloc", [qualify](Game &g, ecs::Entity, const std::vector<String> &a) -> Result<String, String> {
+	RegisterCommand("setblock", "/setblock <x> <y> <z> <bloc> [rotation 0..3]", "pose un bloc (et ses autres cellules : porte, lit…)",
+					[qualify](Game &g, ecs::Entity, const std::vector<String> &a) -> Result<String, String> {
 		if (a.size() < 4)
-			return Err(String("/setblock <x> <y> <z> <bloc>"));
+			return Err(String("/setblock <x> <y> <z> <bloc> [rotation 0..3]"));
 		const String id = qualify(a[3]);
-		if (!g.Content().FindBlock(id))
+		const BlockDef *def = g.Content().FindBlock(id);
+		if (!def)
 			return Err(String::Format("bloc inconnu « %s »", id.CStr()));
-		(void)g.GetWorld().SetBlock({std::atoi(a[0].CStr()), std::atoi(a[1].CStr()), std::atoi(a[2].CStr())}, id, 0, ChangeCause::COMMAND);
+		const BlockPos at{std::atoi(a[0].CStr()), std::atoi(a[1].CStr()), std::atoi(a[2].CStr())};
+		const uint8_t param = a.size() > 4 ? uint8_t(std::atoi(a[4].CStr()) & 3) : 0;
+		(void)g.TakeContainer(at);
+		(void)g.GetWorld().SetBlock(at, id, param, ChangeCause::COMMAND);
+		for (const BlockDef::Part &part : def->parts)
+			(void)g.GetWorld().SetBlock(at + RotateOffset(part.offset, param), part.block, param, ChangeCause::COMMAND);
 		return Ok(String("bloc posé"));
 	});
 	RegisterCommand("fill", "/fill <x1> <y1> <z1> <x2> <y2> <z2> <bloc>", "remplit une zone (32768 blocs au plus)",

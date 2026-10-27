@@ -419,3 +419,33 @@ TEST(Game_SuffocationFillsTheAirGaugeThenLeadsToTheBackrooms) {
 	CHECK(game.CurrentDimension() == "dims:overworld");
 	game.CloseWorld();
 }
+
+TEST(Game_FallingBlockSuffocationCanBeTurnedOff) {
+	const String root = MakeMods("no_suffocation");
+	Game game;
+	(void)game.LoadMods(Options(root));
+	REQUIRE(game.OpenWorld("monde", Some(uint32_t(4))).IsOk());
+	CHECK(game.Rule("fallingBlockSuffocation")); // actif par défaut
+	game.SetRule("fallingBlockSuffocation", false);
+	const ecs::Entity player = game.JoinPlayer("Finn");
+	Run(game, 1.f);
+	const BlockPos head = BlockPos::FromWorld(T(game, player).position) + BlockPos{0, 1, 0};
+	(void)game.GetWorld().SetBlock(head + BlockPos{0, 4, 0}, String("dims:sand"));
+	(void)game.GetWorld().SetBlock(head + BlockPos{0, 3, 0}, String("dims:sand"));
+	Run(game, 1.5f);
+	REQUIRE(game.GetWorld().BlockAt(head).id == "dims:sand");
+	auto sv = [&] { return game.Registry().GetComponent<Survival>(player).Unwrap(); };
+	// Coincé sous le sable, mais sans perdre d'air ni de santé.
+	CHECK(game.Registry().GetComponent<PhysicsBody>(player).Unwrap()->trapped);
+	Run(game, 15.f);
+	CHECK(!sv()->suffocating);
+	CHECK_NEAR(sv()->air, sv()->maxAir, 1e-4f);
+	CHECK_NEAR(game.Registry().GetComponent<Health>(player).Unwrap()->current, 20.f, 1e-4f);
+	CHECK(game.CurrentDimension() == "dims:overworld");
+	// Réactivée : le joueur suffoque aussitôt.
+	game.SetRule("fallingBlockSuffocation", true);
+	Run(game, 1.f);
+	CHECK(sv()->suffocating);
+	CHECK(sv()->air < sv()->maxAir);
+	game.CloseWorld();
+}

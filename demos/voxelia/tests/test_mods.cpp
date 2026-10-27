@@ -6,6 +6,7 @@
 
 #include <ecs/events.hpp>
 #include <voxel/game.hpp>
+#include <voxel/json.hpp>
 #include <voxel/meshing.hpp>
 #include <voxel/scripting.hpp>
 
@@ -209,4 +210,73 @@ TEST(Mods_QuicksandSuffocationWakesThePlayerInTheBackrooms) {
 		game.Tick(1.f / 60.f);
 	CHECK(Standing(game, player));
 	CHECK_EQ(ScriptErrors(game), size_t(0));
+}
+
+TEST(Mods_EveryPieceOfFurnitureWorks) {
+	std::filesystem::remove_all("build/tests/tmp/voxelia/furniture");
+	Game game;
+	(void)game.LoadMods(Options("build/tests/tmp/voxelia/furniture"));
+	REQUIRE(game.OpenWorld("meubles", Some(uint32_t(77))).IsOk());
+	const ecs::Entity player = game.JoinPlayer("Testeur");
+	for (int i = 0; i < 60; ++i)
+		game.Tick(1.f / 60.f);
+	World &world = game.GetWorld();
+	const BlockPos base = BlockPos::FromWorld(game.Registry().GetComponent<Transform>(player).Unwrap()->position) + BlockPos{-15, 18, -15};
+	game.Registry().GetComponent<Transform>(player).Unwrap()->yaw = 0.7f; // orientation 1/4 de tour : décalages tournés
+	(void)game.TakeUiRequests();
+	int tested = 0, doors = 0, beds = 0, containers = 0;
+	for (const ItemDef *item : game.Content().Items()) {
+		const BlockDef *def = game.Content().FindBlock(item->placesBlock);
+		if (!def || !def->HasTag("furniture") || item->mod != "core")
+			continue;
+		// Une case dégagée sur une dalle de pierre, au-dessus du terrain.
+		const BlockPos at = base + BlockPos{(tested % 10) * 3, 0, (tested / 10) * 3};
+		for (int dx = -1; dx <= 1; ++dx)
+			for (int dz = -1; dz <= 1; ++dz) {
+				(void)world.SetBlock(at + BlockPos{dx, -1, dz}, String("core:stone"), 0, ChangeCause::SCRIPT);
+				for (int dy = 0; dy <= 2; ++dy)
+					(void)world.SetBlock(at + BlockPos{dx, dy, dz}, AIR, 0, ChangeCause::SCRIPT);
+			}
+		++tested;
+		if (!game.PlaceBlock(player, at, def->id)) {
+			std::printf("pose refusée : %s\n", def->id.CStr());
+			CHECK(false);
+			continue;
+		}
+		const uint8_t param = world.GetParam(at);
+		for (const BlockDef::Part &part : def->parts) {
+			CHECK(world.BlockAt(at + RotateOffset(part.offset, param)).id == part.block);
+			CHECK(game.MainPart(at + RotateOffset(part.offset, param)) == at);
+		}
+		if (!def->toggle.IsEmpty()) {
+			++doors;
+			const BlockPos use = def->parts.empty() ? at : at + RotateOffset(def->parts[0].offset, param);
+			CHECK(game.UseBlock(player, use));
+			CHECK(world.BlockAt(at).id == def->toggle);
+			CHECK(game.UseBlock(player, at));
+			CHECK(world.BlockAt(at).id == def->id);
+		}
+		if (def->use == "sleep") {
+			++beds;
+			CHECK(game.UseBlock(player, at));
+		}
+		if (def->IsContainer()) {
+			++containers;
+			CHECK(game.UseBlock(player, at));
+			const std::vector<UiRequest> ui = game.TakeUiRequests();
+			CHECK(ui.size() == 1 && ui[0].kind == "container" && json::Int(ui[0].data, "slots", 0) == def->containerSlots);
+		}
+		CHECK(game.BreakBlock(player, def->parts.empty() ? at : at + RotateOffset(def->parts.back().offset, param)));
+		CHECK(world.BlockAt(at).IsAir());
+		for (const BlockDef::Part &part : def->parts)
+			CHECK(world.BlockAt(at + RotateOffset(part.offset, param)).IsAir());
+	}
+	std::printf("%d meubles (%d à bascule, %d lits, %d rangements) ", tested, doors, beds, containers);
+	CHECK(tested >= 60);
+	CHECK(doors >= 40);
+	CHECK_EQ(beds, 16);
+	CHECK(containers >= 8);
+	CHECK(game.Content().FindRecipe("core:bed_blue") && game.Content().FindRecipe("core:oak_door") && game.Content().FindRecipe("core:chest"));
+	CHECK_EQ(ScriptErrors(game), size_t(0));
+	game.CloseWorld();
 }

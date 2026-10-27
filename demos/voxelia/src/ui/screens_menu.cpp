@@ -393,6 +393,8 @@ const std::vector<std::tuple<const char *, const char *, const char *>> &RuleTex
 		{"naturalRegeneration", "Régénération naturelle", "La santé remonte quand la faim est rassasiée."},
 		{"hunger", "Faim", "La course, les sauts et le minage creusent l'appétit."},
 		{"fallDamage", "Dégâts de chute", "Une chute trop haute blesse."},
+		{"fallingBlockSuffocation", "Suffocation sous les blocs qui tombent",
+		 "Du sable ou du gravier tombé sur la tête étouffe le joueur ; désactivé, il reste coincé sans perdre d'air."},
 		{"mobGriefing", "Dégâts des créatures", "Les explosions de creepers détruisent les blocs."},
 		{"fireSpread", "Propagation du feu", "Le feu peut gagner les blocs voisins inflammables."},
 		{"weather", "Météo", "Pluie et neige selon les biomes."},
@@ -508,7 +510,7 @@ public:
 					 m_form.dayLength <= 300 ? 0 : m_form.dayLength <= 600 ? 1 : m_form.dayLength <= 1200 ? 2 : 3,
 					 [this](int i) { m_form.dayLength = std::array<double, 4>{300, 600, 1200, 2400}[size_t(i)]; });
 		kit.SectionTitle(r, "Règles de survie", Some(MaterialIcons::FAVORITE));
-		for (const char *rule : {"keepInventory", "naturalRegeneration", "hunger", "fallDamage"})
+		for (const char *rule : {"keepInventory", "naturalRegeneration", "hunger", "fallDamage", "fallingBlockSuffocation"})
 			for (const auto &[id, label, help] : RuleTexts())
 				if (std::string(id) == rule)
 					kit.ToggleRow(r, label, help, m_form.rules[rule], [this, rule](bool v) { m_form.rules[rule] = v; });

@@ -1,5 +1,5 @@
 // Écrans de la partie : pause, inventaire, fabrication, discussion, terminal,
-// informations du monde, commerce, dialogue.
+// informations du monde, commerce, rangement, dialogue.
 #include "common.hpp"
 
 #include <algorithm>
@@ -1223,6 +1223,245 @@ private:
 	UiRequest m_request;
 };
 
+// ── Rangement (coffre, armoire…) ─────────────────────────────────────────────
+
+/// Contenu d'un bloc rangement (en haut) et inventaire du joueur (en bas) :
+/// clic pour prendre / poser, clic droit pour la moitié / un seul, Maj + clic
+/// pour passer d'un côté à l'autre. Fermé si le bloc disparaît ou s'éloigne.
+class ContainerScreen final : public Screen {
+public:
+	ContainerScreen(Shell &shell_, UiRequest request)
+		: Screen(shell_), m_request(std::move(request)),
+		  m_pos{json::Int(m_request.data, "x", 0), json::Int(m_request.data, "y", 0), json::Int(m_request.data, "z", 0)},
+		  m_columns(std::clamp(json::Int(m_request.data, "columns", 9), 1, 12)) {}
+	String Id() const override { return "container"; }
+	bool Overlay() const override { return true; }
+	~ContainerScreen() override {
+		ReturnHeld();
+		if (Session *s = Live(shell))
+			s->Game().PlaySound(json::Str(m_request.data, "closeSound"), m_pos.Center());
+	}
+
+	void Build(ui::Widget root) override {
+		Session *s = Live(shell);
+		Inventory *box = Box();
+		if (!s || !box)
+			return;
+		const Palette &p = kit.Colors();
+		const float sc = kit.Scale();
+		const float cell = 50.f * sc;
+		ui::Widget card = ModalCard(kit, root, std::max(float(m_columns), 9.f) * cell + 80.f * sc);
+		WidgetBuilder head = kit.Row(10.f);
+		head.GrowWidth();
+		ui::Widget h = card.Append(head);
+		h.Append(kit.Icon(MaterialIcons::INVENTORY2, 26.f, Some(p.primary)));
+		h.Append(kit.Label(json::Str(m_request.data, "title", "Rangement"), Text::H2));
+		h.Append(kit.Spacer());
+		m_fill = h.Append(kit.Chip(String(), Tone::NEUTRAL));
+		h.Append(kit.IconButton(MaterialIcons::CLOSE, "Fermer (E)", [this] { shell.Pop(); }));
+		const int rows = (box->Size() + m_columns - 1) / m_columns;
+		WidgetBuilder top = ui::Canvas([this](ui::Painter &painter, const sdl3::FRect &rect) {
+			if (painter.Renderer())
+				DrawBox(*painter.Renderer(), rect);
+		});
+		top.Size(cell * float(m_columns), cell * float(rows)).OnClick([this] { Click(false); }).OnContextMenu([this](sdl3::FPoint) { Click(true); });
+		card.Append(top);
+		WidgetBuilder actions = kit.Row(8.f);
+		ui::Widget a = card.Append(actions);
+		a.Append(kit.Button("Tout ranger", [this] { MoveAll(true); }));
+		a.Append(kit.Button("Tout prendre", [this] { MoveAll(false); }));
+		a.Append(kit.Label("Inventaire", Text::SMALL).Bold());
+		WidgetBuilder bottom = ui::Canvas([this](ui::Painter &painter, const sdl3::FRect &rect) {
+			if (painter.Renderer())
+				DrawPlayer(*painter.Renderer(), rect);
+		});
+		bottom.Size(cell * 9.f, cell * 4.f + 12.f).OnClick([this] { Click(false); }).OnContextMenu([this](sdl3::FPoint) { Click(true); });
+		card.Append(bottom);
+		card.Append(kit.Muted("Clic : prendre / poser · Clic droit : moitié / un seul · Maj + clic : vers l'autre côté", Text::CAPTION));
+	}
+
+	void Update(float) override {
+		Session *s = Live(shell);
+		Inventory *box = Box();
+		// Rangement cassé ou joueur trop loin : on ferme.
+		bool far = true;
+		if (s)
+			if (auto t = s->Game().Registry().GetComponent<Transform>(s->Player()); t.IsSome())
+				far = (t.Unwrap()->position - m_pos.Center()).Length() > 8.f;
+		if (!s || !box || far) {
+			if (shell.Top() == this) // fermé seulement au premier plan (pas un autre écran)
+				shell.Pop();
+			return; // écran détruit : plus rien à toucher
+		}
+		int used = 0;
+		for (int i = 0; i < box->Size(); ++i)
+			used += !box->Slot(i).IsEmpty();
+		kit.SetText(m_fill, String::Format("%d / %d emplacements", used, box->Size()));
+	}
+	bool OnKey(int code) override {
+		if (shell.Prefs().Matches("inventory", code) && !kit.Ui().Focused()) {
+			shell.Pop();
+			return true;
+		}
+		return false;
+	}
+
+private:
+	Inventory *Box() {
+		Session *s = Live(shell);
+		Inventory *box = s && s->Game().HasWorld() ? s->Game().BlockInventory(m_pos) : nullptr;
+		return box && box->Size() == json::Int(m_request.data, "slots", box->Size()) ? box : nullptr;
+	}
+	/// Case sous la souris : (rangement ?, index) ; index -1 : aucune.
+	std::pair<bool, int> SlotAt(float mx, float my) const {
+		auto inside = [&](const sdl3::FRect &r) { return mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h; };
+		if (inside(m_boxRect)) {
+			const float cell = m_boxRect.w / float(m_columns);
+			return {true, int((my - m_boxRect.y) / cell) * m_columns + int((mx - m_boxRect.x) / cell)};
+		}
+		if (inside(m_playerRect)) {
+			const float cell = m_playerRect.w / 9.f;
+			const int col = int((mx - m_playerRect.x) / cell);
+			const float ry = my - m_playerRect.y;
+			if (ry >= cell * 3.f + 12.f)
+				return {false, col}; // barre d'objets
+			if (ry < cell * 3.f)
+				return {false, HOTBAR + int(ry / cell) * HOTBAR + col};
+		}
+		return {false, -1};
+	}
+	void DrawSlot(sdl3::Renderer &ren, const sdl3::FRect &cell, const ItemStack &stack, bool hovered) {
+		const Palette &p = kit.Colors();
+		ren.SetDrawColor(hovered ? p.bg3 : p.bg1);
+		(void)ren.FillRect(cell);
+		ren.SetDrawColor(p.line);
+		(void)ren.DrawRect(cell);
+		if (Session *s = Live(shell))
+			s->DrawItem(ren, stack, cell);
+	}
+	void DrawBox(sdl3::Renderer &ren, sdl3::FRect r) {
+		m_boxRect = r;
+		Inventory *box = Box();
+		if (!box)
+			return;
+		(void)ren.SetBlendMode(sdl3::BlendMode::BLEND);
+		float mx = 0.f, my = 0.f;
+		(void)SDL_GetMouseState(&mx, &my);
+		const auto [inBox, hover] = SlotAt(mx, my);
+		const float cell = r.w / float(m_columns);
+		for (int i = 0; i < box->Size(); ++i) {
+			const sdl3::FRect c{r.x + float(i % m_columns) * cell + 2.f, r.y + float(i / m_columns) * cell + 2.f, cell - 4.f, cell - 4.f};
+			DrawSlot(ren, c, box->Slot(i), inBox && hover == i);
+		}
+	}
+	void DrawPlayer(sdl3::Renderer &ren, sdl3::FRect r) {
+		Session *s = Live(shell);
+		m_playerRect = r;
+		Inventory *inv = s ? s->Inventory() : nullptr;
+		if (!inv)
+			return;
+		(void)ren.SetBlendMode(sdl3::BlendMode::BLEND);
+		float mx = 0.f, my = 0.f;
+		(void)SDL_GetMouseState(&mx, &my);
+		const auto [inBox, hover] = SlotAt(mx, my);
+		const float cell = r.w / 9.f;
+		for (int i = 0; i < std::min(inv->Size(), 36); ++i) {
+			const float y = i < HOTBAR ? r.y + cell * 3.f + 12.f : r.y + float((i - HOTBAR) / HOTBAR) * cell;
+			const sdl3::FRect c{r.x + float(i % HOTBAR) * cell + 2.f, y + 2.f, cell - 4.f, cell - 4.f};
+			DrawSlot(ren, c, inv->Slot(i), !inBox && hover == i);
+		}
+		// Pile tenue : suit la souris (dessinée en dernier, par-dessus les deux grilles).
+		if (!m_held.IsEmpty())
+			s->DrawItem(ren, m_held, sdl3::FRect{mx - cell * 0.4f, my - cell * 0.4f, cell * 0.8f, cell * 0.8f});
+	}
+	void Click(bool right) {
+		Session *s = Live(shell);
+		Inventory *box = Box();
+		Inventory *inv = s ? s->Inventory() : nullptr;
+		if (!s || !box || !inv)
+			return;
+		float mx = 0.f, my = 0.f;
+		(void)SDL_GetMouseState(&mx, &my);
+		const auto [inBox, slot] = SlotAt(mx, my);
+		Inventory &from = inBox ? *box : *inv;
+		Inventory &other = inBox ? *inv : *box;
+		if (slot < 0 || slot >= from.Size())
+			return;
+		ItemStack &target = from.Slot(slot);
+		shell.UiSound("ui_click");
+		Game &game = s->Game();
+		if ((SDL_GetModState() & SDL_KMOD_SHIFT) && m_held.IsEmpty() && !target.IsEmpty()) {
+			const int left = other.Add(game.Content(), target.item, target.count, target.meta);
+			target.count = left;
+			if (left <= 0)
+				target = ItemStack{};
+			return;
+		}
+		const ItemDef *def = game.Content().FindItem(m_held.IsEmpty() ? target.item : m_held.item);
+		const int maxStack = def ? def->maxStack : 64;
+		if (m_held.IsEmpty()) {
+			if (target.IsEmpty())
+				return;
+			const int taken = right ? (target.count + 1) / 2 : target.count;
+			m_held = ItemStack{target.item, taken, target.wear, target.meta};
+			target.count -= taken;
+			if (target.count <= 0)
+				target = ItemStack{};
+			return;
+		}
+		if (target.IsEmpty() || target.item == m_held.item) {
+			const int room = maxStack - (target.IsEmpty() ? 0 : target.count);
+			const int moved = std::min(right ? 1 : m_held.count, room);
+			if (moved <= 0)
+				return;
+			if (target.IsEmpty())
+				target = ItemStack{m_held.item, 0, m_held.wear, m_held.meta};
+			target.count += moved;
+			m_held.count -= moved;
+			if (m_held.count <= 0)
+				m_held = ItemStack{};
+		} else {
+			std::swap(target, m_held);
+		}
+	}
+	/// Tout ranger (sac → rangement, barre d'objets gardée) ou tout prendre.
+	void MoveAll(bool store) {
+		Session *s = Live(shell);
+		Inventory *box = Box();
+		Inventory *inv = s ? s->Inventory() : nullptr;
+		if (!box || !inv)
+			return;
+		Inventory &from = store ? *inv : *box;
+		Inventory &to = store ? *box : *inv;
+		for (int i = store ? HOTBAR : 0; i < from.Size(); ++i)
+			if (ItemStack &st = from.Slot(i); !st.IsEmpty()) {
+				st.count = to.Add(s->Game().Content(), st.item, st.count, st.meta);
+				if (st.count <= 0)
+					st = ItemStack{};
+			}
+		shell.UiSound("ui_click");
+	}
+	void ReturnHeld() {
+		Session *s = Live(shell);
+		if (!s || m_held.IsEmpty())
+			return;
+		if (Inventory *inv = s->Inventory()) {
+			const int left = inv->Add(s->Game().Content(), m_held.item, m_held.count, m_held.meta);
+			if (left > 0)
+				if (auto t = s->Game().Registry().GetComponent<Transform>(s->Player()); t.IsSome())
+					(void)s->Game().DropItem(ItemStack{m_held.item, left, m_held.wear, m_held.meta}, t.Unwrap()->position + math::FVector3{0.f, 1.f, 0.f});
+		}
+		m_held = ItemStack{};
+	}
+
+	UiRequest m_request;
+	BlockPos m_pos;
+	int m_columns = 9;
+	ItemStack m_held;
+	sdl3::FRect m_boxRect{}, m_playerRect{};
+	ui::Widget m_fill{};
+};
+
 class Dialog final : public Screen {
 public:
 	Dialog(Shell &shell_, UiRequest request) : Screen(shell_), m_request(std::move(request)) {}
@@ -1267,5 +1506,6 @@ std::unique_ptr<Screen> MakeConsole(Shell &shell, String prefix) { return std::m
 std::unique_ptr<Screen> MakeWorldInfo(Shell &shell) { return std::make_unique<WorldInfo>(shell); }
 std::unique_ptr<Screen> MakeTrade(Shell &shell, UiRequest request) { return std::make_unique<Trade>(shell, std::move(request)); }
 std::unique_ptr<Screen> MakeDialog(Shell &shell, UiRequest request) { return std::make_unique<Dialog>(shell, std::move(request)); }
+std::unique_ptr<Screen> MakeContainer(Shell &shell, UiRequest request) { return std::make_unique<ContainerScreen>(shell, std::move(request)); }
 
 } // namespace voxelia

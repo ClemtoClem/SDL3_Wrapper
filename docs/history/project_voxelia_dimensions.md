@@ -26,6 +26,11 @@ metadata:
 - Physique : sables mouvants (`physics.sinking`), joueur pris dans un bloc
   plein (`trapped`), gravité inversée (`gravityDirection`), suffocation
   (jauge d'air, `Survival::suffocating`), cause de mort (`Health::lastCause`).
+- Règle de monde `fallingBlockSuffocation` (2026-10-27, active par défaut) :
+  désactivée, un bloc tombé sur la tête (sable, gravier…) immobilise encore
+  le joueur mais ne l'étouffe plus ; les sables mouvants et les blocs pleins
+  non tombants étouffent toujours. Création du monde (Règles de survie),
+  paramètres du monde, réglages en jeu.
 - Tests : voxel `test_dimensions.cpp`, voxelia `Mods_EveryDimensionCanBeVisited`,
   `Mods_QuicksandSuffocationWakesThePlayerInTheBackrooms`.
 

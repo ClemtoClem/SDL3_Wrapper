@@ -1,0 +1,8114 @@
+// Mobilier (généré par furniture.py) : portes, trappes et volets en bois, en verre et en fer ;
+// échelles ; lits de 16 couleurs ; rangements en bois. Textures et sons tirés des mods
+// Minetest doors, xdecor, greek, animalia, celevator (textures/blocks/furniture/CREDITS.txt).
+// « parts » / « partOf » : blocs de plusieurs cellules ; « interact » : bascule (toggle) ou
+// action (sleep) ; « container » : rangement (emplacements, titre, sons).
+[
+ {
+  "id": "oak_door",
+  "displayName": "Porte de chêne",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/oak_door",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "oak_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "oak_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "oak_door_top",
+  "displayName": "Porte de chêne",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "oak_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "oak_door_open",
+  "displayName": "Porte de chêne (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "oak_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "oak_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "oak_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "oak_door_top_open",
+  "displayName": "Porte de chêne (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "spruce_door",
+  "displayName": "Porte d'épicéa",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/spruce_door",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "spruce_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "spruce_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "spruce_door_top",
+  "displayName": "Porte d'épicéa",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "spruce_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "spruce_door_open",
+  "displayName": "Porte d'épicéa (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "spruce_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "spruce_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "spruce_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "spruce_door_top_open",
+  "displayName": "Porte d'épicéa (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "birch_door",
+  "displayName": "Porte de bouleau",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/birch_door",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "birch_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "birch_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "birch_door_top",
+  "displayName": "Porte de bouleau",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "birch_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "birch_door_open",
+  "displayName": "Porte de bouleau (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "birch_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "birch_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "birch_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "birch_door_top_open",
+  "displayName": "Porte de bouleau (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "jungle_door",
+  "displayName": "Porte d'acajou de jungle",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/jungle_door",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "jungle_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "jungle_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "jungle_door_top",
+  "displayName": "Porte d'acajou de jungle",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "jungle_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "jungle_door_open",
+  "displayName": "Porte d'acajou de jungle (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "jungle_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "jungle_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "jungle_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "jungle_door_top_open",
+  "displayName": "Porte d'acajou de jungle (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "acacia_door",
+  "displayName": "Porte d'acacia",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/acacia_door",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "acacia_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "acacia_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "acacia_door_top",
+  "displayName": "Porte d'acacia",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "acacia_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "acacia_door_open",
+  "displayName": "Porte d'acacia (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "acacia_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "acacia_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "acacia_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "acacia_door_top_open",
+  "displayName": "Porte d'acacia (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "dark_oak_door",
+  "displayName": "Porte de chêne noir",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/dark_oak_door",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "dark_oak_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "dark_oak_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "dark_oak_door_top",
+  "displayName": "Porte de chêne noir",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "dark_oak_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "dark_oak_door_open",
+  "displayName": "Porte de chêne noir (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "dark_oak_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "dark_oak_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "dark_oak_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "dark_oak_door_top_open",
+  "displayName": "Porte de chêne noir (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "cherry_door",
+  "displayName": "Porte de cerisier",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_cherry_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_cherry",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "cherry_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "cherry_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "cherry_door_top",
+  "displayName": "Porte de cerisier",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_cherry_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "cherry_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "cherry_door_open",
+  "displayName": "Porte de cerisier (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_cherry_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "cherry_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "cherry_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "cherry_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "cherry_door_top_open",
+  "displayName": "Porte de cerisier (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_cherry_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "ebony_door",
+  "displayName": "Porte d'ébène",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_ebony_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_ebony",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "ebony_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "ebony_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "ebony_door_top",
+  "displayName": "Porte d'ébène",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_ebony_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "ebony_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "ebony_door_open",
+  "displayName": "Porte d'ébène (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_ebony_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "ebony_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "ebony_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "ebony_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "ebony_door_top_open",
+  "displayName": "Porte d'ébène (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_ebony_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "ethereal_door",
+  "displayName": "Porte de bois éthéré",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_ethereal_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_ethereal",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "ethereal_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "ethereal_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "ethereal_door_top",
+  "displayName": "Porte de bois éthéré",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_ethereal_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "ethereal_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "ethereal_door_open",
+  "displayName": "Porte de bois éthéré (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_ethereal_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "ethereal_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "ethereal_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "ethereal_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "ethereal_door_top_open",
+  "displayName": "Porte de bois éthéré (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_ethereal_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "eucalyptus_door",
+  "displayName": "Porte d'eucalyptus",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_eucalyptus_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_eucalyptus",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "eucalyptus_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "eucalyptus_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "eucalyptus_door_top",
+  "displayName": "Porte d'eucalyptus",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_eucalyptus_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "eucalyptus_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "eucalyptus_door_open",
+  "displayName": "Porte d'eucalyptus (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_eucalyptus_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "eucalyptus_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "eucalyptus_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "eucalyptus_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "eucalyptus_door_top_open",
+  "displayName": "Porte d'eucalyptus (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_eucalyptus_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "fir_door",
+  "displayName": "Porte de sapin",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_fir_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_fir",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "fir_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "fir_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "fir_door_top",
+  "displayName": "Porte de sapin",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_fir_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "fir_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "fir_door_open",
+  "displayName": "Porte de sapin (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_fir_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "fir_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "fir_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "fir_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "fir_door_top_open",
+  "displayName": "Porte de sapin (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_fir_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "hellbark_door",
+  "displayName": "Porte d'écorce infernale",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_hellbark_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_hellbark",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "hellbark_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "hellbark_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "hellbark_door_top",
+  "displayName": "Porte d'écorce infernale",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_hellbark_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "hellbark_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "hellbark_door_open",
+  "displayName": "Porte d'écorce infernale (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_hellbark_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "hellbark_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "hellbark_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "hellbark_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "hellbark_door_top_open",
+  "displayName": "Porte d'écorce infernale (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_hellbark_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "jacaranda_door",
+  "displayName": "Porte de jacaranda",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_jacaranda_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_jacaranda",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "jacaranda_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "jacaranda_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "jacaranda_door_top",
+  "displayName": "Porte de jacaranda",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_jacaranda_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "jacaranda_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "jacaranda_door_open",
+  "displayName": "Porte de jacaranda (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_jacaranda_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "jacaranda_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "jacaranda_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "jacaranda_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "jacaranda_door_top_open",
+  "displayName": "Porte de jacaranda (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_jacaranda_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "magic_door",
+  "displayName": "Porte de bois magique",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_magic_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_magic",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "magic_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "magic_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "magic_door_top",
+  "displayName": "Porte de bois magique",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_magic_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "magic_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "magic_door_open",
+  "displayName": "Porte de bois magique (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_magic_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "magic_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "magic_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "magic_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "magic_door_top_open",
+  "displayName": "Porte de bois magique (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_magic_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "mahogany_door",
+  "displayName": "Porte d'acajou",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_mahogany_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_mahogany",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "mahogany_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "mahogany_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "mahogany_door_top",
+  "displayName": "Porte d'acajou",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_mahogany_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "mahogany_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "mahogany_door_open",
+  "displayName": "Porte d'acajou (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_mahogany_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "mahogany_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "mahogany_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "mahogany_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "mahogany_door_top_open",
+  "displayName": "Porte d'acajou (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_mahogany_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "mangrove_door",
+  "displayName": "Porte de palétuvier",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_mangrove_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_mangrove",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "mangrove_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "mangrove_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "mangrove_door_top",
+  "displayName": "Porte de palétuvier",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_mangrove_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "mangrove_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "mangrove_door_open",
+  "displayName": "Porte de palétuvier (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_mangrove_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "mangrove_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "mangrove_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "mangrove_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "mangrove_door_top_open",
+  "displayName": "Porte de palétuvier (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_mangrove_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "palm_door",
+  "displayName": "Porte de palmier",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_palm_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_palm",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "palm_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "palm_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "palm_door_top",
+  "displayName": "Porte de palmier",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_palm_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "palm_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "palm_door_open",
+  "displayName": "Porte de palmier (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_palm_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "palm_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "palm_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "palm_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "palm_door_top_open",
+  "displayName": "Porte de palmier (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_palm_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "pine_door",
+  "displayName": "Porte de pin",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_pine_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_pine",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "pine_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "pine_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "pine_door_top",
+  "displayName": "Porte de pin",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_pine_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "pine_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "pine_door_open",
+  "displayName": "Porte de pin (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_pine_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "pine_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "pine_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "pine_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "pine_door_top_open",
+  "displayName": "Porte de pin (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_pine_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "redwood_door",
+  "displayName": "Porte de séquoia",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_redwood_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_redwood",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "redwood_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "redwood_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "redwood_door_top",
+  "displayName": "Porte de séquoia",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_redwood_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "redwood_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "redwood_door_open",
+  "displayName": "Porte de séquoia (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_redwood_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "redwood_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "redwood_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "redwood_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "redwood_door_top_open",
+  "displayName": "Porte de séquoia (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_redwood_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "sacred_oak_door",
+  "displayName": "Porte de chêne sacré",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_sacred_oak_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_sacred_oak",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "sacred_oak_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "sacred_oak_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "sacred_oak_door_top",
+  "displayName": "Porte de chêne sacré",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_sacred_oak_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "sacred_oak_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "sacred_oak_door_open",
+  "displayName": "Porte de chêne sacré (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_sacred_oak_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "sacred_oak_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "sacred_oak_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "sacred_oak_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "sacred_oak_door_top_open",
+  "displayName": "Porte de chêne sacré (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_sacred_oak_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "umbran_door",
+  "displayName": "Porte de bois d'ombre",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_umbran_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_umbran",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "umbran_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "umbran_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "umbran_door_top",
+  "displayName": "Porte de bois d'ombre",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_umbran_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "umbran_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "umbran_door_open",
+  "displayName": "Porte de bois d'ombre (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_umbran_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "umbran_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "umbran_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "umbran_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "umbran_door_top_open",
+  "displayName": "Porte de bois d'ombre (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_umbran_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "willow_door",
+  "displayName": "Porte de saule",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_willow_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:items/door_willow",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "willow_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "willow_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "willow_door_top",
+  "displayName": "Porte de saule",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_willow_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "willow_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "willow_door_open",
+  "displayName": "Porte de saule (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_willow_lower",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "willow_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "willow_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "willow_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "willow_door_top_open",
+  "displayName": "Porte de saule (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:door_willow_upper",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "woodglass_door",
+  "displayName": "Porte vitrée en bois",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:woodglass_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "icon": "core:woodglass_door_top",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "woodglass_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "woodglass_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "woodglass_door_top",
+  "displayName": "Porte vitrée en bois",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:woodglass_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "woodglass_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "woodglass_door_open",
+  "displayName": "Porte vitrée en bois (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:woodglass_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "woodglass_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "woodglass_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "woodglass_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "woodglass_door_top_open",
+  "displayName": "Porte vitrée en bois (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:woodglass_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "japanese_door",
+  "displayName": "Porte coulissante japonaise",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:japanese_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "icon": "core:japanese_door_top",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "japanese_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "japanese_door_open",
+   "sound": "core:door_wood_open"
+  }
+ },
+ {
+  "id": "japanese_door_top",
+  "displayName": "Porte coulissante japonaise",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:japanese_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "japanese_door_open",
+   "sound": "core:door_wood_open"
+  },
+  "item": false
+ },
+ {
+  "id": "japanese_door_open",
+  "displayName": "Porte coulissante japonaise (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:japanese_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe",
+   "drops": "japanese_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "japanese_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "japanese_door",
+   "sound": "core:door_wood_close"
+  },
+  "item": false
+ },
+ {
+  "id": "japanese_door_top_open",
+  "displayName": "Porte coulissante japonaise (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:japanese_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "glass_door",
+  "displayName": "Porte en verre",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "glass"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:glass_door_bottom",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.5
+  },
+  "icon": "core:glass_door_top",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "glass_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "glass_door_open",
+   "sound": "core:door_glass_open"
+  }
+ },
+ {
+  "id": "glass_door_top",
+  "displayName": "Porte en verre",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "glass"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:glass_door_top",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.5,
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "glass_door_open",
+   "sound": "core:door_glass_open"
+  },
+  "item": false
+ },
+ {
+  "id": "glass_door_open",
+  "displayName": "Porte en verre (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "glass"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:glass_door_bottom",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.5,
+   "drops": "glass_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "glass_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "glass_door",
+   "sound": "core:door_glass_close"
+  },
+  "item": false
+ },
+ {
+  "id": "glass_door_top_open",
+  "displayName": "Porte en verre (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "glass"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:glass_door_top",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.5,
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "iron_door",
+  "displayName": "Porte en fer",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "metal"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:iron_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe"
+  },
+  "icon": "core:items/iron_door",
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "iron_door_top"
+   }
+  ],
+  "interact": {
+   "toggle": "iron_door_open",
+   "sound": "core:door_steel_open"
+  }
+ },
+ {
+  "id": "iron_door_top",
+  "displayName": "Porte en fer",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "metal"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "texture": "core:iron_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "interact": {
+   "toggle": "iron_door_open",
+   "sound": "core:door_steel_open"
+  },
+  "item": false
+ },
+ {
+  "id": "iron_door_open",
+  "displayName": "Porte en fer (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "metal"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:iron_door_bottom",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe",
+   "drops": "iron_door"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "iron_door_top_open"
+   }
+  ],
+  "interact": {
+   "toggle": "iron_door",
+   "sound": "core:door_steel_close"
+  },
+  "item": false
+ },
+ {
+  "id": "iron_door_top_open",
+  "displayName": "Porte en fer (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "door",
+   "furniture",
+   "metal"
+  ],
+  "nodebox": [
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:iron_door_top",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "oak_trapdoor",
+  "displayName": "Trappe de chêne",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "oak_trapdoor_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "oak_trapdoor_open",
+  "displayName": "Trappe de chêne (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "oak_trapdoor"
+  },
+  "interact": {
+   "toggle": "oak_trapdoor",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "spruce_trapdoor",
+  "displayName": "Trappe d'épicéa",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "spruce_trapdoor_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "spruce_trapdoor_open",
+  "displayName": "Trappe d'épicéa (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "spruce_trapdoor"
+  },
+  "interact": {
+   "toggle": "spruce_trapdoor",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "birch_trapdoor",
+  "displayName": "Trappe de bouleau",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "birch_trapdoor_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "birch_trapdoor_open",
+  "displayName": "Trappe de bouleau (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "birch_trapdoor"
+  },
+  "interact": {
+   "toggle": "birch_trapdoor",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "jungle_trapdoor",
+  "displayName": "Trappe d'acajou de jungle",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "jungle_trapdoor_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "jungle_trapdoor_open",
+  "displayName": "Trappe d'acajou de jungle (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "jungle_trapdoor"
+  },
+  "interact": {
+   "toggle": "jungle_trapdoor",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "acacia_trapdoor",
+  "displayName": "Trappe d'acacia",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "acacia_trapdoor_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "acacia_trapdoor_open",
+  "displayName": "Trappe d'acacia (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "acacia_trapdoor"
+  },
+  "interact": {
+   "toggle": "acacia_trapdoor",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "dark_oak_trapdoor",
+  "displayName": "Trappe de chêne noir",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "dark_oak_trapdoor_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "dark_oak_trapdoor_open",
+  "displayName": "Trappe de chêne noir (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "axe",
+   "drops": "dark_oak_trapdoor"
+  },
+  "interact": {
+   "toggle": "dark_oak_trapdoor",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "glass_trapdoor",
+  "displayName": "Trappe en verre",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "glass"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:glass_trapdoor",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.5
+  },
+  "interact": {
+   "toggle": "glass_trapdoor_open",
+   "sound": "core:door_glass_open"
+  }
+ },
+ {
+  "id": "glass_trapdoor_open",
+  "displayName": "Trappe en verre (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "glass"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:glass_trapdoor",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.5,
+   "drops": "glass_trapdoor"
+  },
+  "interact": {
+   "toggle": "glass_trapdoor",
+   "sound": "core:door_glass_close"
+  },
+  "item": false
+ },
+ {
+  "id": "iron_trapdoor",
+  "displayName": "Trappe en fer",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "metal"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:iron_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe"
+  },
+  "interact": {
+   "toggle": "iron_trapdoor_open",
+   "sound": "core:door_steel_open"
+  }
+ },
+ {
+  "id": "iron_trapdoor_open",
+  "displayName": "Trappe en fer (ouverte)",
+  "type": "nodebox",
+  "tags": [
+   "trapdoor",
+   "furniture",
+   "metal"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:iron_trapdoor",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe",
+   "drops": "iron_trapdoor"
+  },
+  "interact": {
+   "toggle": "iron_trapdoor",
+   "sound": "core:door_steel_close"
+  },
+  "item": false
+ },
+ {
+  "id": "oak_shutter",
+  "displayName": "Volets de chêne",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "oak_shutter_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "oak_shutter_open",
+  "displayName": "Volets de chêne (ouverts)",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -1.0,
+    -0.5,
+    0.375,
+    -0.5,
+    0.5,
+    0.5
+   ],
+   [
+    0.5,
+    -0.5,
+    0.375,
+    1.0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe",
+   "drops": "oak_shutter"
+  },
+  "interact": {
+   "toggle": "oak_shutter",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "spruce_shutter",
+  "displayName": "Volets d'épicéa",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "spruce_shutter_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "spruce_shutter_open",
+  "displayName": "Volets d'épicéa (ouverts)",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -1.0,
+    -0.5,
+    0.375,
+    -0.5,
+    0.5,
+    0.5
+   ],
+   [
+    0.5,
+    -0.5,
+    0.375,
+    1.0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe",
+   "drops": "spruce_shutter"
+  },
+  "interact": {
+   "toggle": "spruce_shutter",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "birch_shutter",
+  "displayName": "Volets de bouleau",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "birch_shutter_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "birch_shutter_open",
+  "displayName": "Volets de bouleau (ouverts)",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -1.0,
+    -0.5,
+    0.375,
+    -0.5,
+    0.5,
+    0.5
+   ],
+   [
+    0.5,
+    -0.5,
+    0.375,
+    1.0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe",
+   "drops": "birch_shutter"
+  },
+  "interact": {
+   "toggle": "birch_shutter",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "jungle_shutter",
+  "displayName": "Volets d'acajou de jungle",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "jungle_shutter_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "jungle_shutter_open",
+  "displayName": "Volets d'acajou de jungle (ouverts)",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -1.0,
+    -0.5,
+    0.375,
+    -0.5,
+    0.5,
+    0.5
+   ],
+   [
+    0.5,
+    -0.5,
+    0.375,
+    1.0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe",
+   "drops": "jungle_shutter"
+  },
+  "interact": {
+   "toggle": "jungle_shutter",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "acacia_shutter",
+  "displayName": "Volets d'acacia",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "acacia_shutter_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "acacia_shutter_open",
+  "displayName": "Volets d'acacia (ouverts)",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -1.0,
+    -0.5,
+    0.375,
+    -0.5,
+    0.5,
+    0.5
+   ],
+   [
+    0.5,
+    -0.5,
+    0.375,
+    1.0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe",
+   "drops": "acacia_shutter"
+  },
+  "interact": {
+   "toggle": "acacia_shutter",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "dark_oak_shutter",
+  "displayName": "Volets de chêne noir",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "dark_oak_shutter_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "dark_oak_shutter_open",
+  "displayName": "Volets de chêne noir (ouverts)",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -1.0,
+    -0.5,
+    0.375,
+    -0.5,
+    0.5,
+    0.5
+   ],
+   [
+    0.5,
+    -0.5,
+    0.375,
+    1.0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_shutter"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe",
+   "drops": "dark_oak_shutter"
+  },
+  "interact": {
+   "toggle": "dark_oak_shutter",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "painted_shutter",
+  "displayName": "Volets peints",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:shutter_painted"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "interact": {
+   "toggle": "painted_shutter_open",
+   "sound": "core:hatch_open"
+  }
+ },
+ {
+  "id": "painted_shutter_open",
+  "displayName": "Volets peints (ouverts)",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -1.0,
+    -0.5,
+    0.375,
+    -0.5,
+    0.5,
+    0.5
+   ],
+   [
+    0.5,
+    -0.5,
+    0.375,
+    1.0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:shutter_painted"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe",
+   "drops": "painted_shutter"
+  },
+  "interact": {
+   "toggle": "painted_shutter",
+   "sound": "core:hatch_close"
+  },
+  "item": false
+ },
+ {
+  "id": "glass_shutter",
+  "displayName": "Volets vitrés",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "glass"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:glass_shutter",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.5
+  },
+  "interact": {
+   "toggle": "glass_shutter_open",
+   "sound": "core:door_glass_open"
+  }
+ },
+ {
+  "id": "glass_shutter_open",
+  "displayName": "Volets vitrés (ouverts)",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "glass"
+  ],
+  "nodebox": [
+   [
+    -1.0,
+    -0.5,
+    0.375,
+    -0.5,
+    0.5,
+    0.5
+   ],
+   [
+    0.5,
+    -0.5,
+    0.375,
+    1.0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:glass_shutter",
+   "material": "TRANSLUCENT"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 1.5,
+   "drops": "glass_shutter"
+  },
+  "interact": {
+   "toggle": "glass_shutter",
+   "sound": "core:door_glass_close"
+  },
+  "item": false
+ },
+ {
+  "id": "iron_shutter",
+  "displayName": "Volets en fer",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "metal"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:iron_shutter"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe"
+  },
+  "interact": {
+   "toggle": "iron_shutter_open",
+   "sound": "core:door_steel_open"
+  }
+ },
+ {
+  "id": "iron_shutter_open",
+  "displayName": "Volets en fer (ouverts)",
+  "type": "nodebox",
+  "tags": [
+   "shutter",
+   "furniture",
+   "metal"
+  ],
+  "nodebox": [
+   [
+    -1.0,
+    -0.5,
+    0.375,
+    -0.5,
+    0.5,
+    0.5
+   ],
+   [
+    0.5,
+    -0.5,
+    0.375,
+    1.0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:iron_shutter"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe",
+   "drops": "iron_shutter"
+  },
+  "interact": {
+   "toggle": "iron_shutter",
+   "sound": "core:door_steel_close"
+  },
+  "item": false
+ },
+ {
+  "id": "ladder",
+  "displayName": "Échelle de chêne",
+  "type": "nodebox",
+  "tags": [
+   "climbable",
+   "ladder",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.4375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:ladder",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "axe"
+  },
+  "physics": {
+   "solid": false,
+   "climbable": true
+  }
+ },
+ {
+  "id": "spruce_ladder",
+  "displayName": "Échelle d'épicéa",
+  "type": "nodebox",
+  "tags": [
+   "climbable",
+   "ladder",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.4375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_ladder",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "axe"
+  },
+  "physics": {
+   "solid": false,
+   "climbable": true
+  }
+ },
+ {
+  "id": "birch_ladder",
+  "displayName": "Échelle de bouleau",
+  "type": "nodebox",
+  "tags": [
+   "climbable",
+   "ladder",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.4375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_ladder",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "axe"
+  },
+  "physics": {
+   "solid": false,
+   "climbable": true
+  }
+ },
+ {
+  "id": "jungle_ladder",
+  "displayName": "Échelle d'acajou de jungle",
+  "type": "nodebox",
+  "tags": [
+   "climbable",
+   "ladder",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.4375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_ladder",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "axe"
+  },
+  "physics": {
+   "solid": false,
+   "climbable": true
+  }
+ },
+ {
+  "id": "acacia_ladder",
+  "displayName": "Échelle d'acacia",
+  "type": "nodebox",
+  "tags": [
+   "climbable",
+   "ladder",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.4375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_ladder",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "axe"
+  },
+  "physics": {
+   "solid": false,
+   "climbable": true
+  }
+ },
+ {
+  "id": "dark_oak_ladder",
+  "displayName": "Échelle de chêne noir",
+  "type": "nodebox",
+  "tags": [
+   "climbable",
+   "ladder",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.4375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_ladder",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 0.8,
+   "tool": "axe"
+  },
+  "physics": {
+   "solid": false,
+   "climbable": true
+  }
+ },
+ {
+  "id": "iron_ladder",
+  "displayName": "Échelle en fer",
+  "type": "nodebox",
+  "tags": [
+   "climbable",
+   "ladder",
+   "furniture",
+   "metal"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    0.4375,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:iron_ladder",
+   "material": "CUTOUT"
+  },
+  "sounds": "core:metal",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "solid": false,
+   "climbable": true
+  }
+ },
+ {
+  "id": "bed_white",
+  "displayName": "Lit blanc",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_white_foot_top",
+    "bottom": "core:bed_white_foot_bottom",
+    "side": "core:bed_white_foot_side",
+    "north": "core:bed_white_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_white_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_white_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_white_head",
+  "displayName": "Lit blanc",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_white_head_top",
+    "bottom": "core:bed_white_head_bottom",
+    "side": "core:bed_white_head_side",
+    "south": "core:bed_white_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_orange",
+  "displayName": "Lit orange",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_orange_foot_top",
+    "bottom": "core:bed_orange_foot_bottom",
+    "side": "core:bed_orange_foot_side",
+    "north": "core:bed_orange_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_orange_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_orange_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_orange_head",
+  "displayName": "Lit orange",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_orange_head_top",
+    "bottom": "core:bed_orange_head_bottom",
+    "side": "core:bed_orange_head_side",
+    "south": "core:bed_orange_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_magenta",
+  "displayName": "Lit magenta",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_magenta_foot_top",
+    "bottom": "core:bed_magenta_foot_bottom",
+    "side": "core:bed_magenta_foot_side",
+    "north": "core:bed_magenta_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_magenta_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_magenta_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_magenta_head",
+  "displayName": "Lit magenta",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_magenta_head_top",
+    "bottom": "core:bed_magenta_head_bottom",
+    "side": "core:bed_magenta_head_side",
+    "south": "core:bed_magenta_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_light_blue",
+  "displayName": "Lit bleu clair",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_light_blue_foot_top",
+    "bottom": "core:bed_light_blue_foot_bottom",
+    "side": "core:bed_light_blue_foot_side",
+    "north": "core:bed_light_blue_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_light_blue_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_light_blue_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_light_blue_head",
+  "displayName": "Lit bleu clair",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_light_blue_head_top",
+    "bottom": "core:bed_light_blue_head_bottom",
+    "side": "core:bed_light_blue_head_side",
+    "south": "core:bed_light_blue_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_yellow",
+  "displayName": "Lit jaune",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_yellow_foot_top",
+    "bottom": "core:bed_yellow_foot_bottom",
+    "side": "core:bed_yellow_foot_side",
+    "north": "core:bed_yellow_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_yellow_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_yellow_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_yellow_head",
+  "displayName": "Lit jaune",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_yellow_head_top",
+    "bottom": "core:bed_yellow_head_bottom",
+    "side": "core:bed_yellow_head_side",
+    "south": "core:bed_yellow_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_lime",
+  "displayName": "Lit vert clair",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_lime_foot_top",
+    "bottom": "core:bed_lime_foot_bottom",
+    "side": "core:bed_lime_foot_side",
+    "north": "core:bed_lime_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_lime_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_lime_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_lime_head",
+  "displayName": "Lit vert clair",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_lime_head_top",
+    "bottom": "core:bed_lime_head_bottom",
+    "side": "core:bed_lime_head_side",
+    "south": "core:bed_lime_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_pink",
+  "displayName": "Lit rose",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_pink_foot_top",
+    "bottom": "core:bed_pink_foot_bottom",
+    "side": "core:bed_pink_foot_side",
+    "north": "core:bed_pink_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_pink_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_pink_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_pink_head",
+  "displayName": "Lit rose",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_pink_head_top",
+    "bottom": "core:bed_pink_head_bottom",
+    "side": "core:bed_pink_head_side",
+    "south": "core:bed_pink_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_gray",
+  "displayName": "Lit gris",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_gray_foot_top",
+    "bottom": "core:bed_gray_foot_bottom",
+    "side": "core:bed_gray_foot_side",
+    "north": "core:bed_gray_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_gray_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_gray_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_gray_head",
+  "displayName": "Lit gris",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_gray_head_top",
+    "bottom": "core:bed_gray_head_bottom",
+    "side": "core:bed_gray_head_side",
+    "south": "core:bed_gray_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_light_gray",
+  "displayName": "Lit gris clair",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_light_gray_foot_top",
+    "bottom": "core:bed_light_gray_foot_bottom",
+    "side": "core:bed_light_gray_foot_side",
+    "north": "core:bed_light_gray_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_light_gray_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_light_gray_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_light_gray_head",
+  "displayName": "Lit gris clair",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_light_gray_head_top",
+    "bottom": "core:bed_light_gray_head_bottom",
+    "side": "core:bed_light_gray_head_side",
+    "south": "core:bed_light_gray_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_cyan",
+  "displayName": "Lit cyan",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_cyan_foot_top",
+    "bottom": "core:bed_cyan_foot_bottom",
+    "side": "core:bed_cyan_foot_side",
+    "north": "core:bed_cyan_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_cyan_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_cyan_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_cyan_head",
+  "displayName": "Lit cyan",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_cyan_head_top",
+    "bottom": "core:bed_cyan_head_bottom",
+    "side": "core:bed_cyan_head_side",
+    "south": "core:bed_cyan_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_purple",
+  "displayName": "Lit violet",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_purple_foot_top",
+    "bottom": "core:bed_purple_foot_bottom",
+    "side": "core:bed_purple_foot_side",
+    "north": "core:bed_purple_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_purple_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_purple_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_purple_head",
+  "displayName": "Lit violet",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_purple_head_top",
+    "bottom": "core:bed_purple_head_bottom",
+    "side": "core:bed_purple_head_side",
+    "south": "core:bed_purple_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_blue",
+  "displayName": "Lit bleu",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_blue_foot_top",
+    "bottom": "core:bed_blue_foot_bottom",
+    "side": "core:bed_blue_foot_side",
+    "north": "core:bed_blue_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_blue_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_blue_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_blue_head",
+  "displayName": "Lit bleu",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_blue_head_top",
+    "bottom": "core:bed_blue_head_bottom",
+    "side": "core:bed_blue_head_side",
+    "south": "core:bed_blue_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_brown",
+  "displayName": "Lit marron",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_brown_foot_top",
+    "bottom": "core:bed_brown_foot_bottom",
+    "side": "core:bed_brown_foot_side",
+    "north": "core:bed_brown_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_brown_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_brown_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_brown_head",
+  "displayName": "Lit marron",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_brown_head_top",
+    "bottom": "core:bed_brown_head_bottom",
+    "side": "core:bed_brown_head_side",
+    "south": "core:bed_brown_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_green",
+  "displayName": "Lit vert",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_green_foot_top",
+    "bottom": "core:bed_green_foot_bottom",
+    "side": "core:bed_green_foot_side",
+    "north": "core:bed_green_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_green_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_green_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_green_head",
+  "displayName": "Lit vert",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_green_head_top",
+    "bottom": "core:bed_green_head_bottom",
+    "side": "core:bed_green_head_side",
+    "south": "core:bed_green_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_red",
+  "displayName": "Lit rouge",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_red_foot_top",
+    "bottom": "core:bed_red_foot_bottom",
+    "side": "core:bed_red_foot_side",
+    "north": "core:bed_red_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_red_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_red_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_red_head",
+  "displayName": "Lit rouge",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_red_head_top",
+    "bottom": "core:bed_red_head_bottom",
+    "side": "core:bed_red_head_side",
+    "south": "core:bed_red_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "bed_black",
+  "displayName": "Lit noir",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    -0.3125,
+    -0.3125,
+    -0.3125
+   ],
+   [
+    0.3125,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.3125,
+    -0.3125
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_black_foot_top",
+    "bottom": "core:bed_black_foot_bottom",
+    "side": "core:bed_black_foot_side",
+    "north": "core:bed_black_foot_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "maxStack": 1
+  },
+  "icon": "core:bed_black_icon",
+  "parts": [
+   {
+    "offset": [
+     0,
+     0,
+     1
+    ],
+    "block": "bed_black_head"
+   }
+  ],
+  "interact": {
+   "action": "sleep"
+  }
+ },
+ {
+  "id": "bed_black_head",
+  "displayName": "Lit noir",
+  "type": "nodebox",
+  "tags": [
+   "bed",
+   "furniture"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.3125,
+    -0.5,
+    0.5,
+    0.0625,
+    0.5
+   ],
+   [
+    -0.5,
+    -0.5,
+    0.3125,
+    -0.3125,
+    -0.3125,
+    0.5
+   ],
+   [
+    0.3125,
+    -0.5,
+    0.3125,
+    0.5,
+    -0.3125,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:bed_black_head_top",
+    "bottom": "core:bed_black_head_bottom",
+    "side": "core:bed_black_head_side",
+    "south": "core:bed_black_head_end"
+   },
+   "material": "CUTOUT"
+  },
+  "sounds": "core:wool",
+  "gameplay": {
+   "hardness": 0.6,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   0,
+   -1
+  ],
+  "interact": {
+   "action": "sleep"
+  },
+  "item": false
+ },
+ {
+  "id": "chest",
+  "displayName": "Coffre",
+  "type": "nodebox",
+  "tags": [
+   "storage",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.4375,
+    -0.5,
+    -0.4375,
+    0.4375,
+    0.375,
+    0.4375
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:chest_top",
+    "bottom": "core:chest_top",
+    "side": "core:chest_side",
+    "north": "core:chest_front"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe"
+  },
+  "container": {
+   "slots": 27,
+   "title": "Coffre",
+   "columns": 9,
+   "openSound": "core:chest_open",
+   "closeSound": "core:chest_close"
+  }
+ },
+ {
+  "id": "large_chest",
+  "displayName": "Grand coffre",
+  "type": "nodebox",
+  "tags": [
+   "storage",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.4375,
+    0.4375,
+    0.375,
+    0.4375
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:chest_top",
+    "bottom": "core:chest_top",
+    "side": "core:chest_side",
+    "north": "core:chest_front"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe"
+  },
+  "container": {
+   "slots": 54,
+   "title": "Grand coffre",
+   "columns": 9,
+   "openSound": "core:chest_open",
+   "closeSound": "core:chest_close"
+  },
+  "parts": [
+   {
+    "offset": [
+     -1,
+     0,
+     0
+    ],
+    "block": "large_chest_right"
+   }
+  ]
+ },
+ {
+  "id": "large_chest_right",
+  "displayName": "Grand coffre",
+  "type": "nodebox",
+  "tags": [
+   "storage",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.4375,
+    -0.5,
+    -0.4375,
+    0.5,
+    0.375,
+    0.4375
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:chest_top",
+    "bottom": "core:chest_top",
+    "side": "core:chest_side",
+    "north": "core:chest_front"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   1,
+   0,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "barrel",
+  "displayName": "Tonneau",
+  "type": "nodebox",
+  "tags": [
+   "storage",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:barrel_top",
+    "bottom": "core:barrel_top",
+    "side": "core:barrel_sides"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe"
+  },
+  "container": {
+   "slots": 27,
+   "title": "Tonneau",
+   "columns": 9,
+   "openSound": "core:chest_open",
+   "closeSound": "core:chest_close"
+  }
+ },
+ {
+  "id": "crate",
+  "displayName": "Caisse",
+  "type": "nodebox",
+  "tags": [
+   "storage",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "side": "core:crate_side",
+    "north": "core:crate_front"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe"
+  },
+  "container": {
+   "slots": 18,
+   "title": "Caisse",
+   "columns": 9,
+   "openSound": "core:chest_open",
+   "closeSound": "core:chest_close"
+  }
+ },
+ {
+  "id": "cabinet",
+  "displayName": "Buffet",
+  "type": "nodebox",
+  "tags": [
+   "storage",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "side": "core:cabinet_sides",
+    "north": "core:cabinet_front"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe"
+  },
+  "container": {
+   "slots": 18,
+   "title": "Buffet",
+   "columns": 9,
+   "openSound": "core:door_wood_open",
+   "closeSound": "core:door_wood_close"
+  }
+ },
+ {
+  "id": "drawers",
+  "displayName": "Commode",
+  "type": "nodebox",
+  "tags": [
+   "storage",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "side": "core:cabinet_sides",
+    "north": "core:drawers_front"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe"
+  },
+  "container": {
+   "slots": 18,
+   "title": "Commode",
+   "columns": 9,
+   "openSound": "core:cabinet_open",
+   "closeSound": "core:cabinet_close"
+  }
+ },
+ {
+  "id": "storage_shelf",
+  "displayName": "Étagère de rangement",
+  "type": "nodebox",
+  "tags": [
+   "storage",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "side": "core:cabinet_sides",
+    "north": "core:storage_shelf_front"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe"
+  },
+  "container": {
+   "slots": 9,
+   "title": "Étagère de rangement",
+   "columns": 9,
+   "openSound": "core:chest_open",
+   "closeSound": "core:chest_close"
+  }
+ },
+ {
+  "id": "wardrobe",
+  "displayName": "Armoire",
+  "type": "nodebox",
+  "tags": [
+   "storage",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "side": "core:cabinet_sides",
+    "north": "core:wardrobe_front_bottom"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe"
+  },
+  "container": {
+   "slots": 36,
+   "title": "Armoire",
+   "columns": 9,
+   "openSound": "core:door_wood_open",
+   "closeSound": "core:door_wood_close"
+  },
+  "parts": [
+   {
+    "offset": [
+     0,
+     1,
+     0
+    ],
+    "block": "wardrobe_top"
+   }
+  ]
+ },
+ {
+  "id": "wardrobe_top",
+  "displayName": "Armoire",
+  "type": "nodebox",
+  "tags": [
+   "storage",
+   "furniture",
+   "wood"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "side": "core:cabinet_sides",
+    "north": "core:wardrobe_front_top"
+   }
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "axe",
+   "drops": ""
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ }
+]

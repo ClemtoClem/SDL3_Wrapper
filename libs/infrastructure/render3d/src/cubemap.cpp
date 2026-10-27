@@ -55,6 +55,46 @@ Result<sdl3::GpuTexture, StringView> CreateEnvironmentCubemap(sdl3::GpuDevice &d
 	return device.CreateTexture(info);
 }
 
+Result<sdl3::GpuTexture, String> CreateCubemapFromFaces(sdl3::GpuDevice &device, const std::array<const uint8_t *, 6> &faces,
+		uint32_t size) {
+	sdl3::GpuTextureCreateInfo info{};
+	info.type = sdl3::gpu_texture_type::CUBE;
+	info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+	info.usage = sdl3::gpu_texture_usage::SAMPLER;
+	info.width = size;
+	info.height = size;
+	info.layer_count_or_depth = 6;
+	info.num_levels = 1;
+	info.sample_count = sdl3::gpu_sample_count::SAMPLE1;
+	auto textureResult = device.CreateTexture(info);
+	if (!textureResult)
+		return Err(String(textureResult.Error()));
+	const uint32_t faceBytes = size * size * 4;
+	auto transferResult = device.CreateTransferBuffer(sdl3::gpu_transfer_buffer_usage::UPLOAD, faceBytes * 6);
+	if (!transferResult)
+		return Err(String(transferResult.Error()));
+	sdl3::GpuTransferBuffer transfer = std::move(transferResult.Value());
+	{
+		auto mapped = transfer.Map(false);
+		if (!mapped)
+			return Err(String("CreateCubemapFromFaces : échec du mapping du transfer buffer"));
+		for (size_t f = 0; f < 6; ++f)
+			std::memcpy(static_cast<uint8_t *>(mapped.GetData()) + f * faceBytes, faces[f], faceBytes);
+	}
+	auto cmd = device.AcquireCommandBuffer();
+	{
+		sdl3::GpuCopyPass copyPass = cmd.BeginCopyPass();
+		for (uint32_t f = 0; f < 6; ++f) {
+			sdl3::GpuTextureTransferInfo src{transfer.Get(), f * faceBytes, size, size};
+			sdl3::GpuTextureRegion dst{textureResult.Value().Get(), 0, f, 0, 0, 0, size, size, 1};
+			copyPass.UploadToTexture(src, dst, false);
+		}
+	}
+	if (!cmd.Submit())
+		return Err(String(sdl3::GetError()));
+	return Ok(std::move(textureResult.Value()));
+}
+
 Result<sdl3::GpuTexture, String> UploadEquirectTexture(sdl3::GpuDevice &device, const HdrImage &image) {
 	sdl3::GpuTextureCreateInfo info{};
 	info.type = sdl3::gpu_texture_type::TEXTURE2_D;
@@ -270,8 +310,11 @@ Result<ShaderProgram, String> BuildSkyboxShaderProgram(sdl3::GpuDevice &device) 
 layout(location = 0) in vec3 inDir;
 layout(location = 0) out vec4 outFragColor;
 layout(set = 2, binding = 0) uniform samplerCube uEnvironment;
+layout(set = 3, binding = 0) uniform SkyUBO { vec4 uTint; }; // rgb : teinte, a : signe de x
 void main() {
-	outFragColor = texture(uEnvironment, normalize(inDir));
+	vec3 dir = normalize(inDir);
+	dir.x *= uTint.a; // -1 : cubemap au repère « main gauche » (convention OpenGL)
+	outFragColor = vec4(texture(uEnvironment, dir).rgb * uTint.rgb, 1.0);
 }
 )";
 	auto vertexShader = CompileShader(device, StringView(vertexSrc.CStr(), vertexSrc.GetSize()),
@@ -279,7 +322,7 @@ void main() {
 	if (!vertexShader)
 		return Err(std::move(vertexShader.Error()));
 	auto fragmentShader = CompileShader(device, StringView(fragmentSrc.CStr(), fragmentSrc.GetSize()),
-										sdl3::gpu_shader_stage::FRAGMENT, StringView("Skybox.frag"), 1, 0);
+										sdl3::gpu_shader_stage::FRAGMENT, StringView("Skybox.frag"), 1, 1);
 	if (!fragmentShader)
 		return Err(std::move(fragmentShader.Error()));
 	return Ok(ShaderProgram::FromShaders(std::move(vertexShader.Value()), std::move(fragmentShader.Value())));

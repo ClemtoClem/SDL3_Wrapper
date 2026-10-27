@@ -109,8 +109,11 @@ private:
 	/// Teintes d'un biome (herbe, feuillage, eau).
 	[[nodiscard]] std::array<std::array<uint8_t, 3>, 3> BiomeColors(const BiomeDef *biome) const;
 
+	/// `rotation` : quarts de tour du bloc (param & 3) — chaque face prend la
+	/// texture et les UV de la face d'origine (façade d'un coffre, dessus d'un lit).
 	void EmitBox(MeshBuffer &out, const Box &box, const BlockRender &render, const math::FVector3 &offset,
-				 const std::function<bool(Face)> &cull, const std::function<std::array<float, 4>(Face, const math::FVector3 *)> &ao) const;
+				 const std::function<bool(Face)> &cull, const std::function<std::array<float, 4>(Face, const math::FVector3 *)> &ao,
+				 uint8_t rotation = 0) const;
 	void EmitCross(MeshBuffer &out, const BlockRender &render, const math::FVector3 &offset, float light = 1.f) const;
 	void EmitModel(MeshBuffer &out, const String &model, const BlockRender &render, const math::FVector3 &offset, uint8_t param,
 				   const String &mod, bool normalize, float light = 1.f) const;

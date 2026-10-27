@@ -14,6 +14,8 @@
  *       entities  (uuid PK, kind, x, y, z, data JSON) entités persistantes
  *                 (« dimension » dans data : chacune reste dans la sienne)
  *       players   (name PK, data JSON, saved) joueurs
+ *       containers (pos PK « x,y,z » — « dimension|x,y,z » —, data JSON)
+ *                 contenu des rangements (coffres, armoires…)
  *       info      (key PK, value) format et version de la base
  *     world.db.bak    base précédente (repli si world.db est illisible)
  *
@@ -103,6 +105,10 @@ public:
 	Result<bool, String> SavePlayer(ecs::ArchetypeRegistry &registry, ecs::Entity player);
 	/// Applique l'état enregistré au joueur ; faux s'il n'existe pas encore.
 	bool LoadPlayer(ecs::ArchetypeRegistry &registry, ecs::Entity player);
+	/// Contenu d'un rangement de la dimension courante (Inventory::ToJson) ;
+	/// nul s'il n'a jamais été enregistré. `contents` nul : supprimé.
+	[[nodiscard]] NodePtr LoadContainer(const BlockPos &p);
+	Result<bool, String> SaveContainer(const BlockPos &p, const NodePtr &contents);
 
 	/// Migration de world.json de `fromVersion` à `fromVersion + 1` (les
 	/// autres fichiers peuvent être réécrits par la fonction).
@@ -118,6 +124,7 @@ public:
 private:
 	[[nodiscard]] String DatabasePath() const;
 	[[nodiscard]] String ChunkKey(const ChunkPos &p) const;
+	[[nodiscard]] String ContainerKey(const BlockPos &p) const;
 	/// Charge world.db (ou world.db.bak, ou une base neuve) une seule fois.
 	Result<bool, String> OpenDatabase();
 	void CreateSchema(sql::Database &db) const;

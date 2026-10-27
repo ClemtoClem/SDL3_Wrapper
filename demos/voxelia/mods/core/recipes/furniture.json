@@ -1,0 +1,1324 @@
+// Recettes du mobilier (généré par furniture.py).
+[
+ {
+  "type": "recipe",
+  "id": "oak_door",
+  "category": "furniture",
+  "result": {
+   "item": "oak_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_door",
+  "category": "furniture",
+  "result": {
+   "item": "spruce_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "spruce_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_door",
+  "category": "furniture",
+  "result": {
+   "item": "birch_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "birch_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_door",
+  "category": "furniture",
+  "result": {
+   "item": "jungle_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "jungle_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_door",
+  "category": "furniture",
+  "result": {
+   "item": "acacia_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "acacia_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_door",
+  "category": "furniture",
+  "result": {
+   "item": "dark_oak_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "dark_oak_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cherry_door",
+  "category": "furniture",
+  "result": {
+   "item": "cherry_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "cherry_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "ebony_door",
+  "category": "furniture",
+  "result": {
+   "item": "ebony_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "ebony_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "ethereal_door",
+  "category": "furniture",
+  "result": {
+   "item": "ethereal_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "ethereal_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "eucalyptus_door",
+  "category": "furniture",
+  "result": {
+   "item": "eucalyptus_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "eucalyptus_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "fir_door",
+  "category": "furniture",
+  "result": {
+   "item": "fir_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "fir_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "hellbark_door",
+  "category": "furniture",
+  "result": {
+   "item": "hellbark_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "hellbark_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jacaranda_door",
+  "category": "furniture",
+  "result": {
+   "item": "jacaranda_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "jacaranda_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "magic_door",
+  "category": "furniture",
+  "result": {
+   "item": "magic_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "magic_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mahogany_door",
+  "category": "furniture",
+  "result": {
+   "item": "mahogany_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "mahogany_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mangrove_door",
+  "category": "furniture",
+  "result": {
+   "item": "mangrove_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "mangrove_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "palm_door",
+  "category": "furniture",
+  "result": {
+   "item": "palm_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "palm_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "pine_door",
+  "category": "furniture",
+  "result": {
+   "item": "pine_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "pine_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "redwood_door",
+  "category": "furniture",
+  "result": {
+   "item": "redwood_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "redwood_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sacred_oak_door",
+  "category": "furniture",
+  "result": {
+   "item": "sacred_oak_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "sacred_oak_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "umbran_door",
+  "category": "furniture",
+  "result": {
+   "item": "umbran_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "umbran_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "willow_door",
+  "category": "furniture",
+  "result": {
+   "item": "willow_door",
+   "count": 3
+  },
+  "pattern": [
+   "PP",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "P": "willow_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "woodglass_door",
+  "category": "furniture",
+  "result": {
+   "item": "woodglass_door",
+   "count": 2
+  },
+  "pattern": [
+   "GG",
+   "PP",
+   "PP"
+  ],
+  "key": {
+   "G": "glass",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "japanese_door",
+  "category": "furniture",
+  "result": {
+   "item": "japanese_door",
+   "count": 2
+  },
+  "pattern": [
+   "PS",
+   "SS",
+   "PS"
+  ],
+  "key": {
+   "P": "#planks",
+   "S": "paper"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "glass_door",
+  "category": "furniture",
+  "result": {
+   "item": "glass_door",
+   "count": 2
+  },
+  "pattern": [
+   "GG",
+   "GG",
+   "GG"
+  ],
+  "key": {
+   "G": "glass"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "iron_door",
+  "category": "furniture",
+  "result": {
+   "item": "iron_door",
+   "count": 3
+  },
+  "pattern": [
+   "II",
+   "II",
+   "II"
+  ],
+  "key": {
+   "I": "iron_ingot"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "oak_trapdoor",
+  "category": "furniture",
+  "result": {
+   "item": "oak_trapdoor",
+   "count": 2
+  },
+  "pattern": [
+   "PPP",
+   "PPP"
+  ],
+  "key": {
+   "P": "planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_trapdoor",
+  "category": "furniture",
+  "result": {
+   "item": "spruce_trapdoor",
+   "count": 2
+  },
+  "pattern": [
+   "PPP",
+   "PPP"
+  ],
+  "key": {
+   "P": "spruce_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_trapdoor",
+  "category": "furniture",
+  "result": {
+   "item": "birch_trapdoor",
+   "count": 2
+  },
+  "pattern": [
+   "PPP",
+   "PPP"
+  ],
+  "key": {
+   "P": "birch_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_trapdoor",
+  "category": "furniture",
+  "result": {
+   "item": "jungle_trapdoor",
+   "count": 2
+  },
+  "pattern": [
+   "PPP",
+   "PPP"
+  ],
+  "key": {
+   "P": "jungle_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_trapdoor",
+  "category": "furniture",
+  "result": {
+   "item": "acacia_trapdoor",
+   "count": 2
+  },
+  "pattern": [
+   "PPP",
+   "PPP"
+  ],
+  "key": {
+   "P": "acacia_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_trapdoor",
+  "category": "furniture",
+  "result": {
+   "item": "dark_oak_trapdoor",
+   "count": 2
+  },
+  "pattern": [
+   "PPP",
+   "PPP"
+  ],
+  "key": {
+   "P": "dark_oak_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "glass_trapdoor",
+  "category": "furniture",
+  "result": {
+   "item": "glass_trapdoor",
+   "count": 2
+  },
+  "pattern": [
+   "GGG",
+   "PPP"
+  ],
+  "key": {
+   "G": "glass",
+   "P": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "iron_trapdoor",
+  "category": "furniture",
+  "result": "iron_trapdoor",
+  "pattern": [
+   "II",
+   "II"
+  ],
+  "key": {
+   "I": "iron_ingot"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "oak_shutter",
+  "category": "furniture",
+  "result": {
+   "item": "oak_shutter",
+   "count": 2
+  },
+  "pattern": [
+   "PSP",
+   "PSP"
+  ],
+  "key": {
+   "P": "planks",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_shutter",
+  "category": "furniture",
+  "result": {
+   "item": "spruce_shutter",
+   "count": 2
+  },
+  "pattern": [
+   "PSP",
+   "PSP"
+  ],
+  "key": {
+   "P": "spruce_planks",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_shutter",
+  "category": "furniture",
+  "result": {
+   "item": "birch_shutter",
+   "count": 2
+  },
+  "pattern": [
+   "PSP",
+   "PSP"
+  ],
+  "key": {
+   "P": "birch_planks",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_shutter",
+  "category": "furniture",
+  "result": {
+   "item": "jungle_shutter",
+   "count": 2
+  },
+  "pattern": [
+   "PSP",
+   "PSP"
+  ],
+  "key": {
+   "P": "jungle_planks",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_shutter",
+  "category": "furniture",
+  "result": {
+   "item": "acacia_shutter",
+   "count": 2
+  },
+  "pattern": [
+   "PSP",
+   "PSP"
+  ],
+  "key": {
+   "P": "acacia_planks",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_shutter",
+  "category": "furniture",
+  "result": {
+   "item": "dark_oak_shutter",
+   "count": 2
+  },
+  "pattern": [
+   "PSP",
+   "PSP"
+  ],
+  "key": {
+   "P": "dark_oak_planks",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "painted_shutter",
+  "category": "furniture",
+  "result": "painted_shutter",
+  "ingredients": [
+   "oak_shutter",
+   "blue_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "glass_shutter",
+  "category": "furniture",
+  "result": {
+   "item": "glass_shutter",
+   "count": 2
+  },
+  "pattern": [
+   "GSG",
+   "GSG"
+  ],
+  "key": {
+   "G": "glass",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "iron_shutter",
+  "category": "furniture",
+  "result": {
+   "item": "iron_shutter",
+   "count": 2
+  },
+  "pattern": [
+   "ISI",
+   "ISI"
+  ],
+  "key": {
+   "I": "iron_ingot",
+   "S": "iron_nugget"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_ladder",
+  "category": "building",
+  "result": {
+   "item": "spruce_ladder",
+   "count": 3
+  },
+  "pattern": [
+   "S S",
+   "SPS",
+   "S S"
+  ],
+  "key": {
+   "S": "stick",
+   "P": "spruce_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_ladder",
+  "category": "building",
+  "result": {
+   "item": "birch_ladder",
+   "count": 3
+  },
+  "pattern": [
+   "S S",
+   "SPS",
+   "S S"
+  ],
+  "key": {
+   "S": "stick",
+   "P": "birch_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_ladder",
+  "category": "building",
+  "result": {
+   "item": "jungle_ladder",
+   "count": 3
+  },
+  "pattern": [
+   "S S",
+   "SPS",
+   "S S"
+  ],
+  "key": {
+   "S": "stick",
+   "P": "jungle_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_ladder",
+  "category": "building",
+  "result": {
+   "item": "acacia_ladder",
+   "count": 3
+  },
+  "pattern": [
+   "S S",
+   "SPS",
+   "S S"
+  ],
+  "key": {
+   "S": "stick",
+   "P": "acacia_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_ladder",
+  "category": "building",
+  "result": {
+   "item": "dark_oak_ladder",
+   "count": 3
+  },
+  "pattern": [
+   "S S",
+   "SPS",
+   "S S"
+  ],
+  "key": {
+   "S": "stick",
+   "P": "dark_oak_planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "iron_ladder",
+  "category": "building",
+  "result": {
+   "item": "iron_ladder",
+   "count": 2
+  },
+  "pattern": [
+   "N N",
+   "NNN",
+   "N N"
+  ],
+  "key": {
+   "N": "iron_nugget"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_white",
+  "category": "furniture",
+  "result": "bed_white",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "white_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_white_dyed",
+  "category": "furniture",
+  "result": "bed_white",
+  "ingredients": [
+   "#bed",
+   "white_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_orange",
+  "category": "furniture",
+  "result": "bed_orange",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "orange_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_orange_dyed",
+  "category": "furniture",
+  "result": "bed_orange",
+  "ingredients": [
+   "#bed",
+   "orange_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_magenta",
+  "category": "furniture",
+  "result": "bed_magenta",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "magenta_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_magenta_dyed",
+  "category": "furniture",
+  "result": "bed_magenta",
+  "ingredients": [
+   "#bed",
+   "magenta_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_light_blue",
+  "category": "furniture",
+  "result": "bed_light_blue",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "light_blue_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_light_blue_dyed",
+  "category": "furniture",
+  "result": "bed_light_blue",
+  "ingredients": [
+   "#bed",
+   "light_blue_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_yellow",
+  "category": "furniture",
+  "result": "bed_yellow",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "yellow_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_yellow_dyed",
+  "category": "furniture",
+  "result": "bed_yellow",
+  "ingredients": [
+   "#bed",
+   "yellow_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_lime",
+  "category": "furniture",
+  "result": "bed_lime",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "lime_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_lime_dyed",
+  "category": "furniture",
+  "result": "bed_lime",
+  "ingredients": [
+   "#bed",
+   "lime_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_pink",
+  "category": "furniture",
+  "result": "bed_pink",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "pink_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_pink_dyed",
+  "category": "furniture",
+  "result": "bed_pink",
+  "ingredients": [
+   "#bed",
+   "pink_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_gray",
+  "category": "furniture",
+  "result": "bed_gray",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "gray_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_gray_dyed",
+  "category": "furniture",
+  "result": "bed_gray",
+  "ingredients": [
+   "#bed",
+   "gray_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_light_gray",
+  "category": "furniture",
+  "result": "bed_light_gray",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "light_gray_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_light_gray_dyed",
+  "category": "furniture",
+  "result": "bed_light_gray",
+  "ingredients": [
+   "#bed",
+   "light_gray_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_cyan",
+  "category": "furniture",
+  "result": "bed_cyan",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "cyan_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_cyan_dyed",
+  "category": "furniture",
+  "result": "bed_cyan",
+  "ingredients": [
+   "#bed",
+   "cyan_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_purple",
+  "category": "furniture",
+  "result": "bed_purple",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "purple_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_purple_dyed",
+  "category": "furniture",
+  "result": "bed_purple",
+  "ingredients": [
+   "#bed",
+   "purple_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_blue",
+  "category": "furniture",
+  "result": "bed_blue",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "blue_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_blue_dyed",
+  "category": "furniture",
+  "result": "bed_blue",
+  "ingredients": [
+   "#bed",
+   "blue_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_brown",
+  "category": "furniture",
+  "result": "bed_brown",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "brown_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_brown_dyed",
+  "category": "furniture",
+  "result": "bed_brown",
+  "ingredients": [
+   "#bed",
+   "brown_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_green",
+  "category": "furniture",
+  "result": "bed_green",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "green_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_green_dyed",
+  "category": "furniture",
+  "result": "bed_green",
+  "ingredients": [
+   "#bed",
+   "green_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_red",
+  "category": "furniture",
+  "result": "bed_red",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "red_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_red_dyed",
+  "category": "furniture",
+  "result": "bed_red",
+  "ingredients": [
+   "#bed",
+   "red_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "bed_black",
+  "category": "furniture",
+  "result": "bed_black",
+  "pattern": [
+   "WWW",
+   "PPP"
+  ],
+  "key": {
+   "W": "black_wool",
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bed_black_dyed",
+  "category": "furniture",
+  "result": "bed_black",
+  "ingredients": [
+   "#bed",
+   "black_dye"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "chest",
+  "category": "furniture",
+  "result": "chest",
+  "pattern": [
+   "PPP",
+   "P P",
+   "PPP"
+  ],
+  "key": {
+   "P": "#planks"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "large_chest",
+  "category": "furniture",
+  "result": "large_chest",
+  "ingredients": [
+   "chest",
+   "chest"
+  ]
+ },
+ {
+  "type": "recipe",
+  "id": "barrel",
+  "category": "furniture",
+  "result": "barrel",
+  "pattern": [
+   "PSP",
+   "P P",
+   "PSP"
+  ],
+  "key": {
+   "P": "#planks",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "crate",
+  "category": "furniture",
+  "result": "crate",
+  "pattern": [
+   "SPS",
+   "P P",
+   "SPS"
+  ],
+  "key": {
+   "P": "#planks",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cabinet",
+  "category": "furniture",
+  "result": "cabinet",
+  "pattern": [
+   "PPP",
+   "S S",
+   "PPP"
+  ],
+  "key": {
+   "P": "#planks",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "drawers",
+  "category": "furniture",
+  "result": "drawers",
+  "pattern": [
+   "PPP",
+   "PCP",
+   "PPP"
+  ],
+  "key": {
+   "P": "#planks",
+   "C": "chest"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "storage_shelf",
+  "category": "furniture",
+  "result": "storage_shelf",
+  "pattern": [
+   "PPP",
+   "SSS",
+   "PPP"
+  ],
+  "key": {
+   "P": "#planks",
+   "S": "stick"
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "wardrobe",
+  "category": "furniture",
+  "result": "wardrobe",
+  "pattern": [
+   "PPP",
+   "PCP",
+   "PCP"
+  ],
+  "key": {
+   "P": "#planks",
+   "C": "chest"
+  }
+ }
+]

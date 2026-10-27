@@ -57,6 +57,7 @@
 				{"id": "combat", "name": "Combat"},
 				{"id": "building", "name": "Construction"},
 				{"id": "decoration", "name": "Décoration"},
+				{"id": "furniture", "name": "Mobilier"},
 				{"id": "food", "name": "Nourriture"},
 				{"id": "materials", "name": "Matériaux"},
 				{"id": "dyes", "name": "Teintures"},

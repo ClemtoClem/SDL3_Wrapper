@@ -84,17 +84,78 @@ bool Canvas::EnsureShadowResources() {
 	return true;
 }
 
-bool Canvas::EnsureSkyboxResources() {
-	if (m_skyboxPipeline.IsSome())
-		return true;
-
+sdl3::GpuGraphicsPipeline *Canvas::SkyboxPipelineFor(sdl3::GpuTextureFormat color, sdl3::GpuTextureFormat depth) {
+	for (SkyboxPipeline &p : m_skyboxPipelines)
+		if (p.color == color && p.depth == depth)
+			return &p.pipeline;
 	auto program = BuildSkyboxShaderProgram(m_device);
 	if (!program)
-		return false;
-	auto pipeline = CreateSkyboxPipeline(m_device, program.Value(), m_colorFormat, m_depthFormat);
+		return nullptr;
+	auto pipeline = CreateSkyboxPipeline(m_device, program.Value(), color, depth);
 	if (!pipeline)
-		return false;
-	m_skyboxPipeline = Some(std::move(pipeline.Value()));
+		return nullptr;
+	m_skyboxPipelines.push_back(SkyboxPipeline{color, depth, std::move(pipeline.Value())});
+	return &m_skyboxPipelines.back().pipeline;
+}
+
+void Canvas::DrawSkybox(sdl3::GpuCommandBuffer &cmd, sdl3::GpuRenderPass &pass, const Camera &camera,
+		sdl3::GpuTextureFormat color, sdl3::GpuTextureFormat depth) {
+	const Option<Ref<sdl3::GpuTexture>> &cubemap = m_skyboxCubemap.IsSome() ? m_skyboxCubemap : m_environmentCubemap;
+	if (cubemap.IsNone() || !EnsureSkyboxResources())
+		return;
+	sdl3::GpuGraphicsPipeline *pipeline = SkyboxPipelineFor(color, depth);
+	if (!pipeline)
+		return;
+	// Vue « rotation seule » (translation de la caméra retirée) : même
+	// direction relative target-position, œil forcé à l'origine.
+	const math::FMatrix4 view = math::FMatrix4::LookAt({0.f, 0.f, 0.f}, camera.target - camera.position, camera.up);
+	const math::FMatrix4 viewProjection = camera.ProjectionMatrix() * view;
+	pass.BindPipeline(*pipeline);
+	sdl3::GpuBufferBinding binding{m_skyboxVertexBuffer.Value().Get(), 0};
+	pass.BindVertexBuffer(0, binding);
+	cmd.PushVertexUniformData(0, viewProjection);
+	// L'environnement IBL est converti dans le repère de render3d : pas de miroir.
+	const float tint[4] = {m_skyboxTint[0], m_skyboxTint[1], m_skyboxTint[2], m_skyboxCubemap.IsSome() ? m_skyboxMirror : 1.f};
+	cmd.PushFragmentUniformData(0, tint);
+	sdl3::GpuTextureSamplerBinding sampler{cubemap.Value()->Get(), m_skyboxSampler.Value().Get()};
+	pass.BindFragmentSamplers(0, {&sampler, 1});
+	pass.DrawPrimitives(m_skyboxVertexCount);
+}
+
+void Canvas::BindUnlitMaterial(sdl3::GpuCommandBuffer &cmd, sdl3::GpuRenderPass &pass, const Material &material,
+		bool generated) {
+	const sdl3::FColor bc(material.baseColor);
+	if (!generated) { // mesh_basic précompilé : la couleur seule
+		struct BasicMaterialUBO {
+			float baseColor[4];
+		};
+		BasicMaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a}};
+		cmd.PushFragmentUniformData(0, materialUbo);
+		return;
+	}
+	// Shader généré (ShaderBuilder, éclairage UNLIT) : MaterialUBO complet et
+	// texture d'albédo (blanche à défaut), transparence comprise.
+	struct MaterialUBO {
+		float baseColor[4];
+		float emissive[4];
+		float roughness, metallic, useTexture, useIBL;
+	};
+	MaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a}, {0.f, 0.f, 0.f, 0.f}, 0.f, 0.f, material.albedo.IsSome() ? 1.f : 0.f, 0.f};
+	cmd.PushFragmentUniformData(0, materialUbo);
+	sdl3::GpuTextureSamplerBinding samplerBinding{};
+	samplerBinding.texture = material.albedo.IsSome() ? material.albedo.Value()->Get() : m_whiteTexture.Get();
+	samplerBinding.sampler = SamplerFor(material);
+	pass.BindFragmentSamplers(0, {&samplerBinding, 1});
+}
+
+void Canvas::SetSkybox(const sdl3::GpuTexture &cubemap, bool glConvention) noexcept {
+	m_skyboxCubemap = Some(MakeRef(cubemap));
+	m_skyboxMirror = glConvention ? -1.f : 1.f;
+}
+
+bool Canvas::EnsureSkyboxResources() {
+	if (m_skyboxVertexBuffer.IsSome() && m_skyboxSampler.IsSome())
+		return true;
 
 	std::vector<Vertex3D> cubeVerts = CubeVertices();
 	m_skyboxVertexCount = uint32_t(cubeVerts.size());
@@ -202,8 +263,11 @@ Option<Ref<sdl3::GpuGraphicsPipeline>> Canvas::GetOrCreatePipeline(const Pipelin
 	// par PipelineKey comme le reste — pas de recompilation par frame). Le
 	// ShaderProgram généré n'a besoin de survivre qu'à la création du
 	// pipeline (SDL_GPU copie ce dont il a besoin en interne).
+	// Le basique précompilé ignore la texture (couleur seule) : un matériau
+	// non éclairé TEXTURÉ passe lui aussi par un shader généré.
 	bool needsBuiltShader = key.shader == ShaderKind::PBR || key.pointLightCount > 0 || key.spotLightCount > 0 ||
-							key.hasShadows || key.hasEnvironment || key.instanced || key.skinned;
+							key.hasShadows || key.hasEnvironment || key.instanced || key.skinned ||
+							(key.shader == ShaderKind::BASIC && key.hasTexture);
 	ShaderProgram builtProgram;
 	if (needsBuiltShader) {
 		LightingModel model = key.shader == ShaderKind::PBR       ? LightingModel::PBR
@@ -894,20 +958,7 @@ void Canvas::End() {
 		// profondeur désactivée exprès). Vue "rotation seule" (translation de
 		// la caméra retirée, voir le plan M11) : même direction relative
 		// target-position, œil forcé à l'origine.
-		if (m_environmentCubemap.IsSome() && EnsureSkyboxResources()) {
-			math::FMatrix4 skyboxView =
-				math::FMatrix4::LookAt({0.f, 0.f, 0.f}, m_camera.target - m_camera.position, m_camera.up);
-			math::FMatrix4 skyboxViewProjection = m_camera.ProjectionMatrix() * skyboxView;
-
-			pass.BindPipeline(m_skyboxPipeline.Value());
-			sdl3::GpuBufferBinding skyboxBinding{m_skyboxVertexBuffer.Value().Get(), 0};
-			pass.BindVertexBuffer(0, skyboxBinding);
-			cmd.PushVertexUniformData(0, skyboxViewProjection);
-			sdl3::GpuTextureSamplerBinding skyboxSamplerBinding{m_environmentCubemap.Value()->Get(),
-																m_skyboxSampler.Value().Get()};
-			pass.BindFragmentSamplers(0, {&skyboxSamplerBinding, 1});
-			pass.DrawPrimitives(m_skyboxVertexCount);
-		}
+		DrawSkybox(cmd, pass, m_camera, m_colorFormat, m_depthFormat);
 
 		math::FMatrix4 viewProjection = m_camera.ViewProjectionMatrix();
 		bool multiLight = !m_pointLights.empty() || !m_spotLights.empty();
@@ -1149,12 +1200,7 @@ void Canvas::End() {
 					pass.BindFragmentSamplers(0, {&samplerBinding, 1});
 				}
 			} else {
-				struct BasicMaterialUBO {
-					float baseColor[4];
-				};
-				sdl3::FColor bc(draw.material.baseColor);
-				BasicMaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a}};
-				cmd.PushFragmentUniformData(0, materialUbo);
+				BindUnlitMaterial(cmd, pass, draw.material, key.hasTexture);
 			}
 
 			uint32_t indexCount = draw.indexCount == 0 ? draw.mesh->IndexCount() : draw.indexCount;
@@ -1301,12 +1347,7 @@ void Canvas::End() {
 				samplerBinding.sampler = SamplerFor(draw.material);
 				pass.BindFragmentSamplers(0, {&samplerBinding, 1});
 			} else {
-				struct BasicMaterialUBO {
-					float baseColor[4];
-				};
-				sdl3::FColor bc(draw.material.baseColor);
-				BasicMaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a}};
-				cmd.PushFragmentUniformData(0, materialUbo);
+				BindUnlitMaterial(cmd, pass, draw.material, true);
 			}
 
 			pass.DrawIndexedPrimitives(draw.mesh->IndexCount(), uint32_t(draw.instances.size()), 0);
@@ -1443,12 +1484,7 @@ void Canvas::End() {
 				samplerBinding.sampler = SamplerFor(draw.material);
 				pass.BindFragmentSamplers(0, {&samplerBinding, 1});
 			} else {
-				struct BasicMaterialUBO {
-					float baseColor[4];
-				};
-				sdl3::FColor bc(draw.material.baseColor);
-				BasicMaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a}};
-				cmd.PushFragmentUniformData(0, materialUbo);
+				BindUnlitMaterial(cmd, pass, draw.material, true);
 			}
 
 			pass.DrawIndexedPrimitives(draw.geometry->IndexCount(), 1, 0);

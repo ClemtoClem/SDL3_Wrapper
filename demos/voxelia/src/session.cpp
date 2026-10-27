@@ -1123,6 +1123,8 @@ void Session::HandleUiRequests() {
 			m_shell.Push(MakeTrade(m_shell, std::move(r)));
 		else if (r.kind == "dialog")
 			m_shell.Push(MakeDialog(m_shell, std::move(r)));
+		else if (r.kind == "container")
+			m_shell.Push(MakeContainer(m_shell, std::move(r)));
 	}
 }
 

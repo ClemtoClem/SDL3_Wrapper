@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <cstring>
 #include <vector>
 
@@ -62,6 +63,14 @@ void main() {
 																				   sdl3::GpuTextureFormat format,
 																				   uint32_t numLevels = 1);
 
+/// Cubemap RGBA8 (échantillonnée seulement) à partir de six faces carrées
+/// `size` × `size` déjà décodées, dans l'ordre standard +X, -X, +Y, -Y, +Z,
+/// -Z — ciels « en croix » des jeux (voir Canvas::SetSkybox). Les faces
+/// suivent la convention OpenGL (repère « main gauche ») : SetSkybox
+/// l'affiche par défaut dans le repère « main droite » de render3d.
+[[nodiscard]] Result<sdl3::GpuTexture, String> CreateCubemapFromFaces(sdl3::GpuDevice &device,
+																	 const std::array<const uint8_t *, 6> &faces, uint32_t size);
+
 /// Upload l'image équirectangulaire décodée (RGB, voir hdr_loader.hpp) comme
 /// texture 2D source (RGBA32F — complète le canal alpha à 1, toujours
 /// supporté en lecture SAMPLER contrairement aux cibles de rendu HDR).
@@ -103,6 +112,7 @@ inline constexpr uint32_t PREFILTER_MIP_LEVELS = 5;
 // ── Skybox (M11) — dessine le cube unité de CubeVertices() en échantillonnant
 // directement une cubemap d'environnement déjà prête (samplerCube, pas de
 // conversion ici) ; le sommet du cube fait à nouveau office de direction.
+// Uniform fragment (set=3 binding=0) : teinte multipliée (jour/nuit).
 [[nodiscard]] Result<ShaderProgram, String> BuildSkyboxShaderProgram(sdl3::GpuDevice &device);
 
 /// Pipeline skybox : dessiné en premier dans la passe couleur principale

@@ -145,6 +145,7 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 		sdl3::GpuRenderPass pass = cmd.BeginRenderPass(colorTarget, &depthTarget);
 		sdl3::GpuViewport viewport{0.f, 0.f, float(target.Width()), float(target.Height()), 0.f, 1.f};
 		pass.SetViewport(viewport);
+		DrawSkybox(cmd, pass, camera, target.ColorFormat(), target.DepthFormat());
 
 		bool multiLight = !m_pointLights.empty() || !m_spotLights.empty();
 
@@ -307,12 +308,7 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 				samplerBinding.sampler = SamplerFor(draw.material);
 				pass.BindFragmentSamplers(0, {&samplerBinding, 1});
 			} else {
-				struct BasicMaterialUBO {
-					float baseColor[4];
-				};
-				sdl3::FColor bc(draw.material.baseColor);
-				BasicMaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a}};
-				cmd.PushFragmentUniformData(0, materialUbo);
+				BindUnlitMaterial(cmd, pass, draw.material, key.hasTexture);
 			}
 
 			uint32_t indexCount = draw.indexCount == 0 ? draw.mesh->IndexCount() : draw.indexCount;

@@ -141,6 +141,7 @@ void WorldSave::CreateSchema(sql::Database &db) const {
 	(void)db.Execute("CREATE TABLE chunks (pos STRING PRIMARY KEY, x INT, y INT, z INT, data STRING)");
 	(void)db.Execute("CREATE TABLE entities (uuid STRING PRIMARY KEY, kind STRING, x FLOAT, y FLOAT, z FLOAT, data STRING)");
 	(void)db.Execute("CREATE TABLE players (name STRING PRIMARY KEY, data STRING, saved STRING)");
+	(void)db.Execute("CREATE TABLE containers (pos STRING PRIMARY KEY, data STRING)");
 	(void)db.Upsert("info", {Node::MakeString(String("format")), Node::MakeString(String(DB_FORMAT))});
 	(void)db.Upsert("info", {Node::MakeString(String("version")), Node::MakeString(String::Format("%d", DB_VERSION))});
 }
@@ -163,6 +164,8 @@ Result<bool, String> WorldSave::OpenDatabase() {
 		Result<sql::Database, String> loaded = sql::LoadDatabaseBinary(candidate);
 		if (loaded.IsOk() && valid(loaded.Value())) {
 			m_db = std::move(loaded.Value());
+			if (m_db.GetSchema(String("containers")).IsNone()) // base antérieure aux rangements
+				(void)m_db.Execute("CREATE TABLE containers (pos STRING PRIMARY KEY, data STRING)");
 			if (candidate == backup) {
 				m_warnings.push_back(String::Format("%s illisible (%s) : sauvegarde précédente restaurée", path.CStr(), failure.CStr()));
 				m_dirty = true; // réécrit au propre à la prochaine sauvegarde
@@ -469,6 +472,36 @@ String WorldSave::ChunkKey(const ChunkPos &p) const {
 	return m_dimension.IsEmpty() ? LegacyChunkKey(p) : m_dimension + String("|") + LegacyChunkKey(p);
 }
 
+String WorldSave::ContainerKey(const BlockPos &p) const {
+	const String key = String::Format("%d,%d,%d", p.x, p.y, p.z);
+	return m_dimension.IsEmpty() ? key : m_dimension + String("|") + key;
+}
+
+NodePtr WorldSave::LoadContainer(const BlockPos &p) {
+	if (OpenDatabase().IsError())
+		return nullptr;
+	Result<Option<sql::Row>, String> row = m_db.FindByKey(String("containers"), Node::MakeString(ContainerKey(p)));
+	if (row.IsError() || row.Value().IsNone())
+		return nullptr;
+	Result<NodePtr, String> read = json::Parse(row.Value().Unwrap()[1]->stringValue);
+	return read.IsOk() ? read.Value() : nullptr;
+}
+
+Result<bool, String> WorldSave::SaveContainer(const BlockPos &p, const NodePtr &contents) {
+	if (Result<bool, String> r = OpenDatabase(); r.IsError())
+		return r;
+	if (!contents) {
+		if (Result<bool, String> r = m_db.DeleteByKey(String("containers"), Node::MakeString(ContainerKey(p))); r.IsError())
+			return r;
+	} else if (Result<sql::QueryResult, String> r =
+				   m_db.Upsert(String("containers"), {Node::MakeString(ContainerKey(p)), Node::MakeString(json::Encode(contents))});
+			   r.IsError()) {
+		return Err(r.Error());
+	}
+	m_dirty = true;
+	return Ok(true);
+}
+
 bool WorldSave::LoadChunk(Chunk &chunk) {
 	if (OpenDatabase().IsError())
 		return false;
@@ -528,6 +561,11 @@ NodePtr EntityToJson(ecs::ArchetypeRegistry &registry, ecs::Entity e) {
 		if (!player.Unwrap()->returnDimension.IsEmpty()) {
 			n->Set("returnDimension", json::MakeStr(player.Unwrap()->returnDimension));
 			n->Set("returnPosition", Vec(player.Unwrap()->returnPosition));
+		}
+		if (player.Unwrap()->hasBed) {
+			const BlockPos &b = player.Unwrap()->bed;
+			n->Set("bed", Vec(math::FVector3{float(b.x), float(b.y), float(b.z)}));
+			n->Set("bedDimension", json::MakeStr(player.Unwrap()->bedDimension));
 		}
 	}
 	if (auto body = registry.GetComponent<PhysicsBody>(e); body.IsSome() && body.Unwrap()->gravityDirection < 0.f)
@@ -697,6 +735,12 @@ bool WorldSave::LoadPlayer(ecs::ArchetypeRegistry &registry, ecs::Entity player)
 		pl.Unwrap()->dimension = json::Str(n, "dimension");
 		pl.Unwrap()->returnDimension = json::Str(n, "returnDimension");
 		pl.Unwrap()->returnPosition = json::Vec3(n, "returnPosition");
+		pl.Unwrap()->hasBed = json::Has(n, "bed");
+		if (pl.Unwrap()->hasBed) {
+			const math::FVector3 b = json::Vec3(n, "bed");
+			pl.Unwrap()->bed = BlockPos{int(std::lround(b.x)), int(std::lround(b.y)), int(std::lround(b.z))};
+			pl.Unwrap()->bedDimension = json::Str(n, "bedDimension");
+		}
 	}
 	if (auto body = registry.GetComponent<PhysicsBody>(player); body.IsSome())
 		body.Unwrap()->gravityDirection = json::Bool(n, "gravityInverted", false) ? -1.f : 1.f;

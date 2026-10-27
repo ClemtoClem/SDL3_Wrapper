@@ -41,6 +41,7 @@
 #include "mods.hpp"
 #include "physics.hpp"
 #include "save.hpp"
+#include "schematic.hpp"
 #include "worldgen.hpp"
 
 namespace voxel {
@@ -53,6 +54,9 @@ struct GameOptions {
 	std::vector<String> modOrder;  ///< ordre de chargement souhaité (dépendances d'abord malgré tout)
 	NodePtr modSettings;           ///< {mod: {réglage: valeur}} : lu par voxel.setting() côté script
 	String savesDirectory = "saves";
+	/// Dossier d'ÉCHANGE des structures entre mondes (import / export) ; chaque
+	/// monde a aussi le sien, <sauvegarde>/structures.
+	String structureDirectory = "structures";
 	int viewRadius = 6;        ///< chunks
 	int verticalRadius = 3;
 	size_t chunkBudget = 6;    ///< chunks chargés par image au plus
@@ -221,6 +225,73 @@ public:
 	[[nodiscard]] Option<EntityHit> TargetEntity(ecs::Entity actor);
 	[[nodiscard]] ItemStack *HeldItem(ecs::Entity actor);
 
+	// ── Blocs interactifs ───────────────────────────────────────────────────
+	//
+	// Un bloc peut occuper plusieurs cellules (« parts » / « partOf » : porte,
+	// lit), basculer vers un autre au clic droit (« interact.toggle » : porte
+	// ouverte ↔ fermée), servir de lit (« interact.action »: "sleep") ou de
+	// rangement (« container.slots » : coffre, armoire). Clic droit sur un tel
+	// bloc : il est utilisé plutôt que d'y poser l'objet tenu (sauf accroupi).
+
+	/// Bloc principal d'un bloc en plusieurs cellules (`pos` lui-même sinon).
+	[[nodiscard]] BlockPos MainPart(const BlockPos &pos);
+	/// Clic droit sur le bloc : bascule, lit ou rangement ; faux s'il n'a pas d'action.
+	bool UseBlock(ecs::Entity actor, const BlockPos &pos);
+	/// Bascule le bloc et ses parties vers « interact.toggle » (orientation gardée).
+	bool ToggleBlock(const BlockPos &pos, ecs::Entity actor = ecs::Entity{});
+	/// Dort dans le lit : il devient le point de réapparition ; la nuit, passe
+	/// au matin (sauf monstre proche ou dimension sans cycle du jour).
+	bool Sleep(ecs::Entity player, const BlockPos &bed);
+	/// Contenu du rangement en `pos` (dimension courante), lu dans la
+	/// sauvegarde à la première demande ; nul si le bloc n'est pas un rangement.
+	[[nodiscard]] Inventory *BlockInventory(const BlockPos &pos);
+
+	// ── Structures (copier, coller, fichiers) ───────────────────────────────
+	//
+	// Fichiers : `exchange` faux → dossier du monde (<sauvegarde>/structures),
+	// vrai → dossier d'échange entre mondes (GameOptions::structureDirectory).
+	// Noms simples seulement (pas de chemin) ; sans extension : « .vxs.json ».
+
+	/// Dossier des structures du monde ouvert, ou d'échange.
+	[[nodiscard]] String StructuresDirectory(bool exchange = false) const;
+	/// Copie [a, b] avec le contenu des rangements.
+	[[nodiscard]] Schematic CaptureRegion(const BlockPos &a, const BlockPos &b, Option<BlockPos> anchor = NONE);
+	/// Colle (rangements remplis) ; rend les cellules modifiées.
+	int64_t PasteSchematic(const Schematic &schematic, const BlockPos &at, const Schematic::PasteOptions &options = {});
+	/// Remplit [a, b] : « all », « hollow » (enveloppe, intérieur vidé),
+	/// « walls » (côtés seulement), « outline » (arêtes), « keep » (l'air seulement).
+	Result<int64_t, String> FillRegion(const BlockPos &a, const BlockPos &b, const String &block, const String &mode = String("all"));
+	/// Remplace `from` (vide : tout bloc non-air) par `to` dans [a, b].
+	Result<int64_t, String> ReplaceRegion(const BlockPos &a, const BlockPos &b, const String &from, const String &to);
+	/// Presse-papiers nommés (en mémoire, toute la partie) : outils, annulations.
+	[[nodiscard]] Schematic *Clipboard(const String &name);
+	void SetClipboard(const String &name, Schematic schematic);
+	bool ForgetClipboard(const String &name);
+	[[nodiscard]] std::vector<String> ClipboardNames() const;
+	/// Fichiers de structures (noms avec extension, triés).
+	[[nodiscard]] std::vector<String> StructureFiles(bool exchange = false) const;
+	/// Lit un fichier (noms inconnus résolus par alias ; `unknown` les reçoit).
+	Result<Schematic, String> LoadStructureFile(const String &name, bool exchange = false, std::vector<String> *unknown = nullptr);
+	/// Écrit ; rend le chemin. Le format suit l'extension.
+	Result<String, String> SaveStructureFile(const Schematic &schematic, const String &name, bool exchange = false);
+	Result<bool, String> DeleteStructureFile(const String &name, bool exchange = false);
+
+	// ── Interface des mods ──────────────────────────────────────────────────
+
+	/// Boîtes surlignées dans le monde (sélection d'un outil…) : l'application
+	/// les dessine en fil de fer.
+	struct Highlight {
+		String id;
+		BlockPos min, max; ///< bornes incluses
+		std::array<uint8_t, 4> color{255, 255, 255, 255};
+	};
+	void SetHighlight(const String &id, const BlockPos &a, const BlockPos &b, std::array<uint8_t, 4> color);
+	void ClearHighlight(const String &id);
+	[[nodiscard]] const std::vector<Highlight> &Highlights() const noexcept { return m_highlights; }
+	/// Formulaire d'un mod (UiRequest « form ») validé : événement de script
+	/// « form_submit » (joueur, id du formulaire, valeurs).
+	void SubmitForm(ecs::Entity player, const String &form, const NodePtr &values);
+
 	// ── Console ─────────────────────────────────────────────────────────────
 
 	void RegisterCommand(const String &name, const String &usage, const String &help, CommandFn fn);
@@ -279,6 +350,10 @@ private:
 	void StepRandomTicks(float dt);
 	void ApplySettings();
 	void DispatchEvents();
+	/// Rangements ouverts depuis le chargement → sauvegarde.
+	void SaveContainers();
+	/// Retire un rangement (bloc cassé, remplacé) ; rend son contenu.
+	std::vector<ItemStack> TakeContainer(const BlockPos &pos);
 
 	GameOptions m_options;
 	ContentRegistry m_content;
@@ -299,6 +374,9 @@ private:
 	GameMode m_mode = GameMode::SURVIVAL;
 	Difficulty m_difficulty = Difficulty::NORMAL;
 	std::vector<UiRequest> m_uiRequests;
+	std::map<std::string, std::pair<BlockPos, Inventory>> m_containers; ///< « x,y,z » → rangement chargé
+	std::map<std::string, Schematic> m_clipboards;
+	std::vector<Highlight> m_highlights;
 	float m_randomTickTimer = 0.f;
 	std::map<uint32_t, float> m_stepDistance; ///< distance marchée depuis le dernier pas sonore
 	// Dimensions

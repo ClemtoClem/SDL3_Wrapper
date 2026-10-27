@@ -13,7 +13,7 @@ public = ["include"]
 private = ["src"]
 
 [dependencies]
-modules = ["core", "math", "events", "dataio", "ecs", "generators", "resources", "script", "sql"]
+modules = ["core", "math", "events", "dataio", "ecs", "generators", "resources", "script", "sql", "archive"]
 
 [tests]
 dirs = ["tests"]

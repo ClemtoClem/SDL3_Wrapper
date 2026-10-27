@@ -12,7 +12,8 @@
  *    bloc en miniature), maillages partagés par forme, placés à la position
  *    interpolée entre deux pas de physique.
  *  - Contour du bloc visé, ciel et éclairage selon l'heure du jeu et la
- *    dimension (ciel propre, heure figée, lumière ambiante, nuages).
+ *    dimension (ciel en cubemap, de jour et de nuit ; heure figée, lumière
+ *    ambiante, nuages).
  *  - Changement de dimension : chunks et entités repartent de zéro.
  */
 #include <map>
@@ -20,6 +21,7 @@
 #include <unordered_map>
 
 #include <render3d/canvas.hpp>
+#include <render3d/cubemap.hpp>
 #include <render3d/object3d.hpp>
 #include <render3d/shape.hpp>
 #include <voxel/game.hpp>
@@ -100,6 +102,8 @@ private:
 	void RebuildChunk(const voxel::ChunkPos &p, ChunkView &view);
 	void UpdateEntities(float alpha);
 	void UpdateSky();
+	/// Cubemap d'une image « en croix » (4 × 3 faces), construite au premier besoin.
+	const sdl3::GpuTexture *Skybox(const String &texture);
 	void UpdateLights(const render3d::Camera &camera);
 	void UpdateClouds(const render3d::Camera &camera);
 	void UpdateParticles(float dt);
@@ -122,6 +126,9 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<Skin>> m_skins;
 	WorldRenderSettings m_settings;
 	uint64_t m_worldSerial = 0; ///< monde affiché (Game::WorldSerial) : un autre → tout est refait
+	/// Ciels (cubemaps) déjà envoyés au GPU, par id de texture ; nullptr : image inutilisable.
+	std::unordered_map<std::string, std::unique_ptr<sdl3::GpuTexture>> m_skyboxes;
+	bool m_skyboxActive = false;
 	std::vector<Particle> m_particles;
 	render3d::Object3D *m_cloudRoot = nullptr, *m_effectRoot = nullptr;
 	std::vector<render3d::Shape *> m_cloudTiles;

@@ -1,0 +1,12 @@
+Mobilier (portes, trappes, volets, lits, rangements) — ressources tirées de mods Minetest/Luanti :
+
+- doors (Minetest Game) : doors_door_glass, doors_trapdoor_steel, sons des portes et portillons
+  CC BY-SA 3.0 — Fernando Zapata, celeron55, PilzAdam, BlockMen, sofar, red-001, paramat
+- xdecor : cabinet, half_cabinet, barrel, empty_shelf, multishelf, woodframed_glass, woodglass_door, japanese_door
+  textures CC0 — Gambit, kilbith, Cisoun, Wuzzy
+- greek (GreenXenith) : greek_shutters_1 — MIT
+- animalia (ElCeejo) : animalia_crate, animalia_crate_side — MIT
+- celevator : celevator_cabinet_open / close — domaine public (enregistrés par cheapie, docs/file_sources)
+
+Textures dérivées (moitiés de portes, voile de verre, volets teintés, commode, armoire,
+faces des lits tirées de textures/entities/bed) : mêmes licences que leurs sources.
