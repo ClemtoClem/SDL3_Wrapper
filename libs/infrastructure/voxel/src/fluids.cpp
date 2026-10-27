@@ -98,6 +98,18 @@ void FluidSimulation::Schedule(const BlockPos &p) {
 	m_queue.emplace(m_time + double(tick), p);
 }
 
+int FluidSimulation::Disturb(const Box &region) {
+	const size_t before = m_pending.size();
+	const BlockPos lo{int(std::floor(region.min.x)) - 1, int(std::floor(region.min.y)) - 1, int(std::floor(region.min.z)) - 1};
+	const BlockPos hi{int(std::floor(region.max.x)) + 1, int(std::floor(region.max.y)) + 1, int(std::floor(region.max.z)) + 1};
+	for (int y = lo.y; y <= hi.y; ++y)
+		for (int z = lo.z; z <= hi.z; ++z)
+			for (int x = lo.x; x <= hi.x; ++x)
+				if (m_world.IsLoaded({x, y, z}) && Flows(m_world.BlockAt({x, y, z})))
+					ScheduleAround({x, y, z}); // le liquide et les cellules où il pourrait aller
+	return int(m_pending.size() - before);
+}
+
 void FluidSimulation::ScheduleAround(const BlockPos &p) {
 	Schedule(p);
 	for (const BlockPos &d : AROUND)

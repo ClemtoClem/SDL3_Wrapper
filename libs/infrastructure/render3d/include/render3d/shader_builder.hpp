@@ -6,7 +6,10 @@
 
 namespace render3d {
 
-enum class LightingModel { UNLIT, PHONG, PBR };
+/// BAKED : lumière reçue précalculée par sommet (Vertex3D::light, moteurs
+/// voxel) + ambiante/soleil × sa part + lumières ponctuelles (Lambert),
+/// calcul en linéaire puis tone mapping ACES et encodage sRGB.
+enum class LightingModel { UNLIT, PHONG, PBR, BAKED };
 
 /// Factory fluide de shaders : compose du GLSL à partir de shader_chunks.hpp
 /// selon les options demandées, puis le compile via shader_compiler.hpp

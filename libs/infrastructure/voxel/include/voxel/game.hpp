@@ -242,6 +242,9 @@ public:
 	bool UseBlock(ecs::Entity actor, const BlockPos &pos);
 	/// Bascule le bloc et ses parties vers « interact.toggle » (orientation gardée).
 	bool ToggleBlock(const BlockPos &pos, ecs::Entity actor = ecs::Entity{});
+	/// Met le bloc (à états) dans l'état `state`, orientation gardée ; faux si
+	/// le bloc n'a pas cet état.
+	bool SetBlockState(const BlockPos &pos, const String &state, ChangeCause cause = ChangeCause::SCRIPT);
 	/// Dort dans le lit : il devient le point de réapparition ; la nuit, passe
 	/// au matin (sauf monstre proche ou dimension sans cycle du jour).
 	bool Sleep(ecs::Entity player, const BlockPos &bed);
@@ -314,6 +317,18 @@ public:
 	void SetGameTime(double t) noexcept { m_metadata.gameTime = t; }
 	void Message(const String &text, const String &channel = String("game"));
 	void PlaySound(const String &sound, const math::FVector3 &position, float volume = 1.f, bool positional = true);
+	/// Ambiance ou musique sur un canal (non spatialisée) : remplace ce qui
+	/// s'y joue, avec fondus de sortie et d'entrée ; le même son continue.
+	struct AmbientOptions {
+		String channel;
+		float fadeIn = 0.f, fadeOut = 0.f;
+		bool loop = false;
+	};
+	void PlayAmbient(const String &sound, float volume, const AmbientOptions &options);
+	/// Éteint un canal d'ambiance en `fadeOut` secondes.
+	void StopAmbient(const String &channel, float fadeOut);
+	/// Canal de la musique des dimensions (« music » d'une DimensionDef).
+	static constexpr const char *DIMENSION_CHANNEL = "dimension";
 	/// Son d'un événement de bloc (« place », « break », « step »).
 	void PlayBlockSound(BlockId block, const char *event, const BlockPos &pos);
 
@@ -351,6 +366,11 @@ private:
 	void StepHealth(float dt);
 	void StepSurvival(float dt);
 	void StepRandomTicks(float dt);
+	/// Blocs à capteur (« sensor ») autour des joueurs : état « proche » ou « loin ».
+	void StepSensors(float dt);
+	/// Entités lumineuses (bloc qui tombe, objet au sol, créature) : sources
+	/// dynamiques du monde (World::SetDynamicLights), cinq fois par seconde.
+	void StepLights(float dt);
 	void ApplySettings();
 	void DispatchEvents();
 	/// Rangements ouverts depuis le chargement → sauvegarde.
@@ -382,6 +402,11 @@ private:
 	std::map<std::string, Schematic> m_clipboards;
 	std::vector<Highlight> m_highlights;
 	float m_randomTickTimer = 0.f;
+	float m_sensorTimer = 0.f;
+	float m_lightTimer = 0.f;
+	/// Blocs à capteur passés à l'état « proche » : surveillés même hors de
+	/// portée des joueurs (un joueur téléporté loin les éteint aussi).
+	std::vector<BlockPos> m_sensorWatch;
 	std::map<uint32_t, float> m_stepDistance; ///< distance marchée depuis le dernier pas sonore
 	// Dimensions
 	String m_dimension;

@@ -1061,10 +1061,12 @@ render3d::Camera Session::CameraFor() {
 
 float Session::CategoryVolume(const String &sound) const {
 	const Settings &s = m_shell.Prefs();
-	const String id = sound.StartsWith("core:") ? sound.Substring(5) : sound;
-	if (id.StartsWith("music"))
+	// Nom sans son mod (« backrooms:backrooms_amb_city » → « backrooms_amb_city »).
+	const size_t colon = sound.View().Find(':');
+	const String id = colon != StringView::NPOS ? sound.Substring(colon + 1) : sound;
+	if (id.StartsWith("music") || id.Contains("_music"))
 		return s.musicVolume;
-	if (id.StartsWith("amb_"))
+	if (id.StartsWith("amb_") || id.Contains("_amb_"))
 		return s.ambienceVolume;
 	if (id.StartsWith("ui_"))
 		return s.uiVolume;
@@ -1076,17 +1078,31 @@ float Session::CategoryVolume(const String &sound) const {
 void Session::UpdateSound() {
 	const Settings &s = m_shell.Prefs();
 	ecs::EventsOf<SoundEvent>(m_game->Registry()).Read(m_soundCursor, [&](const SoundEvent &ev) {
+		if (ev.stop) { // canal d'ambiance éteint en fondu
+			(void)m_audio->StopChannel(ev.channel, Some(ev.fadeOut));
+			return;
+		}
 		const resources::AssetId id = m_game->Assets().SoundId(ev.sound, ev.variant);
 		if (!m_game->Assets().Cache().Knows(id))
 			return;
 		const float volume = ev.volume * CategoryVolume(ev.sound);
-		if (volume <= 0.001f)
+		if (volume <= 0.001f) {
+			if (!ev.channel.IsEmpty()) // catégorie coupée : le canal se tait aussi
+				(void)m_audio->StopChannel(ev.channel, Some(ev.fadeOut));
 			return;
+		}
 		audio::AudioPlayOptions options;
 		options.volume = std::clamp(volume, 0.f, 2.f);
 		options.pitch = ev.pitch;
 		options.spatial = ev.positional && s.spatialAudio;
 		options.position = ev.position;
+		options.loop = ev.loop;
+		if (!ev.channel.IsEmpty()) {
+			// Ambiance, musique : un son à la fois par canal, en fondu enchaîné.
+			(void)m_audio->PlayOnChannel(ev.channel, resources::AssetRef<audio::AudioClipResource>{id}, options,
+										 Some(audio::ChannelFade{ev.fadeIn, ev.fadeOut}));
+			return;
+		}
 		(void)m_audio->Play(resources::AssetRef<audio::AudioClipResource>{id}, options);
 		// Sous-titres : sons des créatures et des événements.
 		if (s.subtitles && ev.positional) {

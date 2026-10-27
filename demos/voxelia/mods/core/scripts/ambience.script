@@ -2,9 +2,17 @@
 # Toutes les quelques secondes, un son d'ambiance choisi selon le lieu du
 # joueur : grotte (sous la surface), biome, nuit ; de temps en temps, un
 # morceau de musique.
+#
+# Canaux « ambience » et « music » : jamais deux musiques (ni deux
+# ambiances) l'une sur l'autre — la suivante remplace la précédente en fondu
+# enchaîné. Seulement dans les dimensions du mod core : les autres (backrooms…)
+# ont leurs propres ambiances, et les nôtres s'y éteignent en fondu.
 
 let ambience_timer = 5
 let music_timer = 30
+let music = {channel: "music", fade_in: 4, fade_out: 6}
+let ambience = {channel: "ambience", fade_in: 2, fade_out: 3}
+let silenced = false   # ambiances éteintes hors des dimensions du mod
 
 fn between(range) {
     return range[0] + math.random() * (range[1] - range[0])
@@ -41,19 +49,28 @@ voxel.system("ambience", fn(dt) {
     music_timer -= dt
     let players = entity.players()
     if (len(players) == 0) { return nil }
+    if (not world.dimension().starts_with("core:")) {
+        if (not silenced) {
+            game.stop_ambient(music.channel, music.fade_out)
+            game.stop_ambient(ambience.channel, ambience.fade_out)
+            silenced = true
+        }
+        return nil
+    }
+    silenced = false
     let p = entity.pos(players[0])
     if (ambience_timer <= 0) {
         ambience_timer = between(config.interval)
         let sound = ambience_for(p)
-        if (sound != nil) { game.ambient(sound) }
+        if (sound != nil) { game.ambient(sound, ambience) }
     }
     if (music_timer <= 0) {
         music_timer = between(config.musicInterval)
         let surface = world.surface(math.floor(p.x), math.floor(p.z))
         if (surface != nil and p.y < surface - 6) {
-            game.ambient("music_cave")
+            game.ambient("music_cave", music)
         } else {
-            game.ambient("music_day")
+            game.ambient("music_day", music)
         }
     }
 })

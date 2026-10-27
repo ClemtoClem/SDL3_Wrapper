@@ -892,6 +892,8 @@ Result<Image, String> AssetManager::RenderTexture(const String &id, int depth) c
 		return Err(String::Format("texture inconnue « %s »", id.CStr()));
 	if (depth > 8)
 		return Err(String::Format("%s : composition trop profonde (boucle ?)", id.CStr()));
+	if (def->path.IsEmpty() && def->compose.IsEmpty() && !def->procedural && !def->variants.empty())
+		return RenderTexture(def->variants.front(), depth + 1); // texture à variantes : la première
 	if (!def->compose.IsEmpty())
 		return ComposeTexture(def->compose, [this, def, depth](const String &name) { return ResolveImage(name, *def, depth + 1); });
 	Result<Image, String> image = !def->path.IsEmpty() ? LoadImageFile(def->path)

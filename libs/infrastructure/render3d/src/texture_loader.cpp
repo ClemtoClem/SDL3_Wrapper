@@ -1,6 +1,7 @@
 // Définitions de render3d/texture_loader.hpp
 #include <render3d/texture_loader.hpp>
 
+#include <algorithm>
 #include <vector>
 
 namespace render3d {
@@ -30,9 +31,21 @@ Result<sdl3::GpuTexture, String> LoadTextureFromFile(sdl3::GpuDevice &device, co
 }
 
 Result<sdl3::GpuTexture, String> CreateTextureFromPixels(sdl3::GpuDevice &device, uint32_t width, uint32_t height,
-															std::span<const uint8_t> rgba) {
+															std::span<const uint8_t> rgba, std::span<const std::span<const uint8_t>> mipmaps) {
 	if (width == 0 || height == 0 || rgba.size() < size_t(width) * size_t(height) * 4)
 		return Err(String("CreateTextureFromPixels : taille de pixels incohérente"));
+	// Niveaux : l'image, puis chaque mipmap fourni (dimensions vérifiées).
+	struct Level {
+		std::span<const uint8_t> pixels;
+		uint32_t width, height;
+	};
+	std::vector<Level> levels{{rgba, width, height}};
+	for (const std::span<const uint8_t> &mip : mipmaps) {
+		const uint32_t w = std::max(1u, width >> levels.size()), h = std::max(1u, height >> levels.size());
+		if (mip.size() < size_t(w) * size_t(h) * 4)
+			return Err(String("CreateTextureFromPixels : taille de mipmap incohérente"));
+		levels.push_back({mip, w, h});
+	}
 	sdl3::GpuTextureCreateInfo textureInfo{};
 	textureInfo.type = sdl3::gpu_texture_type::TEXTURE2_D;
 	textureInfo.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
@@ -40,13 +53,15 @@ Result<sdl3::GpuTexture, String> CreateTextureFromPixels(sdl3::GpuDevice &device
 	textureInfo.width = width;
 	textureInfo.height = height;
 	textureInfo.layer_count_or_depth = 1;
-	textureInfo.num_levels = 1;
+	textureInfo.num_levels = uint32_t(levels.size());
 	textureInfo.sample_count = sdl3::gpu_sample_count::SAMPLE1;
 	auto textureResult = device.CreateTexture(textureInfo);
 	if (!textureResult)
 		return Err(String(textureResult.Error()));
 
-	const uint32_t byteSize = width * height * 4;
+	uint32_t byteSize = 0;
+	for (const Level &level : levels)
+		byteSize += level.width * level.height * 4;
 	auto transferResult = device.CreateTransferBuffer(sdl3::gpu_transfer_buffer_usage::UPLOAD, byteSize);
 	if (!transferResult)
 		return Err(String(transferResult.Error()));
@@ -55,15 +70,25 @@ Result<sdl3::GpuTexture, String> CreateTextureFromPixels(sdl3::GpuDevice &device
 		auto mapped = transfer.Map(false);
 		if (!mapped)
 			return Err(String("CreateTextureFromPixels : tampon de transfert inaccessible"));
-		std::memcpy(mapped.As<uint8_t>(), rgba.data(), byteSize);
+		uint8_t *out = mapped.As<uint8_t>();
+		for (const Level &level : levels) {
+			const size_t bytes = size_t(level.width) * size_t(level.height) * 4;
+			std::memcpy(out, level.pixels.data(), bytes);
+			out += bytes;
+		}
 	}
 
 	auto cmd = device.AcquireCommandBuffer();
 	{
 		sdl3::GpuCopyPass copyPass = cmd.BeginCopyPass();
-		sdl3::GpuTextureTransferInfo src{transfer.Get(), 0, width, height};
-		sdl3::GpuTextureRegion dst{textureResult.Value().Get(), 0, 0, 0, 0, 0, width, height, 1};
-		copyPass.UploadToTexture(src, dst, false);
+		uint32_t offset = 0;
+		for (uint32_t i = 0; i < uint32_t(levels.size()); ++i) {
+			const Level &level = levels[i];
+			sdl3::GpuTextureTransferInfo src{transfer.Get(), offset, level.width, level.height};
+			sdl3::GpuTextureRegion dst{textureResult.Value().Get(), i, 0, 0, 0, 0, level.width, level.height, 1};
+			copyPass.UploadToTexture(src, dst, false);
+			offset += level.width * level.height * 4;
+		}
 	}
 	if (!cmd.Submit())
 		return Err(String(sdl3::GetError()));

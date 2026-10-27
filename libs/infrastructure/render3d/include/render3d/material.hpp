@@ -7,7 +7,7 @@
 
 namespace render3d {
 
-enum class ShaderKind { BASIC, PHONG, PBR };
+enum class ShaderKind { BASIC, PHONG, PBR, BAKED };
 
 // Topologie de primitive (M15, voir Points/LineSegments dans object3d.hpp) —
 // portée par PipelineKey/DrawCall plutôt que par Mesh lui-même : Mesh reste
@@ -44,6 +44,15 @@ struct Material {
 	bool blend = false;
 	/// Filtrage au plus proche (pixel-art) au lieu du filtrage linéaire.
 	bool nearestFilter = false;
+	/// Éclairage précalculé (LightingModel::BAKED) : la lumière reçue vient
+	/// de Vertex3D::light (+ `objectLight`), l'ambiante et la directionnelle
+	/// de Canvas::SetLighting en LINÉAIRE, multipliées par Vertex3D::light.a
+	/// × objectLight.a, plus Canvas::SetBaseLight ; exposition :
+	/// Canvas::SetExposure. Calcul en linéaire, tone mapping, sortie sRGB.
+	bool bakedLighting = false;
+	/// Lumière reçue ajoutée à celle des sommets (rgb, linéaire) et facteur
+	/// de la part ambiante (a) — un objet mobile éclairé là où il se trouve.
+	math::FVector4 objectLight{0.f, 0.f, 0.f, 1.f};
 
 	[[nodiscard]] static Material Default() noexcept { return {}; }
 

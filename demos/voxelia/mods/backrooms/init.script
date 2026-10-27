@@ -2,6 +2,10 @@
 # La dimension (world.json) reçoit les joueurs morts de suffocation
 # (« enterOnDeath ») ; les portes d'ascenseur sous un panneau EXIT ramènent
 # au monde ordinaire.
+#
+# L'ambiance d'un niveau tourne en boucle sur le canal « backrooms » : en
+# changeant de niveau, l'ancienne s'éteint en fondu pendant que la nouvelle
+# monte ; elle s'éteint aussi en quittant les backrooms.
 
 let level_sounds = {
     level_lobby: "backrooms:backrooms_amb_city",
@@ -13,7 +17,10 @@ let level_sounds = {
 let details = ["backrooms:backrooms_creak", "backrooms:backrooms_ligh_buzz", "backrooms:backrooms_ventilation",
                "backrooms:backrooms_ventilation_motor", "backrooms:backrooms_drip"]
 
-let ambience = 4
+let channel = "backrooms"
+let fade = {fade_in: 4, fade_out: 5}
+let current_level = nil   # biome dont l'ambiance joue
+let level_check = 0
 let detail = 9
 
 fn in_backrooms() { return world.dimension() == "backrooms:backrooms" }
@@ -21,10 +28,13 @@ fn in_backrooms() { return world.dimension() == "backrooms:backrooms" }
 voxel.on("dimension_changed", fn(player, to, from) {
     if (to == "backrooms:backrooms") {
         game.say("Vous vous réveillez sur une moquette humide. Le néon grésille. Cherchez une porte d'ascenseur sous un panneau EXIT.")
-        ambience = 1
+        current_level = nil
+        level_check = 0
     }
     if (from == "backrooms:backrooms") {
         game.say("Les portes se referment derrière vous. L'air est de nouveau respirable.")
+        game.stop_ambient(channel, fade.fade_out)
+        current_level = nil
     }
 })
 
@@ -33,16 +43,23 @@ voxel.system("backrooms_ambience", fn(dt) {
     let players = entity.players()
     if (len(players) == 0) { return nil }
     let p = entity.pos(players[0])
-    ambience -= dt
-    detail -= dt
-    if (ambience <= 0) {
-        ambience = 25 + math.random() * 20
+    # Ambiance du niveau : changée seulement quand le niveau change.
+    level_check -= dt
+    if (level_check <= 0) {
+        level_check = 0.5
         let biome = world.biome(p.x, p.z)
-        if (biome != nil and biome.starts_with("backrooms:")) {
-            let sound = level_sounds[biome.sub(10)]
-            if (sound != nil) { game.ambient(sound, 0.6) }
+        if (biome != current_level) {
+            current_level = biome
+            let sound = nil
+            if (biome != nil and biome.starts_with("backrooms:")) { sound = level_sounds[biome.sub(10)] }
+            if (sound != nil) {
+                game.ambient(sound, 0.6, {channel: channel, loop: true, fade_in: fade.fade_in, fade_out: fade.fade_out})
+            } else {
+                game.stop_ambient(channel, fade.fade_out)
+            }
         }
     }
+    detail -= dt
     if (detail <= 0) {
         detail = 6 + math.random() * 12
         let sound = details[math.floor(math.random() * len(details))]

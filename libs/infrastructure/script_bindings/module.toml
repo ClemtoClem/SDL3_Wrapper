@@ -2,7 +2,7 @@
 name = "script_bindings"
 layer = "infrastructure"
 version = "0.1.0"
-description = "Liaisons du langage script vers ecs::, ui:: et generators::"
+description = "Liaisons du langage script vers ecs::, ui::, generators:: et audio::"
 type = "static"              # executable | static | shared | header-only
 
 [sources]
@@ -13,7 +13,7 @@ public = ["include"]      # propagé aux modules dépendants
 private = ["src"]
 
 [dependencies]
-modules = ["script", "ecs", "ui", "generators"]
+modules = ["script", "ecs", "ui", "generators", "audio"]
 pkg_config = []
 system = []
 

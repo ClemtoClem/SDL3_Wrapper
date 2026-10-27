@@ -159,9 +159,10 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 				continue;
 
 			PipelineKey key{};
-			key.shader = !draw.material.lit  ? ShaderKind::BASIC
-						: draw.material.pbr ? ShaderKind::PBR
-											 : ShaderKind::PHONG;
+			key.shader = !draw.material.lit			   ? ShaderKind::BASIC
+						: draw.material.bakedLighting ? ShaderKind::BAKED
+						: draw.material.pbr			   ? ShaderKind::PBR
+													   : ShaderKind::PHONG;
 			key.doubleSided = draw.material.doubleSided;
 			key.wireframe = draw.material.wireframe;
 			key.depthTest = draw.material.depthTest; // surimpressions (manipulateur…) comme dans End()
@@ -222,19 +223,22 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 				lightUbo.cameraPos[0] = camera.position.x;
 				lightUbo.cameraPos[1] = camera.position.y;
 				lightUbo.cameraPos[2] = camera.position.z;
+				lightUbo.padding1 = m_exposure;  // uExposure (BAKED)
+				lightUbo.padding2 = m_baseLight; // uBaseLight (BAKED)
 
 				// Même condition que GetOrCreatePipeline::needsBuiltShader
 				// (avec hasShadows/hasEnvironment/instanced/skinned toujours
 				// faux ici) — détermine si le shader est le Phong précompilé
 				// (MaterialUBO à 4 floats) ou un shader ShaderBuilder
 				// (MaterialUBO avec `emissive`/`useIBL`, voir shader_chunks).
-				bool needsBuiltShader = key.shader == ShaderKind::PBR || key.pointLightCount > 0 ||
-										key.spotLightCount > 0;
+				bool needsBuiltShader = key.shader == ShaderKind::PBR || key.shader == ShaderKind::BAKED ||
+										key.pointLightCount > 0 || key.spotLightCount > 0;
 				if (needsBuiltShader) {
 					struct MaterialUBO {
 						float baseColor[4];
 						float emissive[4];
 						float roughness, metallic, useTexture, useIBL;
+						float objectLight[4] = {0.f, 0.f, 0.f, 1.f}; // BAKED (shader_chunks::MATERIAL_UBO)
 					};
 					sdl3::FColor bc(draw.material.baseColor);
 					MaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a},
@@ -243,6 +247,11 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 											draw.material.metallic,
 											draw.material.albedo.IsSome() ? 1.f : 0.f,
 											0.f};
+					const math::FVector4 &ol = draw.material.objectLight;
+					materialUbo.objectLight[0] = ol.x;
+					materialUbo.objectLight[1] = ol.y;
+					materialUbo.objectLight[2] = ol.z;
+					materialUbo.objectLight[3] = ol.w;
 					cmd.PushFragmentUniformData(0, materialUbo);
 					cmd.PushFragmentUniformData(1, lightUbo);
 

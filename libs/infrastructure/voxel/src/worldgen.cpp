@@ -554,10 +554,15 @@ void TerrainGenerator::SetupMaze() {
 	m_mazeCell = std::max(3, json::Int(p, "cell", 7));
 	m_mazeRegion = std::max(m_mazeCell * 2, json::Int(p, "region", 80));
 	m_doorWidth = std::clamp(json::Int(p, "doorWidth", 2), 1, m_mazeCell - 2);
+	m_poolDepth = std::clamp(json::Int(p, "poolDepth", 2), 1, 5);
 	m_mazeOuter = BlockParam(m_content, p, "outer", m_def.mod);
 	m_mazeExit = BlockParam(m_content, p, "exit.block", m_def.mod);
 	m_mazeExitSign = BlockParam(m_content, p, "exit.sign", m_def.mod);
 	m_exitChance = float(json::Num(p, "exit.chance", 0.003));
+	m_mazeSignLeft = BlockParam(m_content, p, "exit.signLeft", m_def.mod);
+	m_mazeSignRight = BlockParam(m_content, p, "exit.signRight", m_def.mod);
+	m_mazeSignRange = std::clamp(json::Int(p, "exit.signRange", 2), 0, 8);
+	m_mazeSignHeight = std::clamp(json::Int(p, "exit.signHeight", 3), 1, m_mazeHeight - 1);
 	if (NodePtr levels = json::At(m_def.raw, "levels"); levels && levels->IsArray())
 		for (size_t i = 0; i < levels->GetSize(); ++i) {
 			NodePtr l = levels->At(i);
@@ -576,6 +581,12 @@ void TerrainGenerator::SetupMaze() {
 			level.wallChance = float(json::Num(l, "wallChance", 0.55));
 			level.waterChance = float(json::Num(l, "waterChance", 0.0));
 			level.darkChance = float(json::Num(l, "darkChance", 0.0));
+			level.lightOff = BlockParam(m_content, l, "lightOff", m_def.mod);
+			level.lightHalf = BlockParam(m_content, l, "lightHalf", m_def.mod);
+			level.halfChance = float(json::Num(l, "halfChance", 0.0));
+			level.lightAuto = BlockParam(m_content, l, "lightAuto", m_def.mod);
+			level.autoChance = float(json::Num(l, "autoChance", 0.0));
+			level.lightHanging = json::Bool(l, "lightHanging", false);
 			if (const String biome = json::Str(l, "biome"); !biome.IsEmpty())
 				level.biome = m_content.FindBiome(ContentRegistry::Qualify(biome, m_def.mod));
 			if (level.wall == AIR)
@@ -635,6 +646,72 @@ bool TerrainGenerator::MazeWall(const MazeLevel &level, int x, int z) const {
 	return false;
 }
 
+bool TerrainGenerator::MazeColumnWall(int x, int z) const {
+	const MazeLevel &level = MazeLevelAt(x, z);
+	if (MazeWall(level, x, z))
+		return true;
+	// Une frontière de niveaux est un mur continu, percé de portes.
+	if (&MazeLevelAt(x + 1, z) != &level || &MazeLevelAt(x, z + 1) != &level) {
+		const int cell = m_mazeCell;
+		const int mx = x - int(std::floor(float(x) / float(cell))) * cell, mz = z - int(std::floor(float(z) / float(cell))) * cell;
+		return (mx + mz) % 9 > 2;
+	}
+	return false;
+}
+
+bool TerrainGenerator::MazeExitCell(int cx, int cz) const {
+	return m_mazeExit != AIR && RandomAt(m_seed, cx, 7, cz, 631) < m_exitChance &&
+		   !MazeColumnWall(cx * m_mazeCell + m_mazeCell / 2, cz * m_mazeCell + m_mazeCell / 2);
+}
+
+BlockId TerrainGenerator::MazeExitSign(int x, int z, uint8_t &param) const {
+	if (m_mazeSignLeft == AIR && m_mazeSignRight == AIR)
+		return AIR;
+	const int cell = m_mazeCell;
+	const int cx = int(std::floor(float(x) / float(cell))), cz = int(std::floor(float(z) / float(cell)));
+	const int mx = x - cx * cell, mz = z - cz * cell;
+	// Un panneau au milieu de chaque pan de mur : la colonne longe un mur
+	// (direction d), à mi-longueur de la cellule.
+	struct Side {
+		int dx, dz;
+		uint8_t param; ///< orientation du panneau (plaqué côté +z à l'orientation 0)
+	};
+	static constexpr Side SIDES[4] = {{0, 1, 0}, {-1, 0, 1}, {0, -1, 2}, {1, 0, 3}};
+	const Side *side = nullptr;
+	for (const Side &s : SIDES) {
+		const int along = s.dx != 0 ? mz : mx;
+		if (along == cell / 2 && MazeColumnWall(x + s.dx, z + s.dz) && !MazeColumnWall(x, z)) {
+			side = &s;
+			break;
+		}
+	}
+	if (!side)
+		return AIR;
+	// Sortie la plus proche dans les cellules voisines (pas la sienne : la
+	// porte est alors en vue, sous son propre panneau).
+	int best = -1, ex = 0, ez = 0;
+	for (int j = -m_mazeSignRange; j <= m_mazeSignRange; ++j)
+		for (int i = -m_mazeSignRange; i <= m_mazeSignRange; ++i) {
+			if ((i == 0 && j == 0) || !MazeExitCell(cx + i, cz + j))
+				continue;
+			const int px = (cx + i) * cell + cell / 2, pz = (cz + j) * cell + cell / 2;
+			const int d = (px - x) * (px - x) + (pz - z) * (pz - z);
+			if (best < 0 || d < best) {
+				best = d;
+				ex = px;
+				ez = pz;
+			}
+		}
+	if (best < 0)
+		return AIR;
+	// Face au mur (regard vers d), la droite est (−dz, dx) : la flèche
+	// pointe du côté où se trouve la sortie.
+	const int toRight = (ex - x) * -side->dz + (ez - z) * side->dx;
+	param = side->param;
+	const BlockId preferred = toRight >= 0 ? m_mazeSignRight : m_mazeSignLeft;
+	return preferred != AIR ? preferred : toRight >= 0 ? m_mazeSignLeft : m_mazeSignRight;
+}
+
 void TerrainGenerator::GenerateMaze(Chunk &chunk, World &world) {
 	const BlockPos origin = chunk.Pos().Origin();
 	const int floor = m_mazeFloor, ceiling = m_mazeFloor + m_mazeHeight;
@@ -648,43 +725,60 @@ void TerrainGenerator::GenerateMaze(Chunk &chunk, World &world) {
 			const int cell = m_mazeCell;
 			const int cx = int(std::floor(float(x) / float(cell))), cz = int(std::floor(float(z) / float(cell)));
 			const int mx = x - cx * cell, mz = z - cz * cell;
-			// Une frontière de niveaux est un mur continu, percé de portes.
-			bool wall = MazeWall(level, x, z);
-			if (!wall && (&MazeLevelAt(x + 1, z) != &level || &MazeLevelAt(x, z + 1) != &level))
-				wall = (mx + mz) % 9 > 2;
+			const bool wall = MazeColumnWall(x, z);
 			const bool flooded = !wall && level.water != AIR && RandomAt(m_seed, cx, 5, cz, 623) < level.waterChance;
+			// Néons : allumés, éteints (« darkChance ») ou à moitié allumés.
 			const int every = level.lightEvery;
-			const bool lamp = level.light != AIR && ((x % every) + every) % every == every / 2 && ((z % every) + every) % every == every / 2 &&
-							  RandomAt(m_seed, x, 6, z, 629) >= level.darkChance;
-			const bool exit = m_mazeExit != AIR && !wall && mx == cell / 2 && mz == cell / 2 &&
-							  RandomAt(m_seed, cx, 7, cz, 631) < m_exitChance;
+			BlockId lamp = AIR;
+			if (level.light != AIR && !wall && ((x % every) + every) % every == every / 2 && ((z % every) + every) % every == every / 2) {
+				if (RandomAt(m_seed, x, 6, z, 629) < level.darkChance)
+					lamp = level.lightOff;
+				else if (level.lightHalf != AIR && RandomAt(m_seed, x, 8, z, 637) < level.halfChance)
+					lamp = level.lightHalf;
+				else if (level.lightAuto != AIR && RandomAt(m_seed, x, 9, z, 641) < level.autoChance)
+					lamp = level.lightAuto;
+				else
+					lamp = level.light;
+			}
+			const int lampY = level.lightHanging ? ceiling - 1 : ceiling;
+			const bool exit = !wall && mx == cell / 2 && mz == cell / 2 && MazeExitCell(cx, cz);
+			uint8_t signParam = 0;
+			const BlockId sign = wall || flooded || exit ? AIR : MazeExitSign(x, z, signParam);
 			for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
 				const int y = origin.y + ly;
 				BlockId id = AIR;
 				if (y < floor - shell || y > ceiling + shell)
 					continue;
-				if (y < floor || y > ceiling)
+				if (y > ceiling)
 					id = m_mazeOuter;
-				else if (y == floor)
+				else if (y < floor) {
+					// Bassins creusés sous le sol (eau au ras du sol) ; leurs
+					// bords et leur fond sont carrelés comme les murs.
+					if (level.water == AIR || y < floor - m_poolDepth)
+						id = m_mazeOuter;
+					else if (y == floor - m_poolDepth)
+						id = level.floor;
+					else
+						id = flooded ? level.water : level.wall;
+				} else if (y == floor)
 					id = flooded ? level.water : level.floor;
 				else if (y == ceiling)
-					id = lamp && !wall ? level.light : level.ceiling;
+					id = lamp != AIR && lampY == ceiling ? lamp : level.ceiling;
 				else if (wall)
 					id = (y == floor + 1 && level.trim != AIR) ? level.trim : (level.pillar != AIR && mx == 0 && mz == 0 ? level.pillar : level.wall);
-				else if (flooded && y == floor + 1 && level.water != AIR)
-					id = level.water;
 				else if (exit && y == floor + 1)
 					id = m_mazeExit;
 				else if (exit && y == floor + 2 && m_mazeExitSign != AIR)
 					id = m_mazeExitSign;
+				else if (lamp != AIR && y == lampY)
+					id = lamp;
+				else if (sign != AIR && y == floor + m_mazeSignHeight) {
+					chunk.Set(lx, ly, lz, sign, signParam);
+					continue;
+				}
 				if (id != AIR)
 					chunk.Set(lx, ly, lz, id);
 			}
-			// Bassin : un niveau plus bas sous l'eau (on peut y nager).
-			if (flooded && floor - 1 >= origin.y && floor - 1 < origin.y + CHUNK_SIZE)
-				chunk.Set(lx, floor - 1 - origin.y, lz, level.water);
-			if (flooded && floor - 2 >= origin.y && floor - 2 < origin.y + CHUNK_SIZE)
-				chunk.Set(lx, floor - 2 - origin.y, lz, level.floor);
 			// Décorations du biome du niveau (mobilier, flaques…).
 			if (level.biome && !wall && !flooded && !exit && floor + 1 >= origin.y && floor + 1 < origin.y + CHUNK_SIZE) {
 				uint32_t salt = 4000;

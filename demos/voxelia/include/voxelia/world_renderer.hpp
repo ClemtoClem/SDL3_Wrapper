@@ -69,9 +69,8 @@ public:
 
 private:
 	struct ChunkView {
-		render3d::Shape *opaque = nullptr, *translucent = nullptr;
+		render3d::Shape *opaque = nullptr, *translucent = nullptr, *emissive = nullptr;
 		uint64_t revision = 0;
-		std::vector<std::pair<math::FVector3, int>> lights;
 	};
 	struct Particle {
 		render3d::Shape *shape = nullptr;
@@ -82,6 +81,7 @@ private:
 		render3d::Shape *shape = nullptr;   ///< forme simple (cube, nodebox, bloc)
 		render3d::Object3D *rigRoot = nullptr; ///< modèle articulé
 		std::vector<render3d::Object3D *> parts;
+		std::vector<render3d::Shape *> partShapes; ///< les mêmes, pour leur lumière
 		std::shared_ptr<const voxel::RigModel> rig;
 		std::string meshKey;
 		float walkPhase = 0.f;
@@ -110,6 +110,9 @@ private:
 	/// Boîtes surlignées par les mods (Game::Highlights) : arêtes d'épaisseur
 	/// constante, refaites quand la liste change.
 	void UpdateHighlights();
+	/// Lumière reçue par un objet mobile en `p` (Material::objectLight) :
+	/// éclairement des sources (rgb, linéaire) et part de ciel (a).
+	[[nodiscard]] math::FVector4 LightAt(const math::FVector3 &p) const;
 	void UpdateShadow(EntityView &view, const math::FVector3 &feet, float width, bool visible);
 	[[nodiscard]] std::shared_ptr<render3d::Mesh> EntityMesh(const voxel::Visual &visual, const String &mod, std::string &key);
 	[[nodiscard]] static render3d::Mesh ToMesh(const voxel::MeshBuffer &buffer);
@@ -121,10 +124,13 @@ private:
 	render3d::Shape *m_outline = nullptr;
 	render3d::Shape *m_highlightShape = nullptr;
 	std::vector<voxel::Game::Highlight> m_shownHighlights;
+	/// Chunks pas encore maillés qui attendent leurs voisins (images d'attente).
+	std::unordered_map<voxel::ChunkPos, int> m_waiting;
 	voxel::TextureAtlas m_atlas;
 	std::unique_ptr<voxel::ChunkMesher> m_mesher;
 	Option<sdl3::GpuTexture> m_atlasTexture = NONE;
 	render3d::Material m_opaque, m_translucent, m_entity;
+	render3d::Material m_emissive; ///< blocs lumineux : sans éclairage (pleine luminosité)
 	std::map<voxel::ChunkPos, ChunkView> m_chunks;
 	std::unordered_map<uint64_t, EntityView> m_entities;
 	std::unordered_map<std::string, std::shared_ptr<render3d::Mesh>> m_meshCache;

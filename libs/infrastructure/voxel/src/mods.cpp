@@ -205,11 +205,41 @@ void ModLoader::LoadDefinitions(ContentRegistry &content, ModInfo &mod, ModRepor
 		return files;
 	};
 	const fs::path textureDir = root / "textures";
+	std::map<std::string, std::vector<String>> textureVariants; // « mur.1 », « mur.2 »… → « mur »
 	for (const fs::path &png : ordered(Files(textureDir, {".png", ".bmp", ".jpg", ".tga"}), textureDir)) {
 		const String rel = relative(png, textureDir, false);
 		for (const String &name : {rel, Stem(png)})
 			if (!content.FindTexture(mod.id + String(":") + name))
 				declare("texture", png, "path", name);
+		const std::string base(rel.CStr());
+		size_t cut = base.size();
+		while (cut > 0 && std::isdigit(uint8_t(base[cut - 1])))
+			--cut;
+		if (cut < base.size() && cut > 1 && base[cut - 1] == '.')
+			textureVariants[base.substr(0, cut - 1)].push_back(mod.id + String(":") + rel);
+	}
+	for (auto &[base, ids] : textureVariants) {
+		if (ids.size() < 2)
+			continue;
+		std::sort(ids.begin(), ids.end(), [](const String &a, const String &b) { return a.size() != b.size() ? a.size() < b.size() : a < b; });
+		const String rel(base.c_str());
+		const String stem(fs::path(base).filename().string().c_str());
+		for (const String &name : {rel, stem}) {
+			const String id = mod.id + String(":") + name;
+			if (content.FindTexture(id))
+				continue;
+			NodePtr def = dataio::Node::MakeObject();
+			def->Set("type", json::MakeStr("texture"));
+			def->Set("id", json::MakeStr(id));
+			NodePtr list = dataio::Node::MakeArray();
+			for (const String &v : ids)
+				list->Push(json::MakeStr(v));
+			def->Set("variants", list);
+			if (Result<String, String> r = content.Load(def, ContentRegistry::LoadContext{mod.id, mod.path, String()}); r.IsOk())
+				++mod.definitions;
+			else
+				report.errors.push_back(r.Error());
+		}
 	}
 	const fs::path soundDir = root / "sounds";
 	std::map<std::string, std::vector<fs::path>> variants; // « pas_1 », « pas_2 »… → « pas »

@@ -22,6 +22,16 @@ layout(location = 2) in vec2 inUV;
 layout(location = 3) in vec4 inColor;
 )";
 
+// ── Lumière précalculée (LightingModel::BAKED, Vertex3D::light) — location 8
+// (les 4 à 7 sont réservées aux matrices d'instance).
+inline constexpr const char *VERTEX_ATTRIBUTE_BAKED = R"(
+layout(location = 8) in vec4 inLight;
+layout(location = 4) out vec4 outLight;
+)";
+inline constexpr const char *FRAGMENT_INPUT_BAKED = R"(
+layout(location = 4) in vec4 inLight;
+)";
+
 // ── InstancedMesh (M16) — mat4 par instance, locations 4-7 (4 vec4
 // consécutifs, règle GLSL standard pour un attribut mat4), buffer_slot=1
 // avec input_rate=INSTANCE (voir Canvas::GetOrCreatePipeline/DrawInstancedMesh)
@@ -145,6 +155,9 @@ void main() {
 	outNormal = normalMat * inNormal;
 	outUV = inUV;
 	outColor = inColor;
+#ifdef BAKED_LIGHTING
+	outLight = inLight;
+#endif
 	gl_Position = uViewProjection * worldPos;
 }
 )";
@@ -186,6 +199,7 @@ layout(set = 3, binding = 0) uniform MaterialUBO {
 	float uMetallic;
 	float uUseTexture;
 	float uUseIBL;
+	vec4 uObjectLight; // BAKED : lumière reçue de l'objet (rgb, linéaire) et facteur ambiant (a)
 };
 )";
 
@@ -193,11 +207,11 @@ layout(set = 3, binding = 0) uniform MaterialUBO {
 inline constexpr const char *LIGHT_UBO_BASE = R"(
 layout(set = 3, binding = 1) uniform LightUBO {
 	vec3 uLightDir;
-	float uPadding1;
+	float uExposure;   // BAKED : exposition avant tone mapping (Canvas::SetExposure)
 	vec4 uLightColor;
 	vec4 uAmbientColor;
 	vec3 uCameraPos;
-	float uPadding2;
+	float uBaseLight;  // BAKED : lumière uniforme sans occlusion (Canvas::SetBaseLight)
 };
 )";
 
@@ -209,11 +223,11 @@ layout(set = 3, binding = 1) uniform LightUBO {
 inline constexpr const char *LIGHT_UBO_SHADOW = R"(
 layout(set = 3, binding = 1) uniform LightUBO {
 	vec3 uLightDir;
-	float uPadding1;
+	float uExposure;   // BAKED : exposition avant tone mapping (Canvas::SetExposure)
 	vec4 uLightColor;
 	vec4 uAmbientColor;
 	vec3 uCameraPos;
-	float uPadding2;
+	float uBaseLight;  // BAKED : lumière uniforme sans occlusion (Canvas::SetBaseLight)
 	mat4 uDirShadowMatrix;
 	mat4 uSpotShadowMatrix0;
 	mat4 uSpotShadowMatrix1;
@@ -556,6 +570,63 @@ vec3 ShadeSurface(vec3 albedoRgb, vec3 N, vec3 V, float shadow) {
 #endif
 
 	return color + uEmissive.rgb * uEmissive.a;
+}
+)";
+
+// ── Éclairage précalculé (BAKED) — moteurs voxel : la lumière des sources,
+// occultée par la géométrie, est déjà dans le sommet (inLight.rgb) ; ici
+// s'ajoutent l'ambiante et le soleil, pondérés par la part de ciel
+// (inLight.a), et les lumières ponctuelles du Canvas (Lambert, sans
+// occlusion : réservées à ce qui ne peut pas être masqué, comme une lampe
+// tenue par la caméra). Tout est LINÉAIRE ; ACES puis sRGB à la sortie.
+inline constexpr const char *LIGHTING_FUNC_BAKED = R"(
+vec3 SrgbToLinear(vec3 c) {
+	c = clamp(c, 0.0, 1.0);
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
+
+vec3 LinearToSrgb(vec3 c) {
+	c = clamp(c, 0.0, 1.0);
+	return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
+}
+
+// Approximation ACES (Narkowicz 2015) : compresse les fortes valeurs sans
+// toucher l'ordre (deux lampes restent plus claires qu'une).
+vec3 ToneMapAces(vec3 x) {
+	const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
+	return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+}
+
+vec3 ReceivedLight(vec3 N, float shadow) {
+	float ambientShare = clamp(inLight.a * uObjectLight.a, 0.0, 1.0);
+	vec3 sun = uLightColor.rgb * max(dot(N, normalize(-uLightDir)), 0.0) * shadow;
+	vec3 received = max(inLight.rgb, vec3(0.0)) + max(uObjectLight.rgb, vec3(0.0)) + ambientShare * (uAmbientColor.rgb + sun) +
+					vec3(max(uBaseLight, 0.0));
+#if NUM_POINT_LIGHTS > 0
+	for (int i = 0; i < NUM_POINT_LIGHTS; ++i) {
+		vec3 toLight = uPointLights[i].position - inWorldPos;
+		float dist = length(toLight);
+		vec3 L = toLight / max(dist, 0.0001);
+		float atten = PunctualAttenuation(dist, uPointLights[i].distanceVal, uPointLights[i].decay);
+		received += uPointLights[i].color * atten * max(dot(N, L), 0.0);
+	}
+#endif
+	return received;
+}
+)";
+
+inline constexpr const char *FRAGMENT_MAIN_BAKED = R"(
+void main() {
+	vec3 N = normalize(inNormal);
+	vec4 albedo = uBaseColor * inColor;
+	if (uUseTexture > 0.5)
+		albedo *= texture(uAlbedo, inUV);
+	if (albedo.a < 0.02)
+		discard;
+	float shadow = ComputeShadowFactor(inWorldPos);
+	vec3 color = SrgbToLinear(albedo.rgb) * ReceivedLight(N, shadow);
+	color = ToneMapAces(color * uExposure);
+	outFragColor = vec4(LinearToSrgb(color), albedo.a);
 }
 )";
 

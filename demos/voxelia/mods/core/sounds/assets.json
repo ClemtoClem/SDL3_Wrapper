@@ -132,8 +132,8 @@
     "type": "sound",
     "id": "lava",
     "paths": [
-      "sounds/default/lava.1.ogg",
-      "sounds/default/lava.2.ogg"
+      "sounds/default/lava_1.ogg",
+      "sounds/default/lava_2.ogg"
     ],
     "volume": 0.7,
     "pitchVariation": 0.05
@@ -591,7 +591,7 @@
   {
     "type": "sound",
     "id": "amb_owl",
-    "path": "sounds/default/ambience_owl.1.ogg",
+    "path": "sounds/default/ambience_owl_1.ogg",
     "volume": 0.6,
     "pitchVariation": 0.05
   },
@@ -1021,7 +1021,7 @@
   {
     "type": "sound",
     "id": "zombie_death",
-    "path": "sounds/Combat_and_Gore/crunch_splat.wav",
+    "path": "sounds/Combat_and_Gore/crunch_splat.1.wav",
     "volume": 0.8,
     "pitchVariation": 0.1
   },
@@ -1042,7 +1042,7 @@
   {
     "type": "sound",
     "id": "skeleton_death",
-    "path": "sounds/Combat_and_Gore/crunch_splat_2.wav",
+    "path": "sounds/Combat_and_Gore/crunch_splat.2.wav",
     "volume": 0.8,
     "pitchVariation": 0.1
   },
@@ -1092,10 +1092,10 @@
     "type": "sound",
     "id": "slime_idle",
     "paths": [
-      "sounds/Combat_and_Gore/squelching_1.wav",
-      "sounds/Combat_and_Gore/squelching_2.wav",
-      "sounds/Combat_and_Gore/squelching_3.wav",
-      "sounds/Combat_and_Gore/squelching_4.wav"
+      "sounds/Combat_and_Gore/squelching.1.wav",
+      "sounds/Combat_and_Gore/squelching.2.wav",
+      "sounds/Combat_and_Gore/squelching.3.wav",
+      "sounds/Combat_and_Gore/squelching.4.wav"
     ],
     "volume": 0.7,
     "pitchVariation": 0.15

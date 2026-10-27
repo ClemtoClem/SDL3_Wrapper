@@ -20,7 +20,7 @@
  *               frequency, threshold, lavaLevel, lava, roofBlock) ; les
  *               biomes décorent sols ET plafonds des cavernes.
  *  - "maze"   : salles et couloirs sans fin (« maze » : floor, height,
- *               cell, region, wallChance, doorWidth, outer, exit ;
+ *               cell, region, wallChance, doorWidth, poolDepth, outer, exit ;
  *               « levels » : zones aux blocs propres, cf. backrooms).
  *  - "script" : la fonction du mod remplit le chunk (cf. ScriptHost).
  *
@@ -100,8 +100,15 @@ private:
 		int lightEvery = 4;
 		bool open = false;        ///< pas de murs : salle immense à piliers
 		float wallChance = 0.55f;
-		float waterChance = 0.f;  ///< cellules inondées (piscines)
+		float waterChance = 0.f;  ///< cellules inondées : bassins creusés, eau au ras du sol
 		float darkChance = 0.f;   ///< lampes éteintes
+		/// Néon éteint (« lightOff » ; sinon le plafond) et à moitié allumé
+		/// (« lightHalf », une lampe sur « halfChance »).
+		BlockId lightOff = AIR, lightHalf = AIR;
+		float halfChance = 0.f;
+		BlockId lightAuto = AIR;  ///< « lightAuto » : néon à détecteur (s'allume à l'approche)
+		float autoChance = 0.f;
+		bool lightHanging = false; ///< néon pendu sous le plafond (dernière cellule libre) et non encastré
 		const BiomeDef *biome = nullptr;
 	};
 
@@ -125,6 +132,13 @@ private:
 	void SetupMaze();
 	[[nodiscard]] const MazeLevel &MazeLevelAt(int x, int z) const;
 	[[nodiscard]] bool MazeWall(const MazeLevel &level, int x, int z) const;
+	/// Mur de la colonne (x, z), frontières entre niveaux comprises.
+	[[nodiscard]] bool MazeColumnWall(int x, int z) const;
+	/// La cellule (cx, cz) a-t-elle une porte de sortie en son centre ?
+	[[nodiscard]] bool MazeExitCell(int cx, int cz) const;
+	/// Panneau fléché vers la sortie la plus proche, sur le mur voisin de la
+	/// colonne (x, z) ; AIR si aucun.
+	[[nodiscard]] BlockId MazeExitSign(int x, int z, uint8_t &param) const;
 	void GenerateMaze(Chunk &chunk, World &world);
 
 	/// Pose une décoration (bloc, structure, élément procédural) en (x, y, z) :
@@ -160,6 +174,9 @@ private:
 	// "maze"
 	int m_mazeFloor = 0, m_mazeHeight = 5, m_mazeCell = 7, m_mazeRegion = 80, m_doorWidth = 2;
 	BlockId m_mazeOuter = AIR, m_mazeExit = AIR, m_mazeExitSign = AIR;
+	BlockId m_mazeSignLeft = AIR, m_mazeSignRight = AIR; ///< panneaux muraux « ← EXIT », « EXIT → »
+	int m_mazeSignRange = 2, m_mazeSignHeight = 3;
+	int m_poolDepth = 2; ///< profondeur des bassins (« poolDepth »), eau au ras du sol
 	float m_exitChance = 0.003f;
 	std::vector<MazeLevel> m_levels;
 	float m_levelWeight = 0.f;

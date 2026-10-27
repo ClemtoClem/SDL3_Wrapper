@@ -274,3 +274,18 @@ TEST(Game_BucketsCarryWaterAndTheCurrentCarriesItems) {
 	CHECK(world.BlockAt({1, 10, -5}).fluid);
 	game.CloseWorld();
 }
+
+TEST(Fluids_BodiesWakeUpGeneratedLiquid) {
+	Pond pond;
+	// Eau posée par la génération au bord d'un trou : calme tant que rien ne bouge.
+	(void)pond.world->SetBlock({0, 10, 0}, String("t:water"), 0, ChangeCause::GENERATION);
+	CHECK_EQ(pond.fluids->Pending(), size_t(0));
+	(void)pond.fluids->Settle(5.f);
+	CHECK(pond.At({1, 10, 0}) == "core:air");
+	// Un corps y entre : le liquide est réexaminé et s'étale.
+	CHECK(pond.fluids->Disturb(Box{{0.2f, 10.f, 0.2f}, {0.8f, 11.8f, 0.8f}}) > 0);
+	(void)pond.fluids->Settle(5.f);
+	CHECK(pond.At({1, 10, 0}) == "t:water");
+	// Loin de tout liquide : rien à faire.
+	CHECK_EQ(pond.fluids->Disturb(Box{{20.2f, 10.f, 20.2f}, {20.8f, 11.8f, 20.8f}}), 0);
+}

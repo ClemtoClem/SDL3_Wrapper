@@ -6,6 +6,7 @@
 
 #include <render3d/texture_loader.hpp>
 #include <voxel/json.hpp>
+#include <voxel/lighting.hpp>
 #include <voxel/rig.hpp>
 
 namespace voxelia {
@@ -71,14 +72,22 @@ render3d::Mesh WorldRenderer::ToMesh(const MeshBuffer &buffer) {
 	std::vector<render3d::Vertex3D> vertices;
 	vertices.reserve(buffer.vertices.size());
 	for (const MeshVertex &v : buffer.vertices)
-		vertices.push_back(render3d::Vertex3D{v.position, v.normal, v.uv, sdl3::Color{v.color[0], v.color[1], v.color[2], v.color[3]}});
+		vertices.push_back(render3d::Vertex3D{v.position, v.normal, v.uv, sdl3::Color{v.color[0], v.color[1], v.color[2], v.color[3]},
+											  math::FVector4{v.light[0], v.light[1], v.light[2], v.light[3]}});
 	return render3d::Mesh(std::move(vertices), buffer.indices);
 }
 
 Result<bool, String> WorldRenderer::Initialize() {
-	m_atlas.Build(m_game.Assets(), m_game.Content(), 16);
+	// Textures fines (papiers peints, néons… en 2048 px) gardées jusqu'à
+	// 256 px par bloc, avec leurs mipmaps (pas de moiré au loin).
+	m_atlas.Build(m_game.Assets(), m_game.Content(), 16, 256);
+	(void)m_game.Assets().ReleaseUnused(); // les images sources, souvent grandes, ne servent plus
 	const Image &pixels = m_atlas.Pixels();
-	auto texture = render3d::CreateTextureFromPixels(m_canvas.Device(), uint32_t(pixels.width), uint32_t(pixels.height), pixels.rgba);
+	std::vector<std::span<const uint8_t>> mipmaps;
+	for (const Image &level : m_atlas.Mipmaps())
+		mipmaps.emplace_back(level.rgba);
+	auto texture = render3d::CreateTextureFromPixels(m_canvas.Device(), uint32_t(pixels.width), uint32_t(pixels.height), pixels.rgba,
+													 mipmaps);
 	if (texture.IsError())
 		return Err(texture.Error());
 	m_atlasTexture = Some(std::move(texture).Unwrap());
@@ -88,10 +97,13 @@ Result<bool, String> WorldRenderer::Initialize() {
 	m_opaque.albedo = Some(MakeRef(m_atlasTexture.Value()));
 	m_opaque.nearestFilter = true;
 	m_opaque.roughness = 1.f; // pas de reflet spéculaire sur la pierre
+	m_opaque.bakedLighting = true; // lumière des sommets (voxel/lighting.hpp)
 	m_translucent = m_opaque;
 	m_translucent.blend = true;
 	m_translucent.doubleSided = true; // l'eau vue d'en dessous
 	m_entity = m_opaque;
+	m_emissive = m_opaque;
+	m_emissive.lit = false; // une source de lumière n'est pas assombrie par la scène
 	m_entity.doubleSided = true;
 
 	// Ombres des entités : disque sombre translucide posé au sol.
@@ -205,8 +217,8 @@ void WorldRenderer::RebuildChunk(const ChunkPos &p, ChunkView &view) {
 	};
 	place(view.opaque, mesh.opaque, m_opaque);
 	place(view.translucent, mesh.translucent, m_translucent);
+	place(view.emissive, mesh.emissive, m_emissive);
 	view.revision = mesh.revision;
-	view.lights = mesh.lights;
 }
 
 void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Option<BlockHit> &target) {
@@ -225,6 +237,8 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 				(void)m_chunkRoot->RemoveChild(view.opaque);
 			if (view.translucent)
 				(void)m_chunkRoot->RemoveChild(view.translucent);
+			if (view.emissive)
+				(void)m_chunkRoot->RemoveChild(view.emissive);
 		}
 		m_chunks.clear();
 		for (auto &[key, view] : m_entities)
@@ -238,6 +252,8 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 				(void)m_chunkRoot->RemoveChild(it->second.opaque);
 			if (it->second.translucent)
 				(void)m_chunkRoot->RemoveChild(it->second.translucent);
+			if (it->second.emissive)
+				(void)m_chunkRoot->RemoveChild(it->second.emissive);
 			it = m_chunks.erase(it);
 		} else {
 			++it;
@@ -253,6 +269,17 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 		const uint64_t built = it == m_chunks.end() ? 0 : it->second.revision;
 		if (built == chunk->Revision())
 			continue;
+		// Première fois : attendre (un peu) ses voisins horizontaux — leurs
+		// blocs et leurs lampes le feraient refaire aussitôt.
+		if (built == 0 && !chunk->IsEmpty()) {
+			bool missing = false;
+			for (int dz = -1; dz <= 1 && !missing; ++dz)
+				for (int dx = -1; dx <= 1 && !missing; ++dx)
+					missing = !world.GetChunk({p.x + dx, p.y, p.z + dz});
+			if (missing && ++m_waiting[p] < 90)
+				continue;
+		}
+		m_waiting.erase(p);
 		const math::FVector3 center = p.Origin().ToVector() + math::FVector3{8.f, 8.f, 8.f};
 		dirty.push_back({(center - camera.position).Length(), p});
 	}
@@ -271,6 +298,8 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 			m_triangles += view.opaque->Geometry().IndexCount() / 3;
 		if (view.translucent)
 			m_triangles += view.translucent->Geometry().IndexCount() / 3;
+		if (view.emissive)
+			m_triangles += view.emissive->Geometry().IndexCount() / 3;
 	}
 
 	{
@@ -394,6 +423,7 @@ void WorldRenderer::DropView(EntityView &view) {
 	view.shape = nullptr;
 	view.rigRoot = nullptr;
 	view.parts.clear();
+	view.partShapes.clear();
 	view.rig.reset();
 }
 
@@ -458,6 +488,7 @@ void WorldRenderer::UpdateRig(ecs::Entity e, EntityView &view, const Transform &
 				m_meshCache[meshKey] = mesh;
 			}
 			auto shape = std::make_unique<render3d::Shape>(mesh, material->material);
+			view.partShapes.push_back(shape.get());
 			render3d::Object3D *node = shape.get();
 			const int parent = part.parent.IsEmpty() ? -1 : view.rig->Find(part.parent);
 			math::FVector3 pivot = part.pivot * view.rig->scale;
@@ -487,6 +518,11 @@ void WorldRenderer::UpdateRig(ecs::Entity e, EntityView &view, const Transform &
 	if (view.rig->unitHeight)
 		if (auto c = registry.GetComponent<Collider>(e); c.IsSome())
 			scale *= c.Unwrap()->size.y;
+	// Éclairé là où il se trouve (à mi-hauteur).
+	const math::FVector4 light = LightAt(at + math::FVector3{0.f, 0.5f * scale, 0.f});
+	for (render3d::Shape *part : view.partShapes)
+		for (render3d::Material &m : part->Materials())
+			m.objectLight = light;
 	view.rigRoot->SetPosition(at);
 	view.rigRoot->SetRotation(math::FQuaternion::FromAxisAngle({0.f, 1.f, 0.f}, t.yaw + visual.rig.yaw * (3.14159265f / 180.f)));
 	view.rigRoot->SetScale({scale, scale, scale});
@@ -539,7 +575,11 @@ void WorldRenderer::UpdateEntities(float alpha) {
 		}
 		view.meshKey = meshKey;
 		const bool translucent = visual.look.material == RenderMaterial::TRANSLUCENT || visual.look.material == RenderMaterial::TRANSPARENT;
-		view.shape->Materials() = {translucent ? m_translucent : m_entity};
+		// Objet ou bloc lumineux (torche au sol, lave qui tombe) : pleine luminosité.
+		const int glow = visual.block != AIR ? m_game.Content().Block(visual.block).look.lightEmission : visual.look.lightEmission;
+		render3d::Material material = translucent ? m_translucent : glow > 0 ? m_emissive : m_entity;
+		material.objectLight = LightAt(p + math::FVector3{0.f, 0.5f * visual.scale, 0.f});
+		view.shape->Materials() = {material};
 		float scale = visual.scale;
 		float spin = t.yaw;
 		math::FVector3 at = p;
@@ -585,29 +625,56 @@ void WorldRenderer::UpdateSky() {
 		darkness = fx.Unwrap()->Level("darkness");
 		nightVision = fx.Unwrap()->Level("night_vision");
 	}
+	// Éclairage en LINÉAIRE (cf. voxel/lighting.hpp) : les sources des blocs
+	// sont dans les sommets ; ici le soleil et l'ambiante du ciel (pondérés
+	// par la part de ciel de chaque sommet), la lumière de base de la
+	// dimension et l'exposition. Aucun plancher caché : sans ciel ni base ni
+	// source, c'est noir.
+	auto linear = [](const std::array<uint8_t, 3> &c, float k) {
+		const lighting::Rgb l = lighting::SrgbToLinear(c[0], c[1], c[2]);
+		const float m = std::max({l[0], l[1], l[2], 1e-4f});
+		// Couleur normalisée (composante max = 255) et intensité à part : la
+		// précision des 8 bits reste sur la teinte.
+		return std::make_pair(sdl3::Color{uint8_t(std::lround(l[0] / m * 255.f)), uint8_t(std::lround(l[1] / m * 255.f)),
+										  uint8_t(std::lround(l[2] / m * 255.f)), 255},
+							  m * k);
+	};
+	const bool skyLit = !dim || dim->skyLight;
 	render3d::DirectionalLight sun;
 	sun.direction = math::FVector3{0.3f, -std::max(0.15f, std::fabs(height)), -std::cos(angle)}.Normalize();
-	sun.intensity = (m_settings.shadows >= 2 ? 1.05f : 0.85f) * daylight;
-	sun.color = height > 0.f ? sdl3::Color{255, 245, 225} : sdl3::Color{150, 160, 220};
-	if (dim && !dim->sun) { // pas de soleil : une lueur diffuse, à la couleur du ciel
-		sun.direction = math::FVector3{0.25f, -1.f, 0.4f}.Normalize();
-		sun.intensity *= 0.45f;
-		sun.color = Mix({uint8_t(128 + sky[0] / 2), uint8_t(128 + sky[1] / 2), uint8_t(128 + sky[2] / 2)}, 1.f);
-	}
+	const float sunUp = std::clamp(height * 2.5f, 0.f, 1.f);
+	auto [sunColor, sunIntensity] = height > 0.f ? linear({255, 245, 225}, 2.2f * sunUp) : linear({150, 165, 220}, 0.08f);
+	sun.color = sunColor;
+	sun.intensity = (dim && !dim->sun) || !skyLit ? 0.f : sunIntensity;
 	render3d::AmbientLight ambient;
-	float light = (0.25f + 0.35f * daylight) * (0.7f + m_settings.brightness * 0.6f) * (m_settings.shadows >= 2 ? 0.85f : 1.f);
-	if (dim)
-		light *= dim->ambient;
+	float base = dim && dim->baseLight.IsSome() ? dim->baseLight.Value() : 0.f;
+	if (skyLit) {
+		// Lumière diffuse du ciel, de la teinte du ciel, selon l'heure.
+		const std::array<uint8_t, 3> tint{uint8_t((sky[0] + 255) / 2), uint8_t((sky[1] + 255) / 2), uint8_t((sky[2] + 255) / 2)};
+		auto [color, intensity] = linear(tint, (0.04f + 0.56f * daylight) * (dim ? dim->ambient : 1.f));
+		ambient.color = color;
+		ambient.intensity = intensity;
+	} else {
+		// Monde sans ciel : la part « ambiante » des sommets n'est que
+		// l'occlusion ambiante ; la lumière est la base de la dimension
+		// (historique : « ambient » quand « base » n'est pas donnée).
+		const float level = dim && dim->baseLight.IsSome() ? base : 0.55f * (dim ? dim->ambient : 1.f);
+		auto [color, intensity] = linear({255, 250, 240}, level);
+		ambient.color = color;
+		ambient.intensity = intensity;
+		base = 0.f;
+	}
+	float exposure = (dim ? dim->exposure : 1.f) * (0.75f + 0.5f * m_settings.brightness);
 	if (darkness > 0) {
 		const float k = 1.f / (1.f + 1.6f * float(darkness));
-		light *= k;
-		sun.intensity *= k;
+		exposure *= k;
 		daylight *= k;
 	}
 	if (nightVision > 0)
-		light = std::max(light, 0.75f);
-	ambient.color = Mix({200, 205, 220}, std::min(1.f, light));
+		base += 0.6f; // la vision nocturne éclaire tout, même au fond d'une grotte
 	m_canvas.SetLighting(sun, ambient);
+	m_canvas.SetExposure(exposure);
+	m_canvas.SetBaseLight(base);
 	m_canvas.SetBackgroundColor(Mix(sky, dim && !dim->dayCycle ? std::min(1.f, daylight + 0.2f) : daylight));
 	// Ciel en cubemap : celui de nuit quand il fait sombre (s'il existe),
 	// assombri selon l'heure et l'obscurité.
@@ -675,53 +742,53 @@ void WorldRenderer::UpdateShadow(EntityView &view, const math::FVector3 &feet, f
 }
 
 void WorldRenderer::UpdateLights(const render3d::Camera &camera) {
-	const int count = std::clamp(m_settings.dynamicLights, 0, 16);
-	if (count == 0) {
-		m_canvas.SetLights({}, {});
-		return;
+	// Les lumières des blocs et des entités sont dans les sommets (occultées
+	// par la géométrie, voxel/lighting.hpp). Reste celle de l'objet tenu en
+	// main (torche, lanterne) : à la place de l'œil, elle n'éclaire que ce que
+	// la caméra voit — pas d'occlusion à calculer, et elle suit sans délai.
+	LightDef held;
+	if (m_settings.dynamicLights > 0)
+		if (const ItemStack *stack = m_game.LocalPlayer().Valid() ? m_game.HeldItem(m_game.LocalPlayer()) : nullptr; stack && !stack->IsEmpty())
+			if (const ItemDef *item = m_game.Content().FindItem(stack->item)) {
+				if (!item->placesBlock.IsEmpty())
+					if (const BlockDef *block = m_game.Content().FindBlock(item->placesBlock))
+						held = block->look.light;
+				if (const int level = json::Int(item->raw, "light", 0); level > 0 && !held.Active()) {
+					held.enabled = true;
+					held.color = lighting::SrgbToLinear(lighting::LEGACY_COLOR[0], lighting::LEGACY_COLOR[1], lighting::LEGACY_COLOR[2]);
+					held.intensity = lighting::LegacyIntensity(level);
+					held.range = lighting::LegacyRange(level);
+				}
+			}
+	// Toujours une lumière (une seule variante de shader à compiler).
+	render3d::PointLight light;
+	light.position = camera.position + math::FVector3{0.f, -0.3f, 0.f};
+	light.decay = 2.f; // inverse du carré, comme les sources du monde
+	if (held.Active()) {
+		const float m = std::max({held.color[0], held.color[1], held.color[2], 1e-4f});
+		light.color = sdl3::Color{uint8_t(std::lround(held.color[0] / m * 255.f)), uint8_t(std::lround(held.color[1] / m * 255.f)),
+								  uint8_t(std::lround(held.color[2] / m * 255.f)), 255};
+		light.intensity = held.intensity * m;
+		light.distance = held.range;
+	} else {
+		light.position = camera.position + math::FVector3{0.f, -10000.f, 0.f};
+		light.intensity = 0.f;
+		light.distance = 1.f;
 	}
-	// Les blocs lumineux les plus proches de la caméra (torches, lanternes…).
-	std::vector<std::pair<float, std::pair<math::FVector3, int>>> nearest;
-	for (const auto &[p, view] : m_chunks) {
-		if (view.lights.empty())
-			continue;
-		const math::FVector3 center = p.Origin().ToVector() + math::FVector3{8.f, 8.f, 8.f};
-		if ((center - camera.position).Length() > 48.f)
-			continue;
-		for (const auto &light : view.lights)
-			nearest.push_back({(light.first - camera.position).Length(), light});
-	}
-	std::partial_sort(nearest.begin(), nearest.begin() + static_cast<ptrdiff_t>(std::min<size_t>(size_t(count), nearest.size())), nearest.end(),
-					  [](const auto &a, const auto &b) { return a.first < b.first; });
-	// Objet lumineux tenu en main (« light » de l'objet, ou du bloc qu'il
-	// pose : torche, lanterne) : une lumière qui suit le joueur, prioritaire.
-	if (const ItemStack *held = m_game.LocalPlayer().Valid() ? m_game.HeldItem(m_game.LocalPlayer()) : nullptr; held && !held->IsEmpty())
-		if (const ItemDef *item = m_game.Content().FindItem(held->item)) {
-			int level = json::Int(item->raw, "light", 0);
-			if (level == 0 && !item->placesBlock.IsEmpty())
-				if (const BlockDef *block = m_game.Content().FindBlock(item->placesBlock))
-					level = block->look.lightEmission;
-			if (level > 0)
-				nearest.insert(nearest.begin(), {0.f, {camera.position + math::FVector3{0.f, -0.3f, 0.f}, level}});
-		}
-	// Toujours `count` lumières (une seule variante de shader à compiler).
-	std::vector<render3d::PointLight> lights(static_cast<size_t>(count));
-	const float daylight = std::clamp(std::sin((m_game.DayFraction() - 0.25f) * 6.2831853f) * 2.5f + 0.35f, 0.08f, 1.f);
-	for (size_t i = 0; i < lights.size(); ++i) {
-		render3d::PointLight &l = lights[i];
-		if (i < nearest.size()) {
-			l.position = nearest[i].second.first;
-			l.color = sdl3::Color{255, 196, 130, 255};
-			l.intensity = float(nearest[i].second.second) / 15.f * (2.2f - 1.4f * daylight);
-			l.distance = 3.f + float(nearest[i].second.second) * 0.6f;
-			l.decay = 2.f;
-		} else {
-			l.position = camera.position + math::FVector3{0.f, -10000.f, 0.f};
-			l.intensity = 0.f;
-			l.distance = 1.f;
-		}
-	}
-	m_canvas.SetLights(lights, {});
+	m_canvas.SetLights({&light, 1}, {});
+}
+
+math::FVector4 WorldRenderer::LightAt(const math::FVector3 &p) const {
+	// Un objet mobile reçoit la lumière là où il se trouve : éclairement
+	// sans direction (la moitié : les faces tournées vers la source
+	// reçoivent, les autres non), et sa part de ciel.
+	const World &world = m_game.GetWorld();
+	std::vector<lighting::Source> sources;
+	lighting::GatherSources(world, p, p, sources);
+	const lighting::Rgb e = lighting::DirectIrradiance(world, p, math::FVector3{0.f, 0.f, 0.f}, sources);
+	const DimensionDef *dim = m_game.CurrentDimensionDef();
+	const float sky = !dim || dim->skyLight ? lighting::SkyAccess(world, p) : 1.f;
+	return math::FVector4{0.5f * e[0], 0.5f * e[1], 0.5f * e[2], sky};
 }
 
 void WorldRenderer::UpdateClouds(const render3d::Camera &camera) {
@@ -770,7 +837,9 @@ void WorldRenderer::SpawnBreakParticles(BlockId block, const BlockPos &pos, int 
 			for (uint32_t k : {0u, 1u, 2u, 0u, 2u, 3u})
 				buffer.indices.push_back(base + k);
 		}
-		auto shape = std::make_unique<render3d::Shape>(ToMesh(buffer), m_entity);
+		render3d::Material material = m_entity;
+		material.objectLight = LightAt(pos.Center());
+		auto shape = std::make_unique<render3d::Shape>(ToMesh(buffer), material);
 		Particle part;
 		part.shape = shape.get();
 		part.position = pos.Center() + math::FVector3{(rx - 0.5f) * 0.6f, (ry - 0.5f) * 0.6f, (rz - 0.5f) * 0.6f};

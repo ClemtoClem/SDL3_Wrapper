@@ -1,5 +1,6 @@
 // Définitions de voxel/game.hpp
 #include <voxel/game.hpp>
+#include <voxel/fluids.hpp>
 #include <voxel/json.hpp>
 #include <voxel/scripting.hpp>
 
@@ -70,6 +71,41 @@ void Game::PlaySound(const String &sound, const math::FVector3 &position, float 
 			variant = int(HashPosition(salt, int(position.x), int(position.z), int(m_schedule.Frame()), 7) % def->paths.size());
 	}
 	ecs::EventsOf<SoundEvent>(m_registry).Send(SoundEvent{sound, position, v, pitch, positional, variant});
+}
+
+void Game::PlayAmbient(const String &sound, float volume, const AmbientOptions &options) {
+	if (sound.IsEmpty())
+		return;
+	if (options.channel.IsEmpty()) {
+		PlaySound(sound, {0.f, 0.f, 0.f}, volume, false);
+		return;
+	}
+	SoundEvent ev;
+	ev.sound = sound;
+	ev.volume = volume;
+	ev.positional = false;
+	ev.channel = options.channel;
+	ev.fadeIn = std::max(0.f, options.fadeIn);
+	ev.fadeOut = std::max(0.f, options.fadeOut);
+	ev.loop = options.loop;
+	if (const SoundDef *def = m_content.FindSound(sound)) {
+		ev.volume *= def->volume;
+		// Une boucle garde sa variante : elle ne change qu'avec le son.
+		if (def->paths.size() > 1 && !options.loop)
+			ev.variant = int(HashPosition(uint32_t(++m_soundSerial), 0, 0, int(m_schedule.Frame()), 7) % def->paths.size());
+	}
+	ecs::EventsOf<SoundEvent>(m_registry).Send(std::move(ev));
+}
+
+void Game::StopAmbient(const String &channel, float fadeOut) {
+	if (channel.IsEmpty())
+		return;
+	SoundEvent ev;
+	ev.positional = false;
+	ev.channel = channel;
+	ev.fadeOut = std::max(0.f, fadeOut);
+	ev.stop = true;
+	ecs::EventsOf<SoundEvent>(m_registry).Send(std::move(ev));
 }
 
 // ── Modes, difficulté, expérience ────────────────────────────────────────────
@@ -385,6 +421,7 @@ void Game::DoTravel(ecs::Entity player, const String &target, Option<math::FVect
 			if (m_registry.IsAlive(e))
 				(void)ecs::DespawnRecursive(m_registry, e);
 		m_fluids.reset();
+		m_sensorWatch.clear();
 		m_world.reset();
 		CreateWorld(target);
 		if (Result<size_t, String> loaded = m_save->LoadEntities(m_registry); loaded.IsError())
@@ -413,8 +450,11 @@ void Game::DoTravel(ecs::Entity player, const String &target, Option<math::FVect
 		(void)m_scripts->Emit("dimension_changed", {m_scripts->EntityValue(player), Value::Str(target), Value::Str(from)});
 		if (def) {
 			Message(String::Format("Vous entrez dans : %s", def->displayName.CStr()), String("event"));
+			// Musique de la dimension : remplace (en fondu) celle de la précédente.
 			if (!def->music.IsEmpty())
-				PlaySound(def->music, arrival, 1.f, false);
+				PlayAmbient(def->music, 1.f, AmbientOptions{String(DIMENSION_CHANNEL), 2.f, 3.f, false});
+			else
+				StopAmbient(String(DIMENSION_CHANNEL), 3.f);
 		}
 		LogLine(String::Format("[dimension] %s → %s", from.IsEmpty() ? "?" : from.CStr(), target.CStr()));
 	}
@@ -518,6 +558,7 @@ void Game::CloseWorld() {
 	(void)Save();
 	m_registry.Clear();
 	m_fluids.reset();
+	m_sensorWatch.clear();
 	m_world.reset();
 	m_save.reset();
 	m_localPlayer = ecs::Entity{};
@@ -566,9 +607,26 @@ void Game::InstallSystems() {
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "portals", [this](ecs::SystemContext &c) { StepPortals(c.dt); }, 15);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "falling_blocks", [this](ecs::SystemContext &) { StepFallingBlocks(); }, 20);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "fluids", [this](ecs::SystemContext &c) {
-		if (m_fluids && Rule("liquidFlow"))
-			(void)m_fluids->Step(c.dt);
+		if (!m_fluids || !Rule("liquidFlow"))
+			return;
+		// Corps dans un liquide (joueurs, créatures, blocs qui tombent…) : le
+		// liquide autour est réexaminé à chaque cellule franchie.
+		m_registry.Query<PhysicsBody, Transform, Collider>([&](ecs::Entity, PhysicsBody &body, Transform &t, Collider &collider) {
+			if (!body.inFluid) {
+				body.stirred = false;
+				return;
+			}
+			const BlockPos cell = BlockPos::FromWorld(t.position);
+			if (body.stirred && cell == body.stirredCell)
+				return;
+			body.stirred = true;
+			body.stirredCell = cell;
+			(void)m_fluids->Disturb(collider.WorldBox(t.position));
+		});
+		(void)m_fluids->Step(c.dt);
 	}, 25);
+	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "sensors", [this](ecs::SystemContext &c) { StepSensors(c.dt); }, 27);
+	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "lights", [this](ecs::SystemContext &c) { StepLights(c.dt); }, 28);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "items", [this](ecs::SystemContext &c) { StepItems(c.dt); }, 30);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "health", [this](ecs::SystemContext &c) { StepHealth(c.dt); }, 40);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "survival", [this](ecs::SystemContext &c) { StepSurvival(c.dt); }, 45);
@@ -1414,6 +1472,87 @@ bool Game::ToggleBlock(const BlockPos &pos, ecs::Entity actor) {
 		(void)m_world->SetBlock(at, id, param, ChangeCause::PLAYER);
 	PlaySound(sound, main.Center());
 	return true;
+}
+
+bool Game::SetBlockState(const BlockPos &pos, const String &state, ChangeCause cause) {
+	if (!m_world || !m_world->IsLoaded(pos))
+		return false;
+	const BlockPos main = MainPart(pos);
+	const BlockDef *to = m_content.BlockState(m_world->BlockAt(main), state);
+	if (!to)
+		return false;
+	if (to->numeric == m_world->GetBlock(main))
+		return true;
+	return m_world->SetBlock(main, to->numeric, m_world->GetParam(main), cause);
+}
+
+void Game::StepLights(float dt) {
+	m_lightTimer -= dt;
+	if (m_lightTimer > 0.f || !m_world)
+		return;
+	m_lightTimer = 0.2f;
+	std::vector<World::DynamicLight> lights;
+	m_registry.Query<Visual, Transform>([&](ecs::Entity, Visual &visual, Transform &t) {
+		if (!visual.visible)
+			return;
+		const LightDef &light = visual.block != AIR ? m_content.Block(visual.block).look.light : visual.look.light;
+		if (light.Active())
+			lights.push_back(World::DynamicLight{t.position + math::FVector3{0.f, 0.5f * visual.scale, 0.f}, light});
+	});
+	m_world->SetDynamicLights(std::move(lights));
+}
+
+void Game::StepSensors(float dt) {
+	m_sensorTimer -= dt;
+	if (m_sensorTimer > 0.f || !m_world)
+		return;
+	m_sensorTimer = 0.25f;
+	const float reach = m_content.MaxSensorRadius();
+	if (reach <= 0.f)
+		return;
+	std::vector<math::FVector3> players;
+	m_registry.Query<Player, Transform>([&](ecs::Entity, Player &, Transform &t) {
+		players.push_back(t.position + math::FVector3{0.f, 1.f, 0.f}); // à hauteur du torse
+	});
+	if (players.empty())
+		return;
+	// Blocs à capteur autour des joueurs (marge : un joueur qui s'éloigne
+	// est encore vu le temps que le bloc repasse à l'état « loin »).
+	const int r = int(std::ceil(reach)) + 2;
+	std::vector<BlockPos> sensors;
+	for (const math::FVector3 &p : players) {
+		const BlockPos c = BlockPos::FromWorld(p);
+		for (int y = c.y - r; y <= c.y + r; ++y)
+			for (int z = c.z - r; z <= c.z + r; ++z)
+				for (int x = c.x - r; x <= c.x + r; ++x)
+					if (m_world->IsLoaded({x, y, z}) && m_world->BlockAt({x, y, z}).sensor.radius > 0.f)
+						sensors.push_back({x, y, z});
+	}
+	sensors.insert(sensors.end(), m_sensorWatch.begin(), m_sensorWatch.end());
+	std::sort(sensors.begin(), sensors.end(), BlockPosOrder{});
+	sensors.erase(std::unique(sensors.begin(), sensors.end()), sensors.end());
+	m_sensorWatch.clear();
+	for (const BlockPos &pos : sensors) {
+		if (!m_world->IsLoaded(pos))
+			continue;
+		const BlockDef &def = m_world->BlockAt(pos);
+		if (def.sensor.radius <= 0.f)
+			continue;
+		if (!def.sensor.farBlock.IsEmpty())
+			m_sensorWatch.push_back(pos); // attend que les joueurs s'éloignent
+		float nearest = 1e9f;
+		for (const math::FVector3 &p : players)
+			nearest = std::min(nearest, (pos.Center() - p).Length());
+		const String &target = nearest <= def.sensor.radius ? def.sensor.nearBlock : def.sensor.farBlock;
+		const BlockDef *to = target.IsEmpty() ? nullptr : m_content.FindBlock(target);
+		if (!to || to->numeric == def.numeric)
+			continue;
+		(void)m_world->SetBlock(pos, to->numeric, m_world->GetParam(pos), ChangeCause::SIMULATION);
+		if (to->sensor.radius > 0.f && !to->sensor.farBlock.IsEmpty() && def.sensor.farBlock.IsEmpty())
+			m_sensorWatch.push_back(pos);
+		if (const String sound = json::Str(def.raw, "sensor.sound"); !sound.IsEmpty())
+			PlaySound(ContentRegistry::Qualify(sound, def.mod), pos.Center(), 0.6f);
+	}
 }
 
 bool Game::Sleep(ecs::Entity player, const BlockPos &bed) {

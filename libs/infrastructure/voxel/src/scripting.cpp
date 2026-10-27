@@ -399,6 +399,20 @@ void ScriptHost::InstallWorldApi() {
 		TRY(p, ArgPos(args, 0, "world.toggle"));
 		return Ok(Value::Boolean(m_game.HasWorld() && m_game.ToggleBlock(p)));
 	});
+	// États d'un bloc (« states ») : world.state(x, y, z) → nom ou nil ;
+	// world.set_state(x, y, z, nom) → vrai si le bloc a cet état.
+	vm.RegisterNamespacedNative("world", "state", 3, 3, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(p, ArgPos(args, 0, "world.state"));
+		if (!m_game.HasWorld() || !m_game.GetWorld().IsLoaded(p))
+			return Ok(Value::Nil());
+		const BlockDef &def = m_game.GetWorld().BlockAt(p);
+		return Ok(def.stateName.IsEmpty() ? Value::Nil() : Value::Str(def.stateName));
+	});
+	vm.RegisterNamespacedNative("world", "set_state", 4, 4, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(p, ArgPos(args, 0, "world.set_state"));
+		TRY(state, sd::ArgString(args, 3, "world.set_state"));
+		return Ok(Value::Boolean(m_game.HasWorld() && m_game.SetBlockState(p, state)));
+	});
 	vm.RegisterNamespacedNative("world", "use", 3, 4, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
 		TRY(p, ArgPos(args, 0, "world.use"));
 		const ecs::Entity actor = args.size() > 3 ? EntityOf(args[3]) : m_game.LocalPlayer();
@@ -942,15 +956,50 @@ void ScriptHost::InstallContentApi() {
 		m_game.PlaySound(Qualified(id, m_currentMod), p);
 		return Ok(Value::Nil());
 	});
-	// Son d'ambiance ou musique (non spatialisé) : game.ambient(id [, volume]).
-	vm.RegisterNamespacedNative("game", "ambient", 1, 2, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+	// Son d'ambiance ou musique (non spatialisé) : game.ambient(id [, volume]
+	// [, options]) ; options {volume, channel, fade_in, fade_out, loop} — sur
+	// un canal, un seul son à la fois : l'ancien s'éteint en fondu, le nouveau
+	// monte en fondu, le même son déjà en cours continue.
+	vm.RegisterNamespacedNative("game", "ambient", 1, 3, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
 		TRY(id, sd::ArgString(args, 0, "game.ambient"));
 		float volume = 1.f;
-		if (args.size() > 1) {
-			TRY(v, sd::ArgNumber(args, 1, "game.ambient"));
-			volume = float(v);
+		Game::AmbientOptions options;
+		for (size_t i = 1; i < args.size(); ++i) {
+			if (args[i].IsNumber()) {
+				volume = float(args[i].AsNumber());
+			} else if (args[i].IsMap() && args[i].AsMap()) {
+				for (const auto &[key, value] : args[i].AsMap()->Snapshot()) {
+					const bool number = value.IsNumber();
+					if (key == "volume" && number)
+						volume = float(value.AsNumber());
+					else if (key == "channel" && value.IsString())
+						options.channel = value.AsString();
+					else if (key == "fade_in" && number)
+						options.fadeIn = float(value.AsNumber());
+					else if (key == "fade_out" && number)
+						options.fadeOut = float(value.AsNumber());
+					else if (key == "loop")
+						options.loop = value.IsTruthy();
+					else
+						return Err(script::Interpreter::MakeError(
+							String::Format("`game.ambient` : option `%s` inconnue ou mal typée", key.CStr())));
+				}
+			} else if (!args[i].IsNil()) {
+				return Err(script::Interpreter::MakeError(String("`game.ambient(id [, volume] [, options])` : volume ou table attendus")));
+			}
 		}
-		m_game.PlaySound(Qualified(id, m_currentMod), math::FVector3{0.f, 0.f, 0.f}, volume, false);
+		m_game.PlayAmbient(Qualified(id, m_currentMod), volume, options);
+		return Ok(Value::Nil());
+	});
+	// game.stop_ambient(canal [, fondu_de_sortie]).
+	vm.RegisterNamespacedNative("game", "stop_ambient", 1, 2, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(channel, sd::ArgString(args, 0, "game.stop_ambient"));
+		float fadeOut = 0.f;
+		if (args.size() > 1) {
+			TRY(f, sd::ArgNumber(args, 1, "game.stop_ambient"));
+			fadeOut = float(f);
+		}
+		m_game.StopAmbient(channel, fadeOut);
 		return Ok(Value::Nil());
 	});
 	// Réglage d'un mod (mod.json « settings » : valeur par défaut, surchargée

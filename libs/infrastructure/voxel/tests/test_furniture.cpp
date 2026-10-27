@@ -52,7 +52,15 @@ String MakeMods(const char *name) {
 		 "parts": [{"offset": [0, 0, 1], "block": "bed_head"}], "interact": {"action": "sleep"}},
 		{"id": "bed_head", "type": "nodebox", "nodebox": [[-0.5, -0.5, -0.5, 0.5, 0.0625, 0.5]], "graphics": {"texture": "grey"},
 		 "partOf": [0, 0, -1], "interact": {"action": "sleep"}, "item": false, "gameplay": {"drops": ""}},
-		{"id": "chest", "graphics": {"texture": "grey"}, "container": {"slots": 27, "title": "Coffre"}}
+		{"id": "chest", "graphics": {"texture": "grey"}, "container": {"slots": 27, "title": "Coffre"}},
+		{"type": "texture", "id": "lamp_off", "procedural": {"color": [60, 60, 60]}},
+		{"type": "texture", "id": "lamp_on", "procedural": {"color": [250, 240, 200]}},
+		{"id": "lamp", "graphics": {"textures": {"side": "grey", "bottom": "lamp_off"}}, "defaultState": "off",
+		 "states": {
+			"off": {"interact": {"toggle": "on"}},
+			"on": {"graphics": {"textures": {"bottom": "lamp_on"}, "light": 12}, "interact": {"toggle": "off"}},
+			"auto": {"id": "lamp_sensor", "sensor": {"radius": 4, "near": "auto_on"}},
+			"auto_on": {"graphics": {"textures": {"bottom": "lamp_on"}, "light": 12}, "sensor": {"radius": 6, "far": "auto"}}}}
 	])");
 	Write(mod / "init.script", R"(
 voxel.command("loot", "/loot", "remplit le coffre en 8, 10, 0", fn(sender, args) {
@@ -277,5 +285,58 @@ TEST(Game_ContainersKeepTheirContentsAndDropThemWhenBroken) {
 	REQUIRE(game.PlaceBlock(player, {8, 10, 0}, "furn:chest"));
 	REQUIRE(game.BlockInventory({8, 10, 0}) != nullptr);
 	CHECK_EQ(game.BlockInventory({8, 10, 0})->Count("furn:apple"), 0);
+	game.CloseWorld();
+}
+
+TEST(Game_BlockStatesSwapTexturesAndFollowSensors) {
+	const String root = MakeMods("furniture_states");
+	Game game;
+	const ModReport report = game.LoadMods(Options(root));
+	for (const String &e : report.errors)
+		std::printf("erreur : %s\n", e.CStr());
+	REQUIRE(report.errors.empty());
+	// Un BlockDef par état : textures et lumière propres, le reste hérité.
+	const ContentRegistry &content = game.Content();
+	const BlockDef *off = content.FindBlock("furn:lamp");
+	const BlockDef *on = content.FindBlock("furn:lamp_on");
+	const BlockDef *sensor = content.FindBlock("furn:lamp_sensor"); // « id » explicite
+	REQUIRE(off && on && sensor && content.FindBlock("furn:lamp_auto_on"));
+	CHECK(off->stateName == "off" && on->stateName == "on" && on->stateGroup == "furn:lamp");
+	CHECK(off->look.Texture(Face::BOTTOM) == "furn:lamp_off" && on->look.Texture(Face::BOTTOM) == "furn:lamp_on");
+	CHECK(on->look.Texture(Face::EAST) == "furn:grey"); // hérité
+	CHECK_EQ(off->look.lightEmission, 0);
+	CHECK_EQ(on->look.lightEmission, 12);
+	CHECK(off->toggle == "furn:lamp_on" && on->toggle == "furn:lamp"); // noms d'états → ids
+	CHECK(content.BlockState(*on, "auto") == sensor);
+	CHECK(json::Str(on->raw, "gameplay.drops") == "lamp"); // on ramasse la lampe (état par défaut)
+	CHECK(content.FindItem("furn:lamp") != nullptr);
+	CHECK(content.FindItem("furn:lamp_on") == nullptr);
+	CHECK_NEAR(content.MaxSensorRadius(), 6.f, 1e-6f);
+
+	REQUIRE(game.OpenWorld("monde", Some(uint32_t(3))).IsOk());
+	const ecs::Entity player = game.JoinPlayer("Alix");
+	World &world = game.GetWorld();
+	// Bascule et API de script.
+	(void)world.SetBlock({3, 13, 3}, String("furn:lamp"), 2, ChangeCause::SCRIPT);
+	CHECK(game.ToggleBlock({3, 13, 3}));
+	CHECK(world.BlockAt({3, 13, 3}).id == "furn:lamp_on");
+	CHECK_EQ(int(world.GetParam({3, 13, 3})), 2); // orientation gardée
+	CHECK(game.Scripts().RunSource("world.set_state(3, 13, 3, \"off\")").IsOk());
+	CHECK(world.BlockAt({3, 13, 3}).id == "furn:lamp");
+	CHECK(!game.SetBlockState({3, 13, 3}, "disco"));
+	// Détecteur : s'allume quand le joueur approche, s'éteint quand il s'en va.
+	const math::FVector3 at = T(game, player).position;
+	const BlockPos near = BlockPos::FromWorld(at) + BlockPos{2, 2, 0};
+	const BlockPos far = BlockPos::FromWorld(at) + BlockPos{30, 2, 0};
+	(void)world.SetBlock(near, String("furn:lamp_sensor"), 0, ChangeCause::SCRIPT);
+	(void)world.SetBlock(far, String("furn:lamp_sensor"), 0, ChangeCause::SCRIPT);
+	for (int i = 0; i < 30; ++i)
+		game.Tick(1.f / 60.f);
+	CHECK(world.BlockAt(near).id == "furn:lamp_auto_on");
+	CHECK(world.BlockAt(far).id == "furn:lamp_sensor");
+	T(game, player).position.x -= 8.f; // à 10 blocs
+	for (int i = 0; i < 30; ++i)
+		game.Tick(1.f / 60.f);
+	CHECK(world.BlockAt(near).id == "furn:lamp_sensor");
 	game.CloseWorld();
 }

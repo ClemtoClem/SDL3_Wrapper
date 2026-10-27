@@ -109,6 +109,9 @@ Result<ShaderProgram, String> ShaderBuilder::Build(sdl3::GpuDevice &device) cons
 		defines += "#define IBL_ENABLED\n";
 	if (IsInstanced())
 		defines += "#define INSTANCED_ENABLED\n";
+	const bool baked = m_lightingModel == LightingModel::BAKED;
+	if (baked)
+		defines += "#define BAKED_LIGHTING\n";
 
 	String vertexSrc = defines;
 	vertexSrc += (IsSkinned() ? VERTEX_ATTRIBUTES_SKINNED : VERTEX_ATTRIBUTES);
@@ -117,6 +120,8 @@ Result<ShaderProgram, String> ShaderBuilder::Build(sdl3::GpuDevice &device) cons
 	if (IsSkinned())
 		vertexSrc += BONE_MATRIX_STORAGE_BUFFER;
 	vertexSrc += (lit ? VERTEX_OUTPUTS_LIT : VERTEX_OUTPUTS_UNLIT);
+	if (baked)
+		vertexSrc += VERTEX_ATTRIBUTE_BAKED;
 	vertexSrc += PER_FRAME_UBO;
 	vertexSrc += PER_OBJECT_UBO;
 	if (IsSkinned())
@@ -126,6 +131,8 @@ Result<ShaderProgram, String> ShaderBuilder::Build(sdl3::GpuDevice &device) cons
 
 	String fragmentSrc = defines;
 	fragmentSrc += (lit ? FRAGMENT_INPUTS_LIT : FRAGMENT_INPUTS_UNLIT);
+	if (baked)
+		fragmentSrc += FRAGMENT_INPUT_BAKED;
 	fragmentSrc += FRAGMENT_OUTPUT;
 	fragmentSrc += SAMPLER_ALBEDO;
 	if (HasShadows())
@@ -142,8 +149,13 @@ Result<ShaderProgram, String> ShaderBuilder::Build(sdl3::GpuDevice &device) cons
 		if (m_pointLights > 0 || m_spotLights > 0)
 			fragmentSrc += LIGHT_ATTENUATION_FUNC;
 		fragmentSrc += (HasShadows() ? SHADOW_REAL_FUNC : SHADOW_STUB_FUNC);
-		fragmentSrc += (m_lightingModel == LightingModel::PBR ? LIGHTING_FUNC_PBR : LIGHTING_FUNC_PHONG);
-		fragmentSrc += FRAGMENT_MAIN_LIT;
+		if (baked) {
+			fragmentSrc += LIGHTING_FUNC_BAKED;
+			fragmentSrc += FRAGMENT_MAIN_BAKED;
+		} else {
+			fragmentSrc += (m_lightingModel == LightingModel::PBR ? LIGHTING_FUNC_PBR : LIGHTING_FUNC_PHONG);
+			fragmentSrc += FRAGMENT_MAIN_LIT;
+		}
 	} else {
 		fragmentSrc += FRAGMENT_MAIN_UNLIT;
 	}

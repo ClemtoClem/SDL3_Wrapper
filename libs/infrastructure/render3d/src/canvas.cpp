@@ -139,6 +139,7 @@ void Canvas::BindUnlitMaterial(sdl3::GpuCommandBuffer &cmd, sdl3::GpuRenderPass 
 		float baseColor[4];
 		float emissive[4];
 		float roughness, metallic, useTexture, useIBL;
+		float objectLight[4] = {0.f, 0.f, 0.f, 1.f}; // BAKED (shader_chunks::MATERIAL_UBO)
 	};
 	MaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a}, {0.f, 0.f, 0.f, 0.f}, 0.f, 0.f, material.albedo.IsSome() ? 1.f : 0.f, 0.f};
 	cmd.PushFragmentUniformData(0, materialUbo);
@@ -265,12 +266,13 @@ Option<Ref<sdl3::GpuGraphicsPipeline>> Canvas::GetOrCreatePipeline(const Pipelin
 	// pipeline (SDL_GPU copie ce dont il a besoin en interne).
 	// Le basique précompilé ignore la texture (couleur seule) : un matériau
 	// non éclairé TEXTURÉ passe lui aussi par un shader généré.
-	bool needsBuiltShader = key.shader == ShaderKind::PBR || key.pointLightCount > 0 || key.spotLightCount > 0 ||
-							key.hasShadows || key.hasEnvironment || key.instanced || key.skinned ||
+	bool needsBuiltShader = key.shader == ShaderKind::PBR || key.shader == ShaderKind::BAKED || key.pointLightCount > 0 ||
+							key.spotLightCount > 0 || key.hasShadows || key.hasEnvironment || key.instanced || key.skinned ||
 							(key.shader == ShaderKind::BASIC && key.hasTexture);
 	ShaderProgram builtProgram;
 	if (needsBuiltShader) {
-		LightingModel model = key.shader == ShaderKind::PBR       ? LightingModel::PBR
+		LightingModel model = key.shader == ShaderKind::PBR	  ? LightingModel::PBR
+							  : key.shader == ShaderKind::BAKED ? LightingModel::BAKED
 							  : key.shader == ShaderKind::PHONG ? LightingModel::PHONG
 																: LightingModel::UNLIT;
 		auto built = ShaderBuilder()
@@ -293,7 +295,7 @@ Option<Ref<sdl3::GpuGraphicsPipeline>> Canvas::GetOrCreatePipeline(const Pipelin
 		{0, uint32_t(sizeof(Vertex3D)), sdl3::gpu_vertex_input_rate::VERTEX, 0},
 		{1, uint32_t(sizeof(math::FMatrix4)), sdl3::gpu_vertex_input_rate::INSTANCE, 0},
 	};
-	sdl3::GpuVertexAttribute vertexAttributes[8] = {
+	sdl3::GpuVertexAttribute vertexAttributes[9] = {
 		{0, 0, sdl3::gpu_vertex_element_format::FLOAT3, uint32_t(offsetof(Vertex3D, position))},
 		{1, 0, sdl3::gpu_vertex_element_format::FLOAT3, uint32_t(offsetof(Vertex3D, normal))},
 		{2, 0, sdl3::gpu_vertex_element_format::FLOAT2, uint32_t(offsetof(Vertex3D, uv))},
@@ -306,6 +308,8 @@ Option<Ref<sdl3::GpuGraphicsPipeline>> Canvas::GetOrCreatePipeline(const Pipelin
 		{5, 1, sdl3::gpu_vertex_element_format::FLOAT4, 16},
 		{6, 1, sdl3::gpu_vertex_element_format::FLOAT4, 32},
 		{7, 1, sdl3::gpu_vertex_element_format::FLOAT4, 48},
+		// Lumière précalculée (LightingModel::BAKED seulement, jamais instancié).
+		{8, 0, sdl3::gpu_vertex_element_format::FLOAT4, uint32_t(offsetof(Vertex3D, light))},
 	};
 
 	// SkinnedVertex3D (M17) — layout de sommet totalement différent
@@ -334,6 +338,10 @@ Option<Ref<sdl3::GpuGraphicsPipeline>> Canvas::GetOrCreatePipeline(const Pipelin
 		info.vertex_input_state.num_vertex_buffers = key.instanced ? 2 : 1;
 		info.vertex_input_state.vertex_attributes = vertexAttributes;
 		info.vertex_input_state.num_vertex_attributes = key.instanced ? 8 : 4;
+		if (key.shader == ShaderKind::BAKED && !key.instanced) {
+			vertexAttributes[4] = vertexAttributes[8]; // contiguës : 0-3 puis 8
+			info.vertex_input_state.num_vertex_attributes = 5;
+		}
 	}
 	info.primitive_type = key.topology == PrimitiveTopology::LINES    ? sdl3::gpu_primitive_type::LINE_LIST
 						  : key.topology == PrimitiveTopology::POINTS ? sdl3::gpu_primitive_type::POINT_LIST
@@ -970,9 +978,10 @@ void Canvas::End() {
 				return;
 
 			PipelineKey key{};
-			key.shader = !draw.material.lit  ? ShaderKind::BASIC
-						: draw.material.pbr ? ShaderKind::PBR
-											 : ShaderKind::PHONG;
+			key.shader = !draw.material.lit			   ? ShaderKind::BASIC
+						: draw.material.bakedLighting ? ShaderKind::BAKED
+						: draw.material.pbr			   ? ShaderKind::PBR
+													   : ShaderKind::PHONG;
 			key.doubleSided = draw.material.doubleSided;
 			key.wireframe = draw.material.wireframe;
 			key.depthTest = draw.material.depthTest;
@@ -1033,12 +1042,14 @@ void Canvas::End() {
 				lightUbo.cameraPos[0] = m_camera.position.x;
 				lightUbo.cameraPos[1] = m_camera.position.y;
 				lightUbo.cameraPos[2] = m_camera.position.z;
+				lightUbo.padding1 = m_exposure;  // uExposure (BAKED)
+				lightUbo.padding2 = m_baseLight; // uBaseLight (BAKED)
 
 				// PBR est TOUJOURS un shader généré par ShaderBuilder
 				// (jamais de fichier précompilé, voir GetOrCreatePipeline)
 				// — même condition que `needsBuiltShader` là-bas.
-				if (key.shader == ShaderKind::PBR || key.pointLightCount > 0 || key.spotLightCount > 0 ||
-					key.hasShadows || key.hasEnvironment) {
+				if (key.shader == ShaderKind::PBR || key.shader == ShaderKind::BAKED || key.pointLightCount > 0 ||
+					key.spotLightCount > 0 || key.hasShadows || key.hasEnvironment) {
 					// Shader généré par ShaderBuilder : MaterialUBO inclut
 					// uEmissive (voir shader_chunks::MATERIAL_UBO) — forme
 					// différente du Phong précompilé ci-dessous.
@@ -1046,6 +1057,7 @@ void Canvas::End() {
 						float baseColor[4];
 						float emissive[4];
 						float roughness, metallic, useTexture, useIBL;
+						float objectLight[4] = {0.f, 0.f, 0.f, 1.f}; // BAKED (shader_chunks::MATERIAL_UBO)
 					};
 					sdl3::FColor bc(draw.material.baseColor);
 					MaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a},
@@ -1054,6 +1066,11 @@ void Canvas::End() {
 											draw.material.metallic,
 											draw.material.albedo.IsSome() ? 1.f : 0.f,
 											key.hasEnvironment ? 1.f : 0.f};
+					const math::FVector4 &ol = draw.material.objectLight;
+					materialUbo.objectLight[0] = ol.x;
+					materialUbo.objectLight[1] = ol.y;
+					materialUbo.objectLight[2] = ol.z;
+					materialUbo.objectLight[3] = ol.w;
 					cmd.PushFragmentUniformData(0, materialUbo);
 
 					if (key.hasShadows) {
@@ -1285,11 +1302,14 @@ void Canvas::End() {
 				lightUbo.cameraPos[0] = m_camera.position.x;
 				lightUbo.cameraPos[1] = m_camera.position.y;
 				lightUbo.cameraPos[2] = m_camera.position.z;
+				lightUbo.padding1 = m_exposure;  // uExposure (BAKED)
+				lightUbo.padding2 = m_baseLight; // uBaseLight (BAKED)
 
 				struct MaterialUBO {
 					float baseColor[4];
 					float emissive[4];
 					float roughness, metallic, useTexture, useIBL;
+					float objectLight[4] = {0.f, 0.f, 0.f, 1.f}; // BAKED (shader_chunks::MATERIAL_UBO)
 				};
 				sdl3::FColor bc(draw.material.baseColor);
 				MaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a},
@@ -1422,11 +1442,14 @@ void Canvas::End() {
 				lightUbo.cameraPos[0] = m_camera.position.x;
 				lightUbo.cameraPos[1] = m_camera.position.y;
 				lightUbo.cameraPos[2] = m_camera.position.z;
+				lightUbo.padding1 = m_exposure;  // uExposure (BAKED)
+				lightUbo.padding2 = m_baseLight; // uBaseLight (BAKED)
 
 				struct MaterialUBO {
 					float baseColor[4];
 					float emissive[4];
 					float roughness, metallic, useTexture, useIBL;
+					float objectLight[4] = {0.f, 0.f, 0.f, 1.f}; // BAKED (shader_chunks::MATERIAL_UBO)
 				};
 				sdl3::FColor bc(draw.material.baseColor);
 				MaterialUBO materialUbo{{bc.r, bc.g, bc.b, bc.a},

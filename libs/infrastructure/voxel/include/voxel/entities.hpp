@@ -36,6 +36,12 @@ struct SoundEvent {
 	float volume = 1.f, pitch = 1.f;
 	bool positional = true;
 	int variant = 0; ///< variante du SoundDef (fichier tiré au hasard)
+	/// Canal (ambiance, musique) : un son à la fois, l'ancien fondu en sortie
+	/// et le nouveau en entrée ; vide : son libre.
+	String channel;
+	float fadeIn = 0.f, fadeOut = 0.f;
+	bool loop = false;
+	bool stop = false; ///< éteindre le canal (`sound` vide)
 };
 
 /// Message de jeu (chat, console, notifications).

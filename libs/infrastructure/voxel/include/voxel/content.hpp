@@ -66,6 +66,46 @@ struct ShapeDesc {
 	String model; ///< id d'un ModelDef, ou chemin de fichier (obj/b3d) résolu
 };
 
+/**
+ * Source de lumière d'un bloc ou d'une entité (« light » de sa définition).
+ * Conventions (centralisées dans voxel/lighting.hpp) :
+ *   - couleur : JSON en sRGB 0..255, stockée ici en RGB LINÉAIRE 0..1 ;
+ *   - intensité : éclairement reçu à 1 bloc, face tournée vers la source
+ *     (sans unité physique ; 1 ≈ « bien éclairé » avant le tone mapping) ;
+ *   - distances en blocs (1 bloc = 1 m), angles en degrés dans le JSON ;
+ *   - direction dans le repère du bloc à l'orientation 0, tournée avec lui.
+ */
+struct LightDef {
+	enum class Type : uint8_t { POINT, SPOT, DIRECTIONAL };
+	enum class Falloff : uint8_t { INVERSE_SQUARE, LINEAR, NONE };
+	bool enabled = false;
+	Type type = Type::POINT;
+	std::array<float, 3> color{1.f, 1.f, 1.f};
+	float intensity = 0.f;
+	float range = 0.f; ///< au-delà, plus rien (fin progressive, pas de coupure)
+	Falloff falloff = Falloff::INVERSE_SQUARE;
+	math::FVector3 direction{0.f, -1.f, 0.f}; ///< spot, directionnelle (normée)
+	float innerCos = 1.f, outerCos = 0.f;     ///< spot : cos des demi-angles du cône
+	float radius = 0.5f;                      ///< directionnelle : rayon du faisceau (blocs)
+	math::FVector3 offset{0.f, 0.f, 0.f};     ///< position dans la cellule (centre = 0)
+	bool legacy = false;                      ///< déduite de « graphics.light » (niveau 0..15)
+	[[nodiscard]] bool Active() const noexcept {
+		return enabled && intensity > 0.f && range > 0.f && color[0] + color[1] + color[2] > 0.f;
+	}
+};
+
+/// Transmission optique d'un bloc (« optics ») : ce que la lumière DIRECTE
+/// garde en le traversant — indépendante de la collision (« physics.solid »).
+struct OpticsDef {
+	std::array<float, 3> transmittance{1.f, 1.f, 1.f}; ///< 0 : opaque, 1 : transparent (par canal, linéaire)
+	/// Vrai : toute la cellule filtre ; faux : seules les boîtes visibles
+	/// (portes, dalles, échelles…) arrêtent les rayons qui les touchent.
+	bool fullCell = true;
+	[[nodiscard]] bool Clear() const noexcept { return transmittance[0] >= 1.f && transmittance[1] >= 1.f && transmittance[2] >= 1.f; }
+	[[nodiscard]] bool Opaque() const noexcept { return transmittance[0] <= 0.f && transmittance[1] <= 0.f && transmittance[2] <= 0.f; }
+	[[nodiscard]] bool operator==(const OpticsDef &) const noexcept = default;
+};
+
 struct Appearance {
 	/// Textures par face (ordre de Face : est, ouest, dessus, dessous, sud, nord).
 	std::array<String, FACE_COUNT> faces;
@@ -76,7 +116,10 @@ struct Appearance {
 	/// faces concernées (bit = Face), toutes par défaut.
 	String biomeTint;
 	uint8_t tintFaces = 0x3F;
-	int lightEmission = 0;                            ///< 0..15
+	/// Niveau historique 0..15 (« graphics.light ») : décide de l'aspect
+	/// lumineux (textures « lueur ») ; déduit de `light` s'il est donné.
+	int lightEmission = 0;
+	LightDef light; ///< la lumière réellement émise (cf. lighting.hpp)
 	String shader;                                    ///< ShaderDef facultatif
 	[[nodiscard]] const String &Texture(Face face) const { return faces[size_t(face)]; }
 };
@@ -148,11 +191,24 @@ struct BlockDef {
 	};
 	std::vector<Part> parts;          ///< « parts » : autres cellules du bloc principal
 	std::optional<BlockPos> partOf;   ///< « partOf » : position du bloc principal vue de cette partie
+	OpticsDef optics; ///< transmission de la lumière directe (« optics », sinon déduite du matériau)
 	// Clic droit (« interact »).
 	String toggle;                   ///< bloc qui remplace celui-ci (porte ouverte ↔ fermée), orientation gardée
 	String toggleSound;              ///< son joué en basculant VERS `toggle`
 	String use;                      ///< action intégrée : « sleep » (lit), « container » (rangement)
 	int containerSlots = 0;          ///< « container.slots » : emplacements d'un rangement
+	// États (« states » : allumé / éteint…). Chaque état est un BlockDef à
+	// part entière (textures, lumière, interaction propres) ; l'état par défaut
+	// porte l'id du bloc, les autres « id_état » (ou leur « id »).
+	String stateGroup;                               ///< id du bloc dont c'est un état (vide : sans états)
+	String stateName;                                ///< nom de cet état
+	std::vector<std::pair<String, String>> stateIds; ///< chaque état du bloc → son id
+	/// « sensor » : change d'état quand un joueur entre dans `radius`
+	/// (→ `nearBlock`) ou n'y est plus (→ `farBlock`).
+	struct Sensor {
+		float radius = 0.f;
+		String nearBlock, farBlock;
+	} sensor;
 	NodePtr raw;
 
 	[[nodiscard]] bool HasTag(const String &tag) const;
@@ -309,7 +365,12 @@ struct DimensionDef {
 	bool sun = true, clouds = true, stars = true;
 	bool dayCycle = true;  ///< faux : heure figée à `fixedTime` (0..1)
 	float fixedTime = 0.5f;
-	float ambient = 1.f;   ///< multiplicateur de la lumière ambiante
+	float ambient = 1.f;   ///< multiplicateur de la lumière ambiante (du ciel)
+	/// « light.base » : lumière uniforme, sans occlusion (0 : nuit noire
+	/// possible). Absente d'un monde sans ciel : `ambient` en tient lieu
+	/// (comportement historique).
+	Option<float> baseLight;
+	float exposure = 1.f; ///< « light.exposure » : exposition avant tone mapping
 	/// Lumière du ciel par sommet (grottes et dessous des surplombs sombres) ;
 	/// faux pour les îles flottantes et les mondes éclairés autrement.
 	bool skyLight = true;
@@ -339,6 +400,9 @@ struct TextureDef {
 	/// Teinte du biome appliquée à toute face qui utilise cette texture
 	/// (« grass », « foliage », « water ») : herbe grise du pack…
 	String biomeTint;
+	/// Variantes (« variants » : ids de textures) : chaque bloc posé en tire
+	/// une d'après sa position ; la texture elle-même est la première.
+	std::vector<String> variants;
 	NodePtr raw;
 };
 
@@ -404,6 +468,10 @@ public:
 		return id < m_blocks.size() ? m_blocks[id] : m_blocks[AIR];
 	}
 	[[nodiscard]] const BlockDef *FindBlock(const String &id) const;
+	/// L'état `state` du bloc `block` (nullptr s'il n'existe pas).
+	[[nodiscard]] const BlockDef *BlockState(const BlockDef &block, const String &state) const;
+	/// Plus grand rayon de détection des blocs à capteur (0 : aucun).
+	[[nodiscard]] float MaxSensorRadius() const;
 	/// Identifiant numérique (AIR si inconnu).
 	[[nodiscard]] BlockId BlockIdOf(const String &id) const;
 	[[nodiscard]] size_t BlockCount() const noexcept { return m_blocks.size(); }
@@ -455,6 +523,8 @@ public:
 
 	/// Vérifie les renvois entre définitions ; rend les avertissements.
 	[[nodiscard]] std::vector<String> Validate() const;
+	/// Plus grande portée des lumières (blocs et entités) ; 0 : aucune.
+	[[nodiscard]] float MaxLightRange() const;
 
 	/// Id complet (« mod:nom ») d'un nom éventuellement court.
 	[[nodiscard]] static String Qualify(const String &id, const String &mod);
@@ -465,6 +535,8 @@ public:
 	[[nodiscard]] size_t DefinitionCount() const noexcept;
 
 private:
+	/// Valeurs refusées ou corrigées au chargement (lumières, optique) : rendues par Validate.
+	std::vector<String> m_loadWarnings;
 	template <typename T> struct Store {
 		std::map<std::string, T> byId;
 		std::vector<std::string> order;
@@ -488,6 +560,8 @@ private:
 
 	void Migrate(NodePtr &definition) const;
 	Result<String, String> LoadBlock(const NodePtr &def, const LoadContext &ctx, const String &type);
+	/// Bloc à « states » : un LoadBlock par état (cf. BlockDef::stateGroup).
+	Result<String, String> LoadBlockStates(const NodePtr &def, const LoadContext &ctx, const String &type);
 	Result<String, String> LoadItem(const NodePtr &def, const LoadContext &ctx, bool tool);
 	Result<String, String> LoadEntity(const NodePtr &def, const LoadContext &ctx, const String &kind);
 	Result<String, String> LoadRecipe(const NodePtr &def, const LoadContext &ctx);

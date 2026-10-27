@@ -476,3 +476,69 @@ TEST(OffscreenSmokeTest, UnlitMaterialSamplesItsTextureAndItsAlpha) {
     EXPECT_TRUE(background > 400); // le texel transparent laisse voir le fond
     EXPECT_EQ(white, 0);           // et non un aplat blanc (texture ignorée)
 }
+
+// Éclairage précalculé (LightingModel::BAKED) : la couleur affichée vient de
+// la lumière des sommets (linéaire), sans plancher ambiant : pas de lumière,
+// pas de couleur ; une lumière rouge sur du blanc donne du rouge ; plus de
+// lumière, plus clair (même après le tone mapping).
+TEST(OffscreenSmokeTest, BakedLightingUsesVertexLightOnly) {
+    auto windowResult = Window::Create(String("offscreen_smoke_test"), 64, 64, 0);
+    ASSERT_TRUE(windowResult.IsOk());
+    Window window = std::move(windowResult.Value());
+    auto canvasResult = Canvas::Create(window, 64, 64);
+    ASSERT_TRUE(canvasResult.IsOk());
+    Canvas canvas = std::move(canvasResult.Value());
+    canvas.SetBackgroundColor(Color(0, 0, 255, 255));
+    DirectionalLight sun;
+    sun.intensity = 0.f;
+    AmbientLight ambient;
+    ambient.color = Color(0, 0, 0, 255);
+    canvas.SetLighting(sun, ambient);
+
+    OffscreenTarget target;
+    ASSERT_TRUE(target.EnsureSize(canvas.Device(), 64, 64, OFFSCREEN_COLOR_FORMAT, OFFSCREEN_DEPTH_FORMAT).IsOk());
+    // Moyenne des pixels du cube (ceux qui ne sont pas le fond bleu).
+    auto render = [&](math::FVector4 light, float exposure) {
+        const Mesh base = Mesh::Cube(6.f);
+        std::vector<Vertex3D> vertices = base.Vertices();
+        for (Vertex3D &v : vertices)
+            v.light = light;
+        auto mesh = std::make_shared<Mesh>(std::move(vertices), base.Indices());
+        Material material = Material::Default();
+        material.bakedLighting = true;
+        canvas.SetExposure(exposure);
+        Shape cube(mesh, material);
+        std::vector<uint8_t> pixels;
+        EXPECT_TRUE(RenderObjectToTexture(canvas, cube, render3d::Camera{}, target, pixels).IsOk());
+        std::array<double, 3> sum{0.0, 0.0, 0.0};
+        int count = 0;
+        for (size_t i = 0; i < pixels.size(); i += 4) {
+            if (pixels[i] < 40 && pixels[i + 1] < 40 && pixels[i + 2] > 200)
+                continue; // fond
+            for (int k = 0; k < 3; ++k)
+                sum[size_t(k)] += pixels[i + size_t(k)];
+            ++count;
+        }
+        if (count > 0)
+            for (double &c : sum)
+                c /= double(count);
+        return std::make_pair(sum, count);
+    };
+    const auto [dark, darkCount] = render({0.f, 0.f, 0.f, 1.f}, 1.f);
+    EXPECT_TRUE(darkCount > 400);
+    EXPECT_TRUE(dark[0] < 2.0 && dark[1] < 2.0 && dark[2] < 2.0); // blanc non éclairé : noir
+    const auto [red, redCount] = render({2.f, 0.f, 0.f, 1.f}, 1.f);
+    EXPECT_TRUE(redCount > 400);
+    EXPECT_TRUE(red[0] > 150.0 && red[1] < 5.0 && red[2] < 5.0);
+    const auto [dim, dimCount] = render({0.3f, 0.3f, 0.3f, 1.f}, 1.f);
+    const auto [bright, brightCount] = render({0.6f, 0.6f, 0.6f, 1.f}, 1.f);
+    EXPECT_TRUE(dimCount > 400 && brightCount > 400);
+    EXPECT_TRUE(bright[1] > dim[1] + 10.0); // deux fois plus de lumière : visiblement plus clair
+    // L'ambiante n'atteint que la part indiquée par light.a.
+    ambient.color = Color(255, 255, 255, 255);
+    canvas.SetLighting(sun, ambient);
+    const auto [shut, shutCount] = render({0.f, 0.f, 0.f, 0.f}, 1.f);
+    EXPECT_TRUE(shutCount > 400 && shut[0] < 2.0);
+    const auto [open, openCount] = render({0.f, 0.f, 0.f, 1.f}, 1.f);
+    EXPECT_TRUE(openCount > 400 && open[0] > 100.0);
+}

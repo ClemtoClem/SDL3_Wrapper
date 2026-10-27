@@ -66,6 +66,10 @@ public:
 	[[nodiscard]] const std::vector<uint8_t> &Params() const noexcept { return m_params; }
 	void Assign(std::vector<BlockId> blocks, std::vector<uint8_t> params);
 
+	/// Cellules (indices locaux) des blocs qui émettent de la lumière,
+	/// recalculées après chaque modification du contenu.
+	[[nodiscard]] const std::vector<uint16_t> &LightCells(const ContentRegistry &content) const;
+
 private:
 	ChunkPos m_pos;
 	BlockId m_uniform = AIR;
@@ -74,6 +78,9 @@ private:
 	int m_nonAir = 0;
 	uint64_t m_revision = 1;
 	bool m_modified = false;
+	uint64_t m_contentRevision = 1; ///< avance à chaque bloc changé (pas aux voisins)
+	mutable uint64_t m_lightRevision = 0;
+	mutable std::vector<uint16_t> m_lightCells;
 };
 
 enum class ChangeCause : uint8_t { GENERATION, PLAYER, ENTITY, SCRIPT, SIMULATION, COMMAND };
@@ -123,6 +130,22 @@ public:
 	~World();
 
 	[[nodiscard]] const ContentRegistry &Content() const noexcept { return m_content; }
+
+	// ── Lumière (cf. lighting.hpp) ──────────────────────────────────────────
+
+	/// Source de lumière portée par une entité (torche au sol, créature…).
+	struct DynamicLight {
+		math::FVector3 position{0.f, 0.f, 0.f};
+		LightDef light; ///< copie : les composants des entités se déplacent en mémoire
+	};
+	/// Remplace les sources des entités ; les chunks que leur lumière atteint
+	/// sont à refaire quand une source apparaît, change de cellule ou s'éteint.
+	void SetDynamicLights(std::vector<DynamicLight> lights);
+	[[nodiscard]] const std::vector<DynamicLight> &DynamicLights() const noexcept { return m_dynamicLights; }
+	/// Plus grande portée des lumières du contenu (blocs).
+	[[nodiscard]] float MaxLightRange() const noexcept { return m_maxLightRange; }
+	/// Chunks chargés que touche la boîte englobant la sphère : à refaire.
+	void TouchSphere(const math::FVector3 &center, float radius);
 	[[nodiscard]] const WorldSettings &Settings() const noexcept { return m_settings; }
 
 	void SetGenerator(std::shared_ptr<ChunkGenerator> generator) { m_generator = std::move(generator); }
@@ -180,6 +203,12 @@ public:
 private:
 	void CheckStability(const BlockPos &p);
 	void TouchNeighbors(const BlockPos &p);
+	/// Un bloc change en `p` : les zones éclairées par l'ancienne et la
+	/// nouvelle source, et celles des sources dont il coupe (ou libère) les
+	/// rayons, sont à refaire.
+	void InvalidateLight(const BlockPos &p, BlockId before, uint8_t paramBefore, BlockId after, uint8_t paramAfter);
+	/// Chunk arrivé : la zone éclairée par ses sources.
+	void InvalidateLightForChunk(const ChunkPos &p);
 	/// Chunk arrivé : ses six voisins (faces au bord, occlusion) et, s'il
 	/// contient des blocs, les chunks en dessous (lumière du ciel).
 	void TouchAround(const ChunkPos &p, bool below);
@@ -187,6 +216,8 @@ private:
 	void TouchBelow(const ChunkPos &p);
 
 	const ContentRegistry &m_content;
+	float m_maxLightRange = 0.f;
+	std::vector<DynamicLight> m_dynamicLights;
 	WorldSettings m_settings;
 	std::shared_ptr<ChunkGenerator> m_generator;
 	ChunkStorage *m_storage = nullptr;

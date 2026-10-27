@@ -1,12 +1,17 @@
 // Tests — atlas de textures, maillage des chunks et des formes, modèles
-// .obj / .b3d / json (voxel/meshing.hpp, assets.hpp).
+// .obj / .b3d / json (voxel/meshing.hpp, assets.hpp). Écrit UNIQUEMENT sous
+// build/tests/tmp/voxel/.
 #include "test.hpp"
 
 #include <voxel/json.hpp>
 #include <voxel/meshing.hpp>
+#include <voxel/mods.hpp>
 #include <voxel/worldgen.hpp>
 
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <set>
 
 using namespace voxel;
 
@@ -81,7 +86,7 @@ TEST(Mesher_CullsHiddenFacesAndSeparatesTranslucent) {
 	(void)w2.SetBlock({5, 5, 4}, String("t:stone"));
 	int darkened = 0;
 	for (const MeshVertex &v : mesher.Build(w2, {0, 0, 0}).opaque.vertices)
-		darkened += v.color[0] < 255;
+		darkened += v.light[3] < 1.f; // l'occlusion ambiante vit dans la lumière, plus dans la teinte
 	CHECK(darkened > 0);
 }
 
@@ -202,14 +207,14 @@ TEST(Textures_ExpressionsInDefinitionsBecomeTextures) {
 
 namespace {
 
-/// Luminosité (rouge, 0..255) des sommets d'une face du dessus à la hauteur `y`
-/// au-dessus du bloc (x, z) d'un chunk : la plus forte des quatre.
+/// Part du ciel × occlusion (0..255) des sommets d'une face du dessus à la
+/// hauteur `y` au-dessus du bloc (x, z) d'un chunk : la plus forte des quatre.
 int TopFaceLight(const MeshBuffer &b, int x, float y, int z) {
 	int best = -1;
 	for (const MeshVertex &v : b.vertices)
 		if (v.normal.y > 0.9f && std::fabs(v.position.y - y) < 1e-3f && v.position.x >= float(x) - 1e-3f &&
 			v.position.x <= float(x + 1) + 1e-3f && v.position.z >= float(z) - 1e-3f && v.position.z <= float(z + 1) + 1e-3f)
-			best = std::max(best, int(v.color[0]));
+			best = std::max(best, int(std::lround(v.light[3] * 255.f)));
 	return best;
 }
 
@@ -264,11 +269,188 @@ TEST(Mesher_CavesUnderUnloadedTerrainAreDark) {
 		for (int x = -1; x <= 1; ++x)
 			(void)world.EnsureChunk({x, 0, z});
 	// Une cavité en y = 8..9 : 32 blocs de roche au-dessus, dont la plupart
-	// dans des chunks pas chargés (estimation du générateur).
+	// dans des chunks pas chargés (estimation du générateur) : aucun ciel.
 	for (int z = 3; z <= 5; ++z)
 		for (int x = 3; x <= 5; ++x)
 			for (int y = 8; y <= 9; ++y)
 				(void)world.SetBlock({x, y, z}, AIR);
 	const int floor = TopFaceLight(mesher.Build(world, {0, 0, 0}).opaque, 4, 8.f, 4);
-	CHECK(floor > 0 && floor < 70);
+	CHECK_EQ(floor, 0);
+}
+
+TEST(Atlas_LightBlocksGetABrighterHigherContrastTexture) {
+	// Une texture terne : gris de 90 à 140, un pixel transparent.
+	Image dull;
+	dull.width = dull.height = 4;
+	for (int i = 0; i < 16; ++i) {
+		const uint8_t v = uint8_t(90 + (i % 4) * 16);
+		dull.rgba.insert(dull.rgba.end(), {v, uint8_t(v + 10), uint8_t(v - 20), uint8_t(i == 5 ? 0 : 255)});
+	}
+	const Image glow = TextureAtlas::Glow(dull);
+	REQUIRE_EQ(glow.width, 4);
+	REQUIRE_EQ(glow.height, 4);
+	auto lum = [](const Image &im, int x, int y) { return 0.299 * im.At(x, y)[0] + 0.587 * im.At(x, y)[1] + 0.114 * im.At(x, y)[2]; };
+	double before = 0.0, after = 0.0, brightest = 0.0;
+	for (int y = 0; y < 4; ++y)
+		for (int x = 0; x < 4; ++x) {
+			before += lum(dull, x, y);
+			after += lum(glow, x, y);
+			brightest = std::max(brightest, lum(glow, x, y));
+		}
+	CHECK(after > before);   // plus lumineuse en moyenne…
+	CHECK(brightest > 230.0); // …et ses parties claires presque blanches
+	CHECK(lum(glow, 3, 0) - lum(glow, 0, 0) > (lum(dull, 3, 0) - lum(dull, 0, 0)) * 2.0); // plus contrastée
+	CHECK_EQ(int(glow.At(1, 1)[3]), 0); // la transparence reste
+	// Les teintes restent : le vert (canal le plus fort) domine toujours.
+	CHECK(glow.At(3, 0)[1] >= glow.At(3, 0)[0] && glow.At(3, 0)[0] >= glow.At(3, 0)[2]);
+	// Bande animée : la première image seulement.
+	Image strip = dull;
+	strip.height = 8;
+	strip.rgba.insert(strip.rgba.end(), dull.rgba.begin(), dull.rgba.end());
+	CHECK_EQ(TextureAtlas::Glow(strip).height, 4);
+
+	// Dans l'atlas : variante « lueur » des textures des blocs lumineux seulement.
+	Scene s;
+	Load(s.content, R"({"type": "texture", "id": "lamp", "procedural": {"color": [150, 140, 100], "pattern": "bricks"}})");
+	Load(s.content, R"({"id": "lamp", "graphics": {"texture": "lamp", "light": 14}})");
+	Load(s.content, R"({"id": "dim_lamp", "graphics": {"texture": "stone", "light": 8, "glow": false}})");
+	s.assets.Declare(s.content);
+	s.atlas.Build(s.assets, s.content, 16);
+	CHECK(s.atlas.Contains(TextureAtlas::GlowId("t:lamp")));
+	CHECK(!s.atlas.Contains(TextureAtlas::GlowId("t:stone"))); // « glow »: false : lumière sans lueur
+	const TextureAtlas::Rect plain = s.atlas.Lookup("t:stone");
+	const TextureAtlas::Rect fallback = s.atlas.LookupGlow("t:stone");
+	CHECK_NEAR(plain.u0, fallback.u0, 1e-6f);
+}
+
+TEST(Mesher_LightBlocksAreFullBrightInTheirOwnBuffer) {
+	Scene s;
+	Load(s.content, R"({"id": "lamp", "graphics": {"texture": "stone", "light": 14}})");
+	Load(s.content, R"({"id": "torch", "type": "nodebox", "nodebox": [[-0.06, -0.5, -0.06, 0.06, 0.1, 0.06]], "graphics": {"texture": "stone", "light": 12}})");
+	s.assets.Declare(s.content);
+	s.atlas.Build(s.assets, s.content, 16);
+	World world(s.content);
+	(void)world.EnsureChunk({0, 0, 0});
+	(void)world.EnsureChunk({0, 1, 0});
+	// Sous un plafond (ombre du ciel) et contre des pierres (occlusion).
+	for (int x = 2; x <= 8; ++x)
+		for (int z = 2; z <= 8; ++z)
+			(void)world.SetBlock({x, 10, z}, String("t:stone"));
+	(void)world.SetBlock({5, 8, 5}, String("t:lamp"));
+	(void)world.SetBlock({5, 8, 6}, String("t:stone"));
+	(void)world.SetBlock({4, 8, 5}, String("t:torch"));
+	ChunkMesher mesher(s.content, s.atlas, &s.assets);
+	const ChunkMesh mesh = mesher.Build(world, {0, 0, 0});
+	CHECK(!mesh.emissive.IsEmpty());
+	CHECK_EQ(Quads(mesh.emissive), size_t(5 + 6)); // la lampe (une face cachée) et la torche
+	for (const MeshVertex &v : mesh.emissive.vertices)
+		CHECK(v.color[0] == 255 && v.color[1] == 255 && v.color[2] == 255);
+	// Les pierres voisines, elles, restent assombries (dans le tampon ordinaire).
+	bool shaded = false;
+	for (const MeshVertex &v : mesh.opaque.vertices)
+		shaded = shaded || v.light[3] < 1.f;
+	CHECK(shaded);
+	CHECK_EQ(mesh.lights.size(), size_t(2));
+}
+
+TEST(Atlas_KeepsTextureResolutionsAndBuildsMipmaps) {
+	ContentRegistry content;
+	Load(content, R"({"type": "texture", "id": "big", "procedural": {"color": [200, 40, 40], "noise": 0, "size": 64}})");
+	Load(content, R"({"type": "texture", "id": "mid", "procedural": {"color": [40, 200, 40], "noise": 0, "size": 16}})");
+	Load(content, R"({"type": "texture", "id": "tiny", "procedural": {"color": [40, 40, 200], "noise": 0, "size": 8}})");
+	Load(content, R"({"id": "big", "graphics": {"texture": "big"}})");
+	Load(content, R"({"id": "mid", "graphics": {"texture": "mid"}})");
+	Load(content, R"({"id": "tiny", "graphics": {"texture": "tiny"}})");
+	AssetManager assets;
+	assets.Declare(content);
+	TextureAtlas atlas;
+	atlas.Build(assets, content, 16, 32);
+	const Image &img = atlas.Pixels();
+	// Résolution propre à chaque texture, bornée à [16, 32] (moins un demi-texel par bord).
+	auto width = [&](const char *id) { const TextureAtlas::Rect r = atlas.Lookup(id); return (r.u1 - r.u0) * float(img.width); };
+	CHECK_NEAR(width("t:big"), 31.f, 0.01f);
+	CHECK_NEAR(width("t:mid"), 15.f, 0.01f);
+	CHECK_NEAR(width("t:tiny"), 15.f, 0.01f);
+	// Tuiles disjointes.
+	struct Px {
+		int x0, y0, x1, y1;
+	};
+	std::vector<Px> tiles;
+	for (const char *id : {"t:big", "t:mid", "t:tiny", TextureAtlas::MISSING}) {
+		const TextureAtlas::Rect r = atlas.Lookup(id);
+		tiles.push_back({int(std::floor(r.u0 * float(img.width))), int(std::floor(r.v0 * float(img.height))),
+						 int(std::ceil(r.u1 * float(img.width))), int(std::ceil(r.v1 * float(img.height)))});
+	}
+	for (size_t a = 0; a < tiles.size(); ++a)
+		for (size_t b = a + 1; b < tiles.size(); ++b)
+			CHECK(tiles[a].x1 <= tiles[b].x0 || tiles[b].x1 <= tiles[a].x0 || tiles[a].y1 <= tiles[b].y0 || tiles[b].y1 <= tiles[a].y0);
+	// Réduction : une texture unie le reste.
+	const uint8_t *center = img.At((tiles[0].x0 + tiles[0].x1) / 2, (tiles[0].y0 + tiles[0].y1) / 2);
+	CHECK(std::abs(int(center[0]) - 200) <= 3 && std::abs(int(center[1]) - 40) <= 3);
+	// Mipmaps : de la tuile de base (16) à un pixel, sans mélange entre tuiles.
+	REQUIRE_EQ(atlas.Mipmaps().size(), size_t(4));
+	CHECK_EQ(atlas.Mipmaps()[0].width, img.width / 2);
+	CHECK_EQ(atlas.Mipmaps()[3].width, img.width / 16);
+	const Image &quarter = atlas.Mipmaps()[1];
+	const uint8_t *blue = quarter.At(tiles[2].x0 / 4 + 1, tiles[2].y0 / 4 + 1);
+	CHECK(blue[2] > 180 && blue[0] < 60 && blue[1] < 60);
+	// Moyenne pondérée par l'alpha : un damier noir/blanc devient gris, un
+	// pixel transparent ne noircit pas son voisin.
+	Image checker;
+	checker.width = checker.height = 2;
+	checker.rgba = {0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 255};
+	const Image grey = TextureAtlas::Resample(checker, 1);
+	CHECK(std::abs(int(grey.rgba[0]) - 128) <= 1 && grey.rgba[3] == 255);
+	checker.rgba = {255, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 255};
+	const Image red = TextureAtlas::Resample(checker, 1);
+	CHECK(red.rgba[0] == 255 && red.rgba[3] == 128);
+}
+
+TEST(Textures_VariantsArePickedPerBlock) {
+	// Fichiers « nom.1 », « nom.2 » d'un mod : une texture « nom » à variantes.
+	namespace fs = std::filesystem;
+	const fs::path root = "build/tests/tmp/voxel/variants";
+	fs::remove_all(root);
+	fs::create_directories(root / "vary" / "textures");
+	std::ofstream(root / "vary" / "mod.json") << R"({"id": "vary", "name": "Variantes", "version": "1.0"})";
+	for (const char *name : {"wall.1.png", "wall.2.png", "wall.10.png", "plain.png", "lonely.1.png"})
+		std::ofstream(root / "vary" / "textures" / name) << "";
+	ContentRegistry registry;
+	(void)ModLoader::LoadAll(registry, {String(root.string().c_str())});
+	const TextureDef *wall = registry.FindTexture("vary:wall");
+	REQUIRE(wall != nullptr);
+	REQUIRE_EQ(wall->variants.size(), size_t(3));
+	CHECK(wall->variants[0] == "vary:wall.1" && wall->variants[1] == "vary:wall.2" && wall->variants[2] == "vary:wall.10");
+	CHECK(registry.FindTexture("vary:plain") && registry.FindTexture("vary:plain")->variants.empty());
+	CHECK(registry.FindTexture("vary:lonely") == nullptr); // une seule variante : pas de groupe
+
+	// Atlas et maillage : chaque bloc tire sa variante d'après sa position.
+	Scene s;
+	Load(s.content, R"({"type": "texture", "id": "red", "procedural": {"color": [220, 30, 30]}})");
+	Load(s.content, R"({"type": "texture", "id": "blue", "procedural": {"color": [30, 30, 220]}})");
+	Load(s.content, R"({"type": "texture", "id": "patch", "variants": ["red", "blue"]})");
+	Load(s.content, R"({"id": "patch", "graphics": {"texture": "patch"}})");
+	s.assets.Declare(s.content);
+	s.atlas.Build(s.assets, s.content, 16);
+	CHECK_EQ(s.atlas.LookupVariants("t:patch").size(), size_t(2));
+	CHECK_NEAR(s.atlas.Lookup("t:patch").u0, s.atlas.Lookup("t:red").u0, 1e-6f); // la première par défaut
+	World world(s.content);
+	(void)world.EnsureChunk({0, 0, 0});
+	for (int x = 0; x < 8; ++x)
+		for (int z = 0; z < 8; ++z)
+			(void)world.SetBlock({x, 4, z}, String("t:patch"));
+	ChunkMesher mesher(s.content, s.atlas, &s.assets);
+	auto used = [&] {
+		std::vector<float> out;
+		for (const MeshVertex &v : mesher.Build(world, {0, 0, 0}).opaque.vertices)
+			out.push_back(v.uv.x);
+		return out;
+	};
+	const std::vector<float> first = used();
+	std::set<int> tiles;
+	const TextureAtlas::Rect red = s.atlas.Lookup("t:red"), blue = s.atlas.Lookup("t:blue");
+	for (float u : first)
+		tiles.insert(u >= red.u0 - 1e-5f && u <= red.u1 + 1e-5f ? 0 : u >= blue.u0 - 1e-5f && u <= blue.u1 + 1e-5f ? 1 : 2);
+	CHECK(tiles == std::set<int>({0, 1})); // les deux variantes, rien d'autre
+	CHECK(used() == first);                // et toujours les mêmes aux mêmes places
 }

@@ -52,6 +52,10 @@ struct PhysicsBody {
 	BlockId groundBlock = AIR;
 	float fallDistance = 0.f;
 	float lastImpactSpeed = 0.f; ///< vitesse verticale à l'atterrissage (dégâts de chute)
+	/// Cellule où le corps a réveillé les liquides pour la dernière fois
+	/// (cf. FluidSimulation::Disturb) ; `stirred` faux hors d'un liquide.
+	BlockPos stirredCell{0, 0, 0};
+	bool stirred = false;
 };
 
 /// Intention de déplacement (joueur ou IA) : la physique la convertit en

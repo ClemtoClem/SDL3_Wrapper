@@ -15,6 +15,10 @@ struct Vertex3D {
 	math::FVector3 normal{0.f, 1.f, 0.f};
 	math::FVector2 uv;
 	sdl3::Color color = sdl3::Color::WHITE();
+	/// Lumière précalculée (matériaux `bakedLighting`, location 8) en RGB
+	/// LINÉAIRE : rgb = éclairement reçu des sources, a = part de la lumière
+	/// ambiante / du ciel / du soleil qui atteint le sommet. Ignorée sinon.
+	math::FVector4 light{0.f, 0.f, 0.f, 1.f};
 };
 
 // Sommet skinné (SkinnedMesh, M17, voir shader_chunks::VERTEX_ATTRIBUTES_SKINNED)

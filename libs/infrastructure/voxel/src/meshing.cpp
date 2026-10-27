@@ -1,20 +1,95 @@
 // Définitions de voxel/meshing.hpp
 #include <voxel/meshing.hpp>
 #include <voxel/fluids.hpp>
+#include <voxel/json.hpp>
+#include <voxel/lighting.hpp>
 #include <voxel/worldgen.hpp>
 #include <voxel/physics.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <set>
+#include <unordered_map>
 
 namespace voxel {
 
 // ── Atlas ────────────────────────────────────────────────────────────────────
 
-void TextureAtlas::Build(AssetManager &assets, const ContentRegistry &content, int tileSize) {
-	m_tile = std::max(2, tileSize);
+namespace {
+
+/// Plus grande puissance de deux ≤ v (au moins 1).
+int FloorPow2(int v) {
+	int p = 1;
+	while (p * 2 <= v)
+		p *= 2;
+	return p;
+}
+
+/// Coordonnées (en tuiles de base) du rang `i` dans l'ordre de Morton.
+void MortonCell(uint32_t i, int &x, int &y) {
+	x = y = 0;
+	for (int b = 0; b < 16; ++b) {
+		x |= int((i >> (2 * b)) & 1u) << b;
+		y |= int((i >> (2 * b + 1)) & 1u) << b;
+	}
+}
+
+/// Moyenne des pixels [x0, x1[ × [y0, y1[ pondérée par l'alpha (pas de
+/// franges sombres autour des parties transparentes).
+void Average(const Image &src, int x0, int y0, int x1, int y1, uint8_t *dst) {
+	double rgb[3] = {}, plain[3] = {}, alpha = 0.0;
+	int count = 0;
+	for (int y = y0; y < y1; ++y)
+		for (int x = x0; x < x1; ++x) {
+			const uint8_t *p = src.At(x, y);
+			for (int k = 0; k < 3; ++k) {
+				rgb[k] += double(p[k]) * double(p[3]);
+				plain[k] += double(p[k]);
+			}
+			alpha += double(p[3]);
+			++count;
+		}
+	for (int k = 0; k < 3; ++k)
+		dst[k] = uint8_t(std::lround(alpha > 0.0 ? rgb[k] / alpha : plain[k] / double(std::max(1, count))));
+	dst[3] = uint8_t(std::lround(alpha / double(std::max(1, count))));
+}
+
+/// Image moitié moins grande (niveau de mipmap suivant).
+Image Halve(const Image &src) {
+	Image out;
+	out.width = std::max(1, src.width / 2);
+	out.height = std::max(1, src.height / 2);
+	out.rgba.assign(size_t(out.width * out.height * 4), 0);
+	for (int y = 0; y < out.height; ++y)
+		for (int x = 0; x < out.width; ++x)
+			Average(src, std::min(x * 2, src.width - 1), std::min(y * 2, src.height - 1), std::min(x * 2 + 2, src.width),
+					std::min(y * 2 + 2, src.height), &out.rgba[size_t((y * out.width + x) * 4)]);
+	return out;
+}
+
+} // namespace
+
+Image TextureAtlas::Resample(const Image &source, int size) {
+	Image out;
+	out.width = out.height = size;
+	out.rgba.assign(size_t(size * size * 4), 0);
+	// Image animée (bande verticale) : première image seulement.
+	const int sw = source.width, sh = std::min(source.height, source.width);
+	for (int y = 0; y < size; ++y)
+		for (int x = 0; x < size; ++x) {
+			const int x0 = x * sw / size, y0 = y * sh / size;
+			const int x1 = std::max(x0 + 1, (x + 1) * sw / size), y1 = std::max(y0 + 1, (y + 1) * sh / size);
+			Average(source, x0, y0, std::min(x1, sw), std::min(y1, sh), &out.rgba[size_t((y * size + x) * 4)]);
+		}
+	return out;
+}
+
+void TextureAtlas::Build(AssetManager &assets, const ContentRegistry &content, int tileSize, int maxTileSize) {
+	m_tile = FloorPow2(std::max(2, tileSize));
+	const int maxTile = std::max(m_tile, FloorPow2(std::max(maxTileSize, m_tile)));
 	m_rects.clear();
+	m_variants.clear();
+	m_mipmaps.clear();
 	// Seules les textures réellement posées sur des faces (blocs, objets,
 	// entités, groupes des modèles) prennent une tuile : les mods déclarent
 	// aussi skins, interfaces, peintures… que l'atlas n'a pas à décoder.
@@ -32,11 +107,19 @@ void TextureAtlas::Build(AssetManager &assets, const ContentRegistry &content, i
 				if (!group.texture.IsEmpty())
 					add(ContentRegistry::Qualify(group.texture, mod));
 	};
+	std::set<std::string> glowing; // textures des blocs lumineux : variante « lueur »
 	for (const BlockDef &b : content.Blocks()) {
 		for (const String &f : b.look.faces)
 			add(f);
 		add(b.liquid.flowingTexture); // liquide qui coule
 		addModel(b.shape, b.mod);
+		if (b.look.lightEmission > 0 && json::Bool(b.raw, "graphics.glow", true)) {
+			for (const String &f : b.look.faces)
+				if (!f.IsEmpty())
+					glowing.insert(f.CStr());
+			if (!b.liquid.flowingTexture.IsEmpty())
+				glowing.insert(b.liquid.flowingTexture.CStr());
+		}
 	}
 	for (const ItemDef *i : content.Items())
 		add(i->icon);
@@ -45,55 +128,83 @@ void TextureAtlas::Build(AssetManager &assets, const ContentRegistry &content, i
 			add(f);
 		addModel(e->shape, e->mod);
 	}
+	// Texture à variantes : ses variantes prennent les tuiles, elle renvoie à la première.
+	for (const std::string &id : std::vector<std::string>(ids.begin(), ids.end()))
+		if (const TextureDef *def = content.FindTexture(String(id.c_str())); def && !def->variants.empty()) {
+			std::vector<std::string> &list = m_variants[id];
+			for (const String &v : def->variants) {
+				list.push_back(v.CStr());
+				ids.insert(v.CStr());
+				if (glowing.contains(id))
+					glowing.insert(v.CStr());
+			}
+		}
 
 	// Images d'abord : une texture introuvable ne prend pas de tuile, elle
 	// renverra le damier commun.
 	std::vector<std::pair<std::string, Image>> tiles;
-	tiles.push_back({MISSING, Image{}});
-	for (const std::string &id : ids)
-		if (id != MISSING)
-			if (std::shared_ptr<TextureImage> tex = assets.Texture(String(id.c_str())); tex && !tex->Pixels().IsEmpty())
-				tiles.push_back({id, tex->Pixels()});
-
-	const int count = int(tiles.size());
-	const int columns = std::max(1, int(std::ceil(std::sqrt(double(count)))));
-	int width = 1;
-	while (width < columns * m_tile)
-		width <<= 1;
-	const int rows = (count + (width / m_tile) - 1) / (width / m_tile);
-	int height = 1;
-	while (height < rows * m_tile)
-		height <<= 1;
-	m_image.width = width;
-	m_image.height = height;
-	m_image.rgba.assign(size_t(width * height * 4), 0);
-
-	const int perRow = width / m_tile;
-	for (int index = 0; index < count; ++index) {
-		const auto &[id, source] = tiles[size_t(index)];
-		const int tx = (index % perRow) * m_tile, ty = (index / perRow) * m_tile;
-		const bool missing = source.IsEmpty();
-		// Image animée (bande verticale) : première image seulement.
-		const int sw = missing ? 2 : source.width, sh = missing ? 2 : std::min(source.height, source.width);
+	{
+		Image checker;
+		checker.width = checker.height = m_tile;
+		checker.rgba.resize(size_t(m_tile * m_tile * 4));
 		for (int y = 0; y < m_tile; ++y)
 			for (int x = 0; x < m_tile; ++x) {
-				uint8_t *dst = &m_image.rgba[size_t(((ty + y) * width + tx + x) * 4)];
-				if (missing) {
-					const bool check = ((x * 2 / m_tile) + (y * 2 / m_tile)) % 2 == 0;
-					dst[0] = check ? 255 : 0;
-					dst[1] = 0;
-					dst[2] = check ? 255 : 0;
-					dst[3] = 255;
-				} else {
-					const uint8_t *src = source.At(std::min(sw - 1, x * sw / m_tile), std::min(sh - 1, y * sh / m_tile));
-					std::copy(src, src + 4, dst);
-				}
+				const bool check = ((x * 2 / m_tile) + (y * 2 / m_tile)) % 2 == 0;
+				uint8_t *dst = &checker.rgba[size_t((y * m_tile + x) * 4)];
+				dst[0] = dst[2] = check ? 255 : 0;
+				dst[1] = 0;
+				dst[3] = 255;
 			}
+		tiles.push_back({MISSING, std::move(checker)});
+	}
+	for (const std::string &id : ids)
+		if (id != MISSING && !m_variants.contains(id))
+			if (std::shared_ptr<TextureImage> tex = assets.Texture(String(id.c_str())); tex && !tex->Pixels().IsEmpty()) {
+				const Image &source = tex->Pixels();
+				Image tile = Resample(source, std::clamp(FloorPow2(source.width), m_tile, maxTile));
+				if (glowing.contains(id))
+					tiles.push_back({GlowId(String(id.c_str())).CStr(), Glow(tile)});
+				tiles.push_back({id, std::move(tile)});
+			}
+
+	// Rangement : des plus grandes tuiles aux plus petites, en ordre de
+	// Morton (chaque tuile tombe alignée sur sa taille).
+	std::stable_sort(tiles.begin(), tiles.end(), [](const auto &a, const auto &b) { return a.second.width > b.second.width; });
+	uint64_t units = 0;
+	for (const auto &tile : tiles)
+		units += uint64_t(tile.second.width / m_tile) * uint64_t(tile.second.width / m_tile);
+	int side = 1; // en tuiles de base
+	while (uint64_t(side) * uint64_t(side) < units || side * m_tile < tiles.front().second.width)
+		side <<= 1;
+	const bool half = units <= uint64_t(side) * uint64_t(side) / 2; // la moitié haute suffit
+	const int width = side * m_tile, height = half ? width / 2 : width;
+	m_image.width = width;
+	m_image.height = height;
+	m_image.rgba.assign(size_t(width) * size_t(height) * 4, 0);
+
+	uint32_t cursor = 0;
+	for (const auto &[id, pixels] : tiles) {
+		const int size = pixels.width, cells = size / m_tile;
+		int cx = 0, cy = 0;
+		MortonCell(cursor, cx, cy);
+		cursor += uint32_t(cells * cells);
+		const int tx = cx * m_tile, ty = cy * m_tile;
+		for (int y = 0; y < size; ++y)
+			std::copy_n(&pixels.rgba[size_t(y * size * 4)], size_t(size * 4), &m_image.rgba[(size_t(ty + y) * size_t(width) + size_t(tx)) * 4]);
 		// Demi-texel de marge : pas de débordement sur la tuile voisine.
 		const float hu = 0.5f / float(width), hv = 0.5f / float(height);
-		m_rects[id] = Rect{float(tx) / float(width) + hu, float(ty) / float(height) + hv, float(tx + m_tile) / float(width) - hu,
-						   float(ty + m_tile) / float(height) - hv};
+		m_rects[id] = Rect{float(tx) / float(width) + hu, float(ty) / float(height) + hv, float(tx + size) / float(width) - hu,
+						   float(ty + size) / float(height) - hv};
 	}
+	for (const auto &[id, list] : m_variants)
+		if (auto first = m_rects.find(list.front()); first != m_rects.end()) {
+			m_rects[id] = first->second;
+			if (auto glow = m_rects.find(GlowId(String(list.front().c_str())).CStr()); glow != m_rects.end())
+				m_rects[GlowId(String(id.c_str())).CStr()] = glow->second;
+		}
+	// Mipmaps : jusqu'à la tuile de base réduite à un pixel.
+	for (int size = m_tile; size > 1; size /= 2)
+		m_mipmaps.push_back(Halve(m_mipmaps.empty() ? m_image : m_mipmaps.back()));
 }
 
 TextureAtlas::Rect TextureAtlas::Lookup(const String &id) const {
@@ -106,19 +217,74 @@ TextureAtlas::Rect TextureAtlas::Lookup(const String &id) const {
 
 bool TextureAtlas::Contains(const String &id) const { return m_rects.contains(id.CStr()); }
 
+TextureAtlas::Rect TextureAtlas::LookupGlow(const String &id) const {
+	auto it = m_rects.find(GlowId(id).CStr());
+	return it != m_rects.end() ? it->second : Lookup(id);
+}
+
+std::vector<TextureAtlas::Rect> TextureAtlas::LookupVariants(const String &id, bool glow) const {
+	std::vector<Rect> out;
+	if (auto it = m_variants.find(id.CStr()); it != m_variants.end())
+		for (const std::string &v : it->second)
+			out.push_back(glow ? LookupGlow(String(v.c_str())) : Lookup(String(v.c_str())));
+	return out;
+}
+
+Image TextureAtlas::Glow(const Image &source) {
+	// Première image d'une bande animée seulement (comme l'atlas).
+	Image out;
+	out.width = source.width;
+	out.height = std::min(source.height, source.width);
+	out.rgba.assign(source.rgba.begin(), source.rgba.begin() + size_t(out.width * out.height * 4));
+	auto luminance = [](const uint8_t *p) { return 0.299f * float(p[0]) + 0.587f * float(p[1]) + 0.114f * float(p[2]); };
+	// Bornes du contraste : 4e et 98e centiles de la luminance des pixels visibles.
+	int histogram[256] = {};
+	int visible = 0;
+	for (size_t i = 0; i + 3 < out.rgba.size(); i += 4)
+		if (out.rgba[i + 3] > 16) {
+			++histogram[std::clamp(int(luminance(&out.rgba[i])), 0, 255)];
+			++visible;
+		}
+	if (visible == 0)
+		return out;
+	auto percentile = [&](float q) {
+		const int target = int(float(visible) * q);
+		int sum = 0;
+		for (int v = 0; v < 256; ++v)
+			if ((sum += histogram[v]) > target)
+				return v;
+		return 255;
+	};
+	const float lo = float(percentile(0.04f)), hi = float(percentile(0.98f));
+	const float range = std::max(24.f, hi - lo); // une texture presque unie n'est pas étirée à l'excès
+	for (size_t i = 0; i + 3 < out.rgba.size(); i += 4) {
+		uint8_t *p = &out.rgba[i];
+		// Contraste étiré sur la LUMINANCE seule (les teintes ne bougent
+		// pas), puis couleurs un peu ravivées et éclaircies.
+		const float l = luminance(p) / 255.f;
+		const float stretched = std::clamp((luminance(p) - lo) / range, 0.f, 1.f);
+		const float gain = l > 1e-3f ? stretched / l : 0.f;
+		float c[3];
+		for (int k = 0; k < 3; ++k)
+			c[k] = float(p[k]) / 255.f * gain;
+		for (int k = 0; k < 3; ++k) {
+			const float saturated = std::clamp(stretched + (c[k] - stretched) * 1.1f, 0.f, 1.f);
+			p[k] = uint8_t(std::lround(255.f * std::pow(saturated, 0.75f)));
+		}
+	}
+	return out;
+}
+
 // ── Maillage ─────────────────────────────────────────────────────────────────
 
 namespace {
 
 constexpr float AO_LEVELS[4] = {0.45f, 0.65f, 0.83f, 1.f};
-/// Lumière du ciel selon le nombre de blocs opaques au-dessus.
-constexpr float SKY_LEVELS[8] = {1.f, 0.82f, 0.64f, 0.5f, 0.38f, 0.3f, 0.24f, 0.2f};
-constexpr int PADDED = CHUNK_SIZE + 2;
-size_t CoverIndex(int x, int y, int z) { return size_t(((y + 1) * PADDED + (z + 1)) * PADDED + (x + 1)); }
 
 int NormalAxis(Face f) { return f == Face::EAST || f == Face::WEST ? 0 : f == Face::TOP || f == Face::BOTTOM ? 1 : 2; }
 
 float Get(const math::FVector3 &v, int a) { return a == 0 ? v.x : a == 1 ? v.y : v.z; }
+void Set(math::FVector3 &v, int a, float value) { (a == 0 ? v.x : a == 1 ? v.y : v.z) = value; }
 
 /// Coins d'une face (sens direct vu de l'extérieur) dans une boîte.
 void FaceCorners(Face f, const Box &b, math::FVector3 out[4]) {
@@ -185,8 +351,8 @@ void PushQuad(MeshBuffer &out, const math::FVector3 corners[4], const math::FVec
 		v.position = corners[k];
 		v.normal = normal;
 		v.uv = uvs[k];
-		v.color = {uint8_t(float(tint[0]) * ao[size_t(k)]), uint8_t(float(tint[1]) * ao[size_t(k)]),
-				   uint8_t(float(tint[2]) * ao[size_t(k)]), tint[3]};
+		v.color = tint;
+		v.light = {0.f, 0.f, 0.f, ao[size_t(k)]}; // occlusion ambiante ; le reste : ChunkMesher::Build
 		out.vertices.push_back(v);
 	}
 	// Diagonale choisie selon l'occlusion : pas de dégradé en « Z ».
@@ -230,8 +396,13 @@ ChunkMesher::ChunkMesher(const ContentRegistry &content, const TextureAtlas &atl
 					r.biomeTint = kindOf(tex->biomeTint);
 					r.tintFaces |= uint8_t(1u << f);
 				}
-		for (int f = 0; f < FACE_COUNT; ++f)
-			r.faces[size_t(f)] = atlas.Lookup(b.look.faces[size_t(f)]);
+		// Bloc lumineux : pleine luminosité et textures « lueur ».
+		r.emissive = b.look.lightEmission > 0 && !r.translucent && json::Bool(b.raw, "graphics.glow", true);
+		for (int f = 0; f < FACE_COUNT; ++f) {
+			r.faces[size_t(f)] = r.emissive ? atlas.LookupGlow(b.look.faces[size_t(f)]) : atlas.Lookup(b.look.faces[size_t(f)]);
+			r.variants[size_t(f)] = atlas.LookupVariants(b.look.faces[size_t(f)], r.emissive);
+			r.varied = r.varied || r.variants[size_t(f)].size() > 1;
+		}
 		m_blocks.push_back(r);
 	}
 	// Palettes de couleurs (herbe, feuillage, eau) : « colormaps » de la configuration.
@@ -392,48 +563,6 @@ void ChunkMesher::EmitModel(MeshBuffer &out, const String &model, const BlockRen
 	}
 }
 
-void ChunkMesher::SkyCover(const World &world, const ChunkPos &cp, std::vector<uint8_t> &cover) const {
-	cover.assign(size_t(PADDED * PADDED * PADDED), 0);
-	const BlockPos origin = cp.Origin();
-	ChunkGenerator *generator = world.Generator();
-	auto opaque = [&](BlockId id) { return id < m_blocks.size() && m_blocks[id].opaqueCube; };
-	for (int dz = -1; dz <= 1; ++dz)
-		for (int dx = -1; dx <= 1; ++dx) {
-			const int cx = cp.x + dx, cz = cp.z + dz;
-			// Chunks chargés d'affilée au-dessus de celui-ci (16 au plus).
-			int topCy = cp.y + 1;
-			while (topCy - cp.y <= 16 && world.GetChunk({cx, topCy, cz}))
-				++topCy;
-			const bool unknownAbove = !world.GetChunk({cx, topCy, cz});
-			const int topY = topCy * CHUNK_SIZE - 1;
-			const int x0 = dx < 0 ? CHUNK_SIZE - 1 : 0, x1 = dx > 0 ? 0 : CHUNK_SIZE - 1;
-			const int z0 = dz < 0 ? CHUNK_SIZE - 1 : 0, z1 = dz > 0 ? 0 : CHUNK_SIZE - 1;
-			for (int lz = z0; lz <= z1; ++lz)
-				for (int lx = x0; lx <= x1; ++lx) {
-					const int px = dx * CHUNK_SIZE + lx, pz = dz * CHUNK_SIZE + lz; // coordonnées bordées (-1..16)
-					int count = 0;
-					// Au-delà des chunks chargés : l'estimation du générateur.
-					if (unknownAbove && generator)
-						if (Option<int> e = generator->SkyCover(origin.x + px, origin.z + pz); e.IsSome() && e.Unwrap() > topY)
-							count = std::min(255, e.Unwrap() - topY);
-					const Chunk *chunk = nullptr;
-					int chunkY = INT32_MAX;
-					for (int y = topY; y >= origin.y - 1; --y) {
-						if (y < origin.y + CHUNK_SIZE + 1)
-							cover[CoverIndex(px, y - origin.y, pz)] = uint8_t(std::min(count, 255));
-						const int cy = FloorDiv(y, CHUNK_SIZE);
-						if (cy != chunkY) {
-							chunkY = cy;
-							chunk = world.GetChunk({cx, cy, cz});
-						}
-						if (chunk && !(chunk->IsUniform() && chunk->UniformBlock() == AIR) &&
-							opaque(chunk->Get(lx, FloorMod(y, CHUNK_SIZE), lz)))
-							++count;
-					}
-				}
-		}
-}
-
 ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 	ChunkMesh mesh;
 	const Chunk *chunk = world.GetChunk(cp);
@@ -489,12 +618,75 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 		const int i = Padded::Index(x, y, z);
 		return pad.loaded[size_t(i)] && render(pad.ids[size_t(i)]).opaqueCube;
 	};
-	// Lumière du ciel.
-	std::vector<uint8_t> cover;
-	if (options.skyLight)
-		SkyCover(world, cp, cover);
-	auto sky = [&](int x, int y, int z) {
-		return cover.empty() ? 1.f : SKY_LEVELS[std::min<int>(cover[CoverIndex(x, y, z)], 7)];
+	// Éclairage (lighting.hpp) : sources qui atteignent le chunk, puis, par
+	// cellule devant une face, éclairement direct et part de ciel (en cache).
+	std::vector<lighting::Source> sources;
+	if (options.blockLight)
+		lighting::GatherSources(world, origin.ToVector() - math::FVector3{1.f, 1.f, 1.f},
+								origin.ToVector() + math::FVector3{float(CHUNK_SIZE + 1), float(CHUNK_SIZE + 1), float(CHUNK_SIZE + 1)},
+								sources);
+	std::unordered_map<uint64_t, lighting::Rgb> direct;
+	std::unordered_map<int, float> skyAccess;
+	auto skyAt = [&](const BlockPos &cell) {
+		if (!options.skyLight)
+			return 1.f;
+		const int key = Padded::Index(cell.x - origin.x, cell.y - origin.y, cell.z - origin.z);
+		auto it = skyAccess.find(key);
+		if (it == skyAccess.end())
+			it = skyAccess.emplace(key, lighting::SkyAccess(world, cell.Center())).first;
+		return it->second;
+	};
+	// Lumière des sommets [first, fin[ : moyenne des cellules libres autour du
+	// sommet, du côté éclairé (la normale) — lissée et sans raccord entre chunks.
+	auto lightVertices = [&](MeshBuffer &out, size_t first, const BlockPos &cell) {
+		for (size_t i = first; i < out.vertices.size(); ++i) {
+			MeshVertex &v = out.vertices[i];
+			const math::FVector3 n = v.normal;
+			const bool axial = std::fabs(n.x) + std::fabs(n.y) + std::fabs(n.z) > 0.999f &&
+							   (std::fabs(n.x) > 0.999f || std::fabs(n.y) > 0.999f || std::fabs(n.z) > 0.999f);
+			const math::FVector3 at = origin.ToVector() + v.position;
+			lighting::Rgb e{0.f, 0.f, 0.f};
+			float sky = 0.f;
+			int samples = 0;
+			auto sample = [&](const BlockPos &c, const math::FVector3 &point, const math::FVector3 &normal, uint64_t key) {
+				auto it = direct.find(key);
+				if (it == direct.end())
+					it = direct.emplace(key, sources.empty() ? lighting::Rgb{0.f, 0.f, 0.f} : lighting::DirectIrradiance(world, point, normal, sources)).first;
+				for (int k = 0; k < 3; ++k)
+					e[size_t(k)] += it->second[size_t(k)];
+				sky += skyAt(c);
+				++samples;
+			};
+			if (axial) {
+				const int axis = std::fabs(n.x) > 0.5f ? 0 : std::fabs(n.y) > 0.5f ? 1 : 2;
+				const int dir = Get(n, axis) > 0.f ? 1 : -1;
+				const int t1 = (axis + 1) % 3, t2 = (axis + 2) % 3;
+				const float plane = Get(at, axis);
+				const int face = axis * 2 + (dir > 0 ? 0 : 1);
+				const int quantized = int(std::lround((plane - std::floor(plane)) * 16.f));
+				for (int a = -1; a <= 1; a += 2)
+					for (int b = -1; b <= 1; b += 2) {
+						math::FVector3 probe = at + n * 0.5f;
+						Set(probe, t1, Get(probe, t1) + 0.49f * float(a));
+						Set(probe, t2, Get(probe, t2) + 0.49f * float(b));
+						const BlockPos c = BlockPos::FromWorld(probe);
+						const int lx = c.x - origin.x, ly = c.y - origin.y, lz = c.z - origin.z;
+						if (lx < -1 || ly < -1 || lz < -1 || lx > CHUNK_SIZE || ly > CHUNK_SIZE || lz > CHUNK_SIZE || shades(lx, ly, lz))
+							continue;
+						// Point de mesure : sur le plan de la face, au droit du centre de la cellule.
+						math::FVector3 point = c.Center();
+						Set(point, axis, plane + 0.04f * float(dir));
+						const uint64_t key = (uint64_t(uint32_t(Padded::Index(lx, ly, lz))) << 16) | uint64_t(face << 8) | uint64_t(quantized);
+						sample(c, point, n, key);
+					}
+			}
+			if (samples == 0) { // plantes, modèles, faces enfouies : la cellule du bloc, sans Lambert
+				const uint64_t key = (uint64_t(uint32_t(Padded::Index(cell.x - origin.x, cell.y - origin.y, cell.z - origin.z))) << 16) | 0xFFFFu;
+				sample(cell, cell.Center(), math::FVector3{0.f, 0.f, 0.f}, key);
+			}
+			const float inv = 1.f / float(samples);
+			v.light = {e[0] * inv, e[1] * inv, e[2] * inv, v.light[3] * sky * inv};
+		}
 	};
 	for (int y = 0; y < CHUNK_SIZE; ++y)
 		for (int z = 0; z < CHUNK_SIZE; ++z)
@@ -505,8 +697,17 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 					continue;
 				BlockRender tintedRender;
 				const BlockRender *chosen = &base;
-				if (base.biomeTint) {
+				if (base.varied) { // variante de texture tirée d'après la position
 					tintedRender = base;
+					const uint64_t pick = HashPosition(0x5eedu, origin.x + x, origin.y + y, origin.z + z, 11);
+					for (int f = 0; f < FACE_COUNT; ++f)
+						if (const auto &list = base.variants[size_t(f)]; !list.empty())
+							tintedRender.faces[size_t(f)] = list[size_t(pick % list.size())];
+					chosen = &tintedRender;
+				}
+				if (base.biomeTint) {
+					if (chosen == &base)
+						tintedRender = base;
 					const std::array<uint8_t, 3> &c = biomeColor(x, z, base.biomeTint);
 					for (int k = 0; k < 3; ++k)
 						tintedRender.tinted[size_t(k)] = uint8_t(int(base.tint[size_t(k)]) * int(c[size_t(k)]) / 255);
@@ -517,7 +718,8 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 				if (def.look.lightEmission > 0)
 					mesh.lights.push_back({origin.ToVector() + math::FVector3{float(x) + 0.5f, float(y) + 0.5f, float(z) + 0.5f},
 										   def.look.lightEmission});
-				MeshBuffer &out = r.translucent ? mesh.translucent : mesh.opaque;
+				MeshBuffer &out = r.translucent ? mesh.translucent : r.emissive ? mesh.emissive : mesh.opaque;
+				const size_t firstVertex = out.vertices.size();
 				const math::FVector3 offset{float(x), float(y), float(z)};
 				const uint8_t param = pad.params[size_t(Padded::Index(x, y, z))];
 				if (r.fluid && r.shape == ShapeKind::CUBE) {
@@ -546,8 +748,8 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 						}
 					BlockRender liquid = r;
 					if (!LiquidSource(param) && !def.liquid.flowingTexture.IsEmpty())
-						liquid.faces.fill(m_atlas.Lookup(def.liquid.flowingTexture));
-					const float light = sky(x, y, z);
+						liquid.faces.fill(r.emissive ? m_atlas.LookupGlow(def.liquid.flowingTexture) : m_atlas.Lookup(def.liquid.flowingTexture));
+					const float light = 1.f; // la lumière vient de lightVertices
 					for (int fi = 0; fi < FACE_COUNT; ++fi) {
 						const Face f = Face(fi);
 						const BlockPos n = BlockPos{x, y, z}.Neighbor(f);
@@ -585,8 +787,7 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 					};
 					auto ao = [&](Face f, const math::FVector3 *corners) {
 						std::array<float, 4> levels{1.f, 1.f, 1.f, 1.f};
-						const bool occlusion = !r.translucent && options.ambientOcclusion;
-						if (!occlusion && cover.empty())
+						if (r.translucent || !options.ambientOcclusion)
 							return levels;
 						const BlockPos n = FaceNormal(f);
 						const int axis = NormalAxis(f);
@@ -600,28 +801,8 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 							const int bx = qx + (t2 == 0 ? s[0] : 0), by = qy + (t2 == 1 ? s[1] : 0), bz = qz + (t2 == 2 ? s[2] : 0);
 							const bool side1 = shades(ax, ay, az), side2 = shades(bx, by, bz);
 							const bool corner = shades(qx + s[0], qy + s[1], qz + s[2]);
-							if (occlusion) {
-								const int level = side1 && side2 ? 0 : 3 - int(side1) - int(side2) - int(corner);
-								levels[size_t(k)] = AO_LEVELS[std::clamp(level, 0, 3)];
-							}
-							if (!cover.empty()) {
-								// Moyenne des cellules libres autour du sommet (lissage).
-								float sum = sky(qx, qy, qz);
-								int samples = 1;
-								if (!side1) {
-									sum += sky(ax, ay, az);
-									++samples;
-								}
-								if (!side2) {
-									sum += sky(bx, by, bz);
-									++samples;
-								}
-								if (!corner && !(side1 && side2)) {
-									sum += sky(qx + s[0], qy + s[1], qz + s[2]);
-									++samples;
-								}
-								levels[size_t(k)] *= sum / float(samples);
-							}
+							const int level = side1 && side2 ? 0 : 3 - int(side1) - int(side2) - int(corner);
+							levels[size_t(k)] = AO_LEVELS[std::clamp(level, 0, 3)];
 						}
 						return levels;
 					};
@@ -638,18 +819,28 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 							const BlockPos n = BlockPos{x, y, z}.Neighbor(f);
 							return occludes(n.x, n.y, n.z);
 						};
-						const float light = sky(x, y, z);
-						EmitBox(out, b, r, offset, cull, [light](Face, const math::FVector3 *) {
-							return std::array<float, 4>{light, light, light, light};
+						EmitBox(out, b, r, offset, cull, [](Face, const math::FVector3 *) {
+							return std::array<float, 4>{1.f, 1.f, 1.f, 1.f};
 						}, param);
 					}
 				} else if (r.shape == ShapeKind::CROSS) {
 					// Densité de végétation : une partie des plantes seulement.
 					if (options.crossDensity >= 1.f ||
 						float(HashPosition(0x9e37u, origin.x + x, origin.y + y, origin.z + z, 3) % 1000u) < options.crossDensity * 1000.f)
-						EmitCross(out, r, offset, sky(x, y, z));
+						EmitCross(out, r, offset);
 				} else if (r.shape == ShapeKind::MODEL) {
-					EmitModel(out, def.shape.model, r, offset, param, def.mod, true, sky(x, y, z));
+					EmitModel(out, def.shape.model, r, offset, param, def.mod, true);
+				}
+				// Bloc lumineux : sa propre teinte, dessiné sans éclairage (matériau
+				// émissif) ; les autres reçoivent la lumière du monde.
+				if (r.emissive) {
+					for (size_t i = firstVertex; i < out.vertices.size(); ++i) {
+						for (int k = 0; k < 3; ++k)
+							out.vertices[i].color[size_t(k)] = r.tint[size_t(k)];
+						out.vertices[i].light = {0.f, 0.f, 0.f, 1.f};
+					}
+				} else {
+					lightVertices(out, firstVertex, origin + BlockPos{x, y, z});
 				}
 			}
 	(void)origin;
@@ -662,8 +853,9 @@ MeshBuffer ChunkMesher::BuildShape(const ShapeDesc &shape, const Appearance &loo
 	r.visible = true;
 	r.shape = shape.kind;
 	r.tint = look.tint;
+	r.emissive = look.lightEmission > 0;
 	for (int f = 0; f < FACE_COUNT; ++f)
-		r.faces[size_t(f)] = m_atlas.Lookup(look.faces[size_t(f)]);
+		r.faces[size_t(f)] = r.emissive ? m_atlas.LookupGlow(look.faces[size_t(f)]) : m_atlas.Lookup(look.faces[size_t(f)]);
 	const math::FVector3 center{-0.5f, 0.f, -0.5f};
 	switch (shape.kind) {
 	case ShapeKind::NONE: break;

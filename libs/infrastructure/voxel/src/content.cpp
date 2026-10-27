@@ -1,8 +1,10 @@
 // Définitions de voxel/content.hpp
 #include <voxel/content.hpp>
+#include <voxel/lighting.hpp>
 #include <voxel/json.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 
 namespace voxel {
@@ -334,6 +336,220 @@ Result<std::vector<String>, String> ContentRegistry::LoadFile(const String &path
 	return Ok(std::move(ids));
 }
 
+namespace {
+
+bool Finite(double v) { return std::isfinite(v); }
+
+/// Couleur sRGB 0..255 d'une lumière (« [r, g, b] » ou « "#rrggbb" ») → linéaire.
+Option<lighting::Rgb> LightColor(const NodePtr &n, const String &owner, std::vector<String> &warnings) {
+	if (n && n->IsString()) {
+		std::string hex(n->stringValue.CStr());
+		if (!hex.empty() && hex[0] == '#')
+			hex.erase(0, 1);
+		if (hex.size() == 6 && hex.find_first_not_of("0123456789abcdefABCDEF") == std::string::npos) {
+			const unsigned long v = std::stoul(hex, nullptr, 16);
+			return Some(lighting::SrgbToLinear(uint8_t(v >> 16), uint8_t(v >> 8), uint8_t(v)));
+		}
+	} else if (n && n->IsArray() && n->GetSize() == 3) {
+		float c[3];
+		bool ok = true;
+		for (size_t i = 0; i < 3; ++i) {
+			const NodePtr v = n->At(i);
+			ok = ok && v && v->IsNumber() && Finite(json::Num(v, "", 0.0));
+			c[i] = ok ? float(json::Num(v, "", 0.0)) : 0.f;
+		}
+		if (ok) {
+			if (c[0] < 0.f || c[1] < 0.f || c[2] < 0.f || c[0] > 255.f || c[1] > 255.f || c[2] > 255.f)
+				warnings.push_back(String::Format("%s : light.color hors de 0..255 (borné)", owner.CStr()));
+			if (c[0] <= 1.f && c[1] <= 1.f && c[2] <= 1.f && c[0] + c[1] + c[2] > 0.f)
+				warnings.push_back(String::Format("%s : light.color s'écrit en sRGB 0..255 (pas 0..1) : couleur presque noire", owner.CStr()));
+			auto byte = [](float v) { return uint8_t(std::lround(std::clamp(v, 0.f, 255.f))); };
+			return Some(lighting::SrgbToLinear(byte(c[0]), byte(c[1]), byte(c[2])));
+		}
+	}
+	warnings.push_back(String::Format("%s : light.color attendu [r, g, b] (0..255) ou \"#rrggbb\"", owner.CStr()));
+	return NONE;
+}
+
+/// Lumière d'un bloc ou d'une entité : « light » (objet, niveau ou false),
+/// sinon « graphics.light » (niveau historique). Cf. lighting.hpp.
+void ParseLight(const NodePtr &def, Appearance &look, const String &owner, std::vector<String> &warnings) {
+	LightDef &light = look.light;
+	light = LightDef{};
+	NodePtr node = json::At(def, "light");
+	int legacyLevel = look.lightEmission; // « graphics.light »
+	if (node && node->IsNumber()) {
+		legacyLevel = std::clamp(int(json::Num(node, "", 0.0)), 0, 15);
+		node = nullptr;
+	}
+	if (node && node->IsBool() && !node->boolValue) {
+		look.lightEmission = 0;
+		return;
+	}
+	if (!node || !node->IsObject()) {
+		if (node)
+			warnings.push_back(String::Format("%s : « light » doit être un objet, un niveau 0..15 ou false", owner.CStr()));
+		look.lightEmission = legacyLevel;
+		if (legacyLevel > 0) { // comportement historique : point blanc chaud, niveau → intensité et portée
+			light.enabled = true;
+			light.legacy = true;
+			light.color = lighting::SrgbToLinear(lighting::LEGACY_COLOR[0], lighting::LEGACY_COLOR[1], lighting::LEGACY_COLOR[2]);
+			light.intensity = lighting::LegacyIntensity(legacyLevel);
+			light.range = lighting::LegacyRange(legacyLevel);
+		}
+		return;
+	}
+	auto number = [&](const char *key, double fallback, bool &present) {
+		NodePtr v = node->Get(String(key));
+		present = v != nullptr;
+		if (!v)
+			return fallback;
+		if (!v->IsNumber() || !Finite(json::Num(v, "", 0.0))) {
+			warnings.push_back(String::Format("%s : light.%s : nombre fini attendu", owner.CStr(), key));
+			present = false;
+			return fallback;
+		}
+		return json::Num(v, "", fallback);
+	};
+	auto vector3 = [&](const char *key, math::FVector3 fallback) {
+		NodePtr v = node->Get(String(key));
+		if (!v)
+			return fallback;
+		if (v->IsArray() && v->GetSize() == 3) {
+			float c[3];
+			bool ok = true;
+			for (size_t i = 0; i < 3; ++i) {
+				ok = ok && v->At(i)->IsNumber() && Finite(json::Num(v->At(i), "", 0.0));
+				c[i] = ok ? float(json::Num(v->At(i), "", 0.0)) : 0.f;
+			}
+			if (ok)
+				return math::FVector3{c[0], c[1], c[2]};
+		}
+		warnings.push_back(String::Format("%s : light.%s : [x, y, z] attendu", owner.CStr(), key));
+		return fallback;
+	};
+	static const char *KNOWN[] = {"enabled", "type", "color", "intensity", "range", "attenuation", "falloff", "direction",
+								  "innerAngle", "outerAngle", "angle", "radius", "offset"};
+	for (const String &key : node->Keys())
+		if (std::none_of(std::begin(KNOWN), std::end(KNOWN), [&](const char *k) { return key == k; }))
+			warnings.push_back(String::Format("%s : light.%s : propriété inconnue (ignorée)", owner.CStr(), key.CStr()));
+
+	light.enabled = json::Bool(node, "enabled", true);
+	const String type = Lower(json::Str(node, "type", "point"));
+	if (type == "spot")
+		light.type = LightDef::Type::SPOT;
+	else if (type == "directional" || type == "direction")
+		light.type = LightDef::Type::DIRECTIONAL;
+	else if (type != "point" && type != "omni" && type != "omnidirectional")
+		warnings.push_back(String::Format("%s : light.type « %s » inconnu (point, spot, directional) : point", owner.CStr(), type.CStr()));
+	if (NodePtr c = node->Get(String("color")))
+		if (Option<lighting::Rgb> color = LightColor(c, owner, warnings); color.IsSome())
+			light.color = color.Value();
+	bool present = false;
+	double intensity = number("intensity", 1.0, present);
+	if (intensity < 0.0) {
+		warnings.push_back(String::Format("%s : light.intensity négative : 0", owner.CStr()));
+		intensity = 0.0;
+	}
+	light.intensity = float(std::min(intensity, 1.0e4));
+	double range = number("range", 0.0, present);
+	if (!present || range <= 0.0) {
+		if (present)
+			warnings.push_back(String::Format("%s : light.range doit être > 0 : portée calculée", owner.CStr()));
+		range = std::sqrt(double(light.intensity) / 0.02); // là où l'inverse du carré tombe à 0,02
+	}
+	if (range > double(lighting::MAX_RANGE)) {
+		if (present)
+			warnings.push_back(String::Format("%s : light.range bornée à %.0f blocs", owner.CStr(), double(lighting::MAX_RANGE)));
+		range = lighting::MAX_RANGE;
+	}
+	light.range = float(std::max(range, 0.5));
+	const String falloff = Lower(json::Str(node, "attenuation", json::Str(node, "falloff", "inverse_square")));
+	if (falloff == "linear")
+		light.falloff = LightDef::Falloff::LINEAR;
+	else if (falloff == "none" || falloff == "constant")
+		light.falloff = LightDef::Falloff::NONE;
+	else if (falloff != "inverse_square" && falloff != "quadratic")
+		warnings.push_back(String::Format("%s : light.attenuation « %s » inconnue (inverse_square, linear, none)", owner.CStr(), falloff.CStr()));
+	math::FVector3 dir = vector3("direction", {0.f, -1.f, 0.f});
+	if (dir.Length() < 1e-4f) {
+		warnings.push_back(String::Format("%s : light.direction nulle : vers le bas", owner.CStr()));
+		dir = {0.f, -1.f, 0.f};
+	}
+	light.direction = dir.Normalize();
+	// Demi-angles du cône (degrés).
+	double outer = number("outerAngle", number("angle", 45.0, present), present);
+	double inner = number("innerAngle", outer * 0.6, present);
+	outer = std::clamp(outer, 0.5, 179.0);
+	inner = std::clamp(inner, 0.0, 179.0);
+	if (inner > outer) {
+		warnings.push_back(String::Format("%s : light.innerAngle > outerAngle (inversés)", owner.CStr()));
+		std::swap(inner, outer);
+	}
+	constexpr double DEG = 3.14159265358979 / 180.0;
+	light.innerCos = float(std::cos(inner * DEG));
+	light.outerCos = float(std::cos(outer * DEG));
+	light.radius = float(std::clamp(number("radius", 0.5, present), 0.05, 16.0));
+	const math::FVector3 offset = vector3("offset", {0.f, 0.f, 0.f});
+	light.offset = {std::clamp(offset.x, -0.5f, 0.5f), std::clamp(offset.y, -0.5f, 0.5f), std::clamp(offset.z, -0.5f, 0.5f)};
+	// Aspect lumineux : « graphics.light » s'il est donné, sinon déduit ; une
+	// lumière éteinte n'a jamais l'air allumée.
+	look.lightEmission = !light.Active() ? 0 : legacyLevel > 0 ? legacyLevel : lighting::EquivalentLevel(light);
+}
+
+/// Transmission optique d'un bloc : « optics », sinon déduite du matériau et de la forme.
+void ParseOptics(const NodePtr &def, BlockDef &b, std::vector<String> &warnings) {
+	OpticsDef &o = b.optics;
+	o = OpticsDef{};
+	const ShapeKind kind = b.shape.kind;
+	const bool fullShape = kind == ShapeKind::CUBE && b.shape.size.x >= 1.f && b.shape.size.y >= 1.f && b.shape.size.z >= 1.f;
+	o.fullCell = fullShape || kind == ShapeKind::CROSS || b.fluid;
+	auto fill = [&](float v) { o.transmittance = {v, v, v}; };
+	if (kind == ShapeKind::NONE) { // (l'air n'est pas chargé ici : son OpticsDef par défaut est transparent)
+		fill(1.f);
+	} else {
+		switch (b.look.material) {
+		case RenderMaterial::OPAQUE: fill(0.f); break;
+		case RenderMaterial::CUTOUT: fill(kind == ShapeKind::CROSS ? 0.85f : fullShape ? 0.45f : 0.f); break; // plantes, feuillages, portes
+		case RenderMaterial::TRANSPARENT:
+		case RenderMaterial::TRANSLUCENT: {
+			// Verre, eau : un peu d'absorption, teintée par la couleur du bloc.
+			const lighting::Rgb tint = lighting::SrgbToLinear(b.look.tint[0], b.look.tint[1], b.look.tint[2]);
+			o.transmittance = {0.85f * tint[0], 0.85f * tint[1], 0.85f * tint[2]};
+			break;
+		}
+		case RenderMaterial::INVISIBLE: fill(1.f); break;
+		}
+	}
+	NodePtr node = json::At(def, "optics");
+	if (!node)
+		return;
+	if (!node->IsObject()) {
+		warnings.push_back(String::Format("%s : « optics » doit être un objet", b.id.CStr()));
+		return;
+	}
+	if (NodePtr opaque = node->Get(String("opaque")); opaque && opaque->IsBool())
+		fill(opaque->boolValue ? 0.f : 1.f);
+	if (NodePtr t = node->Get(String("transmittance"))) {
+		bool ok = false;
+		if (t->IsNumber() && Finite(json::Num(t, "", 0.0))) {
+			fill(float(std::clamp(json::Num(t, "", 0.0), 0.0, 1.0)));
+			ok = true;
+		} else if (t->IsArray() && t->GetSize() == 3) {
+			ok = true;
+			for (size_t i = 0; i < 3; ++i) {
+				ok = ok && t->At(i)->IsNumber() && Finite(json::Num(t->At(i), "", 0.0));
+				o.transmittance[i] = ok ? float(std::clamp(json::Num(t->At(i), "", 0.0), 0.0, 1.0)) : 1.f;
+			}
+		}
+		if (!ok)
+			warnings.push_back(String::Format("%s : optics.transmittance attendu 0..1 ou [r, g, b] (0..1, linéaire)", b.id.CStr()));
+	}
+	o.fullCell = json::Bool(node, "fullCell", o.fullCell);
+}
+
+} // namespace
+
 Result<String, String> ContentRegistry::Load(const NodePtr &definition, const LoadContext &ctx) {
 	if (!definition || !definition->IsObject())
 		return Err(String::Format("%s : une définition doit être un objet JSON", ctx.source.CStr()));
@@ -345,7 +561,7 @@ Result<String, String> ContentRegistry::Load(const NodePtr &definition, const Lo
 	Result<String, String> loaded = Err(String());
 	if (type == "block" || type == "cube" || type == "nodebox" || type == "cross" || type == "plant" || type == "obj" ||
 		type == "b3d" || type == "mesh")
-		loaded = LoadBlock(def, ctx, type);
+		loaded = json::At(def, "states") ? LoadBlockStates(def, ctx, type) : LoadBlock(def, ctx, type);
 	else if (type == "item")
 		loaded = LoadItem(def, ctx, false);
 	else if (type == "tool")
@@ -383,6 +599,104 @@ Result<String, String> ContentRegistry::Load(const NodePtr &definition, const Lo
 	return loaded;
 }
 
+namespace {
+
+/// `over` fondu dans `base` : les objets se complètent clé par clé, le reste remplace.
+void MergeInto(const NodePtr &base, const NodePtr &over) {
+	for (const String &key : over->Keys()) {
+		NodePtr value = over->Get(key);
+		NodePtr current = base->Get(key);
+		if (current && current->IsObject() && value && value->IsObject())
+			MergeInto(current, value);
+		else
+			base->Set(key, value ? value->Clone() : value);
+	}
+}
+
+/// Écrit `value` au chemin « a.b.c » (objets intermédiaires créés).
+void SetPath(const NodePtr &root, const char *path, NodePtr value) {
+	NodePtr node = root;
+	std::string rest(path);
+	for (size_t dot = rest.find('.'); dot != std::string::npos; dot = rest.find('.')) {
+		const String key(rest.substr(0, dot).c_str());
+		NodePtr next = node->Get(key);
+		if (!next || !next->IsObject()) {
+			next = dataio::Node::MakeObject();
+			node->Set(key, next);
+		}
+		node = next;
+		rest = rest.substr(dot + 1);
+	}
+	node->Set(String(rest.c_str()), std::move(value));
+}
+
+} // namespace
+
+Result<String, String> ContentRegistry::LoadBlockStates(const NodePtr &def, const LoadContext &ctx, const String &type) {
+	NodePtr states = json::At(def, "states");
+	if (!states->IsObject() || states->Keys().empty())
+		return Err(String::Format("bloc %s : « states » doit être un objet { nom : définition }", json::Str(def, "id").CStr()));
+	const String base = json::Str(def, "id");
+	const std::vector<String> names = states->Keys();
+	String first = json::Str(def, "defaultState", names.front());
+	if (std::find(names.begin(), names.end(), first) == names.end())
+		return Err(String::Format("bloc %s : état par défaut « %s » inconnu", base.CStr(), first.CStr()));
+	auto idOf = [&](const String &name) {
+		const String explicitId = json::Str(states->Get(name), "id");
+		return !explicitId.IsEmpty() ? explicitId : name == first ? base : base + String("_") + name;
+	};
+	NodePtr ids = dataio::Node::MakeObject();
+	for (const String &name : names)
+		ids->Set(name, json::MakeStr(idOf(name)));
+	// Un nom d'état (bascule, capteur) désigne le bloc de cet état.
+	auto resolve = [&](const NodePtr &node, const char *path) {
+		const String v = json::Str(node, path);
+		if (!v.IsEmpty() && std::find(names.begin(), names.end(), v) != names.end())
+			SetPath(node, path, json::MakeStr(idOf(v)));
+	};
+	String firstId;
+	for (const String &name : names) {
+		NodePtr d = def->Clone();
+		d->Remove("states");
+		d->Remove("defaultState");
+		if (NodePtr over = states->Get(name); over && over->IsObject())
+			MergeInto(d, over);
+		d->Set("id", json::MakeStr(idOf(name)));
+		d->Set("stateGroup", json::MakeStr(base));
+		d->Set("stateName", json::MakeStr(name));
+		d->Set("stateIds", ids->Clone());
+		resolve(d, "interact.toggle");
+		resolve(d, "sensor.near");
+		resolve(d, "sensor.far");
+		if (name != first) { // un état n'est ni un objet à part ni ce qu'on ramasse
+			if (!json::Has(d, "item"))
+				d->Set("item", json::MakeBool(false));
+			if (!json::Has(d, "gameplay.drops"))
+				SetPath(d, "gameplay.drops", json::MakeStr(base));
+		}
+		Result<String, String> loaded = LoadBlock(d, ctx, type);
+		if (loaded.IsError())
+			return Err(String::Format("%s (état « %s »)", loaded.Error().CStr(), name.CStr()));
+		if (name == first)
+			firstId = loaded.Value();
+	}
+	return Ok(firstId);
+}
+
+const BlockDef *ContentRegistry::BlockState(const BlockDef &block, const String &state) const {
+	for (const auto &[name, id] : block.stateIds)
+		if (name == state)
+			return FindBlock(id);
+	return nullptr;
+}
+
+float ContentRegistry::MaxSensorRadius() const {
+	float radius = 0.f;
+	for (const BlockDef &b : Blocks())
+		radius = std::max(radius, b.sensor.radius);
+	return radius;
+}
+
 Result<String, String> ContentRegistry::LoadBlock(const NodePtr &def, const LoadContext &ctx, const String &type) {
 	BlockDef b;
 	b.id = Qualify(json::Str(def, "id"), ctx.mod);
@@ -397,6 +711,7 @@ Result<String, String> ContentRegistry::LoadBlock(const NodePtr &def, const Load
 		face = TextureRef(face, ctx);
 	if (b.shape.kind == ShapeKind::NONE)
 		b.look.material = RenderMaterial::INVISIBLE;
+	ParseLight(def, b.look, b.id, m_loadWarnings);
 
 	// Physique et collision.
 	b.solid = json::Bool(def, "physics.solid", b.shape.kind != ShapeKind::CROSS && b.shape.kind != ShapeKind::NONE);
@@ -432,6 +747,7 @@ Result<String, String> ContentRegistry::LoadBlock(const NodePtr &def, const Load
 	b.climbable = json::Bool(def, "physics.climbable", b.HasTag("climbable"));
 	b.fluid = json::Bool(def, "physics.fluid", b.HasTag("fluid"));
 	b.viscosity = float(json::Num(def, "physics.viscosity", b.fluid ? 0.5 : 0.0));
+	ParseOptics(def, b, m_loadWarnings);
 	if (b.fluid) {
 		// Écoulement : actif par défaut, « "liquid": false » pour un fluide immobile.
 		NodePtr l = json::At(def, "liquid");
@@ -483,6 +799,15 @@ Result<String, String> ContentRegistry::LoadBlock(const NodePtr &def, const Load
 	if (json::Has(def, "partOf"))
 		b.partOf = cell(json::At(def, "partOf"));
 	b.toggle = Ref(def, "interact.toggle", ctx.mod);
+	// États (posés par LoadBlockStates) et capteur.
+	b.stateGroup = Ref(def, "stateGroup", ctx.mod);
+	b.stateName = json::Str(def, "stateName");
+	if (NodePtr ids = json::At(def, "stateIds"); ids && ids->IsObject())
+		for (const String &name : ids->Keys())
+			b.stateIds.emplace_back(name, Ref(ids, name.CStr(), ctx.mod));
+	b.sensor.radius = std::max(0.f, float(json::Num(def, "sensor.radius", 0.0)));
+	b.sensor.nearBlock = Ref(def, "sensor.near", ctx.mod);
+	b.sensor.farBlock = Ref(def, "sensor.far", ctx.mod);
 	b.toggleSound = Qualify(json::Str(def, "interact.sound"), ctx.mod);
 	b.use = json::Str(def, "interact.action");
 	b.containerSlots = std::clamp(json::Int(def, "container.slots", 0), 0, 108);
@@ -562,6 +887,7 @@ Result<String, String> ContentRegistry::LoadEntity(const NodePtr &def, const Loa
 	e.look = parse::Look(json::At(def, "graphics"));
 	for (String &face : e.look.faces)
 		face = TextureRef(face, ctx);
+	ParseLight(def, e.look, e.id, m_loadWarnings);
 	// Modèle articulé : "rig": {"model": "core:biped", "skins": [...], "scale": 1}
 	// ou "rig": "core:pig_model".
 	if (NodePtr rig = json::At(def, "rig"); rig && rig->IsString()) {
@@ -772,7 +1098,10 @@ Result<String, String> ContentRegistry::LoadDimension(const NodePtr &def, const 
 	d.fogDistance = float(json::Num(def, "sky.fogDistance", 0.0));
 	d.dayCycle = json::Bool(def, "time.cycle", true);
 	d.fixedTime = float(json::Num(def, "time.fixed", 0.5));
-	d.ambient = float(json::Num(def, "light.ambient", 1.0));
+	d.ambient = std::max(0.f, float(json::Num(def, "light.ambient", 1.0)));
+	if (json::Has(def, "light.base"))
+		d.baseLight = Some(std::max(0.f, float(json::Num(def, "light.base", 0.0))));
+	d.exposure = std::clamp(float(json::Num(def, "light.exposure", 1.0)), 0.05f, 20.f);
 	d.skyLight = json::Bool(def, "light.sky", true);
 	d.gravity = float(json::Num(def, "physics.gravity", 1.0));
 	d.spawnTop = json::Int(def, "spawn.top", 192);
@@ -823,8 +1152,10 @@ Result<String, String> ContentRegistry::LoadTexture(const NodePtr &def, const Lo
 	t.procedural = json::At(def, "procedural");
 	if (!t.procedural)
 		t.procedural = json::At(def, "generate");
-	if (t.path.IsEmpty() && !t.procedural && t.compose.IsEmpty())
-		return Err(String::Format("texture %s : « path », « compose » ou « procedural » attendu", t.id.CStr()));
+	for (const String &v : json::StrList(def, "variants"))
+		t.variants.push_back(TextureRef(v, ctx));
+	if (t.path.IsEmpty() && !t.procedural && t.compose.IsEmpty() && t.variants.empty())
+		return Err(String::Format("texture %s : « path », « compose », « procedural » ou « variants » attendu", t.id.CStr()));
 	t.frames = std::max(1, json::Int(def, "frames", 1));
 	t.biomeTint = json::Str(def, "biomeTint");
 	t.frameTime = float(json::Num(def, "frameTime", 0.25));
@@ -1037,8 +1368,19 @@ size_t ContentRegistry::DefinitionCount() const noexcept {
 		   m_dimensions.order.size();
 }
 
+float ContentRegistry::MaxLightRange() const {
+	float range = 0.f;
+	for (const BlockDef &b : Blocks())
+		if (b.look.light.Active())
+			range = std::max(range, b.look.light.range);
+	for (const EntityDef *e : Entities())
+		if (e->look.light.Active())
+			range = std::max(range, e->look.light.range);
+	return std::min(range, lighting::MAX_RANGE);
+}
+
 std::vector<String> ContentRegistry::Validate() const {
-	std::vector<String> warnings;
+	std::vector<String> warnings = m_loadWarnings;
 	auto texture = [&](const String &owner, const String &id) {
 		if (!id.IsEmpty() && !FindTexture(id))
 			warnings.push_back(String::Format("%s : texture inconnue « %s »", owner.CStr(), id.CStr()));

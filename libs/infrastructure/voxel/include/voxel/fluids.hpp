@@ -23,9 +23,10 @@
  * Le liquide emporte l'air et les blocs « replaceable » (herbes hautes) ; les
  * autres blocs l'arrêtent. Les chunks non chargés aussi.
  *
- * Seules les modifications du monde (joueur, scripts…) déclenchent
- * l'écoulement : les lacs et océans générés restent calmes tant que rien ne
- * les dérange. Un chunk chargé reprend l'écoulement de ses liquides en cours.
+ * Seules les modifications du monde (joueur, scripts…) et les corps qui
+ * entrent dans un liquide (Disturb) déclenchent l'écoulement : les lacs et
+ * océans générés restent calmes tant que rien ne les dérange. Un chunk chargé
+ * reprend l'écoulement de ses liquides en cours.
  */
 #include <functional>
 #include <map>
@@ -75,6 +76,11 @@ public:
 	int Step(float dt, int budget = 4096);
 	/// Programme la cellule `p` (et rien si aucun liquide n'est autour).
 	void Schedule(const BlockPos &p);
+	/// Un corps (joueur, créature, bloc qui tombe…) remue le liquide : les
+	/// cellules de `region` et leurs voisines sont réexaminées — un lac généré
+	/// instable se remet à couler dès qu'on y entre. Rend le nombre de
+	/// cellules programmées.
+	int Disturb(const Box &region);
 	/// Cellules en attente.
 	[[nodiscard]] size_t Pending() const noexcept { return m_pending.size(); }
 	/// Tout traiter jusqu'au calme (tests, outils) ; rend les modifications.

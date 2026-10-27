@@ -32,7 +32,11 @@ struct MeshVertex {
 	math::FVector3 position{0.f, 0.f, 0.f};
 	math::FVector3 normal{0.f, 1.f, 0.f};
 	math::FVector2 uv{0.f, 0.f};
-	std::array<uint8_t, 4> color{255, 255, 255, 255};
+	std::array<uint8_t, 4> color{255, 255, 255, 255}; ///< teinte (sRGB) seulement : pas d'éclairage
+	/// Lumière reçue (cf. lighting.hpp), en LINÉAIRE : rgb = éclairement
+	/// direct des sources (occulté, Lambert), a = part du ciel × occlusion
+	/// ambiante (multiplie ciel, soleil et ambiante dans le shader).
+	std::array<float, 4> light{0.f, 0.f, 0.f, 1.f};
 };
 
 struct MeshBuffer {
@@ -47,6 +51,9 @@ struct MeshBuffer {
 
 struct ChunkMesh {
 	MeshBuffer opaque, translucent;
+	/// Blocs lumineux (« light » > 0, sauf translucides) : à dessiner SANS
+	/// éclairage, pleine luminosité de jour comme de nuit, textures « lueur ».
+	MeshBuffer emissive;
 	uint64_t revision = 0;
 	/// Blocs lumineux du chunk (centre, niveau 1..15) : lumières dynamiques.
 	std::vector<std::pair<math::FVector3, int>> lights;
@@ -61,17 +68,42 @@ public:
 
 	/// Rassemble les textures référencées par le contenu (blocs, objets,
 	/// entités, modèles) et toutes celles déclarées.
-	void Build(AssetManager &assets, const ContentRegistry &content, int tileSize = 16);
+	///
+	/// Chaque texture garde sa résolution (puissance de deux, entre `tileSize`
+	/// et `maxTileSize`) : une texture de 2048 px est réduite par moyenne de
+	/// zones, une de 8 px agrandie au plus proche. Les tuiles, carrées et
+	/// alignées sur leur taille, sont rangées en ordre de Morton : les niveaux
+	/// de mipmap (Mipmaps) ne mélangent jamais deux tuiles voisines.
+	void Build(AssetManager &assets, const ContentRegistry &content, int tileSize = 16, int maxTileSize = 0);
 	[[nodiscard]] Rect Lookup(const String &id) const;
 	[[nodiscard]] bool Contains(const String &id) const;
+	/// Variantes d'une texture (« nom.1.png », « nom.2.png »… : une tirée au
+	/// hasard pour chaque bloc posé) ; vide si elle n'en a pas.
+	[[nodiscard]] std::vector<Rect> LookupVariants(const String &id, bool glow = false) const;
+	/// Variante « lueur » d'une texture (blocs lumineux) : contraste étiré,
+	/// couleurs ravivées et éclaircies ; la texture elle-même si elle n'existe pas.
+	[[nodiscard]] Rect LookupGlow(const String &id) const;
+	[[nodiscard]] static String GlowId(const String &id) { return String("glow|") + id; }
+	/// Traitement « lueur » (exposé pour les tests).
+	[[nodiscard]] static Image Glow(const Image &source);
+	/// Réduction d'une image (première image d'une bande animée) en carré
+	/// `size` × `size` : moyenne pondérée par l'alpha, ou plus proche voisin
+	/// pour l'agrandir.
+	[[nodiscard]] static Image Resample(const Image &source, int size);
 	[[nodiscard]] const Image &Pixels() const noexcept { return m_image; }
+	/// Niveaux de mipmap 1, 2… (moitié, quart… de Pixels), jusqu'à une tuile
+	/// de base réduite à un pixel.
+	[[nodiscard]] const std::vector<Image> &Mipmaps() const noexcept { return m_mipmaps; }
+	/// Plus petite taille de tuile (les textures plus fines sont agrandies).
 	[[nodiscard]] int TileSize() const noexcept { return m_tile; }
 	[[nodiscard]] size_t Count() const noexcept { return m_rects.size(); }
 
 private:
 	Image m_image;
+	std::vector<Image> m_mipmaps;
 	int m_tile = 16;
 	std::unordered_map<std::string, Rect> m_rects;
+	std::unordered_map<std::string, std::vector<std::string>> m_variants; ///< texture → ids de ses variantes
 };
 
 class ChunkMesher {
@@ -83,7 +115,8 @@ public:
 	/// Options de rendu (réglages graphiques).
 	struct Options {
 		bool ambientOcclusion = true;
-		bool skyLight = true;     ///< grottes et surplombs assombris (cf. DimensionDef::skyLight)
+		bool skyLight = true;     ///< part de ciel par sommet (sinon 1 partout, cf. DimensionDef::skyLight)
+		bool blockLight = true;   ///< éclairement direct des sources (lighting.hpp)
 		float crossDensity = 1.f; ///< part des plantes en croix affichées (0..1)
 	};
 	Options options;
@@ -100,10 +133,14 @@ private:
 		bool visible = false, opaqueCube = false, translucent = false, fluid = false;
 		ShapeKind shape = ShapeKind::NONE;
 		std::array<TextureAtlas::Rect, FACE_COUNT> faces{};
+		/// Variantes par face (tirées d'après la position du bloc) ; vides sinon.
+		std::array<std::vector<TextureAtlas::Rect>, FACE_COUNT> variants{};
+		bool varied = false;
 		std::array<uint8_t, 4> tint{255, 255, 255, 255};
 		std::array<uint8_t, 4> tinted{255, 255, 255, 255}; ///< teinte des faces `tintFaces` (biome)
 		uint8_t biomeTint = 0; ///< 0 aucune, 1 herbe, 2 feuillage, 3 eau
 		uint8_t tintFaces = 0;
+		bool emissive = false; ///< bloc lumineux : pleine luminosité, textures « lueur »
 		BlockId id = AIR;
 	};
 	/// Teintes d'un biome (herbe, feuillage, eau).
@@ -117,9 +154,6 @@ private:
 	void EmitCross(MeshBuffer &out, const BlockRender &render, const math::FVector3 &offset, float light = 1.f) const;
 	void EmitModel(MeshBuffer &out, const String &model, const BlockRender &render, const math::FVector3 &offset, uint8_t param,
 				   const String &mod, bool normalize, float light = 1.f) const;
-	/// Couverture de chaque cellule du chunk bordé : nombre de blocs opaques
-	/// au-dessus (plafonné à 255), sur les chunks chargés puis estimé.
-	void SkyCover(const World &world, const ChunkPos &cp, std::vector<uint8_t> &cover) const;
 
 	const ContentRegistry &m_content;
 	const TextureAtlas &m_atlas;

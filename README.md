@@ -80,6 +80,7 @@ foundation      core · math · jobs · events · diagnostics      (sans SDL)
 | `libs/application/scene` | Graphe de scène : nœuds, propriétés, scènes empaquetées, registre de types |
 | `demos/emulator` | Émulateur NDS / GBA / GBC (cœur dérivé de NooDS) avec coquille « EmulOS » |
 | `demos/sandbox` | Éditeur de jeu 2D/3D (projets, scènes, scripts, physique, assets) |
+| `demos/voxelia` | Jeux 3D dans un environnement voxel cubique généré procéduralement |
 | `examples/<nom>` | 18 exemples, un exécutable chacun (`./cpp-maker run <nom>`) |
 | `tests/integration` | Tests qui composent plusieurs modules (ex. cache de ressources + fabriques render3d/audio) |
 

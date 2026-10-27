@@ -1,5 +1,6 @@
 // Définitions de voxel/world.hpp
 #include <voxel/world.hpp>
+#include <voxel/lighting.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -25,6 +26,7 @@ void Chunk::Set(int x, int y, int z, BlockId id, uint8_t param) {
 		m_params[i] = param;
 	}
 	++m_revision;
+	++m_contentRevision;
 }
 
 void Chunk::Fill(BlockId id) {
@@ -33,6 +35,7 @@ void Chunk::Fill(BlockId id) {
 	m_uniform = id;
 	m_nonAir = id == AIR ? 0 : CHUNK_VOLUME;
 	++m_revision;
+	++m_contentRevision;
 }
 
 std::vector<BlockId> Chunk::Blocks() const {
@@ -52,11 +55,30 @@ void Chunk::Assign(std::vector<BlockId> blocks, std::vector<uint8_t> params) {
 	m_params = params.size() == size_t(CHUNK_VOLUME) ? std::move(params) : std::vector<uint8_t>{};
 	m_nonAir = int(std::count_if(m_blocks.begin(), m_blocks.end(), [](BlockId b) { return b != AIR; }));
 	++m_revision;
+	++m_contentRevision;
+}
+
+const std::vector<uint16_t> &Chunk::LightCells(const ContentRegistry &content) const {
+	if (m_lightRevision == m_contentRevision)
+		return m_lightCells;
+	m_lightRevision = m_contentRevision;
+	m_lightCells.clear();
+	if (m_blocks.empty()) {
+		if (content.Block(m_uniform).look.light.Active())
+			for (int i = 0; i < CHUNK_VOLUME; ++i)
+				m_lightCells.push_back(uint16_t(i));
+		return m_lightCells;
+	}
+	for (int i = 0; i < CHUNK_VOLUME; ++i)
+		if (content.Block(m_blocks[size_t(i)]).look.light.Active())
+			m_lightCells.push_back(uint16_t(i));
+	return m_lightCells;
 }
 
 // ── World ────────────────────────────────────────────────────────────────────
 
-World::World(const ContentRegistry &content, WorldSettings settings) : m_content(content), m_settings(std::move(settings)) {}
+World::World(const ContentRegistry &content, WorldSettings settings)
+	: m_content(content), m_maxLightRange(content.MaxLightRange()), m_settings(std::move(settings)) {}
 
 World::~World() = default;
 
@@ -113,6 +135,7 @@ Chunk &World::EnsureChunk(const ChunkPos &p) {
 		m_pending.erase(p); // un chunk enregistré contient déjà tout
 	}
 	TouchAround(p, !chunk.IsEmpty());
+	InvalidateLightForChunk(p);
 	onChunkLoaded.Emit(p);
 	return chunk;
 }
@@ -126,9 +149,11 @@ bool World::SetBlock(const BlockPos &p, BlockId id, uint8_t param, ChangeCause c
 	Chunk &chunk = EnsureChunk(ChunkOf(p));
 	const BlockPos l = LocalOf(p);
 	const BlockId previous = chunk.Get(l.x, l.y, l.z);
-	if (previous == id && chunk.Param(l.x, l.y, l.z) == param)
+	const uint8_t previousParam = chunk.Param(l.x, l.y, l.z);
+	if (previous == id && previousParam == param)
 		return false;
 	chunk.Set(l.x, l.y, l.z, id, param);
+	InvalidateLight(p, previous, previousParam, id, param);
 	if (cause != ChangeCause::GENERATION)
 		chunk.SetModified(true);
 	TouchNeighbors(p);
@@ -146,9 +171,12 @@ void World::GenerationWrite(const BlockPos &p, BlockId id, bool replaceSolid) {
 	const ChunkPos cp = ChunkOf(p);
 	const BlockPos l = LocalOf(p);
 	if (Chunk *chunk = GetChunk(cp)) {
-		if (!replaceSolid && m_content.Block(chunk->Get(l.x, l.y, l.z)).solid)
+		const BlockId previous = chunk->Get(l.x, l.y, l.z);
+		if (!replaceSolid && m_content.Block(previous).solid)
 			return;
+		const uint8_t previousParam = chunk->Param(l.x, l.y, l.z);
 		chunk->Set(l.x, l.y, l.z, id);
+		InvalidateLight(p, previous, previousParam, id, 0);
 		// Un chunk DÉJÀ généré qui reçoit une écriture tardive (structure
 		// d'un voisin) doit la conserver s'il est déchargé puis régénéré.
 		if (m_generatingStack.empty() || !(m_generatingStack.back() == cp))
@@ -181,6 +209,79 @@ Option<int> World::HighestSolid(int x, int z, int fromY, int toY) const {
 		if (IsLoaded({x, y, z}) && BlockAt({x, y, z}).solid)
 			return Some(y);
 	return NONE;
+}
+
+// ── Lumière ──────────────────────────────────────────────────────────────────
+
+void World::TouchSphere(const math::FVector3 &center, float radius) {
+	const ChunkPos lo = ChunkOf(BlockPos::FromWorld(center - math::FVector3{radius, radius, radius}));
+	const ChunkPos hi = ChunkOf(BlockPos::FromWorld(center + math::FVector3{radius, radius, radius}));
+	for (int y = lo.y; y <= hi.y; ++y)
+		for (int z = lo.z; z <= hi.z; ++z)
+			for (int x = lo.x; x <= hi.x; ++x)
+				if (Chunk *c = GetChunk({x, y, z}))
+					c->Touch();
+}
+
+void World::InvalidateLight(const BlockPos &p, BlockId before, uint8_t paramBefore, BlockId after, uint8_t paramAfter) {
+	if (m_maxLightRange <= 0.f && m_dynamicLights.empty())
+		return;
+	const BlockDef &a = m_content.Block(before), &b = m_content.Block(after);
+	// Une source qui s'éteint, s'allume, change ou tourne : sa zone.
+	if (a.look.light.Active())
+		TouchSphere(lighting::Source::ForBlock(a, p, paramBefore).position, a.look.light.range + 1.f);
+	if (b.look.light.Active())
+		TouchSphere(lighting::Source::ForBlock(b, p, paramAfter).position, b.look.light.range + 1.f);
+	// Un obstacle qui change : toutes les sources dont la lumière passe par là.
+	const bool partial = !a.optics.fullCell || !b.optics.fullCell;
+	if (a.optics == b.optics && !(partial && (before != after || paramBefore != paramAfter)))
+		return;
+	const math::FVector3 c = p.Center();
+	const float r = m_maxLightRange + 1.f;
+	std::vector<lighting::Source> sources;
+	lighting::GatherSources(*this, c - math::FVector3{r, r, r}, c + math::FVector3{r, r, r}, sources);
+	for (const lighting::Source &s : sources)
+		if ((s.position - c).Length() <= s.def->range + 1.f)
+			TouchSphere(s.position, s.def->range + 1.f);
+}
+
+void World::InvalidateLightForChunk(const ChunkPos &p) {
+	if (m_maxLightRange <= 0.f)
+		return;
+	const Chunk *chunk = GetChunk(p);
+	if (!chunk || chunk->IsEmpty())
+		return; // de l'air : rien n'en émet
+	// Ses propres sources éclairent les chunks déjà là. (Ses blocs, eux,
+	// n'ont presque jamais à couper de rayons entre chunks chargés : la zone
+	// chargée est d'un seul tenant autour du joueur, un trajet entre deux de
+	// ses points ne traverse pas un chunk absent.)
+	const BlockPos origin = p.Origin();
+	for (uint16_t index : chunk->LightCells(m_content)) {
+		const int x = index % CHUNK_SIZE, z = (index / CHUNK_SIZE) % CHUNK_SIZE, y = index / (CHUNK_SIZE * CHUNK_SIZE);
+		const BlockDef &def = m_content.Block(chunk->Get(x, y, z));
+		const lighting::Source s = lighting::Source::ForBlock(def, origin + BlockPos{x, y, z}, chunk->Param(x, y, z));
+		TouchSphere(s.position, def.look.light.range + 1.f);
+	}
+}
+
+void World::SetDynamicLights(std::vector<DynamicLight> lights) {
+	auto same = [](const DynamicLight &a, const DynamicLight &b) {
+		const LightDef &x = a.light, &y = b.light;
+		return BlockPos::FromWorld(a.position) == BlockPos::FromWorld(b.position) && x.type == y.type && x.intensity == y.intensity &&
+			   x.range == y.range && x.color == y.color && x.enabled == y.enabled;
+	};
+	auto in = [&](const DynamicLight &l, const std::vector<DynamicLight> &list) {
+		return std::any_of(list.begin(), list.end(), [&](const DynamicLight &o) { return same(o, l); });
+	};
+	// Seules les sources apparues, disparues, changées ou passées dans une
+	// autre cellule font refaire leur zone (une créature immobile ne coûte rien).
+	for (const DynamicLight &l : m_dynamicLights)
+		if (l.light.Active() && !in(l, lights))
+			TouchSphere(l.position, l.light.range + 1.f);
+	for (const DynamicLight &l : lights)
+		if (l.light.Active() && !in(l, m_dynamicLights))
+			TouchSphere(l.position, l.light.range + 1.f);
+	m_dynamicLights = std::move(lights);
 }
 
 void World::TouchNeighbors(const BlockPos &p) {

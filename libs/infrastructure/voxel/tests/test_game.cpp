@@ -341,3 +341,30 @@ voxel.generator("void", fn(ox, oy, oz, seed) { return nil })
 	CHECK(game.GetWorld().BlockAt(BlockPos::FromWorld(spawn - math::FVector3{0.f, 1.f, 0.f})).solid);
 	game.CloseWorld();
 }
+
+TEST(Game_AmbientChannelsCarryFades) {
+	const String root = MakeMods("ambient");
+	Game game;
+	REQUIRE(game.LoadMods(Options(root)).errors.empty());
+	REQUIRE(game.OpenWorld("monde", Some(uint32_t(7))).IsOk());
+	(void)game.JoinPlayer("Alice");
+	uint64_t cursor = 0;
+	ecs::EventsOf<SoundEvent>(game.Registry()).Read(cursor, [](const SoundEvent &) {}); // passé oublié
+	REQUIRE(game.Scripts()
+				.RunSource("game.ambient(\"vent\", 0.5, {channel: \"niveau\", loop: true, fade_in: 3, fade_out: 4})\n"
+						   "game.ambient(\"pas\")\n"
+						   "game.stop_ambient(\"niveau\", 2)")
+				.IsOk());
+	std::vector<SoundEvent> sounds;
+	ecs::EventsOf<SoundEvent>(game.Registry()).Read(cursor, [&](const SoundEvent &ev) { sounds.push_back(ev); });
+	REQUIRE_EQ(sounds.size(), size_t(3));
+	CHECK(sounds[0].channel == "niveau" && sounds[0].loop && !sounds[0].positional);
+	CHECK_NEAR(sounds[0].volume, 0.5f, 1e-6f);
+	CHECK_NEAR(sounds[0].fadeIn, 3.f, 1e-6f);
+	CHECK_NEAR(sounds[0].fadeOut, 4.f, 1e-6f);
+	CHECK(sounds[1].channel.IsEmpty() && !sounds[1].loop); // son libre, comme avant
+	CHECK(sounds[2].stop && sounds[2].channel == "niveau");
+	CHECK_NEAR(sounds[2].fadeOut, 2.f, 1e-6f);
+	// Faute de frappe dans les options : refusée.
+	CHECK(game.Scripts().RunSource("game.ambient(\"vent\", {canal: \"x\"})").IsError());
+}

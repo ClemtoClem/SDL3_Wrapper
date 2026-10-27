@@ -7,6 +7,8 @@
 
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <set>
 
 #include <ecs/events.hpp>
 #include <voxel/game.hpp>
@@ -290,6 +292,92 @@ TEST(WorldGen_IslandsCavernsAndMazeAreDeterministic) {
 		CHECK(open > walls); // surtout des salles
 		CHECK(exits > 0);
 	}
+}
+
+TEST(WorldGen_MazeLampStatesAndExitSigns) {
+	ContentRegistry content;
+	for (const char *id : {"stone", "carpet", "wall", "ceil", "lamp", "lamp_off", "lamp_half", "sign_left", "sign_right"})
+		Load(content, (std::string(R"({"id": ")") + id + R"("})").c_str());
+	Load(content, R"({"id": "exit", "physics": {"solid": false}})");
+	Load(content, R"({"id": "water", "tags": ["fluid"], "physics": {"solid": false}, "liquid": {"range": 3}})");
+	Load(content, R"({"type": "generator", "id": "rooms", "kind": "maze",
+		"maze": {"floor": 0, "height": 5, "cell": 6, "region": 60, "outer": "stone", "poolDepth": 2,
+		         "exit": {"block": "exit", "chance": 0.08, "signLeft": "sign_left", "signRight": "sign_right", "signRange": 2, "signHeight": 3}},
+		"levels": [{"id": "lobby", "floor": "carpet", "wall": "wall", "ceiling": "ceil", "light": "lamp", "lightOff": "lamp_off",
+		            "lightHalf": "lamp_half", "halfChance": 0.3, "darkChance": 0.3, "lightEvery": 3, "lightHanging": true,
+		            "water": "water", "waterChance": 0.2}]})");
+	World world(content);
+	world.SetGenerator(MakeGenerator(content, "t:rooms", 4));
+	const int lo = -60, hi = 60, cell = 6;
+	auto id = [&](int x, int y, int z) { return At(world, {x, y, z}).id; };
+	// Néons pendus sous le plafond (y = 4), allumés, éteints ou à moitié ;
+	// le plafond (y = 5) reste entier.
+	std::map<std::string, int> lamps;
+	int ceilingLamps = 0;
+	for (int x = lo; x < hi; ++x)
+		for (int z = lo; z < hi; ++z) {
+			++lamps[id(x, 4, z).CStr()];
+			ceilingLamps += id(x, 5, z) != "t:ceil" && id(x, 5, z) != "t:wall" ? 1 : 0;
+		}
+	CHECK(lamps["t:lamp"] > 0 && lamps["t:lamp_off"] > 0 && lamps["t:lamp_half"] > 0);
+	CHECK(lamps["t:lamp"] > lamps["t:lamp_half"]);
+	CHECK_EQ(ceilingLamps, 0);
+	// Bassins creusés : l'eau au ras du sol (rien au-dessus), deux de
+	// profondeur, fond au sol du niveau, bords carrelés comme les murs.
+	int pools = 0, overflow = 0, badEdges = 0;
+	for (int x = lo; x < hi; ++x)
+		for (int z = lo; z < hi; ++z) {
+			overflow += id(x, 1, z) == "t:water" ? 1 : 0;
+			if (id(x, 0, z) == "t:water") {
+				++pools;
+				CHECK(id(x, -1, z) == "t:water");
+				CHECK(id(x, -2, z) == "t:carpet");
+			} else {
+				badEdges += id(x, -1, z) != "t:wall" ? 1 : 0;
+			}
+			CHECK(id(x, -3, z) == "t:stone");
+		}
+	CHECK(pools > 0);
+	CHECK_EQ(overflow, 0);
+	CHECK_EQ(badEdges, 0);
+	// Sorties au centre des cellules ; panneaux fléchés sur les murs voisins.
+	std::vector<std::pair<int, int>> exits;
+	for (int x = lo; x < hi; ++x)
+		for (int z = lo; z < hi; ++z)
+			if (id(x, 1, z) == "t:exit")
+				exits.push_back({x, z});
+	REQUIRE(!exits.empty());
+	auto cellOf = [&](int v) { return int(std::floor(float(v) / float(cell))); };
+	static constexpr int SIDE[4][2] = {{0, 1}, {-1, 0}, {0, -1}, {1, 0}}; // orientation → mur (plaqué côté +z à 0)
+	int signs = 0;
+	for (int x = lo + 3 * cell; x < hi - 3 * cell; ++x)
+		for (int z = lo + 3 * cell; z < hi - 3 * cell; ++z) {
+			const String here = id(x, 3, z);
+			if (here != "t:sign_left" && here != "t:sign_right")
+				continue;
+			++signs;
+			const int dx = SIDE[world.GetParam({x, 3, z}) & 3][0], dz = SIDE[world.GetParam({x, 3, z}) & 3][1];
+			CHECK(id(x + dx, 3, z + dz) == "t:wall"); // plaqué contre un mur
+			// La sortie la plus proche (cellules voisines) est du côté de la
+			// flèche (à égalité de distance, l'une ou l'autre).
+			int best = -1;
+			std::set<bool> sides;
+			for (const auto &[ex, ez] : exits) {
+				const int ci = cellOf(ex) - cellOf(x), cj = cellOf(ez) - cellOf(z);
+				if ((ci == 0 && cj == 0) || std::abs(ci) > 2 || std::abs(cj) > 2)
+					continue;
+				const int d = (ex - x) * (ex - x) + (ez - z) * (ez - z);
+				if (best >= 0 && d > best)
+					continue;
+				if (d < best || best < 0)
+					sides.clear();
+				best = d;
+				sides.insert((ex - x) * -dz + (ez - z) * dx >= 0);
+			}
+			REQUIRE(best >= 0);
+			CHECK(sides.contains(here == "t:sign_right"));
+		}
+	CHECK(signs > 0);
 }
 
 TEST(Game_DimensionsKeepTheirOwnChunksEntitiesAndData) {

@@ -68,6 +68,8 @@ class Canvas {
 	ShaderProgram m_basicShader;
 	ShaderProgram m_phongShader;
 
+	float m_exposure = 1.f;
+	float m_baseLight = 0.f;
 	std::unordered_map<PipelineKey, sdl3::GpuGraphicsPipeline> m_pipelineCache;
 
 	sdl3::Color m_backgroundColor = sdl3::Color::BLACK();
@@ -279,6 +281,12 @@ public:
 	/// (`Begin`) ET de chaque rendu hors écran, qui a sa propre projection —
 	/// celle d'un portail, notamment, n'est pas celle de la caméra.
 	void SetFrustumFromViewProjection(const math::FMatrix4 &viewProjection) noexcept;
+	/// Exposition des matériaux à éclairage précalculé (Material::bakedLighting),
+	/// avant tone mapping ; 1 par défaut.
+	void SetExposure(float exposure) noexcept { m_exposure = exposure; }
+	/// Lumière uniforme, sans occlusion, ajoutée à ces mêmes matériaux
+	/// (linéaire ; 0 par défaut : l'obscurité reste possible).
+	void SetBaseLight(float light) noexcept { m_baseLight = light; }
 	void SetLighting(const DirectionalLight &directional, const AmbientLight &ambient) noexcept;
 
 	/// Lumières ponctuelles/spot actives pour les prochaines frames — scène

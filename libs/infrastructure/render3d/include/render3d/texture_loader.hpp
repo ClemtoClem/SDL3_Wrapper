@@ -18,8 +18,10 @@ namespace render3d {
 
 /// Texture RGBA8 créée depuis des pixels en mémoire (`width × height × 4`
 /// octets, lignes de haut en bas) : atlas assemblés à l'exécution, textures
-/// générées.
+/// générées. `mipmaps` : niveaux suivants déjà calculés (le i-ième fait
+/// max(1, width >> (i + 1)) × max(1, height >> (i + 1)) pixels).
 [[nodiscard]] Result<sdl3::GpuTexture, String> CreateTextureFromPixels(sdl3::GpuDevice &device, uint32_t width,
-																		uint32_t height, std::span<const uint8_t> rgba);
+																		uint32_t height, std::span<const uint8_t> rgba,
+																		std::span<const std::span<const uint8_t>> mipmaps = {});
 
 } // namespace render3d
