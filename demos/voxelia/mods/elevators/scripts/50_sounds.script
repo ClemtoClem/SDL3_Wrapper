@@ -1,0 +1,39 @@
+# Sons : chacun suit un changement d'état réel (jamais en boucle sans fin).
+# Le grondement du moteur est un son d'ambiance en boucle sur un canal propre
+# à l'ascenseur (elevator:<id>), lancé au départ et éteint en fondu à
+# l'arrêt ; il continue sans coupure pendant un changement de dimension.
+
+let EL_SND = {
+    button: "core:controller_button_press",
+    door_open: "core:industrial_door_open",
+    door_close: "core:industrial_door_close",
+    lock: "elevators:elevator_door_lock",
+    start: "core:hydraulic_up",
+    start_down: "core:hydraulic_down",
+    stop: "elevators:elevator_stop",
+    tick: "elevators:elevator_display_tick",
+    creak: "elevators:elevator_cable_creak",
+    clang: "core:metal_clang"
+}
+
+fn el_sound(name, p) {
+    let id = EL_SND[name]
+    if (id == nil) { id = name }
+    game.sound(id, p.x + 0.5, p.y + 0.5, p.z + 0.5)
+}
+
+fn el_chime(e, p) {
+    if (e.style == "backrooms") { game.sound("elevators:elevator_backrooms_chime", p.x + 0.5, p.y + 1, p.z + 0.5) } else {
+        game.sound("elevators:elevator_chime", p.x + 0.5, p.y + 1, p.z + 0.5)
+    }
+}
+
+fn el_motor_channel(e) { return format("elevator:{}", e.id) }
+
+fn el_motor_start(e) {
+    let loop = "elevators:elevator_motor_loop"
+    if (e.style == "backrooms") { loop = "elevators:elevator_backrooms_motor_loop" }
+    game.ambient(loop, 0.55, {channel: el_motor_channel(e), loop: true, fade_in: 0.8, fade_out: 0.8})
+}
+
+fn el_motor_stop(e) { game.stop_ambient(el_motor_channel(e), 0.9) }

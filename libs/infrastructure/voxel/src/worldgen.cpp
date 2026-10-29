@@ -587,6 +587,8 @@ void TerrainGenerator::SetupMaze() {
 			level.lightAuto = BlockParam(m_content, l, "lightAuto", m_def.mod);
 			level.autoChance = float(json::Num(l, "autoChance", 0.0));
 			level.lightHanging = json::Bool(l, "lightHanging", false);
+			level.vent = BlockParam(m_content, l, "vent", m_def.mod);
+			level.ventChance = float(json::Num(l, "ventChance", 0.0));
 			if (const String biome = json::Str(l, "biome"); !biome.IsEmpty())
 				level.biome = m_content.FindBiome(ContentRegistry::Qualify(biome, m_def.mod));
 			if (level.wall == AIR)
@@ -594,6 +596,83 @@ void TerrainGenerator::SetupMaze() {
 			m_levelWeight += level.weight;
 			m_levels.push_back(level);
 		}
+	// Étages : un nombre ; la liste des niveaux de chaque étage ; ou
+	// {"count": N, "levels": [...]} — N étages dont les niveaux suivent la
+	// liste, répétée au besoin (N vient souvent d'un réglage du mod).
+	m_floorLevels.clear();
+	auto levelIndex = [this](const String &id) {
+		for (size_t k = 0; k < m_levels.size(); ++k)
+			if (m_levels[k].id == id)
+				return int(k);
+		return -1;
+	};
+	if (NodePtr floors = json::At(p, "floors"); floors && floors->IsArray()) {
+		for (size_t i = 0; i < floors->GetSize(); ++i)
+			m_floorLevels.push_back(levelIndex(json::Str(floors->At(i), "")));
+		m_mazeFloors = std::clamp(int(m_floorLevels.size()), 1, 16);
+	} else if (floors && floors->IsObject()) {
+		m_mazeFloors = std::clamp(json::Int(floors, "count", 1), 1, 16);
+		if (NodePtr levels = json::At(floors, "levels"); levels && levels->IsArray() && levels->GetSize() > 0)
+			for (int k = 0; k < m_mazeFloors; ++k)
+				m_floorLevels.push_back(levelIndex(json::Str(levels->At(size_t(k) % levels->GetSize()), "")));
+	} else {
+		m_mazeFloors = std::clamp(json::Int(p, "floors", 1), 1, 16);
+	}
+	m_stairBlock = BlockParam(m_content, p, "stairs.block", m_def.mod);
+	m_stairFill = BlockParam(m_content, p, "stairs.fill", m_def.mod);
+	m_stairChance = float(json::Num(p, "stairs.chance", 0.0));
+	// Gaines d'ascenseur (blocs du mod « elevators », s'il est là) : « elevator »
+	// (une) ou « elevators » (plusieurs, chacune son « id » et ses étages).
+	m_elevators.clear();
+	auto addElevator = [&](const NodePtr &e) {
+		if (!e || !e->IsObject())
+			return;
+		MazeElevator el;
+		el.id = json::Str(e, "id", "main");
+		el.cx = json::Int(e->Get(String("cell")) ? e->Get(String("cell"))->At(0) : nullptr, "", 1);
+		el.cz = json::Int(e->Get(String("cell")) ? e->Get(String("cell"))->At(1) : nullptr, "", 0);
+		const String side = json::Str(e, "side", "s");
+		if (side == "n") { el.dx = 0; el.dz = -1; el.ux = 1; el.uz = 0; el.doorParam = 0; }
+		else if (side == "e") { el.dx = 1; el.dz = 0; el.ux = 0; el.uz = 1; el.doorParam = 1; }
+		else if (side == "w") { el.dx = -1; el.dz = 0; el.ux = 0; el.uz = -1; el.doorParam = 1; }
+		else { el.dx = 0; el.dz = 1; el.ux = -1; el.uz = 0; el.doorParam = 0; }
+		el.wall = BlockParam(m_content, e, "blocks.wall", m_def.mod);
+		el.rail = BlockParam(m_content, e, "blocks.rail", m_def.mod);
+		el.motor = BlockParam(m_content, e, "blocks.motor", m_def.mod);
+		el.door = BlockParam(m_content, e, "blocks.door", m_def.mod);
+		el.doorTop = BlockParam(m_content, e, "blocks.doorTop", m_def.mod);
+		el.frame = BlockParam(m_content, e, "blocks.frame", m_def.mod);
+		el.call = BlockParam(m_content, e, "blocks.call", m_def.mod);
+		el.display = BlockParam(m_content, e, "blocks.display", m_def.mod);
+		el.arrow = BlockParam(m_content, e, "blocks.arrow", m_def.mod);
+		el.pit = std::clamp(json::Int(e, "pit", 6), 1, 16);
+		el.overrun = std::clamp(json::Int(e, "overrun", 7), 1, 16);
+		// Étages desservis : "all" (défaut), "first", "last", ou [de, à]
+		// (indices négatifs : depuis le dernier, −1 étant le dernier).
+		const int last = m_mazeFloors - 1;
+		auto floorIndex = [last](int i) { return std::clamp(i < 0 ? last + 1 + i : i, 0, last); };
+		el.from = 0;
+		el.to = last;
+		if (NodePtr f = json::At(e, "floors"); f && f->IsString()) {
+			const String which = json::Str(f, "");
+			if (which == "first")
+				el.to = 0;
+			else if (which == "last")
+				el.from = last;
+		} else if (f && f->IsArray() && f->GetSize() == 2) {
+			el.from = floorIndex(json::Int(f->At(0), "", 0));
+			el.to = std::max(el.from, floorIndex(json::Int(f->At(1), "", last)));
+		}
+		el.bottom = MazeFloorY(el.from) - el.pit;
+		el.top = MazeFloorY(el.to) + 4 + el.overrun;
+		// Sans les blocs (mod « elevators » absent), pas de gaine.
+		if (el.wall != AIR && el.motor != AIR && el.door != AIR)
+			m_elevators.push_back(el);
+	};
+	addElevator(json::At(p, "elevator"));
+	if (NodePtr list = json::At(p, "elevators"); list && list->IsArray())
+		for (size_t i = 0; i < list->GetSize(); ++i)
+			addElevator(list->At(i));
 	if (m_levels.empty()) { // un seul niveau, de pierre
 		MazeLevel level;
 		level.id = "default";
@@ -603,7 +682,9 @@ void TerrainGenerator::SetupMaze() {
 	}
 }
 
-const TerrainGenerator::MazeLevel &TerrainGenerator::MazeLevelAt(int x, int z) const {
+const TerrainGenerator::MazeLevel &TerrainGenerator::MazeLevelAt(int x, int z, int floor) const {
+	if (floor >= 0 && floor < int(m_floorLevels.size()) && m_floorLevels[size_t(floor)] >= 0)
+		return m_levels[size_t(m_floorLevels[size_t(floor)])];
 	// Régions carrées (bords décalés par du bruit) : chacune tire son niveau.
 	const float wobble = m_detail.Sample(float(x), float(z)) * float(m_mazeCell);
 	const int rx = int(std::floor((float(x) + wobble) / float(m_mazeRegion)));
@@ -620,7 +701,8 @@ const TerrainGenerator::MazeLevel &TerrainGenerator::MazeLevelAt(int x, int z) c
 	return m_levels.back();
 }
 
-bool TerrainGenerator::MazeWall(const MazeLevel &level, int x, int z) const {
+bool TerrainGenerator::MazeWall(const MazeLevel &level, int x, int z, int floor) const {
+	const uint32_t seed = m_seed + uint32_t(floor) * 7919u; // un plan par étage
 	const int cell = m_mazeCell;
 	const int cx = int(std::floor(float(x) / float(cell))), cz = int(std::floor(float(z) / float(cell)));
 	const int lx = x - cx * cell, lz = z - cz * cell;
@@ -629,14 +711,14 @@ bool TerrainGenerator::MazeWall(const MazeLevel &level, int x, int z) const {
 	if (lx == 0 && lz == 0)
 		return true; // coins
 	// Cellule murée (cul-de-sac) : rare.
-	if (RandomAt(m_seed, cx, 1, cz, 613) < 0.04f)
+	if (RandomAt(seed, cx, 1, cz, 613) < 0.04f)
 		return true;
 	auto segment = [&](int sx, int sz, uint32_t salt, int along) {
-		if (RandomAt(m_seed, sx, 2, sz, salt) >= level.wallChance)
+		if (RandomAt(seed, sx, 2, sz, salt) >= level.wallChance)
 			return false;
-		const int door = 1 + int(HashPosition(m_seed, sx, 3, sz, salt) % uint64_t(std::max(1, cell - 1 - m_doorWidth)));
+		const int door = 1 + int(HashPosition(seed, sx, 3, sz, salt) % uint64_t(std::max(1, cell - 1 - m_doorWidth)));
 		// Un mur sur deux garde une porte.
-		const bool hasDoor = RandomAt(m_seed, sx, 4, sz, salt) < 0.75f;
+		const bool hasDoor = RandomAt(seed, sx, 4, sz, salt) < 0.75f;
 		return !(hasDoor && along >= door && along < door + m_doorWidth);
 	};
 	if (lx == 0)
@@ -646,25 +728,64 @@ bool TerrainGenerator::MazeWall(const MazeLevel &level, int x, int z) const {
 	return false;
 }
 
-bool TerrainGenerator::MazeColumnWall(int x, int z) const {
-	const MazeLevel &level = MazeLevelAt(x, z);
-	if (MazeWall(level, x, z))
-		return true;
-	// Une frontière de niveaux est un mur continu, percé de portes.
-	if (&MazeLevelAt(x + 1, z) != &level || &MazeLevelAt(x, z + 1) != &level) {
-		const int cell = m_mazeCell;
-		const int mx = x - int(std::floor(float(x) / float(cell))) * cell, mz = z - int(std::floor(float(z) / float(cell))) * cell;
-		return (mx + mz) % 9 > 2;
-	}
+Option<BlockPos> TerrainGenerator::MazeElevatorMotor(const String &id) const {
+	if (m_def.kind != "maze")
+		return NONE;
+	for (const MazeElevator &e : m_elevators)
+		if (id.IsEmpty() || e.id == id) // comme MazeElevatorColumn : au centre de la cellule, au-dessus de la réserve
+			return Some(BlockPos{e.cx * m_mazeCell + m_mazeCell / 2, e.top + 1, e.cz * m_mazeCell + m_mazeCell / 2});
+	return NONE;
+}
+
+const TerrainGenerator::MazeElevator *TerrainGenerator::MazeShaftAt(int cx, int cz) const {
+	for (const MazeElevator &e : m_elevators)
+		if (cx == e.cx && cz == e.cz)
+			return &e;
+	return nullptr;
+}
+
+bool TerrainGenerator::MazeReservedCell(int cx, int cz) const {
+	for (const MazeElevator &e : m_elevators)
+		if ((cx == e.cx && cz == e.cz) || (cx == e.cx + e.dx && cz == e.cz + e.dz))
+			return true;
 	return false;
 }
 
-bool TerrainGenerator::MazeExitCell(int cx, int cz) const {
-	return m_mazeExit != AIR && RandomAt(m_seed, cx, 7, cz, 631) < m_exitChance &&
-		   !MazeColumnWall(cx * m_mazeCell + m_mazeCell / 2, cz * m_mazeCell + m_mazeCell / 2);
+bool TerrainGenerator::MazeStairCell(int cx, int cz, int floor) const {
+	if (m_stairBlock == AIR || floor < 0 || floor + 1 >= m_mazeFloors || MazeReservedCell(cx, cz))
+		return false;
+	return RandomAt(m_seed, cx, 9 + floor, cz, 643) < m_stairChance;
 }
 
-BlockId TerrainGenerator::MazeExitSign(int x, int z, uint8_t &param) const {
+bool TerrainGenerator::MazeColumnWall(int x, int z, int floor) const {
+	const int cell = m_mazeCell;
+	const int cx = int(std::floor(float(x) / float(cell))), cz = int(std::floor(float(z) / float(cell)));
+	const int mx = x - cx * cell, mz = z - cz * cell;
+	// Le hall devant une gaine : sa frontière avec la gaine reste ouverte.
+	for (const MazeElevator &e : m_elevators) {
+		const int fx = e.cx + e.dx, fz = e.cz + e.dz;
+		if (cx == fx && cz == fz && ((e.dz > 0 && mz == 0 && mx >= 1) || (e.dx > 0 && mx == 0 && mz >= 1)))
+			return false;
+		if (cx == e.cx && cz == e.cz)
+			return false; // la gaine s'en charge (et, hors de ses étages, une salle sans cloison)
+	}
+	const MazeLevel &level = MazeLevelAt(x, z, floor);
+	if (MazeWall(level, x, z, floor))
+		return true;
+	// Une frontière de niveaux est un mur continu, percé de portes.
+	if (&MazeLevelAt(x + 1, z, floor) != &level || &MazeLevelAt(x, z + 1, floor) != &level)
+		return (mx + mz) % 9 > 2;
+	return false;
+}
+
+bool TerrainGenerator::MazeExitCell(int cx, int cz, int floor) const {
+	if (MazeReservedCell(cx, cz) || MazeStairCell(cx, cz, floor) || MazeStairCell(cx, cz, floor - 1))
+		return false;
+	return m_mazeExit != AIR && RandomAt(m_seed, cx, 7 + floor * 13, cz, 631) < m_exitChance &&
+		   !MazeColumnWall(cx * m_mazeCell + m_mazeCell / 2, cz * m_mazeCell + m_mazeCell / 2, floor);
+}
+
+BlockId TerrainGenerator::MazeExitSign(int x, int z, uint8_t &param, int floor) const {
 	if (m_mazeSignLeft == AIR && m_mazeSignRight == AIR)
 		return AIR;
 	const int cell = m_mazeCell;
@@ -680,7 +801,7 @@ BlockId TerrainGenerator::MazeExitSign(int x, int z, uint8_t &param) const {
 	const Side *side = nullptr;
 	for (const Side &s : SIDES) {
 		const int along = s.dx != 0 ? mz : mx;
-		if (along == cell / 2 && MazeColumnWall(x + s.dx, z + s.dz) && !MazeColumnWall(x, z)) {
+		if (along == cell / 2 && MazeColumnWall(x + s.dx, z + s.dz, floor) && !MazeColumnWall(x, z, floor)) {
 			side = &s;
 			break;
 		}
@@ -692,7 +813,7 @@ BlockId TerrainGenerator::MazeExitSign(int x, int z, uint8_t &param) const {
 	int best = -1, ex = 0, ez = 0;
 	for (int j = -m_mazeSignRange; j <= m_mazeSignRange; ++j)
 		for (int i = -m_mazeSignRange; i <= m_mazeSignRange; ++i) {
-			if ((i == 0 && j == 0) || !MazeExitCell(cx + i, cz + j))
+			if ((i == 0 && j == 0) || !MazeExitCell(cx + i, cz + j, floor))
 				continue;
 			const int px = (cx + i) * cell + cell / 2, pz = (cz + j) * cell + cell / 2;
 			const int d = (px - x) * (px - x) + (pz - z) * (pz - z);
@@ -712,80 +833,190 @@ BlockId TerrainGenerator::MazeExitSign(int x, int z, uint8_t &param) const {
 	return preferred != AIR ? preferred : toRight >= 0 ? m_mazeSignLeft : m_mazeSignRight;
 }
 
+const TerrainGenerator::MazeElevator *TerrainGenerator::MazeElevatorColumn(Chunk &chunk, int lx, int lz, int x, int z) {
+	const int cell = m_mazeCell;
+	const MazeElevator *found = nullptr;
+	for (const MazeElevator &candidate : m_elevators)
+		if (std::abs(x - (candidate.cx * cell + cell / 2)) <= 3 && std::abs(z - (candidate.cz * cell + cell / 2)) <= 3)
+			found = &candidate;
+	if (!found)
+		return nullptr;
+	const MazeElevator &e = *found;
+	const int ax = x - (e.cx * cell + cell / 2), az = z - (e.cz * cell + cell / 2);
+	const BlockPos origin = chunk.Pos().Origin();
+	const int bottom = e.bottom;
+	const int top = e.top; // dernier vide sous le toit
+	const bool wallColumn = std::abs(ax) == 3 || std::abs(az) == 3;
+	// Mur du côté des portes : la colonne de la porte, du bouton, de la flèche.
+	const bool doorWall = (e.dz != 0 && az == 3 * e.dz) || (e.dx != 0 && ax == 3 * e.dx);
+	const int u = e.dz != 0 ? ax * e.ux : az * e.uz; // position le long du mur (porte en 0)
+	const bool backWall = (e.dz != 0 && az == -3 * e.dz) || (e.dx != 0 && ax == -3 * e.dx);
+	const int along = e.dz != 0 ? ax : az;
+	for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
+		const int y = origin.y + ly;
+		if (y < bottom - 1 || y > top + 1)
+			continue;
+		BlockId id = AIR;
+		uint8_t param = 0;
+		if (y == bottom - 1 || y == top + 1) {
+			id = (y == top + 1 && ax == 0 && az == 0 && e.motor != AIR) ? e.motor : e.wall;
+		} else if (!wallColumn) {
+			id = AIR; // l'intérieur de la gaine (la cabine est posée par le mod « elevators »)
+		} else {
+			id = e.wall;
+			if (backWall && std::abs(along) == 1 && e.rail != AIR)
+				id = e.rail;
+			if (doorWall && std::abs(u) <= 1) {
+				// Palier de l'étage dont le plancher de cabine est sous y.
+				for (int k = e.from; k <= e.to; ++k) {
+					const int f = MazeFloorY(k);
+					const int v = y - f; // 1, 2 : porte ; 3 : afficheur ; …
+					if (v < 1 || v > 3)
+						continue;
+					if (u == 0 && v == 1 && e.door != AIR) { id = e.door; param = e.doorParam; }
+					else if (u == 0 && v == 2 && e.doorTop != AIR) { id = e.doorTop; param = e.doorParam; }
+					else if (u == 0 && v == 3 && e.display != AIR) id = e.display;
+					else if (u == -1 && v == 3 && e.arrow != AIR) id = e.arrow;
+					else if (u == 1 && v == 2 && e.call != AIR) id = e.call;
+					else if (e.frame != AIR) id = e.frame;
+				}
+			}
+		}
+		if (id != AIR)
+			chunk.Set(lx, ly, lz, id, param);
+		else
+			chunk.Set(lx, ly, lz, AIR);
+	}
+	return &e;
+}
+
 void TerrainGenerator::GenerateMaze(Chunk &chunk, World &world) {
 	const BlockPos origin = chunk.Pos().Origin();
-	const int floor = m_mazeFloor, ceiling = m_mazeFloor + m_mazeHeight;
-	const int shell = 6; // épaisseur de la roche autour du niveau
-	if (origin.y > ceiling + shell || origin.y + CHUNK_SIZE <= floor - shell)
+	const int floor0 = m_mazeFloor;
+	const int lastCeiling = MazeFloorY(m_mazeFloors - 1) + m_mazeHeight;
+	int shellBelow = 6, shellAbove = 6;
+	for (const MazeElevator &e : m_elevators) {
+		shellBelow = std::max(shellBelow, floor0 - e.bottom + 2);
+		shellAbove = std::max(shellAbove, e.top + 6 - lastCeiling);
+	}
+	if (origin.y > lastCeiling + shellAbove || origin.y + CHUNK_SIZE <= floor0 - shellBelow)
 		return;
+	const int cell = m_mazeCell;
 	for (int lz = 0; lz < CHUNK_SIZE; ++lz)
 		for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
 			const int x = origin.x + lx, z = origin.z + lz;
-			const MazeLevel &level = MazeLevelAt(x, z);
-			const int cell = m_mazeCell;
 			const int cx = int(std::floor(float(x) / float(cell))), cz = int(std::floor(float(z) / float(cell)));
 			const int mx = x - cx * cell, mz = z - cz * cell;
-			const bool wall = MazeColumnWall(x, z);
-			const bool flooded = !wall && level.water != AIR && RandomAt(m_seed, cx, 5, cz, 623) < level.waterChance;
-			// Néons : allumés, éteints (« darkChance ») ou à moitié allumés.
-			const int every = level.lightEvery;
-			BlockId lamp = AIR;
-			if (level.light != AIR && !wall && ((x % every) + every) % every == every / 2 && ((z % every) + every) % every == every / 2) {
-				if (RandomAt(m_seed, x, 6, z, 629) < level.darkChance)
-					lamp = level.lightOff;
-				else if (level.lightHalf != AIR && RandomAt(m_seed, x, 8, z, 637) < level.halfChance)
-					lamp = level.lightHalf;
-				else if (level.lightAuto != AIR && RandomAt(m_seed, x, 9, z, 641) < level.autoChance)
-					lamp = level.lightAuto;
-				else
-					lamp = level.light;
-			}
-			const int lampY = level.lightHanging ? ceiling - 1 : ceiling;
-			const bool exit = !wall && mx == cell / 2 && mz == cell / 2 && MazeExitCell(cx, cz);
-			uint8_t signParam = 0;
-			const BlockId sign = wall || flooded || exit ? AIR : MazeExitSign(x, z, signParam);
+			// La roche autour des étages (sous, au-dessus).
 			for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
 				const int y = origin.y + ly;
-				BlockId id = AIR;
-				if (y < floor - shell || y > ceiling + shell)
-					continue;
-				if (y > ceiling)
-					id = m_mazeOuter;
-				else if (y < floor) {
-					// Bassins creusés sous le sol (eau au ras du sol) ; leurs
-					// bords et leur fond sont carrelés comme les murs.
-					if (level.water == AIR || y < floor - m_poolDepth)
-						id = m_mazeOuter;
-					else if (y == floor - m_poolDepth)
-						id = level.floor;
-					else
-						id = flooded ? level.water : level.wall;
-				} else if (y == floor)
-					id = flooded ? level.water : level.floor;
-				else if (y == ceiling)
-					id = lamp != AIR && lampY == ceiling ? lamp : level.ceiling;
-				else if (wall)
-					id = (y == floor + 1 && level.trim != AIR) ? level.trim : (level.pillar != AIR && mx == 0 && mz == 0 ? level.pillar : level.wall);
-				else if (exit && y == floor + 1)
-					id = m_mazeExit;
-				else if (exit && y == floor + 2 && m_mazeExitSign != AIR)
-					id = m_mazeExitSign;
-				else if (lamp != AIR && y == lampY)
-					id = lamp;
-				else if (sign != AIR && y == floor + m_mazeSignHeight) {
-					chunk.Set(lx, ly, lz, sign, signParam);
-					continue;
-				}
-				if (id != AIR)
-					chunk.Set(lx, ly, lz, id);
+				if ((y < floor0 && y >= floor0 - shellBelow) || (y > lastCeiling && y <= lastCeiling + shellAbove))
+					chunk.Set(lx, ly, lz, m_mazeOuter);
 			}
-			// Décorations du biome du niveau (mobilier, flaques…).
-			if (level.biome && !wall && !flooded && !exit && floor + 1 >= origin.y && floor + 1 < origin.y + CHUNK_SIZE) {
-				uint32_t salt = 4000;
-				for (const Decoration &deco : level.biome->decorations) {
-					++salt;
-					if (PlaceDecoration(world, deco, *level.biome, x, floor + 1, z, salt, false, level.floor))
-						break;
+			// Une gaine occupe sa colonne de son fond à son toit ; hors de là
+			// (étages qu'elle ne dessert pas), le labyrinthe continue.
+			const MazeElevator *shaft = MazeElevatorColumn(chunk, lx, lz, x, z);
+			for (int k = 0; k < m_mazeFloors; ++k) {
+				if (shaft && MazeFloorY(k) >= shaft->bottom - 1 && MazeFloorY(k) + m_mazeHeight <= shaft->top + 1)
+					continue;
+				const int floor = MazeFloorY(k), ceiling = floor + m_mazeHeight;
+				if (floor - (k == 0 ? m_poolDepth : 0) > origin.y + CHUNK_SIZE - 1 || ceiling + 1 < origin.y)
+					continue;
+				const MazeLevel &level = MazeLevelAt(x, z, k);
+				const uint32_t fs = m_seed + uint32_t(k) * 7919u;
+				const bool wall = MazeColumnWall(x, z, k);
+				// Escaliers : montée de cet étage vers le suivant (k), trémie
+				// venue de l'étage du dessous (k − 1) ; le long de +x, bande mz 2..4.
+				const bool stairUp = MazeStairCell(cx, cz, k) && !wall;
+				const bool stairBelow = MazeStairCell(cx, cz, k - 1) && !wall;
+				const bool band = mz >= 2 && mz <= 4 && mx >= 1 && mx <= cell - 1;
+				const int step = mx - 1; // 0 : première marche
+				const bool special = stairUp || stairBelow || MazeReservedCell(cx, cz);
+				const bool flooded = k == 0 && !wall && !special && level.water != AIR && RandomAt(fs, cx, 5, cz, 623) < level.waterChance;
+				// Néons : allumés, éteints (« darkChance ») ou à moitié allumés.
+				const int every = level.lightEvery;
+				BlockId lamp = AIR;
+				if (level.light != AIR && !wall && !(stairUp && band) && !(stairBelow && band) &&
+					((x % every) + every) % every == every / 2 && ((z % every) + every) % every == every / 2) {
+					if (RandomAt(fs, x, 6, z, 629) < level.darkChance)
+						lamp = level.lightOff;
+					else if (level.lightHalf != AIR && RandomAt(fs, x, 8, z, 637) < level.halfChance)
+						lamp = level.lightHalf;
+					else if (level.lightAuto != AIR && RandomAt(fs, x, 9, z, 641) < level.autoChance)
+						lamp = level.lightAuto;
+					else
+						lamp = level.light;
+				}
+				const int lampY = level.lightHanging ? ceiling - 1 : ceiling;
+				// Grille de ventilation dans le plafond : une par cellule tirée, hors du milieu (néons).
+				const bool vent = level.vent != AIR && !wall && !special && !(lamp != AIR && lampY == ceiling) && mx == 2 &&
+								  mz == cell - 3 && RandomAt(fs, cx, 12, cz, 653) < level.ventChance;
+				const bool exit = !wall && !special && mx == cell / 2 && mz == cell / 2 && MazeExitCell(cx, cz, k);
+				uint8_t signParam = 0;
+				const BlockId sign = wall || flooded || exit ? AIR : MazeExitSign(x, z, signParam, k);
+				for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
+					const int y = origin.y + ly;
+					if (y < floor - (k == 0 ? m_poolDepth : 0) || y > ceiling + 1)
+						continue;
+					if (shaft && y >= shaft->bottom - 1 && y <= shaft->top + 1)
+						continue; // fond de la gaine qui descend dans cet étage
+					BlockId id = AIR;
+					uint8_t param = 0;
+					if (y == ceiling + 1)
+						continue; // la dalle : plancher de l'étage suivant, posé par lui
+					if (y < floor) {
+						// Bassins creusés sous le sol (eau au ras du sol), étage 0 ;
+						// leurs bords et leur fond sont carrelés comme les murs.
+						if (level.water == AIR || y < floor - m_poolDepth)
+							id = m_mazeOuter;
+						else if (y == floor - m_poolDepth)
+							id = level.floor;
+						else
+							id = flooded ? level.water : level.wall;
+					} else if (stairUp && band) {
+						// Marches de 1 bloc montant vers +x, pleines dessous ; au-dessus,
+						// tout est dégagé (plafond compris) pour passer la tête.
+						const int top = floor + 1 + step;
+						if (y == floor)
+							id = level.floor;
+						else if (y == top) {
+							id = m_stairBlock;
+							param = 3;
+						} else if (y < top) {
+							id = m_stairFill != AIR ? m_stairFill : level.wall;
+						}
+					} else if (y == floor) {
+						id = flooded ? level.water : level.floor;
+						if (stairBelow && band && step < cell - 2)
+							id = AIR; // trémie de l'escalier qui arrive d'en bas
+					} else if (y == ceiling) {
+						id = lamp != AIR && lampY == ceiling ? lamp : vent ? level.vent : level.ceiling;
+					} else if (wall) {
+						id = (y == floor + 1 && level.trim != AIR) ? level.trim
+															   : (level.pillar != AIR && mx == 0 && mz == 0 ? level.pillar : level.wall);
+					} else if (stairBelow && band && step < cell - 2) {
+						id = AIR; // l'escalier d'en bas traverse cet étage-ci : rien dessous
+					} else if (exit && y == floor + 1) {
+						id = m_mazeExit;
+					} else if (exit && y == floor + 2 && m_mazeExitSign != AIR) {
+						id = m_mazeExitSign;
+					} else if (lamp != AIR && y == lampY) {
+						id = lamp;
+					} else if (sign != AIR && y == floor + m_mazeSignHeight) {
+						id = sign;
+						param = signParam;
+					}
+					if (id != AIR)
+						chunk.Set(lx, ly, lz, id, param);
+				}
+				// Décorations du biome du niveau (mobilier, flaques…).
+				if (level.biome && !wall && !flooded && !exit && !special && floor + 1 >= origin.y && floor + 1 < origin.y + CHUNK_SIZE) {
+					uint32_t salt = 4000 + uint32_t(k) * 97u;
+					for (const Decoration &deco : level.biome->decorations) {
+						++salt;
+						if (PlaceDecoration(world, deco, *level.biome, x, floor + 1, z, salt, false, level.floor))
+							break;
+					}
 				}
 			}
 		}

@@ -82,6 +82,16 @@ World::World(const ContentRegistry &content, WorldSettings settings)
 
 World::~World() = default;
 
+std::unique_ptr<World> World::Snapshot(const World &source, const std::vector<std::shared_ptr<Chunk>> &frozen) {
+	auto snapshot = std::make_unique<World>(source.m_content, source.m_settings);
+	snapshot->m_generator = source.m_generator;
+	snapshot->m_dynamicLights = source.m_dynamicLights; // sans TouchSphere : les copies ne bougent plus
+	snapshot->m_chunks.reserve(frozen.size());
+	for (const std::shared_ptr<Chunk> &chunk : frozen)
+		snapshot->m_chunks.emplace(chunk->Pos(), chunk);
+	return snapshot;
+}
+
 Chunk *World::GetChunk(const ChunkPos &p) {
 	auto it = m_chunks.find(p);
 	return it == m_chunks.end() ? nullptr : it->second.get();
@@ -111,7 +121,7 @@ uint8_t World::GetParam(const BlockPos &p) const {
 Chunk &World::EnsureChunk(const ChunkPos &p) {
 	if (Chunk *existing = GetChunk(p))
 		return *existing;
-	auto owned = std::make_unique<Chunk>(p);
+	auto owned = std::make_shared<Chunk>(p);
 	Chunk &chunk = *owned;
 	m_chunks.emplace(p, std::move(owned));
 	const bool loaded = m_storage && m_storage->LoadChunk(chunk);

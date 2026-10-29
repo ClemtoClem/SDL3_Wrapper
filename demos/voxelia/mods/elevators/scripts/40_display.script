@@ -1,0 +1,60 @@
+# Afficheurs : au-dessus de chaque porte palière (étage + sens) et dans la
+# cabine (étage). Ils suivent la position RÉELLE de la cabine : l'étage
+# affiché change quand la cabine passe à sa hauteur, l'arrivée n'est
+# affichée qu'une fois la cabine arrêtée.
+
+let EL_NUMBERS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"]
+
+# État d'afficheur pour une étiquette d'étage (0 à 19, « -- », sinon « ?? »).
+fn el_display_state(label) {
+    if (label == nil) { return "dash" }
+    if (el_contains(EL_NUMBERS, label)) { return label }
+    if (label == "--") { return "dash" }
+    if (label == "EE") { return "error" }
+    return "unknown"
+}
+
+# Id du bloc afficheur d'un style dans un état (l'état « 0 » est le bloc lui-même).
+fn el_display_block(style, state) {
+    if (state == "0") { return format("elevators:{}_display", style) }
+    return format("elevators:{}_display_{}", style, state)
+}
+
+fn el_set_if(x, y, z, part, state) {
+    let b = world.get(x, y, z)
+    if (b.contains(part)) { world.set_state(x, y, z, state) }
+}
+
+# Tous les afficheurs des paliers : étage de la cabine (indice `at`), sens.
+fn el_show(e, at, dir) {
+    let label = el_display_state(el_floor_label(e, at))
+    let arrow = "none"
+    if (dir > 0) { arrow = "up" }
+    if (dir < 0) { arrow = "down" }
+    let i = 0
+    while (i < len(e.floors)) {
+        let l = el_landing(e, i)
+        el_set_if(l.display.x, l.display.y, l.display.z, "_display", label)
+        el_set_if(l.arrow.x, l.arrow.y, l.arrow.z, "_arrow", arrow)
+        let lit = "idle"
+        if (el_contains(e.queue, i)) { lit = "lit" }
+        el_set_if(l.call.x, l.call.y, l.call.z, "_call", lit)
+        i += 1
+    }
+}
+
+fn el_refresh_displays(e) {
+    el_show(e, e.floor, 0)
+    if (e.floor != nil) {
+        let c = el_cabin_cells(e, e.floor)
+        el_set_if(c.display.x, c.display.y, c.display.z, "_display", el_display_state(el_floor_label(e, e.floor)))
+    }
+}
+
+# Pendant un trajet : l'afficheur de la cabine mobile (cellule de l'assemblage).
+fn el_show_in_cabin(e, trip, at) {
+    let c = el_cabin_cells(e, e.floor)
+    let min = el_cabin_min(e, e.floor)
+    world.structure_set(trip.cab, c.display.x - min.x, c.display.y - min.y, c.display.z - min.z,
+                        el_display_block(e.style, el_display_state(el_floor_label(e, at))))
+}

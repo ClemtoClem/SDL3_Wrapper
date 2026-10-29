@@ -34,7 +34,7 @@ static int smoke_main_test_sdl3_4() {
 	stream.Pause();
 
 	// --- WAV loading (skip gracefully if no .wav asset is present) ---
-	auto wavRes = LoadWav("assets/sounds/backrooms_amb_city.ogg");
+	auto wavRes = LoadWav("demos/voxelia/mods/backrooms/sounds/backrooms_amb_city.ogg");
 	if (!wavRes)
 		std::cout << "loadWav on .ogg failed as expected (WAV-only loader): " << wavRes.Error().CStr() << "\n";
 
@@ -53,7 +53,7 @@ static int smoke_main_test_sdl3_4() {
 	}
 	auto &mixer = mixerRes.Value();
 
-	auto audioRes = mixer.LoadAudio("assets/sounds/backrooms_amb_city.ogg");
+	auto audioRes = mixer.LoadAudio("demos/voxelia/mods/backrooms/sounds/backrooms_amb_city.ogg");
 	if (!audioRes) {
 		std::cerr << "loadAudio failed: " << audioRes.Error().CStr() << "\n";
 		return 1;

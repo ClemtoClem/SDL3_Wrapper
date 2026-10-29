@@ -65,11 +65,16 @@ struct EntityDied {
 inline constexpr const char *PLAYER_KIND = "voxel:player";
 inline constexpr const char *ITEM_KIND = "voxel:item";
 inline constexpr const char *FALLING_BLOCK_KIND = "voxel:falling_block";
+inline constexpr const char *STRUCTURE_KIND = "voxel:structure";
 
 [[nodiscard]] ecs::Entity SpawnFromDef(ecs::ArchetypeRegistry &registry, const EntityDef &def, const math::FVector3 &feet);
 [[nodiscard]] ecs::Entity SpawnPlayer(ecs::ArchetypeRegistry &registry, const String &name, const math::FVector3 &feet);
 [[nodiscard]] ecs::Entity SpawnDroppedItem(ecs::ArchetypeRegistry &registry, const ContentRegistry &content, ItemStack stack,
 										   const math::FVector3 &position, const math::FVector3 &velocity = {0.f, 3.f, 0.f});
+/// Assemblage de blocs mobile (cf. Visual::structure, Carrier) : coin minimal
+/// en `corner`, plancher à `floor` (relatif) ; jamais enregistré.
+[[nodiscard]] ecs::Entity SpawnStructure(ecs::ArchetypeRegistry &registry, std::shared_ptr<const Schematic> structure,
+										 const math::FVector3 &corner, float floor);
 [[nodiscard]] ecs::Entity SpawnFallingBlock(ecs::ArchetypeRegistry &registry, const ContentRegistry &content, BlockId block,
 											uint8_t param, const BlockPos &from);
 

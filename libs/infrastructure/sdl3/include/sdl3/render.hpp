@@ -288,6 +288,12 @@ public:
 	[[nodiscard]] static Result<Texture, Error> Create(Renderer &ren, int w, int h,
 															PixelFormat fmt = PixelFormat::RGBA8888);
 	[[nodiscard]] static Result<Texture, StringView> CreateFromSurface(Renderer &ren, const Surface &surface);
+	/// Texture du renderer qui AFFICHE une texture SDL_GPU existante (usage
+	/// SAMPLER), sans copie : le renderer doit être « gpu » et partager le
+	/// device de `texture` (Renderer::GetGPUDevice). `texture` n'est pas
+	/// possédée et doit vivre plus longtemps que la Texture rendue.
+	[[nodiscard]] static Result<Texture, StringView> FromGpuTexture(Renderer &ren, SDL_GPUTexture *texture, int w, int h,
+																	 PixelFormat fmt = PixelFormat::RGBA32);
 	[[nodiscard]] static Result<Texture, StringView> CreateFromFile(Renderer &ren, const String &path);
 
 	[[nodiscard]] FPoint GetSize() const;

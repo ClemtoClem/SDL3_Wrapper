@@ -150,6 +150,13 @@ public:
 
 	void SetGenerator(std::shared_ptr<ChunkGenerator> generator) { m_generator = std::move(generator); }
 	[[nodiscard]] ChunkGenerator *Generator() const noexcept { return m_generator.get(); }
+	[[nodiscard]] const std::shared_ptr<ChunkGenerator> &SharedGenerator() const noexcept { return m_generator; }
+
+	/// Instantané pour un autre fil (maillage du rendu) : mêmes contenu,
+	/// réglages, générateur et lumières des entités que `source`, avec les
+	/// chunks `frozen` — des COPIES que plus personne ne modifie, partagées
+	/// entre instantanés. Aucune invalidation, aucun stockage : en lecture seule.
+	[[nodiscard]] static std::unique_ptr<World> Snapshot(const World &source, const std::vector<std::shared_ptr<Chunk>> &frozen);
 	void SetStorage(ChunkStorage *storage) { m_storage = storage; }
 
 	// ── Blocs ───────────────────────────────────────────────────────────────
@@ -221,7 +228,7 @@ private:
 	WorldSettings m_settings;
 	std::shared_ptr<ChunkGenerator> m_generator;
 	ChunkStorage *m_storage = nullptr;
-	std::unordered_map<ChunkPos, std::unique_ptr<Chunk>> m_chunks;
+	std::unordered_map<ChunkPos, std::shared_ptr<Chunk>> m_chunks; ///< partagés : cf. Snapshot
 	/// Écritures de génération en attente, par chunk : (indice local, bloc, remplace le solide).
 	struct PendingWrite {
 		int index;

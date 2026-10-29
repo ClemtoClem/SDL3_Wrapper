@@ -100,7 +100,7 @@ TEST(ResourceCache_FilesLoadAsynchronously) {
 	// Même fichier : même id, pas de second chargement.
 	CHECK(render3d::ImportMesh(cache, String("assets/models/knight/KnightCharacter.gltf")) == knight);
 	const AssetRef<render3d::TextureResource> texture =
-		render3d::ImportTexture(cache, String("mods/core/textures/blocks/illumi_root.png"));
+		render3d::ImportTexture(cache, String("assets/textures/star.png"));
 	const String wavPath = WriteWav("bip.wav", 800);
 	const AssetRef<audio::AudioClipResource> sound = audio::ImportAudio(cache, wavPath);
 	CHECK(cache.WaitIdle());
@@ -144,7 +144,7 @@ TEST(ResourceCache_MaterialsAreSharedAndReloadFromTheCatalog) {
 	ResourceCache cache(String(), 2);
 	RegisterFactories(cache);
 	const AssetRef<render3d::TextureResource> leaves =
-		render3d::ImportTexture(cache, String("mods/core/textures/blocks/crystal_leaves.png"), LoadPolicy::SYNC);
+		render3d::ImportTexture(cache, String("assets/textures/tree-01.png"), LoadPolicy::SYNC);
 	const AssetRef<render3d::MaterialResource> stone =
 		render3d::CreateMaterial(cache, String("Pierre"), render3d::Material::Plastic(sdl3::Color{120, 110, 100, 255}),
 								 leaves, render3d::BuiltinShader(cache, render3d::ShaderKind::PHONG));

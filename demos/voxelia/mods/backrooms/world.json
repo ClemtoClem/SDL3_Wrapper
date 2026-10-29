@@ -1,1236 +1,1810 @@
-// Mod « backrooms » : la dimension (générateur "maze"), ses niveaux et
+// Mod « backrooms » : un niveau par dimension (générateurs "maze"), leurs étages, escaliers et ascenseurs et
 // leurs blocs. Textures et sons : textures/, sounds/ (enregistrés d'office).
 [
- {
-  "type": "dimension",
-  "id": "backrooms",
-  "displayName": "Les Backrooms",
-  "description": "On s'y réveille après être mort étouffé. Trouvez une porte d'ascenseur sous un panneau EXIT.",
-  "generator": "backrooms",
-  "color": [
-   215,
-   200,
-   90
-  ],
-  "sky": {
-   "color": [
-    12,
-    11,
-    6
-   ],
-   "sun": false,
-   "clouds": false,
-   "stars": false
-  },
-  "time": {
-   "cycle": false,
-   "fixed": 0.5
-  },
-  "light": {
-   "sky": false,
-   "base": 0.06,
-   "exposure": 1.0
-  },
-  "spawn": {
-   "top": 4,
-   "bottom": -1
-  },
-  "enterOnDeath": [
-   "suffocation"
-  ],
-  "music": "backrooms:backrooms_ligh_buzz"
- },
- {
-  "type": "generator",
-  "id": "backrooms",
-  "kind": "maze",
-  "maze": {
-   "floor": 0,
-   "height": 5,
-   "cell": 7,
-   "region": 96,
-   "doorWidth": 2,
-   "outer": "outer",
-   "exit": {
-    "block": "exit_door",
-    "sign": "exit_sign",
-    "chance": 0.0025,
-    "signLeft": "exit_sign_left",
-    "signRight": "exit_sign_right",
-    "signRange": 2,
-    "signHeight": 3
-   }
-  },
-  "levels": [
-   {
-    "id": "lobby",
-    "biome": "level_lobby",
-    "weight": 5,
-    "floor": "lobby_carpet",
-    "wall": "lobby_wallpaper",
-    "ceiling": "lobby_ceiling",
-    "light": "fluorescent",
-    "lightEvery": 4,
-    "darkChance": 0.06,
-    "lightOff": "fluorescent_off",
-    "lightHalf": "fluorescent_half",
-    "halfChance": 0.06,
-    "lightAuto": "fluorescent_auto",
-    "autoChance": 0.15
-   },
-   {
-    "id": "hotel",
-    "biome": "level_hotel",
-    "weight": 2,
-    "floor": "hotel_carpet",
-    "wall": "hotel_wallpaper",
-    "ceiling": "hotel_ceiling",
-    "light": "fluorescent",
-    "lightEvery": 5,
-    "wallChance": 0.7,
-    "lightOff": "fluorescent_off",
-    "lightHalf": "fluorescent_half",
-    "halfChance": 0.06,
-    "darkChance": 0.04,
-    "lightAuto": "fluorescent_auto",
-    "autoChance": 0.15
-   },
-   {
-    "id": "hospital",
-    "biome": "level_hospital",
-    "weight": 2,
-    "floor": "hospital_floor",
-    "wall": "hospital_wall",
-    "ceiling": "hospital_ceiling",
-    "light": "hospital_light",
-    "lightEvery": 3,
-    "darkChance": 0.25,
-    "trim": "hospital_wall_low",
-    "lightOff": "hospital_light_off",
-    "lightHanging": true,
-    "lightAuto": "hospital_light_auto",
-    "autoChance": 0.15
-   },
-   {
-    "id": "hospital_ward",
-    "biome": "level_hospital",
-    "weight": 1,
-    "floor": "hospital_floor_tiles",
-    "wall": "hospital_wall_tiles",
-    "ceiling": "hospital_ceiling",
-    "light": "hospital_light",
-    "lightOff": "hospital_light_off",
-    "lightHanging": true,
-    "lightEvery": 3,
-    "darkChance": 0.3,
-    "wallChance": 0.65,
-    "lightAuto": "hospital_light_auto",
-    "autoChance": 0.15
-   },
-   {
-    "id": "parking",
-    "biome": "level_parking",
-    "weight": 2,
-    "floor": "parking_floor",
-    "wall": "concrete",
-    "ceiling": "concrete_dark",
-    "light": "parking_light",
-    "lightEvery": 7,
-    "pillar": "pillar",
-    "open": true,
-    "darkChance": 0.3,
-    "lightOff": "parking_light_off",
-    "lightHanging": true,
-    "lightAuto": "parking_light_auto",
-    "autoChance": 0.15
-   },
-   {
-    "id": "pool",
-    "biome": "level_pool",
-    "weight": 2,
-    "floor": "pool_floor",
-    "wall": "pool_tile",
-    "ceiling": "pool_tile",
-    "light": "fluorescent",
-    "lightEvery": 4,
-    "water": "pool_water",
-    "waterChance": 0.45,
-    "wallChance": 0.35,
-    "lightOff": "fluorescent_off",
-    "darkChance": 0.05,
-    "lightAuto": "fluorescent_auto",
-    "autoChance": 0.15
-   }
-  ]
- },
- {
-  "type": "texture",
-  "id": "lamp_panel_on",
-  "compose": "textures/backrooms_ceil_lamp_on.png^crop(165, 205, 1718, 1638)"
- },
- {
-  "type": "texture",
-  "id": "lamp_panel_off",
-  "compose": "textures/backrooms_ceil_lamp_off.png^crop(165, 205, 1718, 1638)"
- },
- {
-  "type": "texture",
-  "id": "lamp_panel_half",
-  "compose": "textures/backrooms_ceil_lamp_middle_off.png^crop(165, 205, 1718, 1638)"
- },
- {
-  "type": "texture",
-  "id": "lamp_housing",
-  "compose": "color(214, 210, 198)"
- },
- {
-  "type": "texture",
-  "id": "parking_lamp_housing",
-  "compose": "color(190, 190, 184)"
- },
- {
-  "type": "texture",
-  "id": "exit_housing",
-  "compose": "color(226, 222, 206)"
- },
- {
-  "type": "biome",
-  "id": "level_lobby",
-  "displayName": "Niveau 0 — le hall",
-  "dimension": "backrooms",
-  "blocks": {
-   "surface": "lobby_carpet",
-   "subsurface": "outer",
-   "filler": "outer"
-  },
-  "decorations": [
-   {
-    "block": "baseboard",
-    "chance": 0.002
-   }
-  ],
-  "sky": [
-   8,
-   8,
-   6
-  ]
- },
- {
-  "type": "biome",
-  "id": "level_hotel",
-  "displayName": "Niveau 5 — l'hôtel",
-  "dimension": "backrooms",
-  "blocks": {
-   "surface": "hotel_carpet",
-   "subsurface": "outer",
-   "filler": "outer"
-  },
-  "decorations": [
-   {
-    "block": "mahogany",
-    "chance": 0.004
-   }
-  ],
-  "sky": [
-   8,
-   8,
-   6
-  ]
- },
- {
-  "type": "biome",
-  "id": "level_hospital",
-  "displayName": "Niveau 4 — l'hôpital",
-  "dimension": "backrooms",
-  "blocks": {
-   "surface": "hospital_floor",
-   "subsurface": "outer",
-   "filler": "outer"
-  },
-  "decorations": [
-   {
-    "block": "ventilation",
-    "chance": 0.002
-   }
-  ],
-  "sky": [
-   8,
-   8,
-   6
-  ]
- },
- {
-  "type": "biome",
-  "id": "level_parking",
-  "displayName": "Niveau 2 — le parking",
-  "dimension": "backrooms",
-  "blocks": {
-   "surface": "parking_floor",
-   "subsurface": "outer",
-   "filler": "outer"
-  },
-  "decorations": [
-   {
-    "block": "concrete_dark",
-    "chance": 0.003
-   }
-  ],
-  "sky": [
-   8,
-   8,
-   6
-  ]
- },
- {
-  "type": "biome",
-  "id": "level_pool",
-  "displayName": "Niveau 37 — les piscines",
-  "dimension": "backrooms",
-  "blocks": {
-   "surface": "pool_floor",
-   "subsurface": "outer",
-   "filler": "outer"
-  },
-  "decorations": [],
-  "sky": [
-   8,
-   8,
-   6
-  ]
- },
- {
-  "id": "outer",
-  "displayName": "Néant des backrooms",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "texture": "backrooms:backrooms_outer"
-  },
-  "gameplay": {
-   "hardness": -1,
-   "drops": ""
-  }
- },
- {
-  "id": "lobby_carpet",
-  "displayName": "Moquette humide",
-  "tags": [],
-  "sounds": "core:wool",
-  "graphics": {
-   "texture": "backrooms:backrooms_lobby_carpet"
-  },
-  "gameplay": {
-   "hardness": 1
-  }
- },
- {
-  "id": "lobby_wallpaper",
-  "displayName": "Papier peint jaune",
-  "tags": [],
-  "sounds": "core:wood",
-  "graphics": {
-   "texture": "backrooms:backrooms_house_wallpaper"
-  },
-  "gameplay": {
-   "hardness": 1.5
-  }
- },
- {
-  "id": "lobby_ceiling",
-  "displayName": "Plafond crépi",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "texture": "backrooms:backrooms_ceil"
-  },
-  "gameplay": {
-   "hardness": 1
-  }
- },
- {
-  "id": "fluorescent",
-  "displayName": "Néon encastré",
-  "tags": [
-   "light"
-  ],
-  "sounds": "core:glass",
-  "graphics": {
-   "textures": {
-    "side": "backrooms:backrooms_ceil",
-    "top": "backrooms:backrooms_ceil"
-   }
-  },
-  "gameplay": {
-   "hardness": 0.5
-  },
-  "defaultState": "on",
-  "states": {
-   "on": {
-    "displayName": "Néon encastré",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:lamp_panel_on"
-     }
+    {
+        "type": "dimension",
+        "id": "backrooms",
+        "displayName": "Les Backrooms — Niveau 0",
+        "description": "On s'y réveille après être mort étouffé. L'ascenseur près de l'arrivée descend vers les niveaux suivants ; une porte sous un panneau EXIT ramène parfois dehors.",
+        "generator": "backrooms",
+        "color": [
+            215,
+            200,
+            90
+        ],
+        "sky": {
+            "color": [
+                12,
+                11,
+                6
+            ],
+            "sun": false,
+            "clouds": false,
+            "stars": false
+        },
+        "time": {
+            "cycle": false,
+            "fixed": 0.5
+        },
+        "light": {
+            "sky": false,
+            "base": 0.06,
+            "exposure": 1.0
+        },
+        "spawn": {
+            "top": 4,
+            "bottom": -1
+        },
+        "enterOnDeath": [
+            "suffocation"
+        ],
+        "music": "backrooms:backrooms_ligh_buzz"
     },
-    "interact": {
-     "toggle": "off",
-     "sound": "core:other/finger_click"
+    {
+        "type": "dimension",
+        "id": "level_2",
+        "displayName": "Les Backrooms — Niveau 2 — le parking",
+        "description": "Niveau 2 — le parking. Un ascenseur relie ce niveau aux autres.",
+        "generator": "level_2",
+        "color": [
+            215,
+            200,
+            90
+        ],
+        "sky": {
+            "color": [
+                12,
+                11,
+                6
+            ],
+            "sun": false,
+            "clouds": false,
+            "stars": false
+        },
+        "time": {
+            "cycle": false,
+            "fixed": 0.5
+        },
+        "light": {
+            "sky": false,
+            "base": 0.06,
+            "exposure": 1.0
+        },
+        "spawn": {
+            "top": 4,
+            "bottom": -1
+        },
+        "music": "backrooms:backrooms_ligh_buzz"
     },
-    "light": {
-     "type": "spot",
-     "color": [
-      255,
-      238,
-      205
-     ],
-     "intensity": 4.5,
-     "range": 14,
-     "direction": [
-      0,
-      -1,
-      0
-     ],
-     "innerAngle": 50,
-     "outerAngle": 82,
-     "offset": [
-      0,
-      -0.5,
-      0
-     ]
+    {
+        "type": "dimension",
+        "id": "level_4",
+        "displayName": "Les Backrooms — Niveau 4 — l'hôpital",
+        "description": "Niveau 4 — l'hôpital. Un ascenseur relie ce niveau aux autres.",
+        "generator": "level_4",
+        "color": [
+            215,
+            200,
+            90
+        ],
+        "sky": {
+            "color": [
+                12,
+                11,
+                6
+            ],
+            "sun": false,
+            "clouds": false,
+            "stars": false
+        },
+        "time": {
+            "cycle": false,
+            "fixed": 0.5
+        },
+        "light": {
+            "sky": false,
+            "base": 0.06,
+            "exposure": 1.0
+        },
+        "spawn": {
+            "top": 4,
+            "bottom": -1
+        },
+        "music": "backrooms:backrooms_ligh_buzz"
+    },
+    {
+        "type": "dimension",
+        "id": "level_5",
+        "displayName": "Les Backrooms — Niveau 5 — l'hôtel",
+        "description": "Niveau 5 — l'hôtel. Un ascenseur relie ce niveau aux autres.",
+        "generator": "level_5",
+        "color": [
+            215,
+            200,
+            90
+        ],
+        "sky": {
+            "color": [
+                12,
+                11,
+                6
+            ],
+            "sun": false,
+            "clouds": false,
+            "stars": false
+        },
+        "time": {
+            "cycle": false,
+            "fixed": 0.5
+        },
+        "light": {
+            "sky": false,
+            "base": 0.06,
+            "exposure": 1.0
+        },
+        "spawn": {
+            "top": 4,
+            "bottom": -1
+        },
+        "music": "backrooms:backrooms_ligh_buzz"
+    },
+    {
+        "type": "dimension",
+        "id": "level_37",
+        "displayName": "Les Backrooms — Niveau 37 — les piscines",
+        "description": "Niveau 37 — les piscines. Un ascenseur relie ce niveau aux autres.",
+        "generator": "level_37",
+        "color": [
+            215,
+            200,
+            90
+        ],
+        "sky": {
+            "color": [
+                12,
+                11,
+                6
+            ],
+            "sun": false,
+            "clouds": false,
+            "stars": false
+        },
+        "time": {
+            "cycle": false,
+            "fixed": 0.5
+        },
+        "light": {
+            "sky": false,
+            "base": 0.06,
+            "exposure": 1.0
+        },
+        "spawn": {
+            "top": 4,
+            "bottom": -1
+        },
+        "music": "backrooms:backrooms_ligh_buzz"
+    },
+    {
+        "type": "generator",
+        "id": "backrooms",
+        "kind": "maze",
+        "maze": {
+            "floor": 0,
+            "height": 5,
+            "cell": 7,
+            "region": 96,
+            "doorWidth": 2,
+            "outer": "outer",
+            "exit": {
+                //"block": "exit_door",
+                "sign": "exit_sign",
+                "chance": 0.0025,
+                "signLeft": "exit_sign_left",
+                "signRight": "exit_sign_right",
+                "signRange": 2,
+                "signHeight": 3
+            },
+            "floors": {
+                "count": {
+                    "setting": "floors_level_0",
+                    "fallback": {
+                        "setting": "number_of_floors_per_level"
+                    }
+                },
+                "levels": [
+                    "lobby"
+                ]
+            },
+            "stairs": {
+                "block": "core:white_concrete_stair",
+                "fill": "lobby_wallpaper",
+                "chance": 0.06
+            },
+            "elevator": {
+                "cell": [
+                    1,
+                    0
+                ],
+                "side": "s",
+                "pit": 6,
+                "overrun": 7,
+                "blocks": {
+                    "wall": "elevators:shaft_wall",
+                    "rail": "elevators:rail",
+                    "motor": "elevators:motor",
+                    "door": "elevators:backrooms_landing_door",
+                    "doorTop": "elevators:backrooms_landing_door_top",
+                    "frame": "elevators:backrooms_frame",
+                    "call": "elevators:backrooms_call",
+                    "display": "elevators:backrooms_display",
+                    "arrow": "elevators:backrooms_arrow"
+                }
+            }
+        },
+        "levels": [
+            {
+                "id": "lobby",
+                "biome": "level_lobby",
+                "weight": 1,
+                "floor": "lobby_carpet",
+                "wall": "lobby_wallpaper",
+                "ceiling": "lobby_ceiling",
+                "vent": "ventilation",
+                "ventChance": 0.35,
+                "light": "fluorescent",
+                "lightEvery": 4,
+                "darkChance": 0.06,
+                "lightOff": "fluorescent_off",
+                "lightHalf": "fluorescent_half",
+                "halfChance": 0.06,
+                "lightAuto": "fluorescent_auto",
+                "autoChance": 0.15
+            }
+        ]
+    },
+    {
+        "type": "generator",
+        "id": "level_2",
+        "kind": "maze",
+        "maze": {
+            "floor": 0,
+            "height": 5,
+            "cell": 7,
+            "region": 96,
+            "doorWidth": 2,
+            "outer": "outer",
+            "exit": {
+                //"block": "exit_door",
+                "sign": "exit_sign",
+                "chance": 0.0025,
+                "signLeft": "exit_sign_left",
+                "signRight": "exit_sign_right",
+                "signRange": 2,
+                "signHeight": 3
+            },
+            "floors": {
+                "count": {
+                    "setting": "floors_level_2",
+                    "fallback": {
+                        "setting": "number_of_floors_per_level"
+                    }
+                },
+                "levels": [
+                    "parking"
+                ]
+            },
+            "stairs": {
+                "block": "core:stone_stair",
+                "fill": "concrete",
+                "chance": 0.06
+            },
+            "elevator": {
+                "cell": [
+                    1,
+                    0
+                ],
+                "side": "s",
+                "pit": 6,
+                "overrun": 7,
+                "blocks": {
+                    "wall": "elevators:shaft_wall",
+                    "rail": "elevators:rail",
+                    "motor": "elevators:motor",
+                    "door": "elevators:industrial_landing_door",
+                    "doorTop": "elevators:industrial_landing_door_top",
+                    "frame": "elevators:industrial_frame",
+                    "call": "elevators:industrial_call",
+                    "display": "elevators:industrial_display",
+                    "arrow": "elevators:industrial_arrow"
+                }
+            }
+        },
+        "levels": [
+            {
+                "id": "parking",
+                "biome": "level_parking",
+                "weight": 1,
+                "floor": "parking_floor",
+                "wall": "concrete",
+                "ceiling": "concrete_dark",
+                "vent": "ventilation",
+                "ventChance": 0.15,
+                "light": "parking_light",
+                "lightEvery": 7,
+                "pillar": "pillar",
+                "open": true,
+                "darkChance": 0.3,
+                "lightOff": "parking_light_off",
+                "lightHanging": true,
+                "lightAuto": "parking_light_auto",
+                "autoChance": 0.15
+            }
+        ]
+    },
+    {
+        "type": "generator",
+        "id": "level_4",
+        "kind": "maze",
+        "maze": {
+            "floor": 0,
+            "height": 5,
+            "cell": 7,
+            "region": 96,
+            "doorWidth": 2,
+            "outer": "outer",
+            "exit": {
+                //"block": "exit_door",
+                "sign": "exit_sign",
+                "chance": 0.0025,
+                "signLeft": "exit_sign_left",
+                "signRight": "exit_sign_right",
+                "signRange": 2,
+                "signHeight": 3
+            },
+            "floors": {
+                "count": {
+                    "setting": "floors_level_4",
+                    "fallback": {
+                        "setting": "number_of_floors_per_level"
+                    }
+                },
+                "levels": [
+                    "hospital",
+                    "hospital_ward"
+                ]
+            },
+            "stairs": {
+                "block": "core:white_concrete_stair",
+                "fill": "hospital_wall_tiles",
+                "chance": 0.06
+            },
+            "elevator": {
+                "cell": [
+                    1,
+                    0
+                ],
+                "side": "s",
+                "pit": 6,
+                "overrun": 7,
+                "blocks": {
+                    "wall": "elevators:shaft_wall",
+                    "rail": "elevators:rail",
+                    "motor": "elevators:motor",
+                    "door": "elevators:modern_landing_door",
+                    "doorTop": "elevators:modern_landing_door_top",
+                    "frame": "elevators:modern_frame",
+                    "call": "elevators:modern_call",
+                    "display": "elevators:modern_display",
+                    "arrow": "elevators:modern_arrow"
+                }
+            }
+        },
+        "levels": [
+            {
+                "id": "hospital",
+                "biome": "level_hospital",
+                "weight": 1,
+                "floor": "hospital_floor",
+                "wall": "hospital_wall",
+                "ceiling": "hospital_ceiling",
+                "vent": "ventilation",
+                "ventChance": 0.3,
+                "light": "hospital_light",
+                "lightEvery": 3,
+                "darkChance": 0.25,
+                "trim": "hospital_wall_low",
+                "lightOff": "hospital_light_off",
+                "lightHanging": true,
+                "lightAuto": "hospital_light_auto",
+                "autoChance": 0.15
+            },
+            {
+                "id": "hospital_ward",
+                "biome": "level_hospital",
+                "weight": 1,
+                "floor": "hospital_floor_tiles",
+                "wall": "hospital_wall_tiles",
+                "ceiling": "hospital_ceiling",
+                "vent": "ventilation",
+                "ventChance": 0.3,
+                "light": "hospital_light",
+                "lightOff": "hospital_light_off",
+                "lightHanging": true,
+                "lightEvery": 3,
+                "darkChance": 0.3,
+                "wallChance": 0.65,
+                "lightAuto": "hospital_light_auto",
+                "autoChance": 0.15
+            }
+        ]
+    },
+    {
+        "type": "generator",
+        "id": "level_5",
+        "kind": "maze",
+        "maze": {
+            "floor": 0,
+            "height": 5,
+            "cell": 7,
+            "region": 96,
+            "doorWidth": 2,
+            "outer": "outer",
+            "exit": {
+                //"block": "exit_door",
+                "sign": "exit_sign",
+                "chance": 0.0025,
+                "signLeft": "exit_sign_left",
+                "signRight": "exit_sign_right",
+                "signRange": 2,
+                "signHeight": 3
+            },
+            "floors": {
+                "count": {
+                    "setting": "floors_level_5",
+                    "fallback": {
+                        "setting": "number_of_floors_per_level"
+                    }
+                },
+                "levels": [
+                    "hotel"
+                ]
+            },
+            "stairs": {
+                "block": "core:dark_oak_stair",
+                "fill": "mahogany",
+                "chance": 0.06
+            },
+            "elevator": {
+                "cell": [
+                    1,
+                    0
+                ],
+                "side": "s",
+                "pit": 6,
+                "overrun": 7,
+                "blocks": {
+                    "wall": "elevators:shaft_wall",
+                    "rail": "elevators:rail",
+                    "motor": "elevators:motor",
+                    "door": "elevators:backrooms_landing_door",
+                    "doorTop": "elevators:backrooms_landing_door_top",
+                    "frame": "elevators:backrooms_frame",
+                    "call": "elevators:backrooms_call",
+                    "display": "elevators:backrooms_display",
+                    "arrow": "elevators:backrooms_arrow"
+                }
+            }
+        },
+        "levels": [
+            {
+                "id": "hotel",
+                "biome": "level_hotel",
+                "weight": 1,
+                "floor": "hotel_carpet",
+                "wall": "hotel_wallpaper",
+                "ceiling": "hotel_ceiling",
+                "vent": "ventilation",
+                "ventChance": 0.25,
+                "light": "fluorescent",
+                "lightEvery": 5,
+                "wallChance": 0.7,
+                "lightOff": "fluorescent_off",
+                "lightHalf": "fluorescent_half",
+                "halfChance": 0.06,
+                "darkChance": 0.04,
+                "lightAuto": "fluorescent_auto",
+                "autoChance": 0.15
+            }
+        ]
+    },
+    {
+        "type": "generator",
+        "id": "level_37",
+        "kind": "maze",
+        "maze": {
+            "floor": 0,
+            "height": 5,
+            "cell": 7,
+            "region": 96,
+            "doorWidth": 2,
+            "outer": "outer",
+            "exit": {
+                //"block": "exit_door",
+                "sign": "exit_sign",
+                "chance": 0.0025,
+                "signLeft": "exit_sign_left",
+                "signRight": "exit_sign_right",
+                "signRange": 2,
+                "signHeight": 3
+            },
+            "floors": {
+                "count": {
+                    "setting": "floors_level_37",
+                    "fallback": {
+                        "setting": "number_of_floors_per_level"
+                    }
+                },
+                "levels": [
+                    "pool"
+                ]
+            },
+            "elevators": [
+                {
+                    "id": "main",
+                    "cell": [
+                        1,
+                        0
+                    ],
+                    "side": "s",
+                    "pit": 6,
+                    "overrun": 7,
+                    "blocks": {
+                        "wall": "elevators:shaft_wall",
+                        "rail": "elevators:rail",
+                        "motor": "elevators:motor",
+                        "door": "elevators:modern_landing_door",
+                        "doorTop": "elevators:modern_landing_door_top",
+                        "frame": "elevators:modern_frame",
+                        "call": "elevators:modern_call",
+                        "display": "elevators:modern_display",
+                        "arrow": "elevators:modern_arrow"
+                    }
+                },
+                {
+                    "id": "surface",
+                    "floors": "last",
+                    "cell": [
+                        -1,
+                        0
+                    ],
+                    "side": "s",
+                    "pit": 1,
+                    "overrun": 7,
+                    "blocks": {
+                        "wall": "elevators:shaft_wall",
+                        "rail": "elevators:rail",
+                        "motor": "elevators:motor",
+                        "door": "elevators:modern_landing_door",
+                        "doorTop": "elevators:modern_landing_door_top",
+                        "frame": "elevators:modern_frame",
+                        "call": "elevators:modern_call",
+                        "display": "elevators:modern_display",
+                        "arrow": "elevators:modern_arrow"
+                    }
+                }
+            ]
+        },
+        "levels": [
+            {
+                "id": "pool",
+                "biome": "level_pool",
+                "weight": 1,
+                "floor": "pool_floor",
+                "wall": "pool_tile",
+                "ceiling": "pool_tile",
+                "vent": "ventilation",
+                "ventChance": 0.2,
+                "light": "fluorescent",
+                "lightEvery": 4,
+                "water": "pool_water",
+                "waterChance": 0.45,
+                "wallChance": 0.35,
+                "lightOff": "fluorescent_off",
+                "darkChance": 0.05,
+                "lightAuto": "fluorescent_auto",
+                "autoChance": 0.15
+            }
+        ]
+    },
+    {
+        "type": "config",
+        "values": {
+            "elevators": {
+                "destinations": {
+                    "backrooms_backrooms": {
+                        "label": "Niveau 0 — le hall",
+                        "display": "0",
+                        "dimension": "backrooms:backrooms",
+                        "mode": "elevator",
+                        "motor": "auto",
+                        "floor": 0,
+                        "direction": "down",
+                        "style": "backrooms",
+                        "from": []
+                    },
+                    "backrooms_level_2": {
+                        "label": "Niveau 2 — le parking",
+                        "display": "2",
+                        "dimension": "backrooms:level_2",
+                        "mode": "elevator",
+                        "motor": "auto",
+                        "floor": 0,
+                        "direction": "down",
+                        "style": "industrial",
+                        "from": [
+                            "backrooms:backrooms"
+                        ]
+                    },
+                    "backrooms_level_4": {
+                        "label": "Niveau 4 — l'hôpital",
+                        "display": "4",
+                        "dimension": "backrooms:level_4",
+                        "mode": "elevator",
+                        "motor": "auto",
+                        "floor": 0,
+                        "direction": "down",
+                        "style": "modern",
+                        "from": [
+                            "backrooms:level_2"
+                        ]
+                    },
+                    "backrooms_level_5": {
+                        "label": "Niveau 5 — l'hôtel",
+                        "display": "5",
+                        "dimension": "backrooms:level_5",
+                        "mode": "elevator",
+                        "motor": "auto",
+                        "floor": 0,
+                        "direction": "down",
+                        "style": "backrooms",
+                        "from": [
+                            "backrooms:level_4"
+                        ]
+                    },
+                    "backrooms_level_37": {
+                        "label": "Niveau 37 — les piscines",
+                        "display": "37",
+                        "dimension": "backrooms:level_37",
+                        "mode": "elevator",
+                        "motor": "auto",
+                        "floor": 0,
+                        "direction": "down",
+                        "style": "modern",
+                        "from": [
+                            "backrooms:level_5"
+                        ]
+                    },
+                    "backrooms_surface": {
+                        "label": "Sortie — la surface",
+                        "display": "--",
+                        "dimension": "core:overworld",
+                        "mode": "surface",
+                        "direction": "up",
+                        "style": "backrooms",
+                        "from": [
+                            "backrooms:level_37"
+                        ],
+                        "fromShaft": "surface"
+                    }
+                }
+            }
+        }
+    },
+    // Plafond du niveau 0 : rares taches d'eau et plâtre tombé (les répétitions pondèrent le tirage).
+    {
+        "type": "texture",
+        "id": "lobby_ceiling_worn",
+        "variants": [
+            "backrooms:backrooms_ceil.1",
+            "backrooms:backrooms_ceil.1",
+            "backrooms:backrooms_ceil.1",
+            "backrooms:backrooms_ceil.1",
+            "backrooms:backrooms_ceil.1",
+            "backrooms:backrooms_ceil.1",
+            "backrooms:backrooms_ceil.1",
+            "backrooms:backrooms_ceil.2",
+            "backrooms:backrooms_ceil.2",
+            "backrooms:backrooms_ceil.2",
+            "backrooms:backrooms_ceil.2",
+            "backrooms:backrooms_ceil.2",
+            "backrooms:backrooms_ceil.2",
+            "backrooms:backrooms_ceil.2",
+            "backrooms:backrooms_ceil_stain",
+            "backrooms:backrooms_ceil_hole"
+        ]
+    },
+    // Papier peint du niveau 0 : rares coulures et lés décollés.
+    {
+        "type": "texture",
+        "id": "lobby_wallpaper_worn",
+        "variants": [
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper",
+            "backrooms:backrooms_house_wallpaper_stain",
+            "backrooms:backrooms_house_wallpaper_peel"
+        ]
+    },
+    // Moquette du niveau 0 : plaques humides.
+    {
+        "type": "texture",
+        "id": "lobby_carpet_worn",
+        "variants": [
+            "backrooms:backrooms_lobby_carpet",
+            "backrooms:backrooms_lobby_carpet",
+            "backrooms:backrooms_lobby_carpet",
+            "backrooms:backrooms_lobby_carpet",
+            "backrooms:backrooms_lobby_carpet",
+            "backrooms:backrooms_lobby_carpet_damp"
+        ]
+    },
+    {
+        "type": "texture",
+        "id": "lamp_panel_on",
+        "path": "textures/backrooms_ceil_lamp_on.png"
+    },
+    {
+        "type": "texture",
+        "id": "lamp_panel_off",
+        "path": "textures/backrooms_ceil_lamp_off.png"
+    },
+    {
+        "type": "texture",
+        "id": "lamp_panel_half",
+        "path": "textures/backrooms_ceil_lamp_middle_off.png"
+    },
+    {
+        "type": "texture",
+        "id": "lamp_housing",
+        "compose": "color(214, 210, 198)"
+    },
+    {
+        "type": "texture",
+        "id": "parking_lamp_housing",
+        "compose": "color(190, 190, 184)"
+    },
+    {
+        "type": "texture",
+        "id": "exit_housing",
+        "compose": "color(226, 222, 206)"
+    },
+    {
+        "type": "biome",
+        "id": "level_lobby",
+        "displayName": "Niveau 0 — le hall",
+        "dimension": "backrooms",
+        "blocks": {
+            "surface": "lobby_carpet",
+            "subsurface": "outer",
+            "filler": "outer"
+        },
+        "decorations": [
+            {
+                "block": "baseboard",
+                "chance": 0.002
+            }
+        ],
+        "sky": [
+            8,
+            8,
+            6
+        ]
+    },
+    {
+        "type": "biome",
+        "id": "level_hotel",
+        "displayName": "Niveau 5 — l'hôtel",
+        "dimension": "level_5",
+        "blocks": {
+            "surface": "hotel_carpet",
+            "subsurface": "outer",
+            "filler": "outer"
+        },
+        "decorations": [
+            {
+                "block": "mahogany",
+                "chance": 0.004
+            }
+        ],
+        "sky": [
+            8,
+            8,
+            6
+        ]
+    },
+    {
+        "type": "biome",
+        "id": "level_hospital",
+        "displayName": "Niveau 4 — l'hôpital",
+        "dimension": "level_4",
+        "blocks": {
+            "surface": "hospital_floor",
+            "subsurface": "outer",
+            "filler": "outer"
+        },
+        "sky": [
+            8,
+            8,
+            6
+        ]
+    },
+    {
+        "type": "biome",
+        "id": "level_parking",
+        "displayName": "Niveau 2 — le parking",
+        "dimension": "level_2",
+        "blocks": {
+            "surface": "parking_floor",
+            "subsurface": "outer",
+            "filler": "outer"
+        },
+        "decorations": [
+            {
+                "block": "concrete_dark",
+                "chance": 0.003
+            }
+        ],
+        "sky": [
+            8,
+            8,
+            6
+        ]
+    },
+    {
+        "type": "biome",
+        "id": "level_pool",
+        "displayName": "Niveau 37 — les piscines",
+        "dimension": "level_37",
+        "blocks": {
+            "surface": "pool_floor",
+            "subsurface": "outer",
+            "filler": "outer"
+        },
+        "decorations": [],
+        "sky": [
+            8,
+            8,
+            6
+        ]
+    },
+    {
+        "id": "outer",
+        "displayName": "Néant des backrooms",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "texture": "backrooms:backrooms_outer"
+        },
+        "gameplay": {
+            "hardness": -1,
+            "drops": ""
+        }
+    },
+    {
+        "id": "lobby_carpet",
+        "displayName": "Moquette humide",
+        "tags": [],
+        "sounds": "core:wool",
+        "graphics": {
+            "texture": "backrooms:lobby_carpet_worn"
+        },
+        "gameplay": {
+            "hardness": 1
+        }
+    },
+    {
+        "id": "lobby_wallpaper",
+        "displayName": "Papier peint jaune",
+        "tags": [],
+        "sounds": "core:wood",
+        "graphics": {
+            "texture": "backrooms:lobby_wallpaper_worn"
+        },
+        "gameplay": {
+            "hardness": 1.5
+        }
+    },
+    {
+        "id": "lobby_ceiling",
+        "displayName": "Plafond crépi",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "texture": "backrooms:lobby_ceiling_worn"
+        },
+        "gameplay": {
+            "hardness": 1
+        }
+    },
+    {
+        "id": "fluorescent",
+        "displayName": "Néon encastré",
+        "tags": [
+            "light"
+        ],
+        "sounds": "core:glass",
+        "type": "obj",
+        "path": "models/fluorescent_on.obj",
+        "icon": "backrooms:lamp_panel_on",
+        "graphics": {
+            "texture": "backrooms:backrooms_lamp_frame"
+        },
+        "gameplay": {
+            "hardness": 0.5
+        },
+        "defaultState": "on",
+        "states": {
+            "on": {
+                "displayName": "Néon encastré",
+                "path": "models/fluorescent_on.obj",
+                "interact": {
+                    "toggle": "off",
+                    "sound": "core:other/finger_click"
+                },
+                "light": {
+                    "type": "spot",
+                    "color": [
+                        255,
+                        238,
+                        205
+                    ],
+                    "intensity": 4.5,
+                    "range": 14,
+                    "direction": [
+                        0,
+                        -1,
+                        0
+                    ],
+                    "innerAngle": 50,
+                    "outerAngle": 82,
+                    "offset": [
+                        0,
+                        -0.5,
+                        0
+                    ]
+                }
+            },
+            "off": {
+                "displayName": "Néon encastré (éteint)",
+                "path": "models/fluorescent_off.obj",
+                "interact": {
+                    "toggle": "on",
+                    "sound": "core:other/finger_click"
+                },
+                "light": {
+                    "enabled": false
+                }
+            },
+            "half": {
+                "displayName": "Néon encastré (à moitié grillé)",
+                "path": "models/fluorescent_half.obj",
+                "interact": {
+                    "toggle": "off",
+                    "sound": "core:other/finger_click"
+                },
+                "light": {
+                    "type": "spot",
+                    "color": [
+                        255,
+                        238,
+                        205
+                    ],
+                    "intensity": 2.02,
+                    "range": 14,
+                    "direction": [
+                        0,
+                        -1,
+                        0
+                    ],
+                    "innerAngle": 50,
+                    "outerAngle": 82,
+                    "offset": [
+                        0,
+                        -0.5,
+                        0
+                    ]
+                }
+            },
+            "auto": {
+                "displayName": "Néon encastré (détecteur)",
+                "path": "models/fluorescent_off.obj",
+                "interact": {
+                    "toggle": "on",
+                    "sound": "core:other/finger_click"
+                },
+                "sensor": {
+                    "radius": 6,
+                    "near": "auto_on",
+                    "sound": "backrooms:backrooms_ligh_buzz"
+                },
+                "light": {
+                    "enabled": false
+                }
+            },
+            "auto_on": {
+                "displayName": "Néon encastré (détecteur, allumé)",
+                "path": "models/fluorescent_on.obj",
+                "interact": {
+                    "toggle": "off",
+                    "sound": "core:other/finger_click"
+                },
+                "sensor": {
+                    "radius": 9,
+                    "far": "auto"
+                },
+                "light": {
+                    "type": "spot",
+                    "color": [
+                        255,
+                        238,
+                        205
+                    ],
+                    "intensity": 4.5,
+                    "range": 14,
+                    "direction": [
+                        0,
+                        -1,
+                        0
+                    ],
+                    "innerAngle": 50,
+                    "outerAngle": 82,
+                    "offset": [
+                        0,
+                        -0.5,
+                        0
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "id": "baseboard",
+        "displayName": "Plinthe",
+        "tags": [],
+        "sounds": "core:wood",
+        "graphics": {
+            "texture": "backrooms:backrooms_baseboard"
+        },
+        "gameplay": {
+            "hardness": 1.5
+        }
+    },
+    {
+        "id": "hotel_carpet",
+        "displayName": "Moquette d'hôtel",
+        "tags": [],
+        "sounds": "core:wool",
+        "graphics": {
+            "texture": "backrooms:backrooms_hotel_wool_carpet"
+        },
+        "gameplay": {
+            "hardness": 1
+        }
+    },
+    {
+        "id": "hotel_wallpaper",
+        "displayName": "Papier peint d'hôtel",
+        "tags": [],
+        "sounds": "core:wood",
+        "graphics": {
+            "texture": "backrooms:backrooms_hotel_wallpaper"
+        },
+        "gameplay": {
+            "hardness": 1.5
+        }
+    },
+    {
+        "id": "hotel_ceiling",
+        "displayName": "Plafond crépi d'hôtel",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "texture": "backrooms:lobby_ceiling_worn"
+        },
+        "gameplay": {
+            "hardness": 1
+        }
+    },
+    {
+        "id": "mahogany",
+        "displayName": "Acajou",
+        "tags": [],
+        "sounds": "core:wood",
+        "graphics": {
+            "texture": "backrooms:backrooms_mahogany"
+        },
+        "gameplay": {
+            "hardness": 2
+        }
+    },
+    {
+        "id": "hospital_floor",
+        "displayName": "Sol en vinyle d'hôpital",
+        "tags": [],
+        "sounds": "core:ceramic",
+        "graphics": {
+            "texture": "backrooms:backrooms_hospital_floor_vinyl"
+        },
+        "gameplay": {
+            "hardness": 2
+        }
+    },
+    {
+        "id": "hospital_wall",
+        "displayName": "Mur d'hôpital",
+        "tags": [],
+        "sounds": "core:ceramic",
+        "graphics": {
+            "texture": "backrooms:backrooms_hospital_wall_top"
+        },
+        "gameplay": {
+            "hardness": 2
+        }
+    },
+    {
+        "id": "hospital_ceiling",
+        "displayName": "Faux plafond à dalles acoustiques",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "texture": "backrooms:backrooms_hospital_ceil_acoustics_tiles"
+        },
+        "gameplay": {
+            "hardness": 1
+        }
+    },
+    {
+        "id": "hospital_light",
+        "displayName": "Plafonnier d'hôpital",
+        "type": "nodebox",
+        "tags": [
+            "light"
+        ],
+        "nodebox": [
+            [
+                -0.441,
+                0.4375,
+                -0.233,
+                0.441,
+                0.5,
+                0.233
+            ]
+        ],
+        "graphics": {
+            "textures": {
+                "side": "backrooms:lamp_housing",
+                "top": "backrooms:lamp_housing"
+            },
+            "material": "CUTOUT"
+        },
+        "sounds": "core:glass",
+        "gameplay": {
+            "hardness": 0.5
+        },
+        "defaultState": "on",
+        "states": {
+            "on": {
+                "displayName": "Plafonnier d'hôpital",
+                "graphics": {
+                    "textures": {
+                        "bottom": "backrooms:backrooms_hospital_ceil_lamp_on"
+                    }
+                },
+                "interact": {
+                    "toggle": "off",
+                    "sound": "core:other/finger_click"
+                },
+                "light": {
+                    "type": "spot",
+                    "color": [
+                        232,
+                        242,
+                        255
+                    ],
+                    "intensity": 4.5,
+                    "range": 14,
+                    "direction": [
+                        0,
+                        -1,
+                        0
+                    ],
+                    "innerAngle": 50,
+                    "outerAngle": 82,
+                    "offset": [
+                        0,
+                        0.44,
+                        0
+                    ]
+                }
+            },
+            "off": {
+                "displayName": "Plafonnier d'hôpital (éteint)",
+                "graphics": {
+                    "textures": {
+                        "bottom": "backrooms:backrooms_hospital_ceil_lamp_off"
+                    }
+                },
+                "interact": {
+                    "toggle": "on",
+                    "sound": "core:other/finger_click"
+                },
+                "light": {
+                    "enabled": false
+                }
+            },
+            "auto": {
+                "displayName": "Plafonnier d'hôpital (détecteur)",
+                "graphics": {
+                    "textures": {
+                        "bottom": "backrooms:backrooms_hospital_ceil_lamp_off"
+                    }
+                },
+                "interact": {
+                    "toggle": "on",
+                    "sound": "core:other/finger_click"
+                },
+                "sensor": {
+                    "radius": 6,
+                    "near": "auto_on",
+                    "sound": "backrooms:backrooms_ligh_buzz"
+                },
+                "light": {
+                    "enabled": false
+                }
+            },
+            "auto_on": {
+                "displayName": "Plafonnier d'hôpital (détecteur, allumé)",
+                "graphics": {
+                    "textures": {
+                        "bottom": "backrooms:backrooms_hospital_ceil_lamp_on"
+                    }
+                },
+                "interact": {
+                    "toggle": "off",
+                    "sound": "core:other/finger_click"
+                },
+                "sensor": {
+                    "radius": 9,
+                    "far": "auto"
+                },
+                "light": {
+                    "type": "spot",
+                    "color": [
+                        232,
+                        242,
+                        255
+                    ],
+                    "intensity": 4.5,
+                    "range": 14,
+                    "direction": [
+                        0,
+                        -1,
+                        0
+                    ],
+                    "innerAngle": 50,
+                    "outerAngle": 82,
+                    "offset": [
+                        0,
+                        0.44,
+                        0
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "id": "hospital_wall_low",
+        "displayName": "Soubassement d'hôpital",
+        "tags": [],
+        "sounds": "core:ceramic",
+        "graphics": {
+            "texture": "backrooms:backrooms_hospital_wall_bottom"
+        },
+        "gameplay": {
+            "hardness": 2
+        }
+    },
+    {
+        "id": "hospital_wall_tiles",
+        "displayName": "Faïence d'hôpital",
+        "tags": [],
+        "sounds": "core:ceramic",
+        "graphics": {
+            "texture": "backrooms:backrooms_hospital_wall_tiles"
+        },
+        "gameplay": {
+            "hardness": 2
+        }
+    },
+    {
+        "id": "hospital_floor_tiles",
+        "displayName": "Dalles de vinyle anciennes",
+        "tags": [],
+        "sounds": "core:ceramic",
+        "graphics": {
+            "texture": "backrooms:backrooms_hospital_floor_tiles"
+        },
+        "gameplay": {
+            "hardness": 2
+        }
+    },
+    {
+        "id": "asphalt",
+        "displayName": "Asphalte",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "texture": "backrooms:backrooms_asphalt"
+        },
+        "gameplay": {
+            "hardness": 3
+        }
+    },
+    {
+        "id": "concrete",
+        "displayName": "Béton de parking",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "texture": "backrooms:backrooms_parking_concrete_wall"
+        },
+        "gameplay": {
+            "hardness": 3
+        }
+    },
+    {
+        "id": "concrete_dark",
+        "displayName": "Plafond de parking",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "texture": "backrooms:backrooms_parking_concrete_ceil"
+        },
+        "gameplay": {
+            "hardness": 3
+        }
+    },
+    {
+        "id": "parking_light",
+        "displayName": "Réglette de parking",
+        "type": "nodebox",
+        "tags": [
+            "light"
+        ],
+        "nodebox": [
+            [
+                -0.43,
+                0.4375,
+                -0.093,
+                0.43,
+                0.5,
+                0.093
+            ]
+        ],
+        "graphics": {
+            "textures": {
+                "side": "backrooms:parking_lamp_housing",
+                "top": "backrooms:parking_lamp_housing"
+            },
+            "material": "CUTOUT"
+        },
+        "sounds": "core:glass",
+        "gameplay": {
+            "hardness": 0.5
+        },
+        "defaultState": "on",
+        "states": {
+            "on": {
+                "displayName": "Réglette de parking",
+                "graphics": {
+                    "textures": {
+                        "bottom": "backrooms:backrooms_parking_ceil_lamp_on"
+                    }
+                },
+                "interact": {
+                    "toggle": "off",
+                    "sound": "core:other/finger_click"
+                },
+                "light": {
+                    "type": "spot",
+                    "color": [
+                        222,
+                        234,
+                        255
+                    ],
+                    "intensity": 7,
+                    "range": 15,
+                    "direction": [
+                        0,
+                        -1,
+                        0
+                    ],
+                    "innerAngle": 50,
+                    "outerAngle": 82,
+                    "offset": [
+                        0,
+                        0.44,
+                        0
+                    ]
+                }
+            },
+            "off": {
+                "displayName": "Réglette de parking (éteinte)",
+                "graphics": {
+                    "textures": {
+                        "bottom": "backrooms:backrooms_parking_ceil_lamp_off"
+                    }
+                },
+                "interact": {
+                    "toggle": "on",
+                    "sound": "core:other/finger_click"
+                },
+                "light": {
+                    "enabled": false
+                }
+            },
+            "auto": {
+                "displayName": "Réglette de parking (détecteur)",
+                "graphics": {
+                    "textures": {
+                        "bottom": "backrooms:backrooms_parking_ceil_lamp_off"
+                    }
+                },
+                "interact": {
+                    "toggle": "on",
+                    "sound": "core:other/finger_click"
+                },
+                "sensor": {
+                    "radius": 6,
+                    "near": "auto_on",
+                    "sound": "backrooms:backrooms_ligh_buzz"
+                },
+                "light": {
+                    "enabled": false
+                }
+            },
+            "auto_on": {
+                "displayName": "Réglette de parking (détecteur, allumé)",
+                "graphics": {
+                    "textures": {
+                        "bottom": "backrooms:backrooms_parking_ceil_lamp_on"
+                    }
+                },
+                "interact": {
+                    "toggle": "off",
+                    "sound": "core:other/finger_click"
+                },
+                "sensor": {
+                    "radius": 9,
+                    "far": "auto"
+                },
+                "light": {
+                    "type": "spot",
+                    "color": [
+                        222,
+                        234,
+                        255
+                    ],
+                    "intensity": 7,
+                    "range": 15,
+                    "direction": [
+                        0,
+                        -1,
+                        0
+                    ],
+                    "innerAngle": 50,
+                    "outerAngle": 82,
+                    "offset": [
+                        0,
+                        0.44,
+                        0
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "id": "parking_floor",
+        "displayName": "Sol en béton de parking",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "texture": "backrooms:backrooms_parking_concrete_floor"
+        },
+        "gameplay": {
+            "hardness": 3
+        }
+    },
+    {
+        "id": "pillar",
+        "displayName": "Pilier en béton",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "texture": "backrooms:backrooms_parking_concrete_wall",
+            "tint": [
+                178,
+                176,
+                170,
+                255
+            ]
+        },
+        "gameplay": {
+            "hardness": 4
+        }
+    },
+    {
+        "id": "parking_mark",
+        "displayName": "Marquage au sol",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "texture": "backrooms:backrooms_parking_mark"
+        },
+        "gameplay": {
+            "hardness": 3
+        }
+    },
+    {
+        "id": "pool_tile",
+        "displayName": "Faïence de piscine",
+        "tags": [],
+        "sounds": "core:ceramic",
+        "graphics": {
+            "texture": "backrooms:backrooms_pool_tile"
+        },
+        "gameplay": {
+            "hardness": 2
+        }
+    },
+    {
+        "id": "pool_floor",
+        "displayName": "Fond de piscine",
+        "tags": [],
+        "sounds": "core:ceramic",
+        "graphics": {
+            "texture": "backrooms:backrooms_pool_floor"
+        },
+        "gameplay": {
+            "hardness": 2
+        }
+    },
+    {
+        "id": "pool_water",
+        "displayName": "Eau tiède",
+        "tags": [
+            "fluid"
+        ],
+        "sounds": "core:water",
+        "graphics": {
+            "texture": "backrooms:backrooms_water",
+            "material": "TRANSPARENT",
+            "tint": [
+                255,
+                255,
+                255,
+                170
+            ]
+        },
+        "gameplay": {
+            "hardness": 100
+        },
+        "physics": {
+            "solid": false,
+            "viscosity": 0.5
+        },
+        "liquid": {
+            "range": 4,
+            "tick": 0.3,
+            "renewable": true,
+            "flowingTexture": "backrooms:backrooms_water"
+        }
+    },
+    /*{
+        "id": "exit_door",
+        "displayName": "Porte de l'ascenseur",
+        "tags": [],
+        "sounds": "core:stone",
+        "graphics": {
+            "textures": {
+                "top": "backrooms:backrooms_elevator_cabin_top",
+                "bottom": "backrooms:backrooms_elevator_cabin_top",
+                "side": "backrooms:backrooms_elevator_cabin_door"
+            },
+            "material": "TRANSLUCENT",
+            "glow": false
+        },
+        "gameplay": {
+            "hardness": -1,
+            "drops": ""
+        },
+        "physics": {
+            "solid": false
+        },
+        "portal": {
+            "dimension": "core:overworld",
+            "delay": 1.5
+        },
+        "light": {
+            "type": "point",
+            "color": [
+                255,
+                228,
+                190
+            ],
+            "intensity": 1.0,
+            "range": 5
+        }
+    },*/
+    {
+        "id": "exit_sign",
+        "displayName": "Panneau « EXIT »",
+        "type": "nodebox",
+        "tags": [
+            "light"
+        ],
+        "nodebox": [
+            [
+                -0.321,
+                -0.198,
+                -0.03,
+                0.321,
+                0.198,
+                0.03
+            ]
+        ],
+        "graphics": {
+            "textures": {
+                "south": "backrooms:backrooms_lamp_exit",
+                "north": "backrooms:backrooms_lamp_exit",
+                "side": "backrooms:exit_housing",
+                "top": "backrooms:exit_housing",
+                "bottom": "backrooms:exit_housing"
+            },
+            "material": "CUTOUT"
+        },
+        "sounds": "core:glass",
+        "gameplay": {
+            "hardness": -1,
+            "drops": ""
+        },
+        "physics": {
+            "solid": false
+        },
+        "light": {
+            "type": "point",
+            "color": [
+                70,
+                255,
+                120
+            ],
+            "intensity": 0.35,
+            "range": 4
+        }
+    },
+    {
+        "id": "exit_sign_left",
+        "displayName": "Panneau « ← EXIT »",
+        "type": "nodebox",
+        "tags": [
+            "light"
+        ],
+        "nodebox": [
+            [
+                -0.42,
+                -0.175,
+                0.4375,
+                0.42,
+                0.175,
+                0.5
+            ]
+        ],
+        "graphics": {
+            "textures": {
+                "north": "backrooms:backrooms_lamp_exit_arrow_left",
+                "side": "backrooms:exit_housing",
+                "top": "backrooms:exit_housing",
+                "bottom": "backrooms:exit_housing"
+            },
+            "material": "CUTOUT"
+        },
+        "sounds": "core:glass",
+        "gameplay": {
+            "hardness": 0.5
+        },
+        "physics": {
+            "solid": false
+        },
+        "light": {
+            "type": "point",
+            "color": [
+                70,
+                255,
+                120
+            ],
+            "intensity": 0.35,
+            "range": 4
+        }
+    },
+    {
+        "id": "exit_sign_right",
+        "displayName": "Panneau « EXIT → »",
+        "type": "nodebox",
+        "tags": [
+            "light"
+        ],
+        "nodebox": [
+            [
+                -0.44,
+                -0.198,
+                0.4375,
+                0.44,
+                0.198,
+                0.5
+            ]
+        ],
+        "graphics": {
+            "textures": {
+                "north": "backrooms:backrooms_lamp_exit_arrow_right",
+                "side": "backrooms:exit_housing",
+                "top": "backrooms:exit_housing",
+                "bottom": "backrooms:exit_housing"
+            },
+            "material": "CUTOUT"
+        },
+        "sounds": "core:glass",
+        "gameplay": {
+            "hardness": 0.5
+        },
+        "physics": {
+            "solid": false
+        },
+        "light": {
+            "type": "point",
+            "color": [
+                70,
+                255,
+                120
+            ],
+            "intensity": 0.35,
+            "range": 4
+        }
+    },
+    {
+        "id": "ventilation",
+        "displayName": "Grille de ventilation",
+        "description": "Diffuseur carré encastré dans le plafond : collerette, lames concentriques en gradins, gaine et ventilateur derrière.",
+        "type": "obj",
+        "path": "models/ventilation.obj",
+        "icon": "backrooms:backrooms_vent_icon",
+        "tags": [],
+        "sounds": "core:metal",
+        "graphics": {
+            "texture": "backrooms:backrooms_vent_frame"
+        },
+        "gameplay": {
+            "hardness": 2
+        }
     }
-   },
-   "off": {
-    "displayName": "Néon encastré (éteint)",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:lamp_panel_off"
-     }
-    },
-    "interact": {
-     "toggle": "on",
-     "sound": "core:other/finger_click"
-    },
-    "light": {
-     "enabled": false
-    }
-   },
-   "half": {
-    "displayName": "Néon encastré (à moitié grillé)",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:lamp_panel_half"
-     }
-    },
-    "interact": {
-     "toggle": "off",
-     "sound": "core:other/finger_click"
-    },
-    "light": {
-     "type": "spot",
-     "color": [
-      255,
-      238,
-      205
-     ],
-     "intensity": 2.02,
-     "range": 14,
-     "direction": [
-      0,
-      -1,
-      0
-     ],
-     "innerAngle": 50,
-     "outerAngle": 82,
-     "offset": [
-      0,
-      -0.5,
-      0
-     ]
-    }
-   },
-   "auto": {
-    "displayName": "Néon encastré (détecteur)",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:lamp_panel_off"
-     }
-    },
-    "interact": {
-     "toggle": "on",
-     "sound": "core:other/finger_click"
-    },
-    "sensor": {
-     "radius": 6,
-     "near": "auto_on",
-     "sound": "backrooms:backrooms_ligh_buzz"
-    },
-    "light": {
-     "enabled": false
-    }
-   },
-   "auto_on": {
-    "displayName": "Néon encastré (détecteur, allumé)",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:lamp_panel_on"
-     }
-    },
-    "interact": {
-     "toggle": "off",
-     "sound": "core:other/finger_click"
-    },
-    "sensor": {
-     "radius": 9,
-     "far": "auto"
-    },
-    "light": {
-     "type": "spot",
-     "color": [
-      255,
-      238,
-      205
-     ],
-     "intensity": 4.5,
-     "range": 14,
-     "direction": [
-      0,
-      -1,
-      0
-     ],
-     "innerAngle": 50,
-     "outerAngle": 82,
-     "offset": [
-      0,
-      -0.5,
-      0
-     ]
-    }
-   }
-  }
- },
- {
-  "id": "baseboard",
-  "displayName": "Plinthe",
-  "tags": [],
-  "sounds": "core:wood",
-  "graphics": {
-   "texture": "backrooms:backrooms_baseboard"
-  },
-  "gameplay": {
-   "hardness": 1.5
-  }
- },
- {
-  "id": "hotel_carpet",
-  "displayName": "Moquette d'hôtel",
-  "tags": [],
-  "sounds": "core:wool",
-  "graphics": {
-   "texture": "backrooms:backrooms_hotel_wool_carpet"
-  },
-  "gameplay": {
-   "hardness": 1
-  }
- },
- {
-  "id": "hotel_wallpaper",
-  "displayName": "Papier peint d'hôtel",
-  "tags": [],
-  "sounds": "core:wood",
-  "graphics": {
-   "texture": "backrooms:backrooms_hotel_wallpaper"
-  },
-  "gameplay": {
-   "hardness": 1.5
-  }
- },
- {
-  "id": "hotel_ceiling",
-  "displayName": "Plafond crépi d'hôtel",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "texture": "backrooms:backrooms_ceil"
-  },
-  "gameplay": {
-   "hardness": 1
-  }
- },
- {
-  "id": "mahogany",
-  "displayName": "Acajou",
-  "tags": [],
-  "sounds": "core:wood",
-  "graphics": {
-   "texture": "backrooms:backrooms_mahogany"
-  },
-  "gameplay": {
-   "hardness": 2
-  }
- },
- {
-  "id": "hospital_floor",
-  "displayName": "Sol en vinyle d'hôpital",
-  "tags": [],
-  "sounds": "core:ceramic",
-  "graphics": {
-   "texture": "backrooms:backrooms_hospital_floor_vinyl"
-  },
-  "gameplay": {
-   "hardness": 2
-  }
- },
- {
-  "id": "hospital_wall",
-  "displayName": "Mur d'hôpital",
-  "tags": [],
-  "sounds": "core:ceramic",
-  "graphics": {
-   "texture": "backrooms:backrooms_hospital_wall_top"
-  },
-  "gameplay": {
-   "hardness": 2
-  }
- },
- {
-  "id": "hospital_ceiling",
-  "displayName": "Faux plafond à dalles acoustiques",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "texture": "backrooms:backrooms_hospital_ceil_acoustics_tiles"
-  },
-  "gameplay": {
-   "hardness": 1
-  }
- },
- {
-  "id": "hospital_light",
-  "displayName": "Plafonnier d'hôpital",
-  "type": "nodebox",
-  "tags": [
-   "light"
-  ],
-  "nodebox": [
-   [
-    -0.441,
-    0.4375,
-    -0.233,
-    0.441,
-    0.5,
-    0.233
-   ]
-  ],
-  "graphics": {
-   "textures": {
-    "side": "backrooms:lamp_housing",
-    "top": "backrooms:lamp_housing"
-   },
-   "material": "CUTOUT"
-  },
-  "sounds": "core:glass",
-  "gameplay": {
-   "hardness": 0.5
-  },
-  "defaultState": "on",
-  "states": {
-   "on": {
-    "displayName": "Plafonnier d'hôpital",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:backrooms_hospital_ceil_lamp_on"
-     }
-    },
-    "interact": {
-     "toggle": "off",
-     "sound": "core:other/finger_click"
-    },
-    "light": {
-     "type": "spot",
-     "color": [
-      232,
-      242,
-      255
-     ],
-     "intensity": 4.5,
-     "range": 14,
-     "direction": [
-      0,
-      -1,
-      0
-     ],
-     "innerAngle": 50,
-     "outerAngle": 82,
-     "offset": [
-      0,
-      0.44,
-      0
-     ]
-    }
-   },
-   "off": {
-    "displayName": "Plafonnier d'hôpital (éteint)",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:backrooms_hospital_ceil_lamp_off"
-     }
-    },
-    "interact": {
-     "toggle": "on",
-     "sound": "core:other/finger_click"
-    },
-    "light": {
-     "enabled": false
-    }
-   },
-   "auto": {
-    "displayName": "Plafonnier d'hôpital (détecteur)",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:backrooms_hospital_ceil_lamp_off"
-     }
-    },
-    "interact": {
-     "toggle": "on",
-     "sound": "core:other/finger_click"
-    },
-    "sensor": {
-     "radius": 6,
-     "near": "auto_on",
-     "sound": "backrooms:backrooms_ligh_buzz"
-    },
-    "light": {
-     "enabled": false
-    }
-   },
-   "auto_on": {
-    "displayName": "Plafonnier d'hôpital (détecteur, allumé)",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:backrooms_hospital_ceil_lamp_on"
-     }
-    },
-    "interact": {
-     "toggle": "off",
-     "sound": "core:other/finger_click"
-    },
-    "sensor": {
-     "radius": 9,
-     "far": "auto"
-    },
-    "light": {
-     "type": "spot",
-     "color": [
-      232,
-      242,
-      255
-     ],
-     "intensity": 4.5,
-     "range": 14,
-     "direction": [
-      0,
-      -1,
-      0
-     ],
-     "innerAngle": 50,
-     "outerAngle": 82,
-     "offset": [
-      0,
-      0.44,
-      0
-     ]
-    }
-   }
-  }
- },
- {
-  "id": "hospital_wall_low",
-  "displayName": "Soubassement d'hôpital",
-  "tags": [],
-  "sounds": "core:ceramic",
-  "graphics": {
-   "texture": "backrooms:backrooms_hospital_wall_bottom"
-  },
-  "gameplay": {
-   "hardness": 2
-  }
- },
- {
-  "id": "hospital_wall_tiles",
-  "displayName": "Faïence d'hôpital",
-  "tags": [],
-  "sounds": "core:ceramic",
-  "graphics": {
-   "texture": "backrooms:backrooms_hospital_wall_tiles"
-  },
-  "gameplay": {
-   "hardness": 2
-  }
- },
- {
-  "id": "hospital_floor_tiles",
-  "displayName": "Dalles de vinyle anciennes",
-  "tags": [],
-  "sounds": "core:ceramic",
-  "graphics": {
-   "texture": "backrooms:backrooms_hospital_floor_tiles"
-  },
-  "gameplay": {
-   "hardness": 2
-  }
- },
- {
-  "id": "asphalt",
-  "displayName": "Asphalte",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "texture": "backrooms:backrooms_asphalt"
-  },
-  "gameplay": {
-   "hardness": 3
-  }
- },
- {
-  "id": "concrete",
-  "displayName": "Béton de parking",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "texture": "backrooms:backrooms_parking_concrete_wall"
-  },
-  "gameplay": {
-   "hardness": 3
-  }
- },
- {
-  "id": "concrete_dark",
-  "displayName": "Plafond de parking",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "texture": "backrooms:backrooms_parking_concrete_ceil"
-  },
-  "gameplay": {
-   "hardness": 3
-  }
- },
- {
-  "id": "parking_light",
-  "displayName": "Réglette de parking",
-  "type": "nodebox",
-  "tags": [
-   "light"
-  ],
-  "nodebox": [
-   [
-    -0.43,
-    0.4375,
-    -0.093,
-    0.43,
-    0.5,
-    0.093
-   ]
-  ],
-  "graphics": {
-   "textures": {
-    "side": "backrooms:parking_lamp_housing",
-    "top": "backrooms:parking_lamp_housing"
-   },
-   "material": "CUTOUT"
-  },
-  "sounds": "core:glass",
-  "gameplay": {
-   "hardness": 0.5
-  },
-  "defaultState": "on",
-  "states": {
-   "on": {
-    "displayName": "Réglette de parking",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:backrooms_parking_ceil_lamp_on"
-     }
-    },
-    "interact": {
-     "toggle": "off",
-     "sound": "core:other/finger_click"
-    },
-    "light": {
-     "type": "spot",
-     "color": [
-      222,
-      234,
-      255
-     ],
-     "intensity": 7,
-     "range": 15,
-     "direction": [
-      0,
-      -1,
-      0
-     ],
-     "innerAngle": 50,
-     "outerAngle": 82,
-     "offset": [
-      0,
-      0.44,
-      0
-     ]
-    }
-   },
-   "off": {
-    "displayName": "Réglette de parking (éteinte)",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:backrooms_parking_ceil_lamp_off"
-     }
-    },
-    "interact": {
-     "toggle": "on",
-     "sound": "core:other/finger_click"
-    },
-    "light": {
-     "enabled": false
-    }
-   },
-   "auto": {
-    "displayName": "Réglette de parking (détecteur)",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:backrooms_parking_ceil_lamp_off"
-     }
-    },
-    "interact": {
-     "toggle": "on",
-     "sound": "core:other/finger_click"
-    },
-    "sensor": {
-     "radius": 6,
-     "near": "auto_on",
-     "sound": "backrooms:backrooms_ligh_buzz"
-    },
-    "light": {
-     "enabled": false
-    }
-   },
-   "auto_on": {
-    "displayName": "Réglette de parking (détecteur, allumé)",
-    "graphics": {
-     "textures": {
-      "bottom": "backrooms:backrooms_parking_ceil_lamp_on"
-     }
-    },
-    "interact": {
-     "toggle": "off",
-     "sound": "core:other/finger_click"
-    },
-    "sensor": {
-     "radius": 9,
-     "far": "auto"
-    },
-    "light": {
-     "type": "spot",
-     "color": [
-      222,
-      234,
-      255
-     ],
-     "intensity": 7,
-     "range": 15,
-     "direction": [
-      0,
-      -1,
-      0
-     ],
-     "innerAngle": 50,
-     "outerAngle": 82,
-     "offset": [
-      0,
-      0.44,
-      0
-     ]
-    }
-   }
-  }
- },
- {
-  "id": "parking_floor",
-  "displayName": "Sol en béton de parking",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "texture": "backrooms:backrooms_parking_concrete_floor"
-  },
-  "gameplay": {
-   "hardness": 3
-  }
- },
- {
-  "id": "pillar",
-  "displayName": "Pilier en béton",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "texture": "backrooms:backrooms_parking_concrete_wall",
-   "tint": [
-    178,
-    176,
-    170,
-    255
-   ]
-  },
-  "gameplay": {
-   "hardness": 4
-  }
- },
- {
-  "id": "parking_mark",
-  "displayName": "Marquage au sol",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "texture": "backrooms:backrooms_parking_mark"
-  },
-  "gameplay": {
-   "hardness": 3
-  }
- },
- {
-  "id": "pool_tile",
-  "displayName": "Faïence de piscine",
-  "tags": [],
-  "sounds": "core:ceramic",
-  "graphics": {
-   "texture": "backrooms:backrooms_pool_tile"
-  },
-  "gameplay": {
-   "hardness": 2
-  }
- },
- {
-  "id": "pool_floor",
-  "displayName": "Fond de piscine",
-  "tags": [],
-  "sounds": "core:ceramic",
-  "graphics": {
-   "texture": "backrooms:backrooms_pool_floor"
-  },
-  "gameplay": {
-   "hardness": 2
-  }
- },
- {
-  "id": "pool_water",
-  "displayName": "Eau tiède",
-  "tags": [
-   "fluid"
-  ],
-  "sounds": "core:water",
-  "graphics": {
-   "texture": "backrooms:backrooms_water",
-   "material": "TRANSPARENT",
-   "tint": [
-    255,
-    255,
-    255,
-    170
-   ]
-  },
-  "gameplay": {
-   "hardness": 100
-  },
-  "physics": {
-   "solid": false,
-   "viscosity": 0.5
-  },
-  "liquid": {
-   "range": 4,
-   "tick": 0.3,
-   "renewable": true,
-   "flowingTexture": "backrooms:backrooms_water"
-  }
- },
- {
-  "id": "exit_door",
-  "displayName": "Porte de l'ascenseur",
-  "tags": [],
-  "sounds": "core:stone",
-  "graphics": {
-   "textures": {
-    "top": "backrooms:backrooms_elevator_cabin_top",
-    "bottom": "backrooms:backrooms_elevator_cabin_top",
-    "side": "backrooms:backrooms_elevator_cabin_door"
-   },
-   "material": "TRANSLUCENT",
-   "glow": false
-  },
-  "gameplay": {
-   "hardness": -1,
-   "drops": ""
-  },
-  "physics": {
-   "solid": false
-  },
-  "portal": {
-   "dimension": "core:overworld",
-   "delay": 1.5
-  },
-  "light": {
-   "type": "point",
-   "color": [
-    255,
-    228,
-    190
-   ],
-   "intensity": 1.0,
-   "range": 5
-  }
- },
- {
-  "id": "exit_sign",
-  "displayName": "Panneau « EXIT »",
-  "type": "nodebox",
-  "tags": [
-   "light"
-  ],
-  "nodebox": [
-   [
-    -0.321,
-    -0.198,
-    -0.03,
-    0.321,
-    0.198,
-    0.03
-   ]
-  ],
-  "graphics": {
-   "textures": {
-    "south": "backrooms:backrooms_lamp_exit",
-    "north": "backrooms:backrooms_lamp_exit",
-    "side": "backrooms:exit_housing",
-    "top": "backrooms:exit_housing",
-    "bottom": "backrooms:exit_housing"
-   },
-   "material": "CUTOUT"
-  },
-  "sounds": "core:glass",
-  "gameplay": {
-   "hardness": -1,
-   "drops": ""
-  },
-  "physics": {
-   "solid": false
-  },
-  "light": {
-   "type": "point",
-   "color": [
-    70,
-    255,
-    120
-   ],
-   "intensity": 0.35,
-   "range": 4
-  }
- },
- {
-  "id": "exit_sign_left",
-  "displayName": "Panneau « ← EXIT »",
-  "type": "nodebox",
-  "tags": [
-   "light"
-  ],
-  "nodebox": [
-   [
-    -0.42,
-    -0.175,
-    0.4375,
-    0.42,
-    0.175,
-    0.5
-   ]
-  ],
-  "graphics": {
-   "textures": {
-    "north": "backrooms:backrooms_lamp_exit_arrow_left",
-    "side": "backrooms:exit_housing",
-    "top": "backrooms:exit_housing",
-    "bottom": "backrooms:exit_housing"
-   },
-   "material": "CUTOUT"
-  },
-  "sounds": "core:glass",
-  "gameplay": {
-   "hardness": 0.5
-  },
-  "physics": {
-   "solid": false
-  },
-  "light": {
-   "type": "point",
-   "color": [
-    70,
-    255,
-    120
-   ],
-   "intensity": 0.35,
-   "range": 4
-  }
- },
- {
-  "id": "exit_sign_right",
-  "displayName": "Panneau « EXIT → »",
-  "type": "nodebox",
-  "tags": [
-   "light"
-  ],
-  "nodebox": [
-   [
-    -0.44,
-    -0.198,
-    0.4375,
-    0.44,
-    0.198,
-    0.5
-   ]
-  ],
-  "graphics": {
-   "textures": {
-    "north": "backrooms:backrooms_lamp_exit_arrow_right",
-    "side": "backrooms:exit_housing",
-    "top": "backrooms:exit_housing",
-    "bottom": "backrooms:exit_housing"
-   },
-   "material": "CUTOUT"
-  },
-  "sounds": "core:glass",
-  "gameplay": {
-   "hardness": 0.5
-  },
-  "physics": {
-   "solid": false
-  },
-  "light": {
-   "type": "point",
-   "color": [
-    70,
-    255,
-    120
-   ],
-   "intensity": 0.35,
-   "range": 4
-  }
- },
- {
-  "id": "ventilation",
-  "displayName": "Grille de ventilation",
-  "tags": [],
-  "sounds": "core:metal",
-  "graphics": {
-   "texture": "backrooms:backrooms_ventilation"
-  },
-  "gameplay": {
-   "hardness": 2
-  }
- }
 ]

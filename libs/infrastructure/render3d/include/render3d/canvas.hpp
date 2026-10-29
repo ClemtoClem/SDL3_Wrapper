@@ -30,6 +30,12 @@ namespace render3d {
 // un cycle.
 class OffscreenTarget;
 
+/// Fin d'un rendu hors écran : WAIT attend que le GPU l'ait terminé (les
+/// pixels sont alors lisibles par n'importe quel command buffer) ; SUBMIT le
+/// soumet seulement — les command buffers soumis ENSUITE sur le même device
+/// le verront terminé (file GPU ordonnée), sans que le CPU l'attende.
+enum class OffscreenSync : uint8_t { WAIT, SUBMIT };
+
 // Compositeur 3D construit directement sur sdl3::Gpu* : un GpuDevice, un
 // GpuCommandBuffer par frame, un cache de GpuGraphicsPipeline par
 // combinaison de shader/états réellement rencontrée (PipelineKey). Le dessin
@@ -383,7 +389,7 @@ public:
 	/// identique pour tout appelant existant (aucun ne passe encore par le
 	/// nouvel overload).
 	[[nodiscard]] Result<bool, StringView> RenderObjectOffscreen(Object3D &root, const Camera &camera,
-																  OffscreenTarget &target);
+																  OffscreenTarget &target, OffscreenSync sync = OffscreenSync::WAIT);
 
 	/// Overload (M30) qui rend avec un view-projection déjà calculé plutôt
 	/// que `camera.ViewProjectionMatrix()` — le rendu de portail (portal.hpp)
@@ -396,7 +402,7 @@ public:
 	/// que sql::Database::CreateTable/InsertRow).
 	[[nodiscard]] Result<bool, StringView> RenderObjectOffscreen(Object3D &root, const Camera &camera,
 																  const math::FMatrix4 &viewProjection,
-																  OffscreenTarget &target);
+																  OffscreenTarget &target, OffscreenSync sync = OffscreenSync::WAIT);
 
 	/// Calque 2D copié TEL QUEL dans la swapchain à End(), par-dessus la
 	/// scène — typiquement la barre de titre et la barre d'état d'une

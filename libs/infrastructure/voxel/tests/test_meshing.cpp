@@ -116,6 +116,31 @@ TEST(Mesher_NodeBoxesCrossesAndEntityShapes) {
 	CHECK_EQ(Quads(mesher.BuildBlock(s.content.BlockIdOf("t:stone"))), size_t(6));
 }
 
+// Objet au sol : l'image en plaque mince, une facette de tranche par bord de pixel opaque.
+TEST(Meshing_SpriteIsAThinExtrudedImage) {
+	Scene s;
+	Load(s.content, R"({"type": "texture", "id": "ghost", "procedural": {"color": [200, 200, 200], "alpha": 0.2}})");
+	Load(s.content, R"({"type": "item", "id": "ghost", "icon": "ghost"})"); // l'atlas ne prend que les textures utilisées
+	s.assets.Declare(s.content);
+	s.atlas.Build(s.assets, s.content, 16);
+	ChunkMesher mesher(s.content, s.atlas);
+	// Image pleine de 16 × 16 : avant, arrière, et les 4 × 16 bords du pourtour.
+	const MeshBuffer solid = mesher.BuildSprite("t:stone");
+	CHECK_EQ(Quads(solid), size_t(2 + 4 * 16));
+	float minZ = 1.f, maxZ = -1.f, minX = 1.f, maxY = 0.f;
+	for (const MeshVertex &v : solid.vertices) {
+		minZ = std::min(minZ, v.position.z);
+		maxZ = std::max(maxZ, v.position.z);
+		minX = std::min(minX, v.position.x);
+		maxY = std::max(maxY, v.position.y);
+	}
+	CHECK_NEAR(maxZ - minZ, 1.f / 16.f, 1e-5f);
+	CHECK_NEAR(minX, -0.5f, 1e-5f);
+	CHECK_NEAR(maxY, 1.f, 1e-5f);
+	// Image transparente : les deux faces seulement (le shader découpe), pas de tranche.
+	CHECK_EQ(Quads(mesher.BuildSprite("t:ghost")), size_t(2));
+}
+
 TEST(Models_ObjB3dAndJsonAreParsed) {
 	auto obj = ParseObj(String("v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nvt 0 0\nvt 1 0\nvt 1 1\nvt 0 1\n"
 							   "usemtl wood\nf 1/1 2/2 3/3 4/4\n"));

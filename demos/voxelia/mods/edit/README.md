@@ -21,5 +21,3 @@ Commande : `/edit help`. Structures du monde : `<sauvegarde>/structures` ;
 Formats : `.vxs.json` (natif), `.json` (structure de mod), `.we` (WorldEdit),
 `.mts` (Minetest). Limites (taille de la zone copiable, d'une forme) : réglages
 du mod, par monde.
-
-Icônes : mod Minetest « edit » (MrRar, MIT) — `textures/CREDITS.txt`.

@@ -1,0 +1,268 @@
+# Construction : vérifier qu'une gaine forme un ascenseur, poser cabine et paliers.
+#
+# Méthode (README.md, « Construire un ascenseur ») :
+#   1. Une gaine verticale d'au moins 7 × 7 (intérieur 5 × 5), murs pleins.
+#   2. La cabine : kit de cabine (clic droit sur le fond de la gaine, porte
+#      tournée vers soi), ou ses blocs un à un.
+#   3. À chaque étage, un palier dans le mur, du côté de la porte de cabine :
+#      kit de palier (clic droit sur le mur depuis l'étage), ou ses blocs.
+#   4. Le moteur au-dessus du centre de la gaine ; clic droit dessus : le
+#      mod vérifie tout, dit ce qui manque, puis ouvre la configuration.
+
+# Cellules d'air dans la boîte [a, b].
+fn el_air_count(x1, y1, z1, x2, y2, z2) {
+    let counts = world.count(x1, y1, z1, x2, y2, z2)
+    if (counts == nil or not has(counts, "core:air")) { return 0 }
+    return counts["core:air"]
+}
+
+# Cabine attendue (relative au coin minimal, porte vers « n » = −z) : rôle de chaque cellule.
+fn el_cabin_role(lx, ly, lz) {
+    if (ly == 0) { return "cabin_floor" }
+    if (ly == 3) {
+        if (lx == 2 and lz == 2) { return "cabin_lamp" }
+        if (lx == 2 and lz == 0) { return "display" }
+        return "cabin_ceiling"
+    }
+    let ring = lx == 0 or lx == 4 or lz == 0 or lz == 4
+    if (not ring) { return "air" }
+    if (lx == 2 and lz == 0) {
+        if (ly == 1) { return "cabin_door" }
+        return "cabin_door_top"
+    }
+    if (lx == 3 and lz == 0 and ly == 2) { return "cabin_panel" }
+    return "cabin_wall"
+}
+
+# Position monde d'une cellule de cabine (coin minimal c, côté de la porte).
+fn el_cabin_cell(c, side, lx, ly, lz) {
+    # Rotation de la disposition « n » vers le côté voulu, autour du centre (2, 2).
+    let rx = lx - 2
+    let rz = lz - 2
+    if (side == "s") {
+        rx = -rx
+        rz = -rz
+    }
+    if (side == "e") {
+        let t = rx
+        rx = -rz
+        rz = t
+    }
+    if (side == "w") {
+        let t = rx
+        rx = rz
+        rz = -t
+    }
+    return el_pos(c.x + 2 + rx, c.y + ly, c.z + 2 + rz)
+}
+
+fn el_build_cabin(c, side, style) {
+    let param = EL_SIDES[side].param
+    let lz = 0
+    while (lz < 5) {
+        let lx = 0
+        while (lx < 5) {
+            let ly = 0
+            while (ly < 4) {
+                let role = el_cabin_role(lx, ly, lz)
+                let p = el_cabin_cell(c, side, lx, ly, lz)
+                if (role == "air") {
+                    world.set(p.x, p.y, p.z, "core:air")
+                } else {
+                    world.set(p.x, p.y, p.z, format("elevators:{}_{}", style, role), param)
+                }
+                ly += 1
+            }
+            lx += 1
+        }
+        lz += 1
+    }
+}
+
+# Côté (n, s, e, w) dont la direction est la plus proche de (dx, dz).
+fn el_side_toward(dx, dz) {
+    if (el_abs(dx) > el_abs(dz)) {
+        if (dx > 0) { return "e" }
+        return "w"
+    }
+    if (dz > 0) { return "s" }
+    return "n"
+}
+
+fn el_place_cabin_kit(actor, x, y, z, item) {
+    let style = el_style_of(item)
+    let c = el_pos(x - 2, y + 1, z - 2)
+    let p = entity.pos(actor)
+    let side = el_side_toward(p.x - (x + 0.5), p.z - (z + 0.5))
+    if (el_air_count(c.x, c.y, c.z, c.x + 4, c.y + 3, c.z + 4) < 100) {
+        el_say("pas assez de place : la cabine occupe 5 × 4 × 5 blocs vides au-dessus du bloc visé (gaine de 7 × 7 murs compris).")
+        return false
+    }
+    el_build_cabin(c, side, style)
+    entity.take(actor, item, 1)
+    el_say(format("cabine posée (porte côté {}). Posez un palier à chaque étage, puis le moteur au-dessus du centre.", side))
+    return true
+}
+
+# Palier dans le mur visé (x, y, z) : porte (ici et au-dessus), afficheur et
+# sens au-dessus, bouton d'appel à côté, encadrement.
+fn el_place_landing_kit(actor, x, y, z, item) {
+    let style = el_style_of(item)
+    let glass = item.ends_with("_glass")
+    let p = entity.pos(actor)
+    let side = el_side_toward(p.x - (x + 0.5), p.z - (z + 0.5)) # côté extérieur (là où est le joueur)
+    el_place_landing_cells(x, y, z, side, style, glass)
+    entity.take(actor, item, 1)
+    el_say("palier posé. Clic droit sur le moteur pour mettre l'ascenseur en service.")
+    return true
+}
+
+# Vérifie la gaine du moteur (mx, my, mz). Rend {record, problems}.
+fn el_scan(mx, my, mz) {
+    let problems = []
+    let result = {record: nil, problems: problems}
+    if (world.get(mx, my, mz) != "elevators:motor") {
+        problems.push("pas de moteur ici.")
+        return result
+    }
+    let max_h = EL.settings.max_height
+    # La cabine : un plancher 5 × 5 sous le moteur.
+    let y0 = nil
+    let y = my - 1
+    while (y > my - max_h and y0 == nil) {
+        if (el_is(world.get(mx, y, mz), "cabin_floor")) { y0 = y }
+        y -= 1
+    }
+    if (y0 == nil) {
+        problems.push(format("aucune cabine sous le moteur (sur {} blocs) : posez un kit de cabine au fond de la gaine, centré sous le moteur.", max_h))
+        return result
+    }
+    let style = el_style_of(world.get(mx, y0, mz))
+    let side = nil
+    for (s in ["n", "s", "e", "w"]) {
+        let sd = EL_SIDES[s]
+        let b = world.get(mx + sd.dx * 2, y0 + 1, mz + sd.dz * 2)
+        if (el_is(b, "cabin_door") and not b.contains("_top")) { side = s }
+    }
+    if (side == nil) {
+        problems.push("la cabine n'a pas de porte (au milieu d'une paroi, au-dessus du plancher).")
+        return result
+    }
+    # Cabine complète ?
+    let missing = 0
+    let c = el_pos(mx - 2, y0, mz - 2)
+    let lz = 0
+    while (lz < 5) {
+        let lx = 0
+        while (lx < 5) {
+            let ly = 0
+            while (ly < 4) {
+                let role = el_cabin_role(lx, ly, lz)
+                let p = el_cabin_cell(c, side, lx, ly, lz)
+                let b = world.get(p.x, p.y, p.z)
+                if (role == "air") {
+                    if (b != "core:air") { missing += 1 }
+                } else {
+                    if (role == "display") {
+                        if (not el_is(b, "display")) { missing += 1 }
+                    } else {
+                        if (not el_is(b, role)) { missing += 1 }
+                    }
+                }
+                ly += 1
+            }
+            lx += 1
+        }
+        lz += 1
+    }
+    if (missing > 0) {
+        problems.push(format("cabine incomplète : {} cellule(s) ne correspondent pas (plancher, parois, porte, panneau, plafond, éclairage, afficheur).", missing))
+    }
+    # Les paliers : une porte palière dans le mur de la gaine, côté porte.
+    let sd = EL_SIDES[side]
+    let floors = []
+    let current = nil
+    y = my - 2
+    while (y > my - max_h) {
+        let b = world.get(mx + sd.dx * 3, y, mz + sd.dz * 3)
+        if (el_is(b, "landing_door") and not b.contains("_top")) {
+            floors.push({y: y - 1, name: ""})
+        }
+        y -= 1
+    }
+    floors = el_sort_by(floors, "y")
+    let i = 0
+    while (i < len(floors)) {
+        if (floors[i].y == y0) { current = i }
+        floors[i].label = str(i)
+        i += 1
+    }
+    if (len(floors) == 0) {
+        problems.push(format("aucun palier : posez une porte palière dans le mur de la gaine, côté {}, à chaque étage.", side))
+    } else {
+        if (current == nil) {
+            problems.push("la cabine n'est à la hauteur d'aucun palier (son plancher doit être un bloc sous le seuil de la porte palière).")
+        }
+    }
+    if (len(problems) == 0) {
+        # Trajectoire libre entre le plus bas et le plus haut arrêt.
+        let top = floors[len(floors) - 1].y + 3
+        if (top >= my) {
+            problems.push("le moteur doit être au-dessus du dernier étage, cabine comprise (4 blocs au-dessus du dernier plancher).")
+        }
+        let yy = floors[0].y
+        let blocked = 0
+        while (yy <= top and blocked < 3) {
+            if (yy < y0 or yy > y0 + 3) {
+                let free = el_air_count(mx - 2, yy, mz - 2, mx + 2, yy, mz + 2)
+                if (free < 25) {
+                    problems.push(format("obstacle dans la gaine à y = {} (l'emprise 5 × 5 doit être vide entre les étages).", yy))
+                    blocked += 1
+                }
+            }
+            yy += 1
+        }
+    }
+    if (len(problems) > 0) { return result }
+    result.record = {
+        id: el_key(mx, my, mz), motor: el_pos(mx, my, mz), side: side, style: style, floors: floors, floor: current,
+        state: "idle", state_time: 0, queue: [], external: [], door_time: nil, speed: nil, owner: ""
+    }
+    return result
+}
+
+# Enregistre (ou met à jour) l'ascenseur du moteur ; garde sa configuration.
+fn el_register(mx, my, mz, quiet) {
+    let r = el_scan(mx, my, mz)
+    if (r.record == nil) {
+        if (not quiet) {
+            for (p in r.problems) { el_say(format("à faire : {}", p)) }
+        }
+        return nil
+    }
+    let rec = r.record
+    let old = el_get(rec.id)
+    if (old != nil) {
+        rec.external = old.external
+        rec.door_time = old.door_time
+        rec.speed = old.speed
+        rec.owner = old.owner
+        let i = 0
+        while (i < len(rec.floors)) {
+            for (f in old.floors) {
+                if (f.y == rec.floors[i].y) {
+                    rec.floors[i].name = f.name
+                    rec.floors[i].label = f.label
+                }
+            }
+            i += 1
+        }
+    }
+    EL.records[rec.id] = rec
+    el_save()
+    el_refresh_displays(rec)
+    if (not quiet) {
+        el_say(format("en service : {} arrêt(s), cabine {} à l'arrêt {}.", len(rec.floors), rec.style, el_floor_label(rec, rec.floor)))
+    }
+    return rec
+}

@@ -1,7 +1,8 @@
 # Mod « backrooms » : ambiance sonore de chaque niveau et messages.
 # La dimension (world.json) reçoit les joueurs morts de suffocation
-# (« enterOnDeath ») ; les portes d'ascenseur sous un panneau EXIT ramènent
-# au monde ordinaire.
+# (« enterOnDeath ») ; chaque niveau est une dimension, reliée aux suivantes
+# par un ascenseur (mod « elevators ») ; les portes sous un panneau EXIT
+# ramènent parfois au monde ordinaire.
 #
 # L'ambiance d'un niveau tourne en boucle sur le canal « backrooms » : en
 # changeant de niveau, l'ancienne s'éteint en fondu pendant que la nouvelle
@@ -23,15 +24,21 @@ let current_level = nil   # biome dont l'ambiance joue
 let level_check = 0
 let detail = 9
 
-fn in_backrooms() { return world.dimension() == "backrooms:backrooms" }
+fn setting(id) { return math.floor(voxel.setting(id)) }
+fn number_of_floors_per_level() { return setting("number_of_floors_per_level") }
+
+fn is_backrooms(dim) { return dim != nil and dim.starts_with("backrooms:") }
+fn in_backrooms() { return is_backrooms(world.dimension()) }
 
 voxel.on("dimension_changed", fn(player, to, from) {
-    if (to == "backrooms:backrooms") {
-        game.say("Vous vous réveillez sur une moquette humide. Le néon grésille. Cherchez une porte d'ascenseur sous un panneau EXIT.")
+    if (to == "backrooms:backrooms" and not is_backrooms(from)) {
+        game.say("Vous vous réveillez sur une moquette humide. Le néon grésille. Un ascenseur attend près d'ici ; on dit qu'il descend toujours plus loin.")
+    }
+    if (is_backrooms(to)) {
         current_level = nil
         level_check = 0
     }
-    if (from == "backrooms:backrooms") {
+    if (is_backrooms(from) and not is_backrooms(to)) {
         game.say("Les portes se referment derrière vous. L'air est de nouveau respirable.")
         game.stop_ambient(channel, fade.fade_out)
         current_level = nil

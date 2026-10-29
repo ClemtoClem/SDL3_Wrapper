@@ -105,6 +105,14 @@ namespace detail {
 
 } // namespace detail
 
+/// Téléchargement en deux temps (sans attente bloquante) : copie de la
+/// texture couleur de `target` (rendue juste avant sur le même device) vers
+/// son tampon de transfert, soumise ; la clôture rendue dit quand le tampon
+/// est lisible (GpuFence::Query, ou WaitForFences).
+[[nodiscard]] Result<sdl3::GpuFence, StringView> SubmitColorDownload(Canvas &canvas, OffscreenTarget &target);
+/// Lecture du tampon de transfert de `target` (clôture de SubmitColorDownload passée).
+[[nodiscard]] Result<bool, StringView> ReadColorDownload(OffscreenTarget &target, std::vector<uint8_t> &outPixels);
+
 /// Rend `root` (sous-arbre Shape visible, voir Canvas::RenderObjectOffscreen
 /// ci-dessus) dans `target` avec `camera`, dont `aspect` est ÉCRASÉ à partir
 /// des dimensions réelles de `target` avant de dessiner — c'est ce mécanisme

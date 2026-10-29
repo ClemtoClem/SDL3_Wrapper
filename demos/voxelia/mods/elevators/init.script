@@ -1,0 +1,128 @@
+# Mod « elevators » — ascenseurs réalistes (voir README.md).
+#
+# Organisation (scripts/ chargés après ce fichier, dans l'ordre des noms) :
+#   init.script                 réglages, état partagé EL, outils géométriques
+#   scripts/10_registry         enregistrement des ascenseurs, sauvegarde
+#   scripts/20_construction     vérification d'une gaine, kits de cabine / palier
+#   scripts/30_doors            portes coulissantes (cabine + palier)
+#   scripts/40_display          afficheurs (paliers, cabine), boutons allumés
+#   scripts/50_sounds           sons qui suivent l'état réel
+#   scripts/60_movement         machine à états, trajets (accélération, palier,
+#                               décélération), cabine mobile, contrepoids
+#   scripts/70_destinations     destinations extérieures (autres dimensions),
+#                               transfert invisible, retour à la surface
+#   scripts/80_controls         boutons d'appel, panneau de cabine, moteur
+#                               (vérification + configuration), formulaires
+#
+# Géométrie : le MOTEUR est posé au-dessus du centre de la gaine. La cabine
+# (5 × 4 × 5 : plancher, 2 rangées de parois, plafond) occupe l'emprise
+# 5 × 5 sous le moteur ; elle n'est faite de blocs qu'à l'arrêt — pendant un
+# trajet c'est une seule entité qui emporte ses passagers. Les paliers sont
+# dans le mur de la gaine (à 3 blocs du centre), du côté de la porte de cabine.
+
+let EL = {
+    settings: {},
+    records: {},          # id → ascenseur (dimension courante)
+    active: {},           # id → trajet en cours (entités, profil)
+    transfer: nil,        # transfert vers une autre dimension en cours
+    loaded_for: nil,      # dimension dont les ascenseurs sont chargés
+    STYLES: ["modern", "industrial", "backrooms", "glass"],
+    CABIN: {w: 5, h: 4, half: 2, wall: 3}
+}
+
+# États (machine à états explicite, cf. 60_movement) et transitions permises.
+let EL_STATES = {
+    idle: ["doors_opening", "waiting_departure", "maintenance", "failed"],
+    doors_opening: ["doors_open", "failed"],
+    doors_open: ["doors_closing", "maintenance", "failed"],
+    doors_closing: ["doors_opening", "waiting_departure", "idle", "failed"],
+    waiting_departure: ["moving_up", "moving_down", "doors_opening", "idle", "failed"],
+    moving_up: ["decelerating", "transfer", "failed"],
+    moving_down: ["decelerating", "transfer", "failed"],
+    transfer: ["decelerating", "failed"],
+    decelerating: ["stopping", "failed"],
+    stopping: ["arrived", "failed"],
+    arrived: ["doors_opening", "idle"],
+    maintenance: ["idle"],
+    failed: ["idle", "maintenance"]
+}
+
+fn el_setting(name, fallback) {
+    let v = voxel.setting(name)
+    if (v == nil) { return fallback }
+    return v
+}
+
+fn el_reload_settings() {
+    EL.settings = {
+        speed: el_setting("speed", 3.0),
+        accel: el_setting("acceleration", 1.6),
+        door_time: el_setting("door_time", 4.0),
+        door_speed: el_setting("door_speed", 0.45),
+        max_height: el_setting("max_height", 160),
+        owner_only: el_setting("owner_only", false)
+    }
+}
+el_reload_settings()
+
+fn el_key(x, y, z) { return format("{},{},{}", x, y, z) }
+fn el_pos(x, y, z) { return {x: x, y: y, z: z} }
+fn el_abs(v) { if (v < 0) { return -v } return v }
+fn el_contains(list, v) {
+    for (x in list) { if (x == v) { return true } }
+    return false
+}
+
+# Côté de la porte : vecteur vers l'extérieur de la gaine et orientation des
+# portes (param : 0 → panneau dans le plan x, 1 → dans le plan z).
+let EL_SIDES = {
+    n: {dx: 0, dz: -1, ux: 1, uz: 0, param: 0},
+    s: {dx: 0, dz: 1, ux: -1, uz: 0, param: 0},
+    e: {dx: 1, dz: 0, ux: 0, uz: 1, param: 1},
+    w: {dx: -1, dz: 0, ux: 0, uz: -1, param: 1}
+}
+
+# Style d'un bloc d'ascenseur (« elevators:modern_cabin_wall » → « modern »).
+fn el_style_of(block) {
+    if (block == nil or not block.starts_with("elevators:")) { return nil }
+    for (s in EL.STYLES) {
+        if (block.starts_with(format("elevators:{}_", s))) { return s }
+    }
+    return nil
+}
+
+fn el_is(block, part) {
+    if (block == nil or not block.starts_with("elevators:")) { return false }
+    let s = el_style_of(block)
+    if (s == nil) { return false }
+    let rest = block.sub(len(format("elevators:{}_", s)))
+    return rest == part or rest.starts_with(part + "_")
+}
+
+# Tri par insertion (petites listes : étages).
+fn el_sort_by(list, key) {
+    let out = []
+    for (item in list) {
+        let i = 0
+        while (i < len(out) and out[i][key] <= item[key]) { i += 1 }
+        let next = []
+        let j = 0
+        while (j < len(out)) {
+            if (j == i) { next.push(item) }
+            next.push(out[j])
+            j += 1
+        }
+        if (i >= len(out)) { next.push(item) }
+        out = next
+    }
+    return out
+}
+
+fn el_say(text) { game.say(format("[Ascenseur] {}", text)) }
+
+# Trajet terminé : retiré de la table des trajets en cours.
+fn el_clear_active(id) {
+    let next = {}
+    for (k in keys(EL.active)) { if (k != id) { next[k] = EL.active[k] } }
+    EL.active = next
+}

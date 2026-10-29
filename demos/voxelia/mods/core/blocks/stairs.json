@@ -1,0 +1,5081 @@
+// Escaliers, dalles, coins et pentes des matériaux de construction (d'après le mod
+// Minetest « Stairs Redo », MIT — modèles de pente dans models/stairs/). Orientés
+// face au joueur qui les pose : on monte en avançant.
+[
+ {
+  "id": "stone_stair",
+  "displayName": "Escalier — Pierre",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:stone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_slab",
+  "displayName": "Dalle — Pierre",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:stone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_slab_top",
+  "displayName": "Dalle haute — Pierre",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:stone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Pierre",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:stone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Pierre",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:stone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_slope",
+  "displayName": "Pente — Pierre",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:stone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "cobble_stair",
+  "displayName": "Escalier — Pierre taillée",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:cobble"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cobble_slab",
+  "displayName": "Dalle — Pierre taillée",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:cobble"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cobble_slab_top",
+  "displayName": "Dalle haute — Pierre taillée",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:cobble"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cobble_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Pierre taillée",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:cobble"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cobble_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Pierre taillée",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:cobble"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cobble_slope",
+  "displayName": "Pente — Pierre taillée",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:cobble"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "mossy_cobblestone_stair",
+  "displayName": "Escalier — Pierre moussue",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:mossy_cobblestone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mossy_cobblestone_slab",
+  "displayName": "Dalle — Pierre moussue",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:mossy_cobblestone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mossy_cobblestone_slab_top",
+  "displayName": "Dalle haute — Pierre moussue",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:mossy_cobblestone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mossy_cobblestone_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Pierre moussue",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:mossy_cobblestone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mossy_cobblestone_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Pierre moussue",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:mossy_cobblestone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mossy_cobblestone_slope",
+  "displayName": "Pente — Pierre moussue",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:mossy_cobblestone"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "oak_stair",
+  "displayName": "Escalier — Planches de chêne",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "oak_slab",
+  "displayName": "Dalle — Planches de chêne",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "oak_slab_top",
+  "displayName": "Dalle haute — Planches de chêne",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "oak_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Planches de chêne",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "oak_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Planches de chêne",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "oak_slope",
+  "displayName": "Pente — Planches de chêne",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "spruce_stair",
+  "displayName": "Escalier — Planches de épicéa",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "spruce_slab",
+  "displayName": "Dalle — Planches de épicéa",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "spruce_slab_top",
+  "displayName": "Dalle haute — Planches de épicéa",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "spruce_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Planches de épicéa",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "spruce_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Planches de épicéa",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:spruce_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "spruce_slope",
+  "displayName": "Pente — Planches de épicéa",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:spruce_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "birch_stair",
+  "displayName": "Escalier — Planches de bouleau",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "birch_slab",
+  "displayName": "Dalle — Planches de bouleau",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "birch_slab_top",
+  "displayName": "Dalle haute — Planches de bouleau",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "birch_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Planches de bouleau",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "birch_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Planches de bouleau",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:birch_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "birch_slope",
+  "displayName": "Pente — Planches de bouleau",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:birch_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "dark_oak_stair",
+  "displayName": "Escalier — Planches de chêne noir",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "dark_oak_slab",
+  "displayName": "Dalle — Planches de chêne noir",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "dark_oak_slab_top",
+  "displayName": "Dalle haute — Planches de chêne noir",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "dark_oak_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Planches de chêne noir",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "dark_oak_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Planches de chêne noir",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "dark_oak_slope",
+  "displayName": "Pente — Planches de chêne noir",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:dark_oak_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "jungle_stair",
+  "displayName": "Escalier — Planches de acajou de jungle",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jungle_slab",
+  "displayName": "Dalle — Planches de acajou de jungle",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jungle_slab_top",
+  "displayName": "Dalle haute — Planches de acajou de jungle",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jungle_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Planches de acajou de jungle",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jungle_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Planches de acajou de jungle",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:jungle_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "jungle_slope",
+  "displayName": "Pente — Planches de acajou de jungle",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:jungle_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "acacia_stair",
+  "displayName": "Escalier — Planches de acacia",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "acacia_slab",
+  "displayName": "Dalle — Planches de acacia",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "acacia_slab_top",
+  "displayName": "Dalle haute — Planches de acacia",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "acacia_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Planches de acacia",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "acacia_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Planches de acacia",
+  "type": "nodebox",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:acacia_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  }
+ },
+ {
+  "id": "acacia_slope",
+  "displayName": "Pente — Planches de acacia",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "wood",
+   "planks",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:acacia_planks"
+  },
+  "sounds": "core:wood",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "axe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "bricks_stair",
+  "displayName": "Escalier — Briques",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:bricks"
+  },
+  "sounds": "core:ceramic",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "bricks_slab",
+  "displayName": "Dalle — Briques",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:bricks"
+  },
+  "sounds": "core:ceramic",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "bricks_slab_top",
+  "displayName": "Dalle haute — Briques",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:bricks"
+  },
+  "sounds": "core:ceramic",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "bricks_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Briques",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:bricks"
+  },
+  "sounds": "core:ceramic",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "bricks_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Briques",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:bricks"
+  },
+  "sounds": "core:ceramic",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "bricks_slope",
+  "displayName": "Pente — Briques",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:bricks"
+  },
+  "sounds": "core:ceramic",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "stone_bricks_stair",
+  "displayName": "Escalier — Briques de pierre",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_bricks_slab",
+  "displayName": "Dalle — Briques de pierre",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_bricks_slab_top",
+  "displayName": "Dalle haute — Briques de pierre",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_bricks_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Briques de pierre",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_bricks_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Briques de pierre",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "stone_bricks_slope",
+  "displayName": "Pente — Briques de pierre",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "sandstone_stair",
+  "displayName": "Escalier — Grès",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:sandstone_top",
+    "side": "core:sandstone",
+    "bottom": "core:sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "sandstone_slab",
+  "displayName": "Dalle — Grès",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:sandstone_top",
+    "side": "core:sandstone",
+    "bottom": "core:sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "sandstone_slab_top",
+  "displayName": "Dalle haute — Grès",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:sandstone_top",
+    "side": "core:sandstone",
+    "bottom": "core:sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "sandstone_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Grès",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:sandstone_top",
+    "side": "core:sandstone",
+    "bottom": "core:sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "sandstone_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Grès",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:sandstone_top",
+    "side": "core:sandstone",
+    "bottom": "core:sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "sandstone_slope",
+  "displayName": "Pente — Grès",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:sandstone_top",
+    "side": "core:sandstone",
+    "bottom": "core:sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "red_sandstone_stair",
+  "displayName": "Escalier — Grès rouge",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:red_sandstone_top",
+    "side": "core:red_sandstone",
+    "bottom": "core:red_sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "red_sandstone_slab",
+  "displayName": "Dalle — Grès rouge",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:red_sandstone_top",
+    "side": "core:red_sandstone",
+    "bottom": "core:red_sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "red_sandstone_slab_top",
+  "displayName": "Dalle haute — Grès rouge",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:red_sandstone_top",
+    "side": "core:red_sandstone",
+    "bottom": "core:red_sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "red_sandstone_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Grès rouge",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:red_sandstone_top",
+    "side": "core:red_sandstone",
+    "bottom": "core:red_sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "red_sandstone_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Grès rouge",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:red_sandstone_top",
+    "side": "core:red_sandstone",
+    "bottom": "core:red_sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "red_sandstone_slope",
+  "displayName": "Pente — Grès rouge",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:red_sandstone_top",
+    "side": "core:red_sandstone",
+    "bottom": "core:red_sandstone_bottom"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "granite_stair",
+  "displayName": "Escalier — Granite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "granite_slab",
+  "displayName": "Dalle — Granite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "granite_slab_top",
+  "displayName": "Dalle haute — Granite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "granite_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Granite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "granite_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Granite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "granite_slope",
+  "displayName": "Pente — Granite",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "polished_granite_stair",
+  "displayName": "Escalier — Granite poli",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:polished_granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "polished_granite_slab",
+  "displayName": "Dalle — Granite poli",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:polished_granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "polished_granite_slab_top",
+  "displayName": "Dalle haute — Granite poli",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:polished_granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "polished_granite_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Granite poli",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:polished_granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "polished_granite_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Granite poli",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:polished_granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "polished_granite_slope",
+  "displayName": "Pente — Granite poli",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:polished_granite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "diorite_stair",
+  "displayName": "Escalier — Diorite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:diorite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "diorite_slab",
+  "displayName": "Dalle — Diorite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:diorite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "diorite_slab_top",
+  "displayName": "Dalle haute — Diorite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:diorite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "diorite_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Diorite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:diorite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "diorite_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Diorite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:diorite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "diorite_slope",
+  "displayName": "Pente — Diorite",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:diorite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "andesite_stair",
+  "displayName": "Escalier — Andésite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:andesite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "andesite_slab",
+  "displayName": "Dalle — Andésite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:andesite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "andesite_slab_top",
+  "displayName": "Dalle haute — Andésite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:andesite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "andesite_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Andésite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:andesite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "andesite_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Andésite",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:andesite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "andesite_slope",
+  "displayName": "Pente — Andésite",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:andesite"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "obsidian_stair",
+  "displayName": "Escalier — Obsidienne",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:obsidian"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 25,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "obsidian_slab",
+  "displayName": "Dalle — Obsidienne",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:obsidian"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 25,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "obsidian_slab_top",
+  "displayName": "Dalle haute — Obsidienne",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:obsidian"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 25,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "obsidian_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Obsidienne",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:obsidian"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 25,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "obsidian_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Obsidienne",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:obsidian"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 25,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "obsidian_slope",
+  "displayName": "Pente — Obsidienne",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:obsidian"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 25,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "quartz_stair",
+  "displayName": "Escalier — Bloc de quartz",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:quartz_block_top",
+    "bottom": "core:quartz_block_bottom",
+    "side": "core:quartz_block_side"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "quartz_slab",
+  "displayName": "Dalle — Bloc de quartz",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:quartz_block_top",
+    "bottom": "core:quartz_block_bottom",
+    "side": "core:quartz_block_side"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "quartz_slab_top",
+  "displayName": "Dalle haute — Bloc de quartz",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:quartz_block_top",
+    "bottom": "core:quartz_block_bottom",
+    "side": "core:quartz_block_side"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "quartz_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Bloc de quartz",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:quartz_block_top",
+    "bottom": "core:quartz_block_bottom",
+    "side": "core:quartz_block_side"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "quartz_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Bloc de quartz",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:quartz_block_top",
+    "bottom": "core:quartz_block_bottom",
+    "side": "core:quartz_block_side"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "quartz_slope",
+  "displayName": "Pente — Bloc de quartz",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "textures": {
+    "top": "core:quartz_block_top",
+    "bottom": "core:quartz_block_bottom",
+    "side": "core:quartz_block_side"
+   }
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "nether_bricks_stair",
+  "displayName": "Escalier — Briques infernales",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:nether_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "nether_bricks_slab",
+  "displayName": "Dalle — Briques infernales",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:nether_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "nether_bricks_slab_top",
+  "displayName": "Dalle haute — Briques infernales",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:nether_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "nether_bricks_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Briques infernales",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:nether_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "nether_bricks_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Briques infernales",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:nether_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "nether_bricks_slope",
+  "displayName": "Pente — Briques infernales",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:nether_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 2.5,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "mud_bricks_stair",
+  "displayName": "Escalier — Briques de boue",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:mud_brick_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mud_bricks_slab",
+  "displayName": "Dalle — Briques de boue",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:mud_brick_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mud_bricks_slab_top",
+  "displayName": "Dalle haute — Briques de boue",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:mud_brick_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mud_bricks_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Briques de boue",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:mud_brick_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mud_bricks_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Briques de boue",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:mud_brick_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "mud_bricks_slope",
+  "displayName": "Pente — Briques de boue",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:mud_brick_block"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.5,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "end_stone_bricks_stair",
+  "displayName": "Escalier — Briques de pierre de l'End",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:end_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "end_stone_bricks_slab",
+  "displayName": "Dalle — Briques de pierre de l'End",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:end_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "end_stone_bricks_slab_top",
+  "displayName": "Dalle haute — Briques de pierre de l'End",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:end_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "end_stone_bricks_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Briques de pierre de l'End",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:end_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "end_stone_bricks_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Briques de pierre de l'End",
+  "type": "nodebox",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:end_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "end_stone_bricks_slope",
+  "displayName": "Pente — Briques de pierre de l'End",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "stone",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:end_stone_bricks"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ },
+ {
+  "id": "white_concrete_stair",
+  "displayName": "Escalier — Béton blanc",
+  "type": "nodebox",
+  "tags": [
+   "concrete",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:white_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "white_concrete_slab",
+  "displayName": "Dalle — Béton blanc",
+  "type": "nodebox",
+  "tags": [
+   "concrete",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:white_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "white_concrete_slab_top",
+  "displayName": "Dalle haute — Béton blanc",
+  "type": "nodebox",
+  "tags": [
+   "concrete",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    0,
+    -0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:white_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "white_concrete_stair_inner",
+  "displayName": "Escalier (coin intérieur) — Béton blanc",
+  "type": "nodebox",
+  "tags": [
+   "concrete",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    -0.5,
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "graphics": {
+   "texture": "core:white_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "white_concrete_stair_outer",
+  "displayName": "Escalier (coin extérieur) — Béton blanc",
+  "type": "nodebox",
+  "tags": [
+   "concrete",
+   "stairs"
+  ],
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    0,
+    0.5
+   ],
+   [
+    -0.5,
+    0,
+    0,
+    0,
+    0.5,
+    0.5
+   ]
+  ],
+  "graphics": {
+   "texture": "core:white_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "white_concrete_slope",
+  "displayName": "Pente — Béton blanc",
+  "type": "obj",
+  "path": "models/stairs/stairs_slope.obj",
+  "tags": [
+   "concrete",
+   "stairs"
+  ],
+  "graphics": {
+   "texture": "core:white_concrete"
+  },
+  "sounds": "core:stone",
+  "gameplay": {
+   "hardness": 1.8,
+   "tool": "pickaxe"
+  },
+  "physics": {
+   "collision": {
+    "shape": "FIXED",
+    "fixed": [
+     [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0,
+      0.5
+     ],
+     [
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.25,
+      0.5
+     ],
+     [
+      -0.5,
+      0.25,
+      0.25,
+      0.5,
+      0.5,
+      0.5
+     ]
+    ]
+   }
+  }
+ }
+]

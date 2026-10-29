@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
 
 #include <render3d/texture_loader.hpp>
 #include <voxel/json.hpp>
@@ -25,14 +26,20 @@ sdl3::Color Mix(const std::array<uint8_t, 3> &a, float k) {
 
 } // namespace
 
-WorldRenderer::WorldRenderer(Game &game, render3d::Canvas &canvas) : m_game(game), m_canvas(canvas) {
+WorldRenderer::WorldRenderer(Game &game, render3d::Canvas &canvas, int meshThreads) : m_game(game), m_canvas(canvas) {
 	m_chunkRoot = &m_root.Add(std::make_unique<render3d::Object3D>());
 	m_entityRoot = &m_root.Add(std::make_unique<render3d::Object3D>());
 	m_effectRoot = &m_root.Add(std::make_unique<render3d::Object3D>());
 	m_cloudRoot = &m_root.Add(std::make_unique<render3d::Object3D>());
+	if (auto mutex = sdl3::Mutex::Create())
+		m_resultsMutex = Some(std::move(mutex.Value()));
+	const bool threaded = meshThreads > 0 && m_resultsMutex.IsSome();
+	for (int i = 0; i < std::max(1, meshThreads); ++i)
+		m_renderThreads.push_back(std::make_unique<Worker>(String::Format("voxel-render-%d", i), threaded));
 }
 
 WorldRenderer::~WorldRenderer() {
+	m_renderThreads.clear(); // maillages en cours terminés avant de défaire quoi que ce soit
 	if (m_skyboxActive)
 		m_canvas.ClearSkybox(); // le Canvas ne garde qu'une référence vers nos cubemaps
 }
@@ -92,6 +99,8 @@ Result<bool, String> WorldRenderer::Initialize() {
 		return Err(texture.Error());
 	m_atlasTexture = Some(std::move(texture).Unwrap());
 	m_mesher = std::make_unique<ChunkMesher>(m_game.Content(), m_atlas, &m_game.Assets());
+	for (size_t i = 0; i < m_renderThreads.size(); ++i)
+		m_jobMeshers.push_back(std::make_unique<ChunkMesher>(m_game.Content(), m_atlas, &m_game.Assets()));
 
 	m_opaque = render3d::Material::Default();
 	m_opaque.albedo = Some(MakeRef(m_atlasTexture.Value()));
@@ -195,30 +204,116 @@ Result<bool, String> WorldRenderer::Initialize() {
 	return Ok(true);
 }
 
-void WorldRenderer::RebuildChunk(const ChunkPos &p, ChunkView &view) {
-	const ChunkMesh mesh = m_mesher->Build(m_game.GetWorld(), p);
-	const math::FVector3 origin = p.Origin().ToVector();
-	auto place = [&](render3d::Shape *&slot, const MeshBuffer &buffer, const render3d::Material &material) {
-		if (buffer.IsEmpty()) {
-			if (slot) {
-				(void)m_chunkRoot->RemoveChild(slot);
-				slot = nullptr;
-			}
-			return;
+void WorldRenderer::PlaceMesh(render3d::Shape *&slot, std::shared_ptr<render3d::Mesh> mesh, const render3d::Material &material,
+							  const math::FVector3 &origin) {
+	if (!mesh) {
+		if (slot) {
+			(void)m_chunkRoot->RemoveChild(slot);
+			slot = nullptr;
 		}
-		if (!slot) {
-			auto shape = std::make_unique<render3d::Shape>(ToMesh(buffer), material);
-			shape->SetPosition(origin);
-			slot = shape.get();
-			m_chunkRoot->Add(std::move(shape));
-		} else {
-			slot->SetGeometry(ToMesh(buffer));
+		return;
+	}
+	if (!slot) {
+		auto shape = std::make_unique<render3d::Shape>(std::move(*mesh), material);
+		shape->SetPosition(origin);
+		slot = shape.get();
+		m_chunkRoot->Add(std::move(shape));
+	} else {
+		slot->SetGeometry(std::move(*mesh));
+	}
+}
+
+void WorldRenderer::QueueMeshing(const std::vector<ChunkPos> &batch) {
+	const World &world = m_game.GetWorld();
+	// Ce que lit le maillage d'un chunk : ses voisins (faces, occlusion), et
+	// tout ce qu'atteignent les rayons de la lumière — sources jusqu'à leur
+	// portée, part de ciel (rayons de lighting::MAX_RANGE blocs).
+	const float reach = std::max(world.MaxLightRange(), lighting::MAX_RANGE) + 1.f;
+	std::unordered_set<ChunkPos> needed;
+	for (const ChunkPos &p : batch) {
+		const math::FVector3 origin = p.Origin().ToVector();
+		const ChunkPos lo = ChunkOf(BlockPos::FromWorld(origin - math::FVector3{reach + 1.f, reach + 1.f, reach + 1.f}));
+		const ChunkPos hi = ChunkOf(BlockPos::FromWorld(origin + math::FVector3{float(CHUNK_SIZE) + reach, float(CHUNK_SIZE) + reach,
+																			   float(CHUNK_SIZE) + reach}));
+		for (int y = lo.y; y <= hi.y; ++y)
+			for (int z = lo.z; z <= hi.z; ++z)
+				for (int x = lo.x; x <= hi.x; ++x)
+					if (world.GetChunk({x, y, z}))
+						needed.insert({x, y, z});
+	}
+	// Copies figées : seules celles des chunks qui ont changé sont refaites.
+	std::vector<std::shared_ptr<Chunk>> frozen;
+	frozen.reserve(needed.size());
+	for (const ChunkPos &c : needed) {
+		const Chunk *live = world.GetChunk(c);
+		auto &[revision, copy] = m_frozen[c];
+		if (!copy || revision != live->Revision()) {
+			copy = std::make_shared<Chunk>(*live);
+			revision = live->Revision();
+			(void)copy->LightCells(world.Content()); // cache rempli ici : les fils de rendu ne font que le lire
 		}
-	};
-	place(view.opaque, mesh.opaque, m_opaque);
-	place(view.translucent, mesh.translucent, m_translucent);
-	place(view.emissive, mesh.emissive, m_emissive);
-	view.revision = mesh.revision;
+		frozen.push_back(copy);
+	}
+	std::shared_ptr<const World> snapshot = World::Snapshot(world, frozen);
+	for (const ChunkPos &p : batch)
+		m_inFlight[p] = InFlight{world.GetChunk(p)->Revision(), m_meshSerial};
+	// Un chunk par tâche, au fil de rendu le moins chargé (l'instantané est partagé).
+	for (const ChunkPos &p : batch) {
+		size_t worker = 0;
+		for (size_t i = 1; i < m_renderThreads.size(); ++i)
+			if (m_renderThreads[i]->Pending() < m_renderThreads[worker]->Pending())
+				worker = i;
+		ChunkMesher *mesher = m_jobMeshers[worker].get();
+		m_renderThreads[worker]->Post([this, mesher, snapshot, p, options = m_mesher->options, serial = m_meshSerial]() {
+			// Fil de rendu : ne lit que l'instantané (et le contenu, immuable).
+			const uint64_t start = sdl3::GetPerformanceCounter();
+			mesher->options = options;
+			const ChunkMesh mesh = mesher->Build(*snapshot, p);
+			MeshResult result;
+			result.pos = p;
+			result.revision = mesh.revision;
+			result.serial = serial;
+			if (!mesh.opaque.IsEmpty())
+				result.opaque = std::make_shared<render3d::Mesh>(ToMesh(mesh.opaque));
+			if (!mesh.translucent.IsEmpty())
+				result.translucent = std::make_shared<render3d::Mesh>(ToMesh(mesh.translucent));
+			if (!mesh.emissive.IsEmpty())
+				result.emissive = std::make_shared<render3d::Mesh>(ToMesh(mesh.emissive));
+			result.milliseconds =
+				float(double(sdl3::GetPerformanceCounter() - start) * 1000.0 / double(sdl3::GetPerformanceFrequency()));
+			const Option<sdl3::MutexGuard> lock = LockResults();
+			m_results.push_back(std::move(result));
+		});
+	}
+}
+
+Option<sdl3::MutexGuard> WorldRenderer::LockResults() {
+	if (m_resultsMutex.IsNone())
+		return NONE;
+	return Some(sdl3::MutexGuard(m_resultsMutex.Value()));
+}
+
+void WorldRenderer::ApplyMeshes() {
+	std::vector<MeshResult> done;
+	{
+		const Option<sdl3::MutexGuard> lock = LockResults();
+		done.swap(m_results);
+	}
+	const World &world = m_game.GetWorld();
+	for (MeshResult &r : done) {
+		if (auto it = m_inFlight.find(r.pos); it != m_inFlight.end() && it->second.revision == r.revision && it->second.serial == r.serial)
+			m_inFlight.erase(it);
+		// Réglages changés, autre dimension ou chunk parti : ce maillage ne vaut plus.
+		if (r.serial != m_meshSerial || !world.GetChunk(r.pos))
+			continue;
+		m_meshMs = m_meshMs <= 0.f ? r.milliseconds : m_meshMs * 0.95f + r.milliseconds * 0.05f;
+		ChunkView &view = m_chunks[r.pos];
+		const math::FVector3 origin = r.pos.Origin().ToVector();
+		PlaceMesh(view.opaque, std::move(r.opaque), m_opaque, origin);
+		PlaceMesh(view.translucent, std::move(r.translucent), m_translucent, origin);
+		PlaceMesh(view.emissive, std::move(r.emissive), m_emissive, origin);
+		view.revision = r.revision;
+	}
 }
 
 void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Option<BlockHit> &target) {
@@ -244,6 +339,9 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 		for (auto &[key, view] : m_entities)
 			DropView(view);
 		m_entities.clear();
+		m_frozen.clear();
+		m_inFlight.clear();
+		++m_meshSerial; // les maillages de l'ancien monde, s'il en revient, sont jetés
 	}
 	// Chunks déchargés : leurs formes partent.
 	for (auto it = m_chunks.begin(); it != m_chunks.end();) {
@@ -259,6 +357,8 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 			++it;
 		}
 	}
+	for (auto it = m_frozen.begin(); it != m_frozen.end();)
+		it = world.GetChunk(it->first) ? std::next(it) : m_frozen.erase(it);
 	// Chunks à (re)construire, les plus proches de la caméra d'abord. Un
 	// chunk ne se maille qu'avec ses voisins horizontaux présents (sinon ses
 	// bords seraient à refaire aussitôt).
@@ -269,6 +369,8 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 		const uint64_t built = it == m_chunks.end() ? 0 : it->second.revision;
 		if (built == chunk->Revision())
 			continue;
+		if (auto f = m_inFlight.find(p); f != m_inFlight.end() && f->second.revision == chunk->Revision() && f->second.serial == m_meshSerial)
+			continue; // déjà sur le fil de rendu
 		// Première fois : attendre (un peu) ses voisins horizontaux — leurs
 		// blocs et leurs lampes le feraient refaire aussitôt.
 		if (built == 0 && !chunk->IsEmpty()) {
@@ -284,14 +386,19 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 		dirty.push_back({(center - camera.position).Length(), p});
 	}
 	std::sort(dirty.begin(), dirty.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
-	m_pending = dirty.size();
-	size_t rebuilt = 0;
+	m_pending = dirty.size() + m_inFlight.size();
+	// Quelques chunks par image, et une avance limitée pour les fils de rendu
+	// (les plus proches passent devant au fil des images).
+	const size_t ahead = rebuildBudget * (2 + m_renderThreads.size());
+	std::vector<ChunkPos> batch;
 	for (const auto &[distance, p] : dirty) {
-		if (rebuilt >= rebuildBudget)
+		if (batch.size() >= rebuildBudget || m_inFlight.size() + batch.size() >= ahead)
 			break;
-		RebuildChunk(p, m_chunks[p]);
-		++rebuilt;
+		batch.push_back(p);
 	}
+	if (!batch.empty())
+		QueueMeshing(batch);
+	ApplyMeshes();
 	m_triangles = 0;
 	for (const auto &[p, view] : m_chunks) {
 		if (view.opaque)
@@ -393,7 +500,15 @@ void WorldRenderer::UpdateHighlights() {
 	m_root.Add(std::move(shape));
 }
 
-std::shared_ptr<render3d::Mesh> WorldRenderer::EntityMesh(const Visual &visual, const String &mod, std::string &key) {
+std::shared_ptr<render3d::Mesh> WorldRenderer::EntityMesh(const Visual &visual, const String &mod, std::string &key, bool sprite) {
+	if (sprite) {
+		key = std::string("sprite:") + visual.look.faces[0].CStr();
+		if (auto it = m_meshCache.find(key); it != m_meshCache.end())
+			return it->second;
+		auto mesh = std::make_shared<render3d::Mesh>(ToMesh(m_mesher->BuildSprite(visual.look.faces[0])));
+		m_meshCache[key] = mesh;
+		return mesh;
+	}
 	if (visual.block != AIR) {
 		key = "block:" + std::to_string(visual.block);
 	} else {
@@ -412,7 +527,40 @@ std::shared_ptr<render3d::Mesh> WorldRenderer::EntityMesh(const Visual &visual, 
 	return mesh;
 }
 
+void WorldRenderer::UpdateStructure(EntityView &view, const Visual &visual, const math::FVector3 &corner) {
+	const std::string key = "structure:" + std::to_string(visual.structureSerial);
+	if (view.meshKey != key) {
+		DropView(view);
+		view.meshKey = key;
+		// Maillé comme un petit monde : faces, occlusion, lumière de sa lampe.
+		const ChunkMesh built = m_mesher->BuildStructure(*visual.structure);
+		auto add = [&](const MeshBuffer &buffer, const render3d::Material &material) {
+			if (buffer.IsEmpty())
+				return;
+			auto shape = std::make_unique<render3d::Shape>(std::make_shared<render3d::Mesh>(ToMesh(buffer)), material);
+			view.parts.push_back(shape.get());
+			view.partShapes.push_back(shape.get());
+			m_entityRoot->Add(std::move(shape));
+		};
+		add(built.opaque, m_opaque);
+		add(built.emissive, m_emissive);
+		add(built.translucent, m_translucent);
+	}
+	// Éclairé aussi de l'extérieur, là où il passe ; position interpolée comme les autres entités.
+	const BlockPos size = visual.structure->Size();
+	const math::FVector4 light = LightAt(corner + math::FVector3{float(size.x) * 0.5f, float(size.y) * 0.5f, float(size.z) * 0.5f});
+	for (render3d::Shape *part : view.partShapes) {
+		part->SetPosition(corner);
+		for (render3d::Material &m : part->Materials())
+			if (m.lit)
+				m.objectLight = math::FVector4{light.x, light.y, light.z, 1.f};
+	}
+}
+
 void WorldRenderer::DropView(EntityView &view) {
+	if (view.rig == nullptr && view.rigRoot == nullptr)
+		for (render3d::Object3D *part : view.parts)
+			(void)m_entityRoot->RemoveChild(part); // assemblage : ses formes sont à la racine
 	if (view.shadow)
 		(void)m_effectRoot->RemoveChild(view.shadow);
 	view.shadow = nullptr;
@@ -551,7 +699,8 @@ void WorldRenderer::UpdateEntities(float alpha) {
 		float width = 0.6f;
 		if (auto c = registry.GetComponent<Collider>(e); c.IsSome())
 			width = std::max(c.Unwrap()->size.x, c.Unwrap()->size.z);
-		const bool shadow = m_settings.shadows > 0 && !far && !registry.HasComponent<DroppedItem>(e) && !registry.HasComponent<FallingBlock>(e);
+		const bool shadow = m_settings.shadows > 0 && !far && !visual.structure && !registry.HasComponent<DroppedItem>(e) &&
+							!registry.HasComponent<FallingBlock>(e);
 		UpdateShadow(view, p, width, shadow);
 		if (far)
 			return;
@@ -561,11 +710,17 @@ void WorldRenderer::UpdateEntities(float alpha) {
 		}
 		if (view.rigRoot)
 			DropView(view);
+		if (visual.structure) { // assemblage de blocs mobile (cabine d'ascenseur…)
+			UpdateStructure(view, visual, p);
+			return;
+		}
 		String mod;
 		if (auto kind = registry.GetComponent<EntityKind>(e); kind.IsSome() && kind.Unwrap()->def)
 			mod = kind.Unwrap()->def->mod;
 		std::string meshKey;
-		std::shared_ptr<render3d::Mesh> mesh = EntityMesh(visual, mod, meshKey);
+		// Objet au sol qui ne pose pas de bloc (outil, nourriture…) : son image, en plaque mince.
+		const bool sprite = visual.block == AIR && visual.shape.kind == ShapeKind::CUBE && registry.HasComponent<DroppedItem>(e);
+		std::shared_ptr<render3d::Mesh> mesh = EntityMesh(visual, mod, meshKey, sprite);
 		if (!view.shape) {
 			auto shape = std::make_unique<render3d::Shape>(mesh, m_entity);
 			view.shape = shape.get();
@@ -584,8 +739,10 @@ void WorldRenderer::UpdateEntities(float alpha) {
 		float spin = t.yaw;
 		math::FVector3 at = p;
 		if (registry.HasComponent<DroppedItem>(e)) {
-			// Objet au sol : petit, qui tourne et flotte.
+			// Objet au sol : petit, qui tourne et flotte ; une image plate, un peu plus grande qu'un bloc miniature.
 			spin = float(std::fmod(now * 1.5, 6.2831853));
+			if (sprite)
+				scale *= 1.8f;
 			at.y += 0.15f + 0.08f * float(std::sin(now * 2.0 + double(e.id)));
 		} else if (registry.HasComponent<FallingBlock>(e)) {
 			scale = 1.f;
@@ -702,9 +859,12 @@ void WorldRenderer::Configure(const WorldRenderSettings &settings) {
 		m_mesher->options.ambientOcclusion = settings.ambientOcclusion;
 		m_mesher->options.crossDensity = std::clamp(settings.vegetationDensity, 0.f, 1.f);
 	}
-	if (remesh)
+	if (remesh) {
 		for (auto &[p, view] : m_chunks)
 			view.revision = 0; // reconstruit au fil des images
+		m_inFlight.clear();
+		++m_meshSerial; // maillés avec les anciens réglages : jetés au retour
+	}
 	if (m_cloudRoot)
 		m_cloudRoot->SetVisible(settings.clouds);
 	if (settings.shadows == 0)

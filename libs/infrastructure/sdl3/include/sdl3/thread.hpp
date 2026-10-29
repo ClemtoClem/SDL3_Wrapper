@@ -5,6 +5,20 @@
 #include <core/core.hpp>
 #include "error.hpp"
 
+// ThreadSanitizer ne voit pas la synchronisation faite dans libSDL3 (non
+// instrumentée) : le SpinLock la lui annonce lui-même.
+#if defined(__SANITIZE_THREAD__)
+#define SDL3_WRAPPER_TSAN 1
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define SDL3_WRAPPER_TSAN 1
+#endif
+#endif
+#ifdef SDL3_WRAPPER_TSAN
+extern "C" void __tsan_acquire(void *addr);
+extern "C" void __tsan_release(void *addr);
+#endif
+
 namespace sdl3 {
 
 // ============================================================================
@@ -19,9 +33,26 @@ public:
 	SpinLock(const SpinLock &) = delete;
 	SpinLock &operator=(const SpinLock &) = delete;
 
+#ifdef SDL3_WRAPPER_TSAN
+	void Lock() const noexcept {
+		SDL_LockSpinlock(&lock);
+		__tsan_acquire(&lock);
+	}
+	[[nodiscard]] bool TryLock() const noexcept {
+		const bool taken = SDL_TryLockSpinlock(&lock);
+		if (taken)
+			__tsan_acquire(&lock);
+		return taken;
+	}
+	void Unlock() const noexcept {
+		__tsan_release(&lock);
+		SDL_UnlockSpinlock(&lock);
+	}
+#else
 	void Lock() const noexcept { SDL_LockSpinlock(&lock); }
 	[[nodiscard]] bool TryLock() const noexcept { return SDL_TryLockSpinlock(&lock); }
 	void Unlock() const noexcept { SDL_UnlockSpinlock(&lock); }
+#endif
 };
 
 class SpinLockGuard {

@@ -16,11 +16,23 @@
 #include <ui/ui.hpp>
 #include <voxel/json.hpp>
 #include <voxel/scripting.hpp>
+#include <voxelia/session.hpp>
 #include <voxelia/shell.hpp>
 
 namespace voxelia {
 
 using namespace voxel;
+
+namespace {
+
+/// Mesures de la boucle (images de jeu) : durées en ms.
+struct FrameStats {
+	std::vector<double> frames;
+	double wait = 0.0, update = 0.0, draw = 0.0, present = 0.0;
+	double pending = 0.0; ///< chunks à mailler (somme sur les images)
+};
+
+} // namespace
 
 // ── Options ──────────────────────────────────────────────────────────────────
 
@@ -43,6 +55,9 @@ const char *Usage() {
 		   "  --exec=N:!commande     commande de l'application : !screen NOM, !play DOSSIER, !back,\n"
 		   "                         !home, !look LACET TANGAGE, !notify TON TEXTE, !confirm, !set CLÉ VALEUR…\n"
 		   "  --headless             sans fenêtre : simulation, commandes, rapport\n"
+		   "  --threads=on|off       simulation et maillage sur leurs fils (on, défaut) ou sur le fil principal\n"
+		   "  --mesh-threads=N       fils de rendu pour le maillage des chunks (défaut : 2)\n"
+		   "  --viewport=MODE        vue 3D → interface : direct (défaut, sans copie), pipelined, readback\n"
 		   "  --width=W --height=H   taille de la fenêtre\n"
 		   "\n"
 		   "Touches par défaut (Réglages > Commandes) : ZQSD/WASD, souris, Espace, Maj, Ctrl, F vol,\n"
@@ -68,6 +83,17 @@ Option<String> ParseOptions(int argc, char **argv, Options &o) {
 			o.help = true;
 		else if (arg == "--creative")
 			o.creative = true;
+		else if (auto threadsArg = value("--threads"); threadsArg.IsSome()) {
+			if (threadsArg.Value() != "on" && threadsArg.Value() != "off")
+				return Some(String("--threads=on|off attendu"));
+			o.threaded = threadsArg.Value() == "on";
+		} else if (auto meshArg = value("--mesh-threads"); meshArg.IsSome()) {
+			o.meshThreads = std::clamp(std::atoi(meshArg.Value().CStr()), 1, 16);
+		} else if (auto viewportArg = value("--viewport"); viewportArg.IsSome()) {
+			if (viewportArg.Value() != "direct" && viewportArg.Value() != "pipelined" && viewportArg.Value() != "readback")
+				return Some(String("--viewport=direct|pipelined|readback attendu"));
+			o.viewport = viewportArg.Value();
+		}
 		else if (arg == "--headless")
 			o.headless = true;
 		else if (auto worldArg = value("--world"); worldArg.IsSome())
@@ -282,15 +308,39 @@ int App::RunWindowed() {
 		}
 		shell.PlayWorld(m_options.world);
 	}
+	// Orchestration d'une image par le fil principal :
+	//  1. il attend la fin du pas de simulation lancé à l'image précédente
+	//     (fil « voxel-update ») : à partir d'ici, le jeu est à lui seul ;
+	//  2. événements, commandes, scène (WorldRenderer : il dépose les chunks
+	//     à mailler sur le fil « voxel-render » et pose ceux qui en reviennent),
+	//     interface, enregistrement des commandes GPU ;
+	//  3. il lance le pas de simulation suivant sur le fil de mise à jour,
+	//  4. et présente l'image (soumission GPU, attente de la synchronisation
+	//     verticale) pendant que la simulation avance.
 	uint64_t previous = sdl3::GetPerformanceCounter();
 	long frame = 0;
 	double totalSeconds = 0.0;
+	FrameStats stats;
+	long playing = 0; // images de jeu consécutives (partie prête)
+	const double frequency = double(sdl3::GetPerformanceFrequency());
+	auto ms = [frequency](uint64_t from, uint64_t to) { return double(to - from) * 1000.0 / frequency; };
 	while (shell.Running()) {
 		const uint64_t now = sdl3::GetPerformanceCounter();
-		const float dt = std::min(0.1f, float(double(now - previous) / double(sdl3::GetPerformanceFrequency())));
+		shell.EndSimulation();
+		const uint64_t joined = sdl3::GetPerformanceCounter();
+		const float dt = std::min(0.1f, float(double(now - previous) / frequency));
+		const double frameMs = ms(previous, now);
 		previous = now;
 		++frame;
 		totalSeconds += double(dt);
+		// Statistiques : images de jeu seulement, après 60 images de mise en route.
+		Session *session = shell.Game();
+		playing = session && session->Ready() ? playing + 1 : 0;
+		const bool counted = playing > 60;
+		if (counted) {
+			stats.frames.push_back(frameMs);
+			stats.pending += double(session->Renderer().PendingChunks());
+		}
 		while (auto event = sdl3::PollEvent())
 			shell.HandleEvent(event.Value());
 		for (const auto &[at, command] : m_options.commands)
@@ -300,11 +350,14 @@ int App::RunWindowed() {
 				else
 					shell.GameCommand(command);
 			}
+		const uint64_t t0 = sdl3::GetPerformanceCounter();
 		shell.Update(dt, frame);
+		const uint64_t t1 = sdl3::GetPerformanceCounter();
 		gui.Update(dt);
 		renderer.SetDrawColor(sdl3::FColor{0.f, 0.f, 0.f, 1.f});
 		renderer.Clear();
 		gui.Render();
+		const uint64_t t2 = sdl3::GetPerformanceCounter();
 		if (!shell.pendingThumbnail.IsEmpty()) {
 			SaveThumbnail(renderer, shell.pendingThumbnail);
 			shell.pendingThumbnail = String();
@@ -313,7 +366,15 @@ int App::RunWindowed() {
 			if (at == frame)
 				if (auto surface = renderer.ReadPixels(); surface)
 					(void)sdl3::ImgSavePng(surface.Value(), path);
+		const uint64_t built = sdl3::GetPerformanceCounter();
+		shell.BeginSimulation();
 		renderer.Present();
+		if (counted) {
+			stats.wait += ms(now, joined);
+			stats.update += ms(t0, t1);
+			stats.draw += ms(t1, t2);
+			stats.present += ms(built, sdl3::GetPerformanceCounter());
+		}
 		// Limite d'images (réglages graphiques).
 		if (const int limit = shell.Prefs().fpsLimit; limit > 0) {
 			const double target = 1.0 / double(limit);
@@ -324,7 +385,27 @@ int App::RunWindowed() {
 		if (m_options.frames > 0 && frame >= m_options.frames)
 			break;
 	}
+	shell.EndSimulation();
 	std::printf("%ld image(s), %.1f img/s en moyenne\n", frame, totalSeconds > 0.0 ? double(frame) / totalSeconds : 0.0);
+	if (!stats.frames.empty()) {
+		const double n = double(stats.frames.size());
+		std::vector<double> sorted = stats.frames;
+		std::sort(sorted.begin(), sorted.end());
+		double sum = 0.0;
+		for (double f : sorted)
+			sum += f;
+		const double p99 = sorted[std::min(sorted.size() - 1, size_t(n * 0.99))];
+		std::printf("en jeu (%zu images ; fils %s, maillage %d, vue %s) : %.1f img/s, image %.2f ms (99 %% : %.2f ms), "
+					"%.1f chunks en attente\n",
+					sorted.size(), m_options.threaded ? "on" : "off", m_options.threaded ? m_options.meshThreads : 0,
+					m_options.viewport.CStr(), 1000.0 * n / sum, sum / n, p99, stats.pending / n);
+		std::printf("  fil principal : attente de la simulation %.2f ms, jeu et scène %.2f ms, interface et rendu %.2f ms, "
+					"présentation %.2f ms\n",
+					stats.wait / n, stats.update / n, stats.draw / n, stats.present / n);
+		if (Session *game = shell.Game(); game && game->Ready())
+			std::printf("  simulation %.2f ms par pas, maillage %.2f ms par chunk\n", double(game->TickMilliseconds()),
+						double(game->Renderer().MeshMilliseconds()));
+	}
 	for (const String &line : shell.RecentLog())
 		if (line.StartsWith("[erreur") || line.StartsWith("[script") || line.StartsWith("[son"))
 			std::printf("%s\n", line.CStr());

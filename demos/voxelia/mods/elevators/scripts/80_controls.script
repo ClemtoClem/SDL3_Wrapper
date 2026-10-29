@@ -1,0 +1,265 @@
+# Commandes : boutons d'appel (palier), panneau de cabine (étages, portes,
+# destinations), moteur (vérification + configuration), kits.
+
+fn el_player_name(p) {
+    let n = entity.prop(p, "name")
+    if (n == nil) { return "joueur" }
+    return n
+}
+
+fn el_may_configure(e, p) {
+    if (not EL.settings.owner_only or e.owner == "" or e.owner == nil) { return true }
+    return e.owner == el_player_name(p) or game.mode() == "creative"
+}
+
+# Indice de l'arrêt d'un bouton d'appel (le palier dont il fait partie).
+fn el_floor_of_call(e, x, y, z) {
+    let i = 0
+    while (i < len(e.floors)) {
+        let l = el_landing(e, i)
+        if (l.call.x == x and l.call.y == y and l.call.z == z) { return i }
+        i += 1
+    }
+    # Bouton posé ailleurs : l'arrêt le plus proche en hauteur.
+    let best = 0
+    let j = 0
+    while (j < len(e.floors)) {
+        if (el_abs(e.floors[j].y + 2 - y) < el_abs(e.floors[best].y + 2 - y)) { best = j }
+        j += 1
+    }
+    return best
+}
+
+# Panneau de cabine : un bouton par étage, les destinations, portes.
+fn el_open_panel(p, e) {
+    let buttons = []
+    let i = 0
+    while (i < len(e.floors)) {
+        let label = format("{} — {}", el_floor_label(e, i), el_floor_name(e, i))
+        if (i == e.floor) { label = label + " (ici)" }
+        buttons.push({id: format("floor:{}", i), label: label})
+        i += 1
+    }
+    for (id in el_external_for(e)) {
+        let d = el_dest(e, id)
+        if (d != nil) { buttons.push({id: format("dest:{}", id), label: format("▶ {}", d.label)}) }
+    }
+    buttons.push({id: "open", label: "◀▶ Ouvrir"})
+    buttons.push({id: "close", label: "▶◀ Fermer"})
+    game.open_ui(p, "form", {id: format("elevators:panel:{}", e.id), title: "Ascenseur",
+        description: format("Cabine à l'arrêt {} ({}).", el_floor_label(e, e.floor), el_floor_name(e, e.floor)),
+        fields: [], buttons: buttons, submit: ""})
+}
+
+# Configuration (moteur) : noms et numéros des étages, portes, vitesse, destinations.
+fn el_open_config(p, e) {
+    let fields = []
+    let i = 0
+    while (i < len(e.floors)) {
+        fields.push({id: format("name:{}", i), type: "text", label: format("Arrêt {} (y = {}) : nom", i, e.floors[i].y + 1),
+                     default: e.floors[i].name})
+        fields.push({id: format("label:{}", i), type: "text", label: "Numéro affiché (0 à 19, -- …)", default: el_floor_label(e, i)})
+        i += 1
+    }
+    let door = el_door_time(e)
+    let speed = EL.settings.speed
+    if (e.speed != nil) { speed = e.speed }
+    fields.push({id: "door_time", type: "number", label: "Portes ouvertes (s)", default: door, min: 1, max: 30})
+    fields.push({id: "speed", type: "number", label: "Vitesse (blocs/s)", default: speed, min: 0.5, max: 12})
+    for (id in keys(el_destinations())) {
+        fields.push({id: format("ext:{}", id), type: "bool", label: format("Destination : {}", el_dest_label(id)),
+                     default: el_contains(e.external, id)})
+    }
+    fields.push({id: "maintenance", type: "bool", label: "En maintenance (hors service)", default: e.state == "maintenance"})
+    game.open_ui(p, "form", {id: format("elevators:config:{}", e.id), title: format("Ascenseur {}", e.id), width: 640,
+        description: format("Cabine {}, {} arrêt(s), portes côté {}.", e.style, len(e.floors), e.side),
+        submit: "Enregistrer", fields: fields})
+}
+
+voxel.on("form_submit", fn(p, form, v) {
+    if (not form.starts_with("elevators:")) { return nil }
+    let parts = form.split(":")
+    let e = el_get(form.sub(len(parts[0]) + len(parts[1]) + 2))
+    if (e == nil) { return nil }
+    if (parts[1] == "panel") {
+        let b = v._button
+        if (b == nil) { return nil }
+        el_sound("button", el_cabin_cells(e, e.floor).panel)
+        if (b.starts_with("floor:")) {
+            let i = 0
+            while (i < len(e.floors)) {
+                if (b == format("floor:{}", i)) { el_request(e, i) }
+                i += 1
+            }
+        } else if (b.starts_with("dest:")) {
+            el_request_external(e, b.sub(5))
+        } else if (b == "open") {
+            el_request(e, e.floor)
+            e.hold = true
+        } else if (b == "close") {
+            if (e.state == "doors_open") { e.state_time = 1000 }
+        }
+        return nil
+    }
+    if (parts[1] == "config") {
+        if (not el_may_configure(e, p)) {
+            el_say("seul son constructeur peut configurer cet ascenseur.")
+            return nil
+        }
+        let i = 0
+        while (i < len(e.floors)) {
+            e.floors[i].name = v[format("name:{}", i)]
+            let label = v[format("label:{}", i)]
+            if (label != nil and label != "") { e.floors[i].label = label }
+            i += 1
+        }
+        e.door_time = v["door_time"]
+        e.speed = v["speed"]
+        let ext = []
+        for (id in keys(el_destinations())) {
+            if (v[format("ext:{}", id)] == true) { ext.push(id) }
+        }
+        e.external = ext
+        if (v["maintenance"] == true and e.state == "idle") { e.state = "maintenance" }
+        if (v["maintenance"] != true and e.state == "maintenance") { e.state = "idle" }
+        e.owner = el_player_name(p)
+        el_refresh_displays(e)
+        el_save()
+        el_say("configuration enregistrée.")
+    }
+})
+
+voxel.on("block_use", fn(x, y, z, block, actor) {
+    let held = entity.held(actor)
+    if (held != nil and held.starts_with("elevators:") and held.contains("_kit")) {
+        if (held.contains("cabin_kit")) { el_place_cabin_kit(actor, x, y, z, held) } else { el_place_landing_kit(actor, x, y, z, held) }
+        return false
+    }
+    if (block == nil or not block.starts_with("elevators:")) { return true }
+    if (block == "elevators:motor") {
+        let e = el_register(x, y, z, false)
+        if (e != nil) { el_open_config(actor, e) }
+        return false
+    }
+    let e = el_find_at(x, y, z)
+    if (e == nil) {
+        if (el_is(block, "call") or el_is(block, "cabin_panel")) {
+            el_say("cet ascenseur n'est pas en service : clic droit sur son moteur pour le vérifier.")
+            return false
+        }
+        return true
+    }
+    if (el_is(block, "call")) {
+        let i = el_floor_of_call(e, x, y, z)
+        el_sound("button", el_pos(x, y, z))
+        el_request(e, i)
+        return false
+    }
+    if (el_is(block, "cabin_panel")) {
+        el_open_panel(actor, e)
+        return false
+    }
+    if (el_is(block, "landing_door") or el_is(block, "cabin_door")) {
+        # Une porte palière ne s'ouvre qu'avec la cabine derrière elle.
+        let i = el_floor_of_call(e, x, y + 1, z)
+        if (i == e.floor and e.state == "idle") { el_request(e, i) } else { el_sound("lock", el_pos(x, y, z)) }
+        return false
+    }
+    return true
+})
+
+# Un composant cassé : l'ascenseur est revérifié (et mis hors service s'il manque l'essentiel).
+voxel.on("block_broken", fn(x, y, z, block, actor) {
+    if (block == nil or not block.starts_with("elevators:")) { return nil }
+    let e = el_find_at(x, y, z)
+    if (e == nil) { return nil }
+    if (block == "elevators:motor") {
+        EL.records[e.id] = nil
+        el_save()
+        el_say("moteur démonté : l'ascenseur est hors service.")
+        return nil
+    }
+    if (e.state == "idle") {
+        if (el_register(e.motor.x, e.motor.y, e.motor.z, true) == nil) {
+            e.state = "failed"
+            el_save()
+            el_say("ascenseur en panne : un composant manque (clic droit sur le moteur pour le détail).")
+        }
+    }
+})
+
+# Ascenseur d'exemple, bâti à côté du joueur : gaine 7 × 7, un palier tous
+# les 5 blocs avec sa passerelle, cabine au rez-de-chaussée, moteur.
+fn el_build_demo(p, style, n) {
+    let q = entity.pos(p)
+    let cx = math.floor(q.x) + 6
+    let cz = math.floor(q.z)
+    let y0 = math.floor(q.y) - 1
+    let top = y0 + 5 * (n - 1) + 4 + 1
+    world.fill(cx - 3, y0 - 1, cz - 3, cx + 3, top, cz + 3, "elevators:shaft_wall")
+    world.fill(cx - 2, y0, cz - 2, cx + 2, top - 1, cz + 2, "core:air")
+    # Rails de guidage et câbles visibles dans la gaine (côté du fond).
+    let y = y0
+    while (y < top) {
+        world.set(cx + 3, y, cz - 1, "elevators:rail")
+        world.set(cx + 3, y, cz + 1, "elevators:rail")
+        y += 1
+    }
+    world.set(cx, top, cz, "elevators:motor")
+    let i = 0
+    while (i < n) {
+        let fy = y0 + 5 * i
+        # Passerelle devant la porte (côté ouest, vers le joueur).
+        world.fill(cx - 7, fy, cz - 2, cx - 4, fy, cz + 2, "core:stone")
+        world.fill(cx - 7, fy + 1, cz - 2, cx - 4, fy + 3, cz + 2, "core:air")
+        el_place_landing_cells(cx - 3, fy + 1, cz, "w", style, i % 2 == 1)
+        i += 1
+    }
+    el_build_cabin(el_pos(cx - 2, y0, cz - 2), "w", style)
+    return el_register(cx, top, cz, false)
+}
+
+voxel.command("elevator", "/elevator build [style] [floors] | verify | list", "ascenseurs", fn(sender, args) {
+    let what = "liste"
+    if (len(args) > 0) { what = args[0] }
+    if (what == "build") {
+        let style = "modern"
+        if (len(args) > 1) { style = args[1] }
+        if (not el_contains(EL.STYLES, style)) { return format("style inconnu « {} » (modern, industrial, backrooms, glass)", style) }
+        let n = 3
+        if (len(args) > 2) {
+            let k = num(args[2])
+            if (k >= 1) { n = k }
+        }
+        let e = el_build_demo(sender, style, n)
+        if (e == nil) { return "construction impossible ici" }
+        return format("ascenseur {} : {} étages, moteur en {}", style, n, e.id)
+    }
+    if (what == "list") {
+        let out = []
+        for (id in keys(EL.records)) {
+            let e = EL.records[id]
+            out.push(format("{} ({}, {} arrêts, {}, cabine à {})", id, e.style, len(e.floors), e.state, el_floor_label(e, e.floor)))
+        }
+        if (len(out) == 0) { return "aucun ascenseur en service dans cette dimension" }
+        return join(out, " ; ")
+    }
+    if (what == "verify") {
+        let q = entity.pos(sender)
+        for (id in keys(EL.records)) {
+            let e = EL.records[id]
+            let r = el_scan(e.motor.x, e.motor.y, e.motor.z)
+            if (len(r.problems) == 0) { return format("{} : en ordre", id) }
+            return format("{} : {}", id, join(r.problems, " ; "))
+        }
+        return "aucun ascenseur enregistré"
+    }
+    if (what == "help") {
+        return "/elevator build [style] [floors]\n" +
+               "    style : modern, industrial, backrooms, glass\n" +
+               "    floors : >= 1\n" +
+               "/elevator verify\n" +
+               "/elevator list"
+    }
+    return "usage : /elevator build [style] [floors] | verify | list"
+})

@@ -1,0 +1,49 @@
+# Suppressions valgrind (memcheck) — mêmes fuites tierces que
+# tests/lsan_suppressions.txt, au format valgrind : allocations jamais rendues
+# par le backend X11 de SDL3, son accès D-Bus, et les constructeurs des
+# bibliothèques chargées à l'exécution (pilotes audio/vidéo sondés par SDL,
+# GLib/GObject). Aucune pile ne passe par une allocation de ce dépôt.
+# Câblé via VALGRIND_OPTS dans cpp-maker.toml ([tests.env]).
+
+{
+   sdl3-x11-global-content-scale
+   Memcheck:Leak
+   match-leak-kinds: definite,possible
+   ...
+   fun:X11_GetGlobalContentScale
+}
+{
+   sdl3-x11-init-keyboard
+   Memcheck:Leak
+   match-leak-kinds: definite,possible
+   ...
+   fun:X11_InitKeyboard
+}
+{
+   sdl3-x11-window-title
+   Memcheck:Leak
+   match-leak-kinds: definite,possible
+   ...
+   fun:SDL_X11_SetWindowTitle
+}
+{
+   sdl3-dbus-init
+   Memcheck:Leak
+   match-leak-kinds: definite,possible
+   ...
+   fun:SDL_DBus_Init
+}
+{
+   dlopen-library-constructors
+   Memcheck:Leak
+   match-leak-kinds: definite,possible
+   ...
+   fun:call_init
+}
+{
+   dlopen-library-constructors-part
+   Memcheck:Leak
+   match-leak-kinds: definite,possible
+   ...
+   fun:call_init.part.0
+}

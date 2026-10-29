@@ -5,6 +5,7 @@
 #include <voxel/lighting.hpp>
 #include <voxel/worldgen.hpp>
 #include <voxel/physics.hpp>
+#include <voxel/schematic.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -638,7 +639,10 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 	};
 	// Lumière des sommets [first, fin[ : moyenne des cellules libres autour du
 	// sommet, du côté éclairé (la normale) — lissée et sans raccord entre chunks.
-	auto lightVertices = [&](MeshBuffer &out, size_t first, const BlockPos &cell) {
+	// `facing` (modèles) : une face inclinée prend la lumière de la cellule vers
+	// laquelle elle est tournée (une grille encastrée dans le plafond regarde la
+	// pièce, pas l'intérieur du plafond).
+	auto lightVertices = [&](MeshBuffer &out, size_t first, const BlockPos &cell, bool facing = false) {
 		for (size_t i = first; i < out.vertices.size(); ++i) {
 			MeshVertex &v = out.vertices[i];
 			const math::FVector3 n = v.normal;
@@ -679,6 +683,18 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 						const uint64_t key = (uint64_t(uint32_t(Padded::Index(lx, ly, lz))) << 16) | uint64_t(face << 8) | uint64_t(quantized);
 						sample(c, point, n, key);
 					}
+			}
+			if (!axial && facing && samples == 0 && n.Length() > 0.5f) {
+				const BlockPos c = BlockPos::FromWorld(at + n * 0.5f);
+				const int lx = c.x - origin.x, ly = c.y - origin.y, lz = c.z - origin.z;
+				if (lx >= -1 && ly >= -1 && lz >= -1 && lx <= CHUNK_SIZE && ly <= CHUNK_SIZE && lz <= CHUNK_SIZE && !shades(lx, ly, lz)) {
+					const lighting::Rgb d =
+						sources.empty() ? lighting::Rgb{0.f, 0.f, 0.f} : lighting::DirectIrradiance(world, at + n * 0.05f, n, sources);
+					for (int k = 0; k < 3; ++k)
+						e[size_t(k)] += d[size_t(k)];
+					sky += skyAt(c);
+					++samples;
+				}
 			}
 			if (samples == 0) { // plantes, modèles, faces enfouies : la cellule du bloc, sans Lambert
 				const uint64_t key = (uint64_t(uint32_t(Padded::Index(cell.x - origin.x, cell.y - origin.y, cell.z - origin.z))) << 16) | 0xFFFFu;
@@ -840,10 +856,33 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 						out.vertices[i].light = {0.f, 0.f, 0.f, 1.f};
 					}
 				} else {
-					lightVertices(out, firstVertex, origin + BlockPos{x, y, z});
+					lightVertices(out, firstVertex, origin + BlockPos{x, y, z}, r.shape == ShapeKind::MODEL);
 				}
 			}
 	(void)origin;
+	return mesh;
+}
+
+ChunkMesh ChunkMesher::BuildStructure(const Schematic &structure) const {
+	// Posé à (1, 1, 1) dans un monde vide : les chunks voisins chargés (de
+	// l'air) montrent les faces extérieures.
+	World world(m_content);
+	for (int y = -1; y <= 1; ++y)
+		for (int z = -1; z <= 1; ++z)
+			for (int x = -1; x <= 1; ++x)
+				(void)world.EnsureChunk({x, y, z});
+	const BlockPos size = structure.Size();
+	for (int y = 0; y < std::min(size.y, CHUNK_SIZE - 2); ++y)
+		for (int z = 0; z < std::min(size.z, CHUNK_SIZE - 2); ++z)
+			for (int x = 0; x < std::min(size.x, CHUNK_SIZE - 2); ++x) {
+				const String id = structure.BlockAt({x, y, z});
+				if (const BlockDef *def = id.IsEmpty() ? nullptr : m_content.FindBlock(id); def && !def->IsAir())
+					(void)world.SetBlock({x + 1, y + 1, z + 1}, def->numeric, structure.ParamAt({x, y, z}), ChangeCause::SCRIPT);
+			}
+	ChunkMesh mesh = Build(world, {0, 0, 0});
+	for (MeshBuffer *b : {&mesh.opaque, &mesh.translucent, &mesh.emissive})
+		for (MeshVertex &v : b->vertices)
+			v.position = v.position - math::FVector3{1.f, 1.f, 1.f};
 	return mesh;
 }
 
@@ -871,6 +910,72 @@ MeshBuffer ChunkMesher::BuildShape(const ShapeDesc &shape, const Appearance &loo
 	case ShapeKind::CROSS: EmitCross(out, r, center); break;
 	case ShapeKind::MODEL: EmitModel(out, shape.model, r, {0.f, 0.f, 0.f}, param, mod, false); break;
 	}
+	return out;
+}
+
+MeshBuffer ChunkMesher::BuildSprite(const String &texture, float thickness) const {
+	MeshBuffer out;
+	const TextureAtlas::Rect r = m_atlas.Lookup(texture);
+	const std::array<uint8_t, 4> white{255, 255, 255, 255};
+	const std::array<float, 4> unshaded{1.f, 1.f, 1.f, 1.f};
+	const float h = thickness * 0.5f;
+	{
+		const math::FVector3 front[4] = {{-0.5f, 0.f, h}, {0.5f, 0.f, h}, {0.5f, 1.f, h}, {-0.5f, 1.f, h}};
+		const math::FVector2 frontUv[4] = {{r.u0, r.v1}, {r.u1, r.v1}, {r.u1, r.v0}, {r.u0, r.v0}};
+		PushQuad(out, front, frontUv, {0.f, 0.f, 1.f}, white, unshaded);
+		const math::FVector3 back[4] = {{0.5f, 0.f, -h}, {-0.5f, 0.f, -h}, {-0.5f, 1.f, -h}, {0.5f, 1.f, -h}};
+		const math::FVector2 backUv[4] = {{r.u1, r.v1}, {r.u0, r.v1}, {r.u0, r.v0}, {r.u1, r.v0}};
+		PushQuad(out, back, backUv, {0.f, 0.f, -1.f}, white, unshaded);
+	}
+	// La tranche : la grille des pixels de la tuile (32 au plus pour une icône
+	// fine), une facette là où un pixel opaque touche un transparent.
+	const Image &img = m_atlas.Pixels();
+	if (img.IsEmpty())
+		return out;
+	// Le rectangle est rentré d'un demi-texel de chaque côté : la tuile commence
+	// au texel qui le contient et a un texel de plus.
+	const int x0 = int(std::floor(r.u0 * float(img.width))), y0 = int(std::floor(r.v0 * float(img.height)));
+	const int size = std::max(1, int(std::round((r.u1 - r.u0) * float(img.width))) + 1);
+	const int n = std::min(size, 32);
+	auto pixel = [&](int i, int j, int &px, int &py) {
+		px = std::clamp(x0 + int((float(i) + 0.5f) * float(size) / float(n)), 0, img.width - 1);
+		py = std::clamp(y0 + int((float(j) + 0.5f) * float(size) / float(n)), 0, img.height - 1);
+	};
+	auto opaque = [&](int i, int j) {
+		if (i < 0 || j < 0 || i >= n || j >= n)
+			return false;
+		int px = 0, py = 0;
+		pixel(i, j, px, py);
+		return img.At(px, py)[3] >= 128;
+	};
+	for (int j = 0; j < n; ++j)
+		for (int i = 0; i < n; ++i) {
+			if (!opaque(i, j))
+				continue;
+			int px = 0, py = 0;
+			pixel(i, j, px, py);
+			// Toute la facette prend la couleur du centre du pixel.
+			const math::FVector2 c{(float(px) + 0.5f) / float(img.width), (float(py) + 0.5f) / float(img.height)};
+			const math::FVector2 uv[4] = {c, c, c, c};
+			const float xa = -0.5f + float(i) / float(n), xb = -0.5f + float(i + 1) / float(n);
+			const float yt = 1.f - float(j) / float(n), yb = 1.f - float(j + 1) / float(n); // ligne 0 de l'image en haut
+			if (!opaque(i - 1, j)) {
+				const math::FVector3 q[4] = {{xa, yb, -h}, {xa, yb, h}, {xa, yt, h}, {xa, yt, -h}};
+				PushQuad(out, q, uv, {-1.f, 0.f, 0.f}, white, unshaded);
+			}
+			if (!opaque(i + 1, j)) {
+				const math::FVector3 q[4] = {{xb, yb, h}, {xb, yb, -h}, {xb, yt, -h}, {xb, yt, h}};
+				PushQuad(out, q, uv, {1.f, 0.f, 0.f}, white, unshaded);
+			}
+			if (!opaque(i, j - 1)) {
+				const math::FVector3 q[4] = {{xa, yt, h}, {xb, yt, h}, {xb, yt, -h}, {xa, yt, -h}};
+				PushQuad(out, q, uv, {0.f, 1.f, 0.f}, white, unshaded);
+			}
+			if (!opaque(i, j + 1)) {
+				const math::FVector3 q[4] = {{xa, yb, -h}, {xb, yb, -h}, {xb, yb, h}, {xa, yb, h}};
+				PushQuad(out, q, uv, {0.f, -1.f, 0.f}, white, unshaded);
+			}
+		}
 	return out;
 }
 

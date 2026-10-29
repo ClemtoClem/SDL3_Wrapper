@@ -14,6 +14,7 @@
 #include <voxel/game.hpp>
 
 #include "catalog.hpp"
+#include "worker.hpp"
 #include "world_renderer.hpp"
 
 namespace voxelia {
@@ -47,7 +48,18 @@ public:
 	[[nodiscard]] const String &Error() const noexcept { return m_error; }
 
 	void HandleEvent(sdl3::Event &e, bool captureAllowed);
+	/// Commandes, actions, caméra, scène du monde, sons, HUD. Avec le fil de
+	/// mise à jour, la simulation n'y avance pas : elle est réservée pour
+	/// BeginSimulation (sinon elle avance ici, avant le reste).
 	void Update(float dt, bool paused, bool panelOpen);
+	/// Fil principal : lance sur le fil « voxel-update » le pas de simulation
+	/// réservé par Update (voxel::Game::Tick : l'ECS, le monde, les scripts).
+	/// Rien ne doit toucher au jeu avant EndSimulation.
+	void BeginSimulation();
+	/// Fil principal : attend la fin du pas de simulation en cours.
+	void EndSimulation();
+	/// Durée du dernier pas de simulation (ms, moyenne glissante).
+	[[nodiscard]] float TickMilliseconds() const noexcept { return m_tickMs; }
 	void BuildHud(ui::Widget layer);
 	void SetHudVisible(bool visible);
 	/// Remet les réglages (distance d'affichage, ombres…) au moteur.
@@ -95,6 +107,8 @@ public:
 	[[nodiscard]] String ItemName(const String &id);
 
 private:
+	/// Un pas de simulation, chronométré (fil de mise à jour, ou sur place).
+	void RunTick(float dt);
 	void UpdateControls();
 	void UpdateActions(float dt, const Option<voxel::BlockHit> &target);
 	void UpdateSound();
@@ -152,6 +166,13 @@ private:
 	uint64_t m_fpsTicks = 0;
 	bool m_wantThumbnail = false;
 	audio::AudioEngine::VoiceId m_ambientVoice = audio::AudioEngine::NO_VOICE;
+
+	// Fil de mise à jour (simulation).
+	float m_pendingTick = -1.f; ///< pas réservé par Update (< 0 : aucun)
+	float m_tickMs = 0.f;       ///< écrit par le fil de mise à jour, lu après EndSimulation
+	bool m_ticked = false;      ///< un pas a été lancé depuis le dernier EndSimulation
+	/// Dernier membre : détruit (joint) avant le jeu qu'il fait avancer.
+	std::unique_ptr<Worker> m_updateThread;
 };
 
 } // namespace voxelia

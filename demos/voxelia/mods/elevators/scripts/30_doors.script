@@ -1,0 +1,55 @@
+# Portes coulissantes : la porte de cabine et la porte palière de l'arrêt
+# bougent ensemble (fermée → entrouverte → ouverte, et retour). Fermées et
+# entrouvertes, elles arrêtent les corps ; une porte palière ne s'ouvre
+# jamais sans la cabine derrière elle (seule la machine à états les pilote).
+
+# États d'une porte (bas + haut) ; rend faux si un bloc manque.
+fn el_door_cell(x, y, z, state) {
+    let b = world.get(x, y, z)
+    if (not b.contains("door")) { return false }
+    world.set_state(x, y, z, state) # le haut de la porte (partie du bloc) suit
+    return true
+}
+
+fn el_doors(e, state) {
+    let i = e.floor
+    if (i == nil) { return false }
+    let l = el_landing(e, i)
+    let c = el_cabin_cells(e, i)
+    let ok = el_door_cell(l.door.x, l.door.y, l.door.z, state)
+    let ok2 = el_door_cell(c.door.x, c.door.y, c.door.z, state)
+    return ok and ok2
+}
+
+# Un corps dans l'embrasure (cellules des deux portes) : on ne referme pas.
+fn el_doorway_blocked(e) {
+    let l = el_landing(e, e.floor)
+    let c = el_cabin_cells(e, e.floor)
+    for (p in entity.players()) {
+        let q = entity.pos(p)
+        let x = math.floor(q.x)
+        let y = math.floor(q.y)
+        let z = math.floor(q.z)
+        if ((x == l.door.x and z == l.door.z and y >= l.door.y and y <= l.door.y + 1) or
+            (x == c.door.x and z == c.door.z and y >= c.door.y and y <= c.door.y + 1)) {
+            return true
+        }
+    }
+    return false
+}
+
+# Une porte palière détruite pendant un trajet : remise en place (sécurité).
+fn el_check_landing_doors(e) {
+    let i = 0
+    while (i < len(e.floors)) {
+        let l = el_landing(e, i)
+        let b = world.get(l.door.x, l.door.y, l.door.z)
+        if (not b.contains("landing_door")) {
+            let door = format("elevators:{}_landing_door", e.style)
+            world.set(l.door.x, l.door.y, l.door.z, door, EL_SIDES[e.side].param)
+            world.set(l.door.x, l.door.y + 1, l.door.z, door + "_top", EL_SIDES[e.side].param)
+            el_say("porte palière remise en place : on ne laisse pas une gaine ouverte.")
+        }
+        i += 1
+    }
+}

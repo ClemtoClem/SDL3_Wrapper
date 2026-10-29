@@ -1,0 +1,2579 @@
+// Recettes des escaliers et dalles (6 → 8 escaliers, 3 → 6 dalles…).
+[
+ {
+  "type": "recipe",
+  "id": "stone_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "core:stone"
+  },
+  "result": {
+   "item": "stone_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "core:stone"
+  },
+  "result": {
+   "item": "stone_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "stone_slab"
+  },
+  "result": {
+   "item": "stone_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "stone_slab"
+  },
+  "result": {
+   "item": "core:stone",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "core:stone",
+   "S": "stone_stair"
+  },
+  "result": {
+   "item": "stone_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "stone_stair"
+  },
+  "result": {
+   "item": "stone_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "stone_slab",
+   "M": "core:stone"
+  },
+  "result": {
+   "item": "stone_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cobble_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "core:cobble"
+  },
+  "result": {
+   "item": "cobble_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cobble_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "core:cobble"
+  },
+  "result": {
+   "item": "cobble_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cobble_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "cobble_slab"
+  },
+  "result": {
+   "item": "cobble_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cobble_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "cobble_slab"
+  },
+  "result": {
+   "item": "core:cobble",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cobble_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "core:cobble",
+   "S": "cobble_stair"
+  },
+  "result": {
+   "item": "cobble_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cobble_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "cobble_stair"
+  },
+  "result": {
+   "item": "cobble_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "cobble_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "cobble_slab",
+   "M": "core:cobble"
+  },
+  "result": {
+   "item": "cobble_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mossy_cobblestone_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "mossy_cobblestone"
+  },
+  "result": {
+   "item": "mossy_cobblestone_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mossy_cobblestone_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "mossy_cobblestone"
+  },
+  "result": {
+   "item": "mossy_cobblestone_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mossy_cobblestone_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "mossy_cobblestone_slab"
+  },
+  "result": {
+   "item": "mossy_cobblestone_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mossy_cobblestone_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "mossy_cobblestone_slab"
+  },
+  "result": {
+   "item": "mossy_cobblestone",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mossy_cobblestone_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "mossy_cobblestone",
+   "S": "mossy_cobblestone_stair"
+  },
+  "result": {
+   "item": "mossy_cobblestone_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mossy_cobblestone_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "mossy_cobblestone_stair"
+  },
+  "result": {
+   "item": "mossy_cobblestone_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mossy_cobblestone_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "mossy_cobblestone_slab",
+   "M": "mossy_cobblestone"
+  },
+  "result": {
+   "item": "mossy_cobblestone_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "oak_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "planks"
+  },
+  "result": {
+   "item": "oak_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "oak_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "planks"
+  },
+  "result": {
+   "item": "oak_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "oak_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "oak_slab"
+  },
+  "result": {
+   "item": "oak_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "oak_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "oak_slab"
+  },
+  "result": {
+   "item": "planks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "oak_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "planks",
+   "S": "oak_stair"
+  },
+  "result": {
+   "item": "oak_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "oak_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "oak_stair"
+  },
+  "result": {
+   "item": "oak_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "oak_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "oak_slab",
+   "M": "planks"
+  },
+  "result": {
+   "item": "oak_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "spruce_planks"
+  },
+  "result": {
+   "item": "spruce_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "spruce_planks"
+  },
+  "result": {
+   "item": "spruce_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "spruce_slab"
+  },
+  "result": {
+   "item": "spruce_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "spruce_slab"
+  },
+  "result": {
+   "item": "spruce_planks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "spruce_planks",
+   "S": "spruce_stair"
+  },
+  "result": {
+   "item": "spruce_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "spruce_stair"
+  },
+  "result": {
+   "item": "spruce_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "spruce_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "spruce_slab",
+   "M": "spruce_planks"
+  },
+  "result": {
+   "item": "spruce_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "birch_planks"
+  },
+  "result": {
+   "item": "birch_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "birch_planks"
+  },
+  "result": {
+   "item": "birch_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "birch_slab"
+  },
+  "result": {
+   "item": "birch_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "birch_slab"
+  },
+  "result": {
+   "item": "birch_planks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "birch_planks",
+   "S": "birch_stair"
+  },
+  "result": {
+   "item": "birch_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "birch_stair"
+  },
+  "result": {
+   "item": "birch_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "birch_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "birch_slab",
+   "M": "birch_planks"
+  },
+  "result": {
+   "item": "birch_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "dark_oak_planks"
+  },
+  "result": {
+   "item": "dark_oak_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "dark_oak_planks"
+  },
+  "result": {
+   "item": "dark_oak_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "dark_oak_slab"
+  },
+  "result": {
+   "item": "dark_oak_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "dark_oak_slab"
+  },
+  "result": {
+   "item": "dark_oak_planks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "dark_oak_planks",
+   "S": "dark_oak_stair"
+  },
+  "result": {
+   "item": "dark_oak_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "dark_oak_stair"
+  },
+  "result": {
+   "item": "dark_oak_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "dark_oak_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "dark_oak_slab",
+   "M": "dark_oak_planks"
+  },
+  "result": {
+   "item": "dark_oak_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "jungle_planks"
+  },
+  "result": {
+   "item": "jungle_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "jungle_planks"
+  },
+  "result": {
+   "item": "jungle_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "jungle_slab"
+  },
+  "result": {
+   "item": "jungle_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "jungle_slab"
+  },
+  "result": {
+   "item": "jungle_planks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "jungle_planks",
+   "S": "jungle_stair"
+  },
+  "result": {
+   "item": "jungle_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "jungle_stair"
+  },
+  "result": {
+   "item": "jungle_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "jungle_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "jungle_slab",
+   "M": "jungle_planks"
+  },
+  "result": {
+   "item": "jungle_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "acacia_planks"
+  },
+  "result": {
+   "item": "acacia_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "acacia_planks"
+  },
+  "result": {
+   "item": "acacia_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "acacia_slab"
+  },
+  "result": {
+   "item": "acacia_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "acacia_slab"
+  },
+  "result": {
+   "item": "acacia_planks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "acacia_planks",
+   "S": "acacia_stair"
+  },
+  "result": {
+   "item": "acacia_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "acacia_stair"
+  },
+  "result": {
+   "item": "acacia_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "acacia_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "acacia_slab",
+   "M": "acacia_planks"
+  },
+  "result": {
+   "item": "acacia_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bricks_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "bricks"
+  },
+  "result": {
+   "item": "bricks_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bricks_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "bricks"
+  },
+  "result": {
+   "item": "bricks_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bricks_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "bricks_slab"
+  },
+  "result": {
+   "item": "bricks_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bricks_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "bricks_slab"
+  },
+  "result": {
+   "item": "bricks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bricks_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "bricks",
+   "S": "bricks_stair"
+  },
+  "result": {
+   "item": "bricks_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bricks_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "bricks_stair"
+  },
+  "result": {
+   "item": "bricks_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "bricks_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "bricks_slab",
+   "M": "bricks"
+  },
+  "result": {
+   "item": "bricks_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_bricks_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "stone_bricks"
+  },
+  "result": {
+   "item": "stone_bricks_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_bricks_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "stone_bricks"
+  },
+  "result": {
+   "item": "stone_bricks_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_bricks_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "stone_bricks_slab"
+  },
+  "result": {
+   "item": "stone_bricks_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_bricks_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "stone_bricks_slab"
+  },
+  "result": {
+   "item": "stone_bricks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_bricks_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "stone_bricks",
+   "S": "stone_bricks_stair"
+  },
+  "result": {
+   "item": "stone_bricks_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_bricks_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "stone_bricks_stair"
+  },
+  "result": {
+   "item": "stone_bricks_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "stone_bricks_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "stone_bricks_slab",
+   "M": "stone_bricks"
+  },
+  "result": {
+   "item": "stone_bricks_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sandstone_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "sandstone"
+  },
+  "result": {
+   "item": "sandstone_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sandstone_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "sandstone"
+  },
+  "result": {
+   "item": "sandstone_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sandstone_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "sandstone_slab"
+  },
+  "result": {
+   "item": "sandstone_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sandstone_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "sandstone_slab"
+  },
+  "result": {
+   "item": "sandstone",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sandstone_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "sandstone",
+   "S": "sandstone_stair"
+  },
+  "result": {
+   "item": "sandstone_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sandstone_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "sandstone_stair"
+  },
+  "result": {
+   "item": "sandstone_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "sandstone_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "sandstone_slab",
+   "M": "sandstone"
+  },
+  "result": {
+   "item": "sandstone_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_sandstone_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "red_sandstone"
+  },
+  "result": {
+   "item": "red_sandstone_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_sandstone_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "red_sandstone"
+  },
+  "result": {
+   "item": "red_sandstone_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_sandstone_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "red_sandstone_slab"
+  },
+  "result": {
+   "item": "red_sandstone_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_sandstone_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "red_sandstone_slab"
+  },
+  "result": {
+   "item": "red_sandstone",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_sandstone_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "red_sandstone",
+   "S": "red_sandstone_stair"
+  },
+  "result": {
+   "item": "red_sandstone_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_sandstone_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "red_sandstone_stair"
+  },
+  "result": {
+   "item": "red_sandstone_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "red_sandstone_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "red_sandstone_slab",
+   "M": "red_sandstone"
+  },
+  "result": {
+   "item": "red_sandstone_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "granite_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "granite"
+  },
+  "result": {
+   "item": "granite_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "granite_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "granite"
+  },
+  "result": {
+   "item": "granite_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "granite_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "granite_slab"
+  },
+  "result": {
+   "item": "granite_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "granite_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "granite_slab"
+  },
+  "result": {
+   "item": "granite",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "granite_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "granite",
+   "S": "granite_stair"
+  },
+  "result": {
+   "item": "granite_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "granite_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "granite_stair"
+  },
+  "result": {
+   "item": "granite_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "granite_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "granite_slab",
+   "M": "granite"
+  },
+  "result": {
+   "item": "granite_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "polished_granite_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "polished_granite"
+  },
+  "result": {
+   "item": "polished_granite_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "polished_granite_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "polished_granite"
+  },
+  "result": {
+   "item": "polished_granite_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "polished_granite_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "polished_granite_slab"
+  },
+  "result": {
+   "item": "polished_granite_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "polished_granite_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "polished_granite_slab"
+  },
+  "result": {
+   "item": "polished_granite",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "polished_granite_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "polished_granite",
+   "S": "polished_granite_stair"
+  },
+  "result": {
+   "item": "polished_granite_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "polished_granite_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "polished_granite_stair"
+  },
+  "result": {
+   "item": "polished_granite_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "polished_granite_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "polished_granite_slab",
+   "M": "polished_granite"
+  },
+  "result": {
+   "item": "polished_granite_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "diorite_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "diorite"
+  },
+  "result": {
+   "item": "diorite_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "diorite_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "diorite"
+  },
+  "result": {
+   "item": "diorite_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "diorite_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "diorite_slab"
+  },
+  "result": {
+   "item": "diorite_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "diorite_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "diorite_slab"
+  },
+  "result": {
+   "item": "diorite",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "diorite_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "diorite",
+   "S": "diorite_stair"
+  },
+  "result": {
+   "item": "diorite_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "diorite_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "diorite_stair"
+  },
+  "result": {
+   "item": "diorite_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "diorite_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "diorite_slab",
+   "M": "diorite"
+  },
+  "result": {
+   "item": "diorite_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "andesite_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "andesite"
+  },
+  "result": {
+   "item": "andesite_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "andesite_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "andesite"
+  },
+  "result": {
+   "item": "andesite_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "andesite_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "andesite_slab"
+  },
+  "result": {
+   "item": "andesite_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "andesite_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "andesite_slab"
+  },
+  "result": {
+   "item": "andesite",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "andesite_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "andesite",
+   "S": "andesite_stair"
+  },
+  "result": {
+   "item": "andesite_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "andesite_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "andesite_stair"
+  },
+  "result": {
+   "item": "andesite_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "andesite_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "andesite_slab",
+   "M": "andesite"
+  },
+  "result": {
+   "item": "andesite_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "obsidian_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "obsidian"
+  },
+  "result": {
+   "item": "obsidian_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "obsidian_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "obsidian"
+  },
+  "result": {
+   "item": "obsidian_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "obsidian_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "obsidian_slab"
+  },
+  "result": {
+   "item": "obsidian_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "obsidian_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "obsidian_slab"
+  },
+  "result": {
+   "item": "obsidian",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "obsidian_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "obsidian",
+   "S": "obsidian_stair"
+  },
+  "result": {
+   "item": "obsidian_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "obsidian_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "obsidian_stair"
+  },
+  "result": {
+   "item": "obsidian_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "obsidian_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "obsidian_slab",
+   "M": "obsidian"
+  },
+  "result": {
+   "item": "obsidian_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "quartz_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "quartz_block"
+  },
+  "result": {
+   "item": "quartz_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "quartz_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "quartz_block"
+  },
+  "result": {
+   "item": "quartz_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "quartz_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "quartz_slab"
+  },
+  "result": {
+   "item": "quartz_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "quartz_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "quartz_slab"
+  },
+  "result": {
+   "item": "quartz_block",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "quartz_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "quartz_block",
+   "S": "quartz_stair"
+  },
+  "result": {
+   "item": "quartz_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "quartz_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "quartz_stair"
+  },
+  "result": {
+   "item": "quartz_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "quartz_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "quartz_slab",
+   "M": "quartz_block"
+  },
+  "result": {
+   "item": "quartz_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "nether_bricks_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "nether_bricks"
+  },
+  "result": {
+   "item": "nether_bricks_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "nether_bricks_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "nether_bricks"
+  },
+  "result": {
+   "item": "nether_bricks_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "nether_bricks_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "nether_bricks_slab"
+  },
+  "result": {
+   "item": "nether_bricks_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "nether_bricks_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "nether_bricks_slab"
+  },
+  "result": {
+   "item": "nether_bricks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "nether_bricks_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "nether_bricks",
+   "S": "nether_bricks_stair"
+  },
+  "result": {
+   "item": "nether_bricks_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "nether_bricks_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "nether_bricks_stair"
+  },
+  "result": {
+   "item": "nether_bricks_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "nether_bricks_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "nether_bricks_slab",
+   "M": "nether_bricks"
+  },
+  "result": {
+   "item": "nether_bricks_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mud_bricks_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "mud_bricks"
+  },
+  "result": {
+   "item": "mud_bricks_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mud_bricks_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "mud_bricks"
+  },
+  "result": {
+   "item": "mud_bricks_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mud_bricks_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "mud_bricks_slab"
+  },
+  "result": {
+   "item": "mud_bricks_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mud_bricks_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "mud_bricks_slab"
+  },
+  "result": {
+   "item": "mud_bricks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mud_bricks_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "mud_bricks",
+   "S": "mud_bricks_stair"
+  },
+  "result": {
+   "item": "mud_bricks_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mud_bricks_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "mud_bricks_stair"
+  },
+  "result": {
+   "item": "mud_bricks_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "mud_bricks_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "mud_bricks_slab",
+   "M": "mud_bricks"
+  },
+  "result": {
+   "item": "mud_bricks_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "end_stone_bricks_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "end_stone_bricks"
+  },
+  "result": {
+   "item": "end_stone_bricks_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "end_stone_bricks_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "end_stone_bricks"
+  },
+  "result": {
+   "item": "end_stone_bricks_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "end_stone_bricks_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "end_stone_bricks_slab"
+  },
+  "result": {
+   "item": "end_stone_bricks_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "end_stone_bricks_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "end_stone_bricks_slab"
+  },
+  "result": {
+   "item": "end_stone_bricks",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "end_stone_bricks_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "end_stone_bricks",
+   "S": "end_stone_bricks_stair"
+  },
+  "result": {
+   "item": "end_stone_bricks_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "end_stone_bricks_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "end_stone_bricks_stair"
+  },
+  "result": {
+   "item": "end_stone_bricks_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "end_stone_bricks_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "end_stone_bricks_slab",
+   "M": "end_stone_bricks"
+  },
+  "result": {
+   "item": "end_stone_bricks_slope",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_concrete_stair",
+  "category": "building",
+  "pattern": [
+   "M  ",
+   "MM ",
+   "MMM"
+  ],
+  "key": {
+   "M": "white_concrete"
+  },
+  "result": {
+   "item": "white_concrete_stair",
+   "count": 8
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_concrete_slab",
+  "category": "building",
+  "pattern": [
+   "MMM"
+  ],
+  "key": {
+   "M": "white_concrete"
+  },
+  "result": {
+   "item": "white_concrete_slab",
+   "count": 6
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_concrete_slab_top",
+  "category": "building",
+  "pattern": [
+   "S"
+  ],
+  "key": {
+   "S": "white_concrete_slab"
+  },
+  "result": {
+   "item": "white_concrete_slab_top",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_concrete_slab_back",
+  "category": "building",
+  "pattern": [
+   "S",
+   "S"
+  ],
+  "key": {
+   "S": "white_concrete_slab"
+  },
+  "result": {
+   "item": "white_concrete",
+   "count": 1
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_concrete_stair_inner",
+  "category": "building",
+  "pattern": [
+   " M ",
+   "MSM"
+  ],
+  "key": {
+   "M": "white_concrete",
+   "S": "white_concrete_stair"
+  },
+  "result": {
+   "item": "white_concrete_stair_inner",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_concrete_stair_outer",
+  "category": "building",
+  "pattern": [
+   "SS"
+  ],
+  "key": {
+   "S": "white_concrete_stair"
+  },
+  "result": {
+   "item": "white_concrete_stair_outer",
+   "count": 2
+  }
+ },
+ {
+  "type": "recipe",
+  "id": "white_concrete_slope",
+  "category": "building",
+  "pattern": [
+   "S",
+   "M"
+  ],
+  "key": {
+   "S": "white_concrete_slab",
+   "M": "white_concrete"
+  },
+  "result": {
+   "item": "white_concrete_slope",
+   "count": 2
+  }
+ }
+]

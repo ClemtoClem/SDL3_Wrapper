@@ -1,14 +1,23 @@
 {
- "id": "backrooms",
- "name": "Backrooms",
- "version": "1.0.0",
- "description": "Des salles jaunes sans fin, des néons qui bourdonnent, et quelques sorties. On s'y réveille après être mort étouffé.",
- "dependencies": [
-  "core"
- ],
- "category": "dimension",
- "tags": [
-  "dimension",
-  "horreur"
- ]
+    "id": "backrooms",
+    "name": "Backrooms",
+    "version": "1.0.0",
+    "description": "Des salles jaunes sans fin, des néons qui bourdonnent : cinq niveaux indépendants (0, 2, 4, 5, 37), sur plusieurs étages, reliés par des ascenseurs. On s'y réveille après être mort étouffé ; le dernier ascenseur ramène à la surface.",
+    "dependencies": [
+        "core",
+        "elevators"
+    ],
+    "category": "dimension",
+    "tags": [
+        "dimension",
+        "horreur"
+    ],
+    "settings": [
+        {"id": "number_of_floors_per_level", "group": "Général", "type": "int", "label": "Nombre d'étage par niveaux de backrooms", "default": 4, "min": 3, "max": 16, "unit": "étages" },
+        {"id": "floors_level_0", "group": "Par niveau", "type": "int", "label": "Niveau 0 — couloirs jaunes (0 : réglage général)", "default": 0, "min": 0, "max": 16, "unit": "étages" },
+        {"id": "floors_level_2", "group": "Par niveau", "type": "int", "label": "Niveau 2 — parking (0 : réglage général)", "default": 0, "min": 0, "max": 16, "unit": "étages" },
+        {"id": "floors_level_4", "group": "Par niveau", "type": "int", "label": "Niveau 4 — hôpital (0 : réglage général)", "default": 0, "min": 0, "max": 16, "unit": "étages" },
+        {"id": "floors_level_5", "group": "Par niveau", "type": "int", "label": "Niveau 5 — hôtel (0 : réglage général)", "default": 0, "min": 0, "max": 16, "unit": "étages" },
+        {"id": "floors_level_37", "group": "Par niveau", "type": "int", "label": "Niveau 37 — piscines (0 : réglage général)", "default": 0, "min": 0, "max": 16, "unit": "étages" }
+    ]
 }

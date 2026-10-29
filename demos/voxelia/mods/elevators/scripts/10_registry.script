@@ -1,0 +1,109 @@
+# Ascenseurs de la dimension courante : enregistrement et sauvegarde.
+#
+# Un ascenseur (EL.records[id], id = position du moteur « x,y,z ») :
+#   motor {x, y, z}       moteur, au-dessus du centre de la gaine
+#   side  n|s|e|w         côté des portes (vers l'extérieur de la gaine)
+#   style                 modern | industrial | backrooms (cabine)
+#   floors [{y, name}]    arrêts, du plus bas au plus haut ; y = plancher de cabine
+#   floor                 indice de l'arrêt où se trouve la cabine
+#   state                 état (cf. EL_STATES) ; queue : arrêts demandés
+#   external [ids]        destinations extérieures proposées (70_destinations)
+#   door_time, speed      réglages propres (sinon ceux du mod)
+#   owner                 joueur qui l'a configuré (option « owner_only »)
+# Sauvegardé dans les données de la dimension (world.set_data) ; la cabine
+# en marche l'est aussi en fichier de structure (elevator_cabin_<id>) pour être
+# reposée à l'étage si le jeu s'arrête pendant un trajet.
+
+fn el_save() { world.set_data("elevators", EL.records) }
+
+fn el_file(id) { return format("elevator_cabin_{}", id.replace(",", "_").replace("-", "m")) }
+
+# Les ascenseurs de la dimension où se trouve le joueur (au chargement d'un
+# monde, après un changement de dimension).
+fn el_load() {
+    let dim = world.dimension()
+    if (EL.loaded_for == dim) { return nil }
+    EL.loaded_for = dim
+    EL.active = {}
+    let data = world.data("elevators")
+    EL.records = {}
+    if (data != nil) { EL.records = data }
+    for (id in keys(EL.records)) { el_restore(EL.records[id]) }
+}
+
+fn el_get(id) {
+    if (has(EL.records, id)) { return EL.records[id] }
+    return nil
+}
+
+# L'ascenseur dont la gaine contient le point (x, y, z) (bouton, porte, cabine).
+fn el_find_at(x, y, z) {
+    for (id in keys(EL.records)) {
+        let e = EL.records[id]
+        let m = e.motor
+        if (el_abs(x - m.x) <= EL.CABIN.wall + 1 and el_abs(z - m.z) <= EL.CABIN.wall + 1 and y < m.y and
+            y >= e.floors[0].y - 1) {
+            return e
+        }
+    }
+    return nil
+}
+
+# Coin minimal de la cabine posée à l'arrêt d'indice i.
+fn el_cabin_min(e, i) { return el_pos(e.motor.x - EL.CABIN.half, e.floors[i].y, e.motor.z - EL.CABIN.half) }
+fn el_cabin_max(e, i) {
+    let a = el_cabin_min(e, i)
+    return el_pos(a.x + EL.CABIN.w - 1, a.y + EL.CABIN.h - 1, a.z + EL.CABIN.w - 1)
+}
+
+# Cellules d'un palier (dans le mur de la gaine) : porte, afficheur, sens, bouton.
+fn el_landing(e, i) {
+    let sd = EL_SIDES[e.side]
+    let y = e.floors[i].y
+    let dx = e.motor.x + sd.dx * EL.CABIN.wall
+    let dz = e.motor.z + sd.dz * EL.CABIN.wall
+    return {
+        door: el_pos(dx, y + 1, dz),
+        display: el_pos(dx, y + 3, dz),
+        arrow: el_pos(dx - sd.ux, y + 3, dz - sd.uz),
+        call: el_pos(dx + sd.ux, y + 2, dz + sd.uz)
+    }
+}
+# Cellules de la cabine à l'arrêt i (porte, afficheur intérieur, panneau).
+fn el_cabin_cells(e, i) {
+    let sd = EL_SIDES[e.side]
+    let y = e.floors[i].y
+    let dx = e.motor.x + sd.dx * EL.CABIN.half
+    let dz = e.motor.z + sd.dz * EL.CABIN.half
+    return {
+        door: el_pos(dx, y + 1, dz),
+        display: el_pos(dx, y + 3, dz),
+        panel: el_pos(dx + sd.ux, y + 2, dz + sd.uz)
+    }
+}
+
+fn el_floor_name(e, i) {
+    let f = e.floors[i]
+    if (has(f, "name") and f.name != nil and f.name != "") { return f.name }
+    return format("étage {}", el_floor_label(e, i))
+}
+
+fn el_floor_label(e, i) {
+    let f = e.floors[i]
+    if (has(f, "label") and f.label != nil) { return f.label }
+    return str(i)
+}
+
+# Nouvel état, seulement par une transition permise (sinon refusée et notée).
+fn el_set_state(e, next) {
+    if (e.state == next) { return true }
+    let allowed = EL_STATES[e.state]
+    if (allowed == nil or not el_contains(allowed, next)) {
+        game.log(format("[elevators] transition refusée {} → {} ({})", e.state, next, e.id))
+        return false
+    }
+    e.state = next
+    e.state_time = 0
+    el_on_state(e)
+    return true
+}

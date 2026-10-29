@@ -7,7 +7,11 @@
  *    shader) et un matériau translucide (mélangé, vu des deux côtés).
  *  - Chunks : maillés sur le CPU (voxel::ChunkMesher), reconstruits quand
  *    leur révision change — les plus proches d'abord, quelques-uns par image
- *    (pas d'à-coup quand on casse un bloc ou quand le terrain arrive).
+ *    (pas d'à-coup quand on casse un bloc ou quand le terrain arrive). Le
+ *    maillage se fait sur les fils de rendu (« voxel-render ») à partir d'un
+ *    instantané du monde (World::Snapshot : copies figées des chunks dans la
+ *    portée de la lumière), pendant que la simulation avance sur son fil ;
+ *    le fil principal pose les maillages revenus dans la scène.
  *  - Entités : une forme par entité visible (cube, nodebox, croix, modèle,
  *    bloc en miniature), maillages partagés par forme, placés à la position
  *    interpolée entre deux pas de physique.
@@ -28,6 +32,8 @@
 #include <voxel/meshing.hpp>
 #include <voxel/rig.hpp>
 
+#include "worker.hpp"
+
 namespace voxelia {
 
 /// Réglages graphiques appliqués au rendu du monde.
@@ -44,7 +50,8 @@ struct WorldRenderSettings {
 
 class WorldRenderer {
 public:
-	WorldRenderer(voxel::Game &game, render3d::Canvas &canvas);
+	/// `meshThreads` : fils de rendu qui maillent les chunks (0 : sur place, à chaque image).
+	WorldRenderer(voxel::Game &game, render3d::Canvas &canvas, int meshThreads = 1);
 	~WorldRenderer();
 
 	/// Atlas et matériaux (après le chargement des mods).
@@ -59,6 +66,11 @@ public:
 	[[nodiscard]] size_t ChunkMeshCount() const noexcept { return m_chunks.size(); }
 	[[nodiscard]] size_t PendingChunks() const noexcept { return m_pending; }
 	[[nodiscard]] size_t TriangleCount() const noexcept { return m_triangles; }
+	/// Chunks confiés au fil de rendu, pas encore revenus.
+	[[nodiscard]] size_t MeshingChunks() const noexcept { return m_inFlight.size(); }
+	/// Temps de maillage d'un chunk (ms, moyenne glissante, fil de rendu).
+	[[nodiscard]] float MeshMilliseconds() const noexcept { return m_meshMs; }
+	[[nodiscard]] bool Threaded() const noexcept { return !m_renderThreads.empty() && m_renderThreads.front()->Threaded(); }
 	/// Budget de reconstruction (chunks par image).
 	size_t rebuildBudget = 6;
 
@@ -99,7 +111,25 @@ private:
 				   float dt);
 	void DropView(EntityView &view);
 
-	void RebuildChunk(const voxel::ChunkPos &p, ChunkView &view);
+	/// Maillage revenu du fil de rendu (formes vides : nullptr).
+	struct MeshResult {
+		voxel::ChunkPos pos{0, 0, 0};
+		uint64_t revision = 0, serial = 0;
+		std::shared_ptr<render3d::Mesh> opaque, translucent, emissive;
+		float milliseconds = 0.f;
+	};
+	/// Chunk confié au fil de rendu : révision maillée, génération des réglages.
+	struct InFlight {
+		uint64_t revision = 0, serial = 0;
+	};
+	/// Instantané des chunks utiles à `batch` et maillage déposé sur le fil de rendu.
+	void QueueMeshing(const std::vector<voxel::ChunkPos> &batch);
+	/// Pose dans la scène les maillages revenus (fil principal).
+	void ApplyMeshes();
+	/// Verrou de m_results (aucun sans mutex : tout se fait alors sur le fil principal).
+	[[nodiscard]] Option<sdl3::MutexGuard> LockResults();
+	void PlaceMesh(render3d::Shape *&slot, std::shared_ptr<render3d::Mesh> mesh, const render3d::Material &material,
+				   const math::FVector3 &origin);
 	void UpdateEntities(float alpha);
 	void UpdateSky();
 	/// Cubemap d'une image « en croix » (4 × 3 faces), construite au premier besoin.
@@ -110,11 +140,15 @@ private:
 	/// Boîtes surlignées par les mods (Game::Highlights) : arêtes d'épaisseur
 	/// constante, refaites quand la liste change.
 	void UpdateHighlights();
+	/// Entité assemblage de blocs (Visual::structure) : maillée une fois, posée en `corner`.
+	void UpdateStructure(EntityView &view, const voxel::Visual &visual, const math::FVector3 &corner);
 	/// Lumière reçue par un objet mobile en `p` (Material::objectLight) :
 	/// éclairement des sources (rgb, linéaire) et part de ciel (a).
 	[[nodiscard]] math::FVector4 LightAt(const math::FVector3 &p) const;
 	void UpdateShadow(EntityView &view, const math::FVector3 &feet, float width, bool visible);
-	[[nodiscard]] std::shared_ptr<render3d::Mesh> EntityMesh(const voxel::Visual &visual, const String &mod, std::string &key);
+	/// `sprite` : l'image de l'objet en plaque mince (objet au sol qui ne pose pas de bloc).
+	[[nodiscard]] std::shared_ptr<render3d::Mesh> EntityMesh(const voxel::Visual &visual, const String &mod, std::string &key,
+															 bool sprite = false);
 	[[nodiscard]] static render3d::Mesh ToMesh(const voxel::MeshBuffer &buffer);
 
 	voxel::Game &m_game;
@@ -151,6 +185,21 @@ private:
 	math::FVector3 m_lastCamera{0.f, 0.f, 0.f};
 	double m_lastTime = -1.0;
 	size_t m_pending = 0, m_triangles = 0;
+
+	// Fil de rendu : maillage des chunks sur des instantanés.
+	/// Copies figées des chunks (révision copiée → copie), partagées par les
+	/// instantanés ; refaites quand le chunk vivant change.
+	std::unordered_map<voxel::ChunkPos, std::pair<uint64_t, std::shared_ptr<voxel::Chunk>>> m_frozen;
+	std::unordered_map<voxel::ChunkPos, InFlight> m_inFlight;
+	/// Avance quand les maillages en cours ne valent plus (réglages, dimension).
+	uint64_t m_meshSerial = 1;
+	float m_meshMs = 0.f;
+	Option<sdl3::Mutex> m_resultsMutex = NONE;
+	std::vector<MeshResult> m_results; ///< protégé par m_resultsMutex
+	/// Un mailleur par fil de rendu (ses options : copiées dans chaque tâche).
+	std::vector<std::unique_ptr<voxel::ChunkMesher>> m_jobMeshers;
+	/// Dernier membre : détruit (joint) avant tout ce que leurs tâches utilisent.
+	std::vector<std::unique_ptr<Worker>> m_renderThreads;
 };
 
 } // namespace voxelia

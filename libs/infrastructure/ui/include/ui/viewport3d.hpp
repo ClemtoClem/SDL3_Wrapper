@@ -37,6 +37,23 @@ struct ViewportLighting {
 	sdl3::Color background{0, 0, 0, 255};
 };
 
+/// Passage de l'image rendue (texture SDL_GPU) au renderer 2D de l'interface.
+enum class ViewportTransfer : uint8_t {
+	/// Rendu, attente du GPU, téléchargement des pixels, attente, copie dans
+	/// une texture du renderer : deux attentes bloquantes et un aller-retour
+	/// GPU → CPU → GPU par image. Marche avec tout renderer.
+	READBACK,
+	/// Même aller-retour, sans attente : chaque image est rendue et téléchargée
+	/// dans une des trois cibles d'un anneau ; on affiche la plus récente dont
+	/// le GPU a fini (une image de retard en général).
+	PIPELINED,
+	/// Aucune copie : le renderer 2D (« gpu », même device que le Canvas)
+	/// affiche directement la texture rendue ; la file GPU ordonne le rendu
+	/// 3D avant l'affichage, le CPU n'attend rien. Repli sur READBACK si le
+	/// renderer ne le permet pas.
+	DIRECT,
+};
+
 /// Brique : vue 3D (état GPU compris, non copiable).
 struct Viewport3DState {
 	render3d::Object3D *root = nullptr; ///< non possédé
@@ -45,6 +62,16 @@ struct Viewport3DState {
 	Option<sdl3::Texture> displayTexture = NONE;
 	uint32_t textureWidth = 0, textureHeight = 0;
 	std::vector<uint8_t> pixels;
+	ViewportTransfer transfer = ViewportTransfer::READBACK;
+	/// PIPELINED : cibles en vol (rendu + téléchargement soumis, clôture).
+	struct InFlight {
+		render3d::OffscreenTarget target{};
+		Option<sdl3::GpuFence> fence = NONE;
+		uint64_t frame = 0;
+	};
+	std::vector<InFlight> ring;
+	uint64_t ringFrame = 0, shownFrame = 0;
+	bool directFailed = false; ///< DIRECT refusé par le renderer : READBACK
 	/// Vrai : rendue à chaque image ; faux : seulement si `needsRender` ou
 	/// si la taille change (scène statique).
 	bool continuous = true;

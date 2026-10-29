@@ -141,6 +141,10 @@ timeout = 300                  # secondes par exécutable de test
 [tests.env]
 # Fuites connues des pilotes (SDL, Mesa...) ignorées en mode asan.
 LSAN_OPTIONS = "suppressions={root}/tests/lsan_suppressions.txt"
+# Courses internes des bibliothèques non instrumentées (pilotes Mesa, dbus, SDL_net).
+TSAN_OPTIONS = "suppressions={root}/tests/tsan_suppressions.txt"
+# Mêmes fuites tierces sous valgrind (mode valgrind).
+VALGRIND_OPTS = "--suppressions={root}/tests/valgrind.supp"
 
 [package]
 formats = ["tar.gz"]           # tar.gz | tar.xz | zip | deb

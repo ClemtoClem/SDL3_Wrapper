@@ -13,3 +13,5 @@ bin*/
 *.bin
 *.zip
 roms*/
+node_modules*/
+out*/

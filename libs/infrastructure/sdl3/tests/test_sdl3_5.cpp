@@ -32,7 +32,7 @@ static int smoke_main_test_sdl3_5() {
 	auto &ren = renRes.Value();
 
 	// --- SDL3_image ---
-	auto texRes = ImgLoadTexture(ren, "assets/textures/backrooms_concrete.png");
+	auto texRes = ImgLoadTexture(ren, "assets/textures/star.png");
 	if (!texRes) {
 		std::cerr << "imgLoadTexture failed: " << texRes.Error().CStr() << "\n";
 		return 1;
@@ -40,7 +40,7 @@ static int smoke_main_test_sdl3_5() {
 	auto &tex = texRes.Value();
 	std::cout << "loaded texture " << tex.GetWidth() << "x" << tex.GetHeight() << "\n";
 
-	auto surfRes = ImgLoad("assets/textures/backrooms_concrete.png");
+	auto surfRes = ImgLoad("assets/textures/star.png");
 	if (surfRes)
 		std::cout << "loaded surface " << surfRes.Value().GetWidth() << "x" << surfRes.Value().GetHeight() << "\n";
 

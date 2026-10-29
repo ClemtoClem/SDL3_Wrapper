@@ -1,0 +1,34 @@
+{
+    "name": "script-lang",
+    "displayName": "Script Language",
+    "description": "Coloration, diagnostics, complétion et navigation pour le langage Script.",
+    "version": "0.1.0",
+    "publisher": "local",
+    "engines": { "vscode": "^1.75.0" },
+    "categories": ["Programming Languages", "Linters"],
+    "activationEvents": ["onLanguage:script"],
+    "main": "./out/extension.js",
+    "contributes": {
+        "languages": [{
+            "id": "script",
+            "aliases": ["Script", "script"],
+            "extensions": [".script"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "script",
+            "scopeName": "source.script",
+            "path": "./syntaxes/script.tmLanguage.json"
+        }]
+    },
+    "scripts": {
+        "compile": "tsc -p .",
+        "watch": "tsc -watch -p .",
+        "vscode:prepublish": "npm run compile"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.75.0",
+        "@types/node": "^20.0.0",
+        "typescript": "^5.0.0"
+    }
+}

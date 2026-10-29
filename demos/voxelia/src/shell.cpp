@@ -48,7 +48,8 @@ public:
 		if (Result<bool, String> r = game->OpenWorld("menu", Some(uint32_t(424242))); r.IsError())
 			return r;
 		game->SetGameTime(0.32 * double(game->Options().dayLength));
-		renderer = std::make_unique<WorldRenderer>(*game, m_shell.Canvas());
+		const Options &app = m_shell.Opts();
+		renderer = std::make_unique<WorldRenderer>(*game, m_shell.Canvas(), app.threaded ? app.meshThreads : 0);
 		if (Result<bool, String> r = renderer->Initialize(); r.IsError())
 			return r;
 		renderer->rebuildBudget = 4;
@@ -133,6 +134,10 @@ Result<bool, String> Shell::Initialize() {
 // de la bibliothèque passent au-dessus de toutes.
 void Shell::BuildLayers() {
 	m_viewport = m_gui.Mount(ui::Viewport3D(m_backdrop->renderer->Root(), m_backdrop->camera).Id("viewport"));
+	if (auto vp = m_viewport.Get<ui::Viewport3DState>(); vp.IsSome())
+		vp.Unwrap()->transfer = m_options.viewport == "readback"	? ui::ViewportTransfer::READBACK
+								: m_options.viewport == "pipelined" ? ui::ViewportTransfer::PIPELINED
+																	: ui::ViewportTransfer::DIRECT;
 	MakeHudLayer();
 	m_screenLayer = m_gui.Mount(ui::Stack().Id("screen-layer").Padding(0.f).PointerThrough());
 	m_toastLayer = m_gui.Mount(ui::Column()
@@ -503,6 +508,16 @@ void Shell::Update(float dt, long frame) {
 		if (m_stack[i].root.Valid())
 			m_stack[i].screen->Update(dt);
 	UpdateToasts(dt);
+}
+
+void Shell::BeginSimulation() {
+	if (m_session)
+		m_session->BeginSimulation();
+}
+
+void Shell::EndSimulation() {
+	if (m_session)
+		m_session->EndSimulation();
 }
 
 void Shell::UpdateViewport() {

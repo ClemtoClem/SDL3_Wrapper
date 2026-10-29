@@ -78,6 +78,10 @@ public:
 	[[nodiscard]] bool Running() const noexcept { return m_running; }
 	void HandleEvent(sdl3::Event &e);
 	void Update(float dt, long frame);
+	/// Pas de simulation de la partie sur son fil (cf. Session::BeginSimulation).
+	void BeginSimulation();
+	/// Attend ce pas : à appeler avant tout accès au jeu (début d'image, sortie).
+	void EndSimulation();
 	/// Commande d'automatisation (--exec=N:!…) : « !screen nom », « !click texte »…
 	void AppCommand(const String &line);
 	/// Exécute une commande de jeu (console) si une partie est en cours.

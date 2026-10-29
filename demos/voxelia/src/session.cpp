@@ -11,6 +11,7 @@
 #include <sdl3/image.hpp>
 #include <voxel/json.hpp>
 #include <voxel/rig.hpp>
+#include <voxel/scripting.hpp>
 #include <voxelia/screens.hpp>
 #include <voxelia/shell.hpp>
 
@@ -44,9 +45,12 @@ bool Held(const Settings &s, const char *action) {
 
 } // namespace
 
-Session::Session(Shell &shell, String folder) : m_shell(shell), m_folder(std::move(folder)) {}
+Session::Session(Shell &shell, String folder) : m_shell(shell), m_folder(std::move(folder)) {
+	m_updateThread = std::make_unique<Worker>(String("voxel-update"), m_shell.Opts().threaded);
+}
 
 Session::~Session() {
+	m_updateThread.reset(); // pas de simulation en cours pendant qu'on défait la partie
 	if (m_audio)
 		m_audio->StopAll();
 	m_world.reset();
@@ -117,7 +121,8 @@ bool Session::Prepare(float &progress, String &status) {
 		return false;
 	}
 	case 3: {
-		m_world = std::make_unique<WorldRenderer>(*m_game, m_shell.Canvas());
+		const Options &o = m_shell.Opts();
+		m_world = std::make_unique<WorldRenderer>(*m_game, m_shell.Canvas(), o.threaded ? o.meshThreads : 0);
 		if (Result<bool, String> r = m_world->Initialize(); r.IsError()) {
 			m_error = r.Error();
 			return false;
@@ -662,8 +667,10 @@ void Session::UpdateHudLabels() {
 												  int(m_game->Assets().ResidentCount()), int(m_audio->VoiceCount()), m_game->Metadata().seed));
 		k.SetText(m_debugLines[3], String::Format("lacet %.0f°, tangage %.0f°, lumière %s", double(t.Unwrap()->yaw * 57.3f),
 												  double(t.Unwrap()->pitch * 57.3f), night ? "nuit" : "jour"));
-		k.SetText(m_debugLines[4], String::Format("%d mod(s) — %d définition(s)", int(m_game->Mods().mods.size()),
-												  int(m_game->Content().DefinitionCount())));
+		k.SetText(m_debugLines[4], String::Format("%d mod(s) — %d définition(s) — %s : pas %.1f ms, maillage %.1f ms/chunk (%d en cours)",
+												  int(m_game->Mods().mods.size()), int(m_game->Content().DefinitionCount()),
+												  m_updateThread->Threaded() ? "fils" : "fil unique", double(m_tickMs),
+												  double(m_world->MeshMilliseconds()), int(m_world->MeshingChunks())));
 	}
 }
 
@@ -1183,8 +1190,10 @@ void Session::Update(float dt, bool paused, bool panelOpen) {
 	if (!m_ready)
 		return;
 	UpdateControls();
-	if (!paused)
-		m_game->Tick(dt);
+	if (m_updateThread->Threaded())
+		m_pendingTick = paused ? -1.f : dt; // avancera sur le fil de mise à jour, après l'image
+	else if (!paused)
+		RunTick(dt);
 	Option<BlockHit> target;
 	if (!paused && !panelOpen && m_captured) {
 		target = m_game->TargetBlock(m_player);
@@ -1204,6 +1213,37 @@ void Session::Update(float dt, bool paused, bool panelOpen) {
 	UpdateStats(dt);
 	UpdateHudLabels();
 	HandleUiRequests();
+}
+
+void Session::RunTick(float dt) {
+	const uint64_t start = sdl3::GetPerformanceCounter();
+	m_game->Tick(dt);
+	const float ms = float(double(sdl3::GetPerformanceCounter() - start) * 1000.0 / double(sdl3::GetPerformanceFrequency()));
+	m_tickMs = m_tickMs <= 0.f ? ms : m_tickMs * 0.95f + ms * 0.05f;
+}
+
+void Session::BeginSimulation() {
+	if (!m_ready || m_pendingTick < 0.f)
+		return;
+	const float dt = m_pendingTick;
+	m_pendingTick = -1.f;
+	m_ticked = true;
+	m_updateThread->Post([this, dt]() {
+		// Les scripts sont pilotés par ce fil pendant le pas : l'API de l'hôte
+		// s'y exécute (sinon l'interpréteur la renverrait au fil principal,
+		// qui attend ce pas — interblocage).
+		m_game->Scripts().Vm().SetMainThread();
+		RunTick(dt);
+	});
+}
+
+void Session::EndSimulation() {
+	if (!m_ticked)
+		return;
+	m_updateThread->Wait();
+	m_ticked = false;
+	if (m_game)
+		m_game->Scripts().Vm().SetMainThread(); // de retour au fil principal (commandes, actions du joueur)
 }
 
 } // namespace voxelia

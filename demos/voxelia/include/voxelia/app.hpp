@@ -35,6 +35,15 @@ struct Options {
 	int view = 6;
 	bool creative = false;
 	bool headless = false;
+	/// Simulation et maillage sur leurs fils (« voxel-update », « voxel-render ») ;
+	/// faux (--threads=off) : tout sur le fil principal, l'un après l'autre.
+	bool threaded = true;
+	/// Fils de rendu qui maillent les chunks (--mesh-threads=N, avec --threads=on).
+	/// Deux : le meilleur compromis mesuré sur 4 cœurs (un troisième dispute
+	/// le processeur au fil principal et au pilote GPU).
+	int meshThreads = 2;
+	/// Passage de la vue 3D à l'interface (--viewport=direct|pipelined|readback).
+	String viewport = "direct";
 	long frames = 0;                                  ///< 0 : jusqu'à la fermeture
 	int width = 1280, height = 760;
 	std::vector<std::pair<long, String>> screenshotsAt; ///< image → fichier

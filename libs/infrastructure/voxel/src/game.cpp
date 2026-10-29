@@ -268,7 +268,15 @@ void Game::CreateWorld(const String &dimension) {
 	WorldSettings settings{m_metadata.name, seed, generator, m_metadata.settings};
 	m_world = std::make_unique<World>(m_content, settings);
 	m_world->SetStorage(m_save.get());
-	auto terrain = MakeGenerator(m_content, generator, seed, m_scripts->Generator());
+	// Paramètres tirés des réglages des mods ({"setting": …}) : résolus, et figés dans ce monde.
+	std::shared_ptr<TerrainGenerator> terrain;
+	if (const GeneratorDef *found = generator.IsEmpty() ? nullptr : m_content.FindGenerator(generator)) {
+		GeneratorDef resolved = *found;
+		resolved.raw = ResolveSettings(found->raw, found->mod);
+		terrain = std::make_shared<TerrainGenerator>(m_content, resolved, seed, m_scripts->Generator());
+	} else {
+		terrain = MakeGenerator(m_content, generator, seed, m_scripts->Generator());
+	}
 	if (overworld && m_metadata.generator.IsEmpty())
 		m_metadata.generator = terrain->Definition().id;
 	// Réglages de génération choisis à la création du monde (monde ordinaire).
@@ -604,6 +612,7 @@ void Game::InstallSystems() {
 					  [this](ecs::Entity e, BehaviorState &s, float dt) { return m_scripts->RunBehavior(e, s, dt); });
 	}, 0);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "physics", [this](ecs::SystemContext &c) { StepPhysics(m_registry, *m_world, c.dt, m_physics); }, 10);
+	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "carriers", [this](ecs::SystemContext &c) { StepCarriers(c.dt); }, 11);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "portals", [this](ecs::SystemContext &c) { StepPortals(c.dt); }, 15);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "falling_blocks", [this](ecs::SystemContext &) { StepFallingBlocks(); }, 20);
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "fluids", [this](ecs::SystemContext &c) {
@@ -1478,12 +1487,64 @@ bool Game::SetBlockState(const BlockPos &pos, const String &state, ChangeCause c
 	if (!m_world || !m_world->IsLoaded(pos))
 		return false;
 	const BlockPos main = MainPart(pos);
-	const BlockDef *to = m_content.BlockState(m_world->BlockAt(main), state);
+	const BlockDef &def = m_world->BlockAt(main);
+	const BlockDef *to = m_content.BlockState(def, state);
 	if (!to)
 		return false;
-	if (to->numeric == m_world->GetBlock(main))
+	if (to->numeric == def.numeric)
 		return true;
-	return m_world->SetBlock(main, to->numeric, m_world->GetParam(main), cause);
+	// Les autres cellules du bloc (haut d'une porte) suivent, comme pour une bascule.
+	const uint8_t param = m_world->GetParam(main);
+	for (size_t i = 0; i < def.parts.size() && i < to->parts.size(); ++i) {
+		const BlockPos at = main + RotateOffset(def.parts[i].offset, param);
+		const BlockDef *target = m_content.FindBlock(to->parts[i].block);
+		if (target && m_world->BlockAt(at).id == def.parts[i].block)
+			(void)m_world->SetBlock(at, target->numeric, param, cause);
+	}
+	return m_world->SetBlock(main, to->numeric, param, cause);
+}
+
+void Game::StepCarriers(float dt) {
+	struct Moved {
+		Box before; ///< volume transporté avant le pas (monde)
+		math::FVector3 delta, velocity;
+		float floor, top;
+	};
+	std::vector<Moved> moved;
+	m_registry.Query<Carrier, Transform>([&](ecs::Entity e, Carrier &carrier, Transform &t) {
+		math::FVector3 velocity{0.f, 0.f, 0.f};
+		if (auto v = m_registry.GetComponent<Velocity>(e); v.IsSome())
+			velocity = v.Unwrap()->linear;
+		t.previous = t.position;
+		const Box before = carrier.ride.Offset(t.position);
+		t.position = t.position + velocity * dt;
+		moved.push_back(Moved{before, velocity * dt, velocity, t.position.y + carrier.floor, t.position.y + carrier.ride.max.y});
+	});
+	if (moved.empty())
+		return;
+	// Passagers : les corps dont les pieds sont dans le volume (avant le pas).
+	m_registry.Query<Transform, PhysicsBody, Collider>([&](ecs::Entity e, Transform &t, PhysicsBody &body, Collider &c) {
+		if (m_registry.HasComponent<Carrier>(e))
+			return;
+		for (const Moved &m : moved) {
+			const math::FVector3 &p = t.position;
+			if (p.x < m.before.min.x || p.x > m.before.max.x || p.z < m.before.min.z || p.z > m.before.max.z ||
+				p.y < m.before.min.y - 0.6f || p.y > m.before.max.y)
+				continue;
+			t.position = t.position + m.delta;
+			// Sur le plancher (jamais à travers), sous le plafond.
+			if (t.position.y < m.floor) {
+				t.position.y = m.floor;
+				if (auto v = m_registry.GetComponent<Velocity>(e); v.IsSome())
+					v.Unwrap()->linear.y = std::max(v.Unwrap()->linear.y, m.velocity.y);
+				body.onGround = true;
+			}
+			if (t.position.y + c.size.y > m.top)
+				t.position.y = std::max(m.floor, m.top - c.size.y);
+			body.fallDistance = 0.f;
+			break;
+		}
+	});
 }
 
 void Game::StepLights(float dt) {
@@ -1682,6 +1743,80 @@ void Game::SetDifficulty(Difficulty difficulty) {
 	m_difficulty = difficulty;
 	if (m_metadata.settings)
 		m_metadata.settings->Set("difficulty", json::MakeStr(DifficultyId(difficulty)));
+}
+
+NodePtr Game::ModSetting(const String &mod, const String &name) const {
+	const String key = mod + String(".") + name;
+	if (NodePtr frozen = json::At(json::At(m_metadata.settings, "modSettings"), key.CStr()))
+		return frozen;
+	if (NodePtr v = json::At(m_options.modSettings, key.CStr()))
+		return v;
+	for (const ModInfo &info : m_mods.mods)
+		if (info.id == mod)
+			if (NodePtr list = json::At(info.manifest, "settings"); list && list->IsArray())
+				for (size_t i = 0; i < list->GetSize(); ++i)
+					if (json::Str(list->At(i), "id") == name)
+						return json::At(list->At(i), "default");
+	return nullptr;
+}
+
+NodePtr Game::WorldModSetting(const String &mod, const String &name) {
+	NodePtr value = ModSetting(mod, name);
+	if (!value)
+		return nullptr;
+	if (!m_metadata.settings || !m_metadata.settings->IsObject())
+		m_metadata.settings = dataio::Node::MakeObject();
+	NodePtr all = m_metadata.settings->Get(String("modSettings"));
+	if (!all || !all->IsObject()) {
+		all = dataio::Node::MakeObject();
+		m_metadata.settings->Set("modSettings", all);
+	}
+	NodePtr ofMod = all->Get(mod);
+	if (!ofMod || !ofMod->IsObject()) {
+		ofMod = dataio::Node::MakeObject();
+		all->Set(mod, ofMod);
+	}
+	if (!ofMod->Get(name))
+		ofMod->Set(name, value->Clone());
+	return value;
+}
+
+NodePtr Game::ResolveSettings(const NodePtr &node, const String &mod) {
+	if (!node)
+		return node;
+	if (node->IsObject()) {
+		if (NodePtr name = node->Get(String("setting")); name && name->IsString()) {
+			NodePtr value = WorldModSetting(mod, json::Str(name, ""));
+			const bool unset = !value || value->IsNone() || (value->IsNumber() && json::Num(value, "", 0.0) == 0.0) ||
+							   (value->IsString() && json::Str(value, "").IsEmpty()) || (value->IsBool() && !json::Bool(value, "", false));
+			if (unset)
+				if (NodePtr fallback = node->Get(String("fallback")))
+					return ResolveSettings(fallback, mod);
+			return value ? value->Clone() : dataio::Node::MakeNone();
+		}
+		NodePtr out = dataio::Node::MakeObject();
+		for (const String &key : node->Keys())
+			out->Set(key, ResolveSettings(node->Get(key), mod));
+		return out;
+	}
+	if (node->IsArray()) {
+		NodePtr out = dataio::Node::MakeArray();
+		for (size_t i = 0; i < node->GetSize(); ++i)
+			out->Push(ResolveSettings(node->At(i), mod));
+		return out;
+	}
+	return node->Clone();
+}
+
+Option<BlockPos> Game::MazeShaftMotor(const String &dimension, const String &shaft) {
+	const DimensionDef *dim = m_content.FindDimension(dimension);
+	const String generator = dim && !dim->generator.IsEmpty() ? dim->generator : m_metadata.generator;
+	const GeneratorDef *found = generator.IsEmpty() ? nullptr : m_content.FindGenerator(generator);
+	if (!found || found->kind != "maze")
+		return NONE;
+	GeneratorDef resolved = *found;
+	resolved.raw = ResolveSettings(found->raw, found->mod);
+	return TerrainGenerator(m_content, resolved, 0).MazeElevatorMotor(shaft);
 }
 
 bool Game::Rule(const char *name) const {

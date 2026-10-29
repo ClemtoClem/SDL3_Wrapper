@@ -5,6 +5,7 @@
  * les propriétés libres de sa définition JSON).
  */
 #include <array>
+#include <memory>
 #include <vector>
 
 #include <core/core.hpp>
@@ -13,6 +14,10 @@
 #include <math/math.hpp>
 
 #include "content.hpp"
+
+namespace voxel {
+class Schematic;
+}
 
 namespace voxel {
 
@@ -121,6 +126,20 @@ struct Visual {
 	/// Modèle articulé (prioritaire sur `shape`) et skin choisi.
 	RigRef rig;
 	String skin;
+	/// Assemblage de blocs déplacé d'un bloc (cabine d'ascenseur…) : dessiné
+	/// tel quel, coin minimal à la position de l'entité. `structureSerial`
+	/// distingue les assemblages (cache des maillages).
+	std::shared_ptr<const Schematic> structure;
+	uint64_t structureSerial = 0;
+};
+
+/// Plateforme mobile (cabine d'ascenseur, nacelle…) : se déplace de sa
+/// vitesse (Velocity, sans gravité ni collision) et emporte les corps qui se
+/// trouvent dans `ride` — posés sur son plancher, gardés sous son plafond,
+/// sans chute ni dégâts.
+struct Carrier {
+	Box ride;          ///< volume transporté, relatif à la position de l'entité
+	float floor = 0.f; ///< hauteur (relative) du plancher
 };
 
 /// Propriétés libres (JSON de la définition + état des scripts).

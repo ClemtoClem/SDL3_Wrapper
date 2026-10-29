@@ -28,6 +28,8 @@
 
 namespace voxel {
 
+class Schematic;
+
 struct MeshVertex {
 	math::FVector3 position{0.f, 0.f, 0.f};
 	math::FVector3 normal{0.f, 1.f, 0.f};
@@ -125,8 +127,18 @@ public:
 	/// remplace celle de la forme pour un cube (collision des entités).
 	[[nodiscard]] MeshBuffer BuildShape(const ShapeDesc &shape, const Appearance &look, uint8_t param = 0,
 										const String &mod = String()) const;
+	/// Assemblage de blocs (≤ 14 de côté) maillé comme un petit monde à part :
+	/// faces, occlusion et lumière de ses propres sources (lampe de cabine),
+	/// sommets relatifs à son coin minimal.
+	[[nodiscard]] ChunkMesh BuildStructure(const Schematic &structure) const;
 	/// Un bloc en miniature (objet au sol, bloc qui tombe), centré, base à 0.
 	[[nodiscard]] MeshBuffer BuildBlock(BlockId block) const;
+	/// Image d'une texture (icône d'outil, d'objet) en plaque mince : faces
+	/// avant et arrière à l'image (pixels transparents découpés par le
+	/// shader), et sur la tranche une facette par bord de pixel opaque, de sa
+	/// couleur. Carré d'un bloc de côté dans le plan XY, centré en x, base à
+	/// y = 0, épaisseur `thickness` en z.
+	[[nodiscard]] MeshBuffer BuildSprite(const String &texture, float thickness = 1.f / 16.f) const;
 
 private:
 	struct BlockRender {

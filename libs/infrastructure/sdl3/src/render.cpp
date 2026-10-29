@@ -748,6 +748,20 @@ Result<Texture, StringView> Texture::Create(Renderer &ren, int w, int h, PixelFo
 	return Ok(Texture(t));
 }
 
+Result<Texture, StringView> Texture::FromGpuTexture(Renderer &ren, SDL_GPUTexture *texture, int w, int h, PixelFormat fmt) {
+	const SDL_PropertiesID props = SDL_CreateProperties();
+	SDL_SetNumberProperty(props, SDL_PROP_TEXTURE_CREATE_FORMAT_NUMBER, detail::ToSDL(fmt));
+	SDL_SetNumberProperty(props, SDL_PROP_TEXTURE_CREATE_ACCESS_NUMBER, SDL_TEXTUREACCESS_STATIC);
+	SDL_SetNumberProperty(props, SDL_PROP_TEXTURE_CREATE_WIDTH_NUMBER, w);
+	SDL_SetNumberProperty(props, SDL_PROP_TEXTURE_CREATE_HEIGHT_NUMBER, h);
+	SDL_SetPointerProperty(props, SDL_PROP_TEXTURE_CREATE_GPU_TEXTURE_POINTER, texture);
+	auto *t = SDL_CreateTextureWithProperties(ren.Get(), props);
+	SDL_DestroyProperties(props);
+	if (!t)
+		return Err(GetError());
+	return Ok(Texture(t));
+}
+
 Result<Texture, StringView> Texture::CreateFromSurface(Renderer &ren, const Surface &surf) {
 	auto *t = SDL_CreateTextureFromSurface(ren.Get(), surf.Get());
 	if (!t)

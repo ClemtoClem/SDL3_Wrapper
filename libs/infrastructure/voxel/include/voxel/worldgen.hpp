@@ -70,6 +70,10 @@ public:
 	[[nodiscard]] Option<int> SkyCover(int x, int z) const override;
 
 	[[nodiscard]] const GeneratorDef &Definition() const noexcept { return m_def; }
+	/// Labyrinthe : nombre d'étages, et moteur d'une de ses gaines d'ascenseur
+	/// (`id` vide : la première ; NONE : pas de gaine).
+	[[nodiscard]] int MazeFloors() const noexcept { return m_mazeFloors; }
+	[[nodiscard]] Option<BlockPos> MazeElevatorMotor(const String &id = String()) const;
 	void SetTuning(const GenerationTuning &tuning);
 	[[nodiscard]] const GenerationTuning &Tuning() const noexcept { return m_tuning; }
 
@@ -109,6 +113,10 @@ private:
 		BlockId lightAuto = AIR;  ///< « lightAuto » : néon à détecteur (s'allume à l'approche)
 		float autoChance = 0.f;
 		bool lightHanging = false; ///< néon pendu sous le plafond (dernière cellule libre) et non encastré
+		/// « vent » : bloc posé DANS le plafond (grille de ventilation), dans une
+		/// part « ventChance » des cellules, loin des murs et des néons.
+		BlockId vent = AIR;
+		float ventChance = 0.f;
 		const BiomeDef *biome = nullptr;
 	};
 
@@ -130,15 +138,25 @@ private:
 	void GenerateCaverns(Chunk &chunk, World &world);
 
 	void SetupMaze();
-	[[nodiscard]] const MazeLevel &MazeLevelAt(int x, int z) const;
-	[[nodiscard]] bool MazeWall(const MazeLevel &level, int x, int z) const;
-	/// Mur de la colonne (x, z), frontières entre niveaux comprises.
-	[[nodiscard]] bool MazeColumnWall(int x, int z) const;
+	/// Niveau de la colonne (x, z) à l'étage `floor` (« floorLevels » : un
+	/// niveau imposé par étage ; sinon les régions).
+	[[nodiscard]] const MazeLevel &MazeLevelAt(int x, int z, int floor = 0) const;
+	[[nodiscard]] bool MazeWall(const MazeLevel &level, int x, int z, int floor = 0) const;
+	/// Mur de la colonne (x, z) à l'étage `floor`, frontières entre niveaux
+	/// comprises (le hall devant l'ascenseur reste ouvert).
+	[[nodiscard]] bool MazeColumnWall(int x, int z, int floor = 0) const;
 	/// La cellule (cx, cz) a-t-elle une porte de sortie en son centre ?
-	[[nodiscard]] bool MazeExitCell(int cx, int cz) const;
+	[[nodiscard]] bool MazeExitCell(int cx, int cz, int floor = 0) const;
 	/// Panneau fléché vers la sortie la plus proche, sur le mur voisin de la
 	/// colonne (x, z) ; AIR si aucun.
-	[[nodiscard]] BlockId MazeExitSign(int x, int z, uint8_t &param) const;
+	[[nodiscard]] BlockId MazeExitSign(int x, int z, uint8_t &param, int floor = 0) const;
+	/// Cage d'escalier montant de l'étage `floor` au suivant dans la cellule ?
+	[[nodiscard]] bool MazeStairCell(int cx, int cz, int floor) const;
+	/// Cellule réservée (gaine d'ascenseur et son hall) : ni escalier, ni
+	/// bassin, ni sortie.
+	[[nodiscard]] bool MazeReservedCell(int cx, int cz) const;
+	/// Plancher (y) de l'étage `floor`.
+	[[nodiscard]] int MazeFloorY(int floor) const { return m_mazeFloor + floor * (m_mazeHeight + 1); }
 	void GenerateMaze(Chunk &chunk, World &world);
 
 	/// Pose une décoration (bloc, structure, élément procédural) en (x, y, z) :
@@ -177,6 +195,31 @@ private:
 	BlockId m_mazeSignLeft = AIR, m_mazeSignRight = AIR; ///< panneaux muraux « ← EXIT », « EXIT → »
 	int m_mazeSignRange = 2, m_mazeSignHeight = 3;
 	int m_poolDepth = 2; ///< profondeur des bassins (« poolDepth »), eau au ras du sol
+	int m_mazeFloors = 1;               ///< « floors » : étages superposés (dalle de 2 blocs entre eux)
+	std::vector<int> m_floorLevels;     ///< « floorLevels » : niveau (indice) de chaque étage, −1 : régions
+	BlockId m_stairBlock = AIR;         ///< « stairs.block » : marche (orientée, montant vers +x)
+	BlockId m_stairFill = AIR;          ///< « stairs.fill » : sous les marches (sinon le mur du niveau)
+	float m_stairChance = 0.f;          ///< « stairs.chance » : cellules à escalier, par étage
+	/// « elevator » (une) ou « elevators » (plusieurs) : gaine traversant les
+	/// étages `from`..`to`, un palier par étage, moteur au sommet (blocs du mod
+	/// « elevators », la cabine est posée par son script). Centre au milieu de
+	/// la cellule `cell`, portes côté `side`.
+	struct MazeElevator {
+		String id = "main";
+		int cx = 0, cz = 0;
+		int dx = 0, dz = 1, ux = -1, uz = 0;
+		uint8_t doorParam = 0;
+		BlockId wall = AIR, rail = AIR, motor = AIR, door = AIR, doorTop = AIR, frame = AIR, call = AIR, display = AIR, arrow = AIR;
+		int pit = 6, overrun = 7;
+		int from = 0, to = 0; ///< étages desservis (bornes comprises)
+		/// Bas (fond de la fosse) et haut (dernier vide sous le moteur) de la gaine.
+		int bottom = 0, top = 0;
+	};
+	std::vector<MazeElevator> m_elevators;
+	/// Gaine dont la cellule est (cx, cz) ; nullptr : aucune.
+	[[nodiscard]] const MazeElevator *MazeShaftAt(int cx, int cz) const;
+	/// Colonne d'une gaine d'ascenseur (x, z) : la pose et rend la gaine (nullptr : aucune).
+	const MazeElevator *MazeElevatorColumn(Chunk &chunk, int lx, int lz, int x, int z);
 	float m_exitChance = 0.003f;
 	std::vector<MazeLevel> m_levels;
 	float m_levelWeight = 0.f;

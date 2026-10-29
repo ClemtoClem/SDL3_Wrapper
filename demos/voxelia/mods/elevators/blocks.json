@@ -1,0 +1,4120 @@
+// Mod « elevators » : blocs (cabine, paliers, machinerie), objets (kits) et recettes.
+// Généré par docs : voir README.md (« Ajouter un style »).
+[
+ {
+  "id": "modern_cabin_floor",
+  "displayName": "Plancher de cabine moderne",
+  "tags": [
+   "elevator",
+   "elevator_modern",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "top": "elevators:elevator_modern_floor",
+    "side": "elevators:elevator_modern_wall",
+    "bottom": "elevators:elevator_shaft"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "modern_cabin_wall",
+  "displayName": "Paroi de cabine moderne",
+  "tags": [
+   "elevator",
+   "elevator_modern",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_modern_wall"
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "modern_cabin_ceiling",
+  "displayName": "Plafond de cabine moderne",
+  "tags": [
+   "elevator",
+   "elevator_modern",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "bottom": "elevators:elevator_modern_ceiling",
+    "side": "elevators:elevator_modern_wall",
+    "top": "elevators:elevator_shaft"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "modern_cabin_lamp",
+  "displayName": "Éclairage de cabine moderne",
+  "tags": [
+   "elevator",
+   "elevator_modern",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "bottom": "elevators:elevator_modern_lamp",
+    "side": "elevators:elevator_modern_wall",
+    "top": "elevators:elevator_shaft"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  },
+  "light": {
+   "type": "spot",
+   "color": [
+    235,
+    244,
+    255
+   ],
+   "intensity": 2.2,
+   "range": 6,
+   "direction": [
+    0,
+    -1,
+    0
+   ],
+   "innerAngle": 60,
+   "outerAngle": 88,
+   "offset": [
+    0,
+    -0.5,
+    0
+   ]
+  }
+ },
+ {
+  "id": "modern_cabin_panel",
+  "displayName": "Panneau de commande moderne",
+  "tags": [
+   "elevator",
+   "elevator_modern",
+   "elevator_cabin",
+   "elevator_panel"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:elevator_modern_panel",
+    "top": "elevators:elevator_modern_wall",
+    "bottom": "elevators:elevator_modern_wall"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "modern_display",
+  "displayName": "Afficheur d'étage moderne",
+  "tags": [
+   "elevator",
+   "elevator_display",
+   "elevator_cabin_optional"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:elevator_modern_display_0",
+    "top": "elevators:elevator_modern_frame",
+    "bottom": "elevators:elevator_modern_frame"
+   }
+  },
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "defaultState": "0",
+  "states": {
+   "0": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_0",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "1": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_1",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "2": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_2",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "3": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_3",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "4": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_4",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "5": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_5",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "6": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_6",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "7": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_7",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "8": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_8",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "9": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_9",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "10": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_10",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "11": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_11",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "12": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_12",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "13": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_13",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "14": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_14",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "15": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_15",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "16": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_16",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "17": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_17",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "18": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_18",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "19": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_19",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "dash": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_dash",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "unknown": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_unknown",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "error": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_display_error",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   }
+  }
+ },
+ {
+  "id": "modern_arrow",
+  "displayName": "Indicateur de sens moderne",
+  "tags": [
+   "elevator",
+   "elevator_arrow",
+   "elevator_cabin_optional"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:elevator_modern_arrow_none",
+    "top": "elevators:elevator_modern_frame",
+    "bottom": "elevators:elevator_modern_frame"
+   }
+  },
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "defaultState": "none",
+  "states": {
+   "none": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_arrow_none",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "up": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_arrow_up",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "down": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_modern_arrow_down",
+      "top": "elevators:elevator_modern_frame",
+      "bottom": "elevators:elevator_modern_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   }
+  }
+ },
+ {
+  "id": "modern_cabin_door",
+  "displayName": "Porte de cabine moderne",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_modern_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "modern_cabin_door_top"
+     }
+    ]
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "modern_cabin_door_top_half"
+     }
+    ]
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "modern_cabin_door_top_open"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "modern_cabin_door_top",
+  "displayName": "Porte de cabine moderne (haut)",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_modern_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    }
+   }
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "modern_landing_door",
+  "displayName": "Porte palière moderne",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_modern_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "modern_landing_door_top"
+     }
+    ]
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "modern_landing_door_top_half"
+     }
+    ]
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "modern_landing_door_top_open"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "modern_landing_door_top",
+  "displayName": "Porte palière moderne (haut)",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_modern_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    }
+   }
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "modern_landing_door_glass",
+  "displayName": "Porte palière vitrée moderne",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_modern_door_glass",
+   "material": "TRANSLUCENT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "modern_landing_door_glass_top"
+     }
+    ]
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "modern_landing_door_glass_top_half"
+     }
+    ]
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "modern_landing_door_glass_top_open"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "modern_landing_door_glass_top",
+  "displayName": "Porte palière vitrée moderne (haut)",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_modern_door_glass",
+   "material": "TRANSLUCENT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    }
+   }
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "modern_frame",
+  "displayName": "Encadrement de porte palière moderne",
+  "tags": [
+   "elevator",
+   "elevator_modern",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_modern_frame"
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "modern_call",
+  "displayName": "Bouton d'appel moderne",
+  "tags": [
+   "elevator",
+   "elevator_call",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_modern_call"
+  },
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "defaultState": "idle",
+  "states": {
+   "idle": {},
+   "lit": {
+    "graphics": {
+     "texture": "elevators:elevator_modern_call_lit"
+    },
+    "light": {
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.3,
+     "range": 2
+    }
+   }
+  }
+ },
+ {
+  "id": "industrial_cabin_floor",
+  "displayName": "Plancher de cabine industriel",
+  "tags": [
+   "elevator",
+   "elevator_industrial",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "top": "elevators:elevator_industrial_floor",
+    "side": "elevators:elevator_industrial_wall",
+    "bottom": "elevators:elevator_shaft"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "industrial_cabin_wall",
+  "displayName": "Paroi de cabine industriel",
+  "tags": [
+   "elevator",
+   "elevator_industrial",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_industrial_wall"
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "industrial_cabin_ceiling",
+  "displayName": "Plafond de cabine industriel",
+  "tags": [
+   "elevator",
+   "elevator_industrial",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "bottom": "elevators:elevator_industrial_ceiling",
+    "side": "elevators:elevator_industrial_wall",
+    "top": "elevators:elevator_shaft"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "industrial_cabin_lamp",
+  "displayName": "Éclairage de cabine industriel",
+  "tags": [
+   "elevator",
+   "elevator_industrial",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "bottom": "elevators:elevator_industrial_lamp",
+    "side": "elevators:elevator_industrial_wall",
+    "top": "elevators:elevator_shaft"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  },
+  "light": {
+   "type": "spot",
+   "color": [
+    255,
+    226,
+    180
+   ],
+   "intensity": 2.2,
+   "range": 6,
+   "direction": [
+    0,
+    -1,
+    0
+   ],
+   "innerAngle": 60,
+   "outerAngle": 88,
+   "offset": [
+    0,
+    -0.5,
+    0
+   ]
+  }
+ },
+ {
+  "id": "industrial_cabin_panel",
+  "displayName": "Panneau de commande industriel",
+  "tags": [
+   "elevator",
+   "elevator_industrial",
+   "elevator_cabin",
+   "elevator_panel"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:elevator_industrial_panel",
+    "top": "elevators:elevator_industrial_wall",
+    "bottom": "elevators:elevator_industrial_wall"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "industrial_display",
+  "displayName": "Afficheur d'étage industriel",
+  "tags": [
+   "elevator",
+   "elevator_display",
+   "elevator_cabin_optional"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:elevator_industrial_display_0",
+    "top": "elevators:elevator_industrial_frame",
+    "bottom": "elevators:elevator_industrial_frame"
+   }
+  },
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "defaultState": "0",
+  "states": {
+   "0": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_0",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "1": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_1",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "2": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_2",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "3": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_3",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "4": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_4",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "5": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_5",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "6": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_6",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "7": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_7",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "8": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_8",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "9": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_9",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "10": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_10",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "11": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_11",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "12": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_12",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "13": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_13",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "14": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_14",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "15": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_15",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "16": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_16",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "17": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_17",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "18": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_18",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "19": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_19",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "dash": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_dash",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "unknown": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_unknown",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "error": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_display_error",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   }
+  }
+ },
+ {
+  "id": "industrial_arrow",
+  "displayName": "Indicateur de sens industriel",
+  "tags": [
+   "elevator",
+   "elevator_arrow",
+   "elevator_cabin_optional"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:elevator_industrial_arrow_none",
+    "top": "elevators:elevator_industrial_frame",
+    "bottom": "elevators:elevator_industrial_frame"
+   }
+  },
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "defaultState": "none",
+  "states": {
+   "none": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_arrow_none",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "up": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_arrow_up",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "down": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_industrial_arrow_down",
+      "top": "elevators:elevator_industrial_frame",
+      "bottom": "elevators:elevator_industrial_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   }
+  }
+ },
+ {
+  "id": "industrial_cabin_door",
+  "displayName": "Porte de cabine industriel",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_industrial_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "industrial_cabin_door_top"
+     }
+    ]
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "industrial_cabin_door_top_half"
+     }
+    ]
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "industrial_cabin_door_top_open"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "industrial_cabin_door_top",
+  "displayName": "Porte de cabine industriel (haut)",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_industrial_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    }
+   }
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "industrial_landing_door",
+  "displayName": "Porte palière industriel",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_industrial_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "industrial_landing_door_top"
+     }
+    ]
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "industrial_landing_door_top_half"
+     }
+    ]
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "industrial_landing_door_top_open"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "industrial_landing_door_top",
+  "displayName": "Porte palière industriel (haut)",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_industrial_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    }
+   }
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "industrial_landing_door_glass",
+  "displayName": "Porte palière vitrée industriel",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_industrial_door_glass",
+   "material": "TRANSLUCENT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "industrial_landing_door_glass_top"
+     }
+    ]
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "industrial_landing_door_glass_top_half"
+     }
+    ]
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "industrial_landing_door_glass_top_open"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "industrial_landing_door_glass_top",
+  "displayName": "Porte palière vitrée industriel (haut)",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_industrial_door_glass",
+   "material": "TRANSLUCENT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    }
+   }
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "industrial_frame",
+  "displayName": "Encadrement de porte palière industriel",
+  "tags": [
+   "elevator",
+   "elevator_industrial",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_industrial_frame"
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "industrial_call",
+  "displayName": "Bouton d'appel industriel",
+  "tags": [
+   "elevator",
+   "elevator_call",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_industrial_call"
+  },
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "defaultState": "idle",
+  "states": {
+   "idle": {},
+   "lit": {
+    "graphics": {
+     "texture": "elevators:elevator_industrial_call_lit"
+    },
+    "light": {
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.3,
+     "range": 2
+    }
+   }
+  }
+ },
+ {
+  "id": "backrooms_cabin_floor",
+  "displayName": "Plancher de cabine des Backrooms",
+  "tags": [
+   "elevator",
+   "elevator_backrooms",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "top": "elevators:elevator_backrooms_floor",
+    "side": "elevators:elevator_backrooms_wall",
+    "bottom": "elevators:elevator_shaft"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "backrooms_cabin_wall",
+  "displayName": "Paroi de cabine des Backrooms",
+  "tags": [
+   "elevator",
+   "elevator_backrooms",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_backrooms_wall"
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "backrooms_cabin_ceiling",
+  "displayName": "Plafond de cabine des Backrooms",
+  "tags": [
+   "elevator",
+   "elevator_backrooms",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "bottom": "elevators:elevator_backrooms_ceiling",
+    "side": "elevators:elevator_backrooms_wall",
+    "top": "elevators:elevator_shaft"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "backrooms_cabin_lamp",
+  "displayName": "Éclairage de cabine des Backrooms",
+  "tags": [
+   "elevator",
+   "elevator_backrooms",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "bottom": "elevators:elevator_backrooms_lamp",
+    "side": "elevators:elevator_backrooms_wall",
+    "top": "elevators:elevator_shaft"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  },
+  "light": {
+   "type": "spot",
+   "color": [
+    255,
+    232,
+    190
+   ],
+   "intensity": 2.2,
+   "range": 6,
+   "direction": [
+    0,
+    -1,
+    0
+   ],
+   "innerAngle": 60,
+   "outerAngle": 88,
+   "offset": [
+    0,
+    -0.5,
+    0
+   ]
+  }
+ },
+ {
+  "id": "backrooms_cabin_panel",
+  "displayName": "Panneau de commande des Backrooms",
+  "tags": [
+   "elevator",
+   "elevator_backrooms",
+   "elevator_cabin",
+   "elevator_panel"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:elevator_backrooms_panel",
+    "top": "elevators:elevator_backrooms_wall",
+    "bottom": "elevators:elevator_backrooms_wall"
+   }
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "backrooms_display",
+  "displayName": "Afficheur d'étage des Backrooms",
+  "tags": [
+   "elevator",
+   "elevator_display",
+   "elevator_cabin_optional"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:elevator_backrooms_display_0",
+    "top": "elevators:elevator_backrooms_frame",
+    "bottom": "elevators:elevator_backrooms_frame"
+   }
+  },
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "defaultState": "0",
+  "states": {
+   "0": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_0",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "1": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_1",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "2": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_2",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "3": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_3",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "4": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_4",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "5": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_5",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "6": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_6",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "7": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_7",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "8": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_8",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "9": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_9",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "10": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_10",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "11": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_11",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "12": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_12",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "13": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_13",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "14": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_14",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "15": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_15",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "16": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_16",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "17": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_17",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "18": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_18",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "19": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_19",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "dash": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_dash",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "unknown": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_unknown",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "error": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_display_error",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   }
+  }
+ },
+ {
+  "id": "backrooms_arrow",
+  "displayName": "Indicateur de sens des Backrooms",
+  "tags": [
+   "elevator",
+   "elevator_arrow",
+   "elevator_cabin_optional"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:elevator_backrooms_arrow_none",
+    "top": "elevators:elevator_backrooms_frame",
+    "bottom": "elevators:elevator_backrooms_frame"
+   }
+  },
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "defaultState": "none",
+  "states": {
+   "none": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_arrow_none",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "up": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_arrow_up",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   },
+   "down": {
+    "graphics": {
+     "textures": {
+      "side": "elevators:elevator_backrooms_arrow_down",
+      "top": "elevators:elevator_backrooms_frame",
+      "bottom": "elevators:elevator_backrooms_frame"
+     }
+    },
+    "light": {
+     "type": "point",
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.25,
+     "range": 2
+    }
+   }
+  }
+ },
+ {
+  "id": "backrooms_cabin_door",
+  "displayName": "Porte de cabine des Backrooms",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_backrooms_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "backrooms_cabin_door_top"
+     }
+    ]
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "backrooms_cabin_door_top_half"
+     }
+    ]
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "backrooms_cabin_door_top_open"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "backrooms_cabin_door_top",
+  "displayName": "Porte de cabine des Backrooms (haut)",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_cabin"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_backrooms_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    }
+   }
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "backrooms_landing_door",
+  "displayName": "Porte palière des Backrooms",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_backrooms_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "backrooms_landing_door_top"
+     }
+    ]
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "backrooms_landing_door_top_half"
+     }
+    ]
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "backrooms_landing_door_top_open"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "backrooms_landing_door_top",
+  "displayName": "Porte palière des Backrooms (haut)",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_backrooms_door",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    }
+   }
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "backrooms_landing_door_glass",
+  "displayName": "Porte palière vitrée des Backrooms",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_backrooms_door_glass",
+   "material": "TRANSLUCENT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "backrooms_landing_door_glass_top"
+     }
+    ]
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "backrooms_landing_door_glass_top_half"
+     }
+    ]
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    },
+    "parts": [
+     {
+      "offset": [
+       0,
+       1,
+       0
+      ],
+      "block": "backrooms_landing_door_glass_top_open"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "backrooms_landing_door_glass_top",
+  "displayName": "Porte palière vitrée des Backrooms (haut)",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_door",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_backrooms_door_glass",
+   "material": "TRANSLUCENT"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe",
+   "drops": ""
+  },
+  "defaultState": "closed",
+  "states": {
+   "closed": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "half": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.22,
+      0.5,
+      0.06
+     ],
+     [
+      0.22,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": true
+    }
+   },
+   "open": {
+    "nodebox": [
+     [
+      -0.5,
+      -0.5,
+      -0.06,
+      -0.42,
+      0.5,
+      0.06
+     ],
+     [
+      0.42,
+      -0.5,
+      -0.06,
+      0.5,
+      0.5,
+      0.06
+     ]
+    ],
+    "physics": {
+     "solid": false
+    }
+   }
+  },
+  "partOf": [
+   0,
+   -1,
+   0
+  ],
+  "item": false
+ },
+ {
+  "id": "backrooms_frame",
+  "displayName": "Encadrement de porte palière des Backrooms",
+  "tags": [
+   "elevator",
+   "elevator_backrooms",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_backrooms_frame"
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "backrooms_call",
+  "displayName": "Bouton d'appel des Backrooms",
+  "tags": [
+   "elevator",
+   "elevator_call",
+   "elevator_landing"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_backrooms_call"
+  },
+  "gameplay": {
+   "hardness": 2,
+   "tool": "pickaxe"
+  },
+  "defaultState": "idle",
+  "states": {
+   "idle": {},
+   "lit": {
+    "graphics": {
+     "texture": "elevators:elevator_backrooms_call_lit"
+    },
+    "light": {
+     "color": [
+      255,
+      200,
+      120
+     ],
+     "intensity": 0.3,
+     "range": 2
+    }
+   }
+  }
+ },
+ {
+  "id": "motor",
+  "displayName": "Moteur d'ascenseur",
+  "tags": [
+   "elevator",
+   "elevator_motor"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:elevator_motor",
+    "top": "elevators:elevator_motor_top",
+    "bottom": "elevators:elevator_motor_top"
+   }
+  },
+  "gameplay": {
+   "hardness": 5,
+   "tool": "pickaxe"
+  },
+  "description": "Au-dessus du centre de la gaine. Clic droit : vérifier l'ascenseur et le configurer."
+ },
+ {
+  "id": "shaft_wall",
+  "displayName": "Paroi de gaine",
+  "tags": [
+   "elevator"
+  ],
+  "sounds": "core:stone",
+  "graphics": {
+   "texture": "elevators:elevator_shaft"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "type": "texture",
+  "id": "shaft_rail",
+  "compose": "textures/elevator_shaft.png^textures/elevator_rail.png"
+ },
+ {
+  "id": "rail",
+  "displayName": "Paroi de gaine à rail de guidage",
+  "tags": [
+   "elevator",
+   "elevator_rail"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "textures": {
+    "side": "elevators:shaft_rail",
+    "top": "elevators:elevator_shaft",
+    "bottom": "elevators:elevator_shaft"
+   }
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "cable",
+  "displayName": "Câbles de suspension",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_cable"
+  ],
+  "sounds": "core:metal",
+  "nodebox": [
+   [
+    -0.12,
+    -0.5,
+    -0.04,
+    0.12,
+    0.5,
+    0.04
+   ]
+  ],
+  "graphics": {
+   "texture": "elevators:elevator_cable",
+   "material": "CUTOUT"
+  },
+  "physics": {
+   "solid": false
+  },
+  "gameplay": {
+   "hardness": 1
+  }
+ },
+ {
+  "id": "pulley",
+  "displayName": "Poulie",
+  "type": "nodebox",
+  "tags": [
+   "elevator",
+   "elevator_pulley"
+  ],
+  "sounds": "core:metal",
+  "nodebox": [
+   [
+    -0.5,
+    -0.5,
+    -0.12,
+    0.5,
+    0.5,
+    0.12
+   ]
+  ],
+  "graphics": {
+   "texture": "elevators:elevator_pulley",
+   "material": "CUTOUT"
+  },
+  "gameplay": {
+   "hardness": 3,
+   "tool": "pickaxe"
+  }
+ },
+ {
+  "id": "counterweight",
+  "displayName": "Contrepoids",
+  "tags": [
+   "elevator",
+   "elevator_counterweight"
+  ],
+  "sounds": "core:metal",
+  "graphics": {
+   "texture": "elevators:elevator_counterweight"
+  },
+  "gameplay": {
+   "hardness": 4,
+   "tool": "pickaxe"
+  }
+ }
+]

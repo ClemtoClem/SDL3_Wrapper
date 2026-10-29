@@ -1,0 +1,353 @@
+# Machine à états et trajets.
+#
+#   idle ─appel─▶ waiting_departure ─▶ moving_up | moving_down ─▶ decelerating
+#     ▲                ▲                         │ (destination extérieure)
+#     │                │                         └──▶ transfer ─▶ decelerating
+#     │                │                                              │
+#   doors_closing ◀─ doors_open ◀─ doors_opening ◀─ arrived ◀─ stopping ◀┘
+#
+# Les portes ne bougent qu'à l'arrêt, cabine posée ; aucun départ porte
+# ouverte (waiting_departure n'est atteint que portes fermées). Un trajet :
+# la cabine (blocs) est copiée, effacée, remplacée par une entité mobile
+# (world.spawn_structure) qui emporte ses passagers ; profil trapézoïdal
+# (accélération, croisière, décélération) suivi par une correction sur la
+# position réelle ; à l'arrivée, l'entité disparaît et la cabine est reposée
+# en blocs exactement à l'étage.
+
+# File d'appels : sans sens en cours, l'arrêt le plus proche ; en marche, on
+# finit d'abord ceux qui sont dans le sens du trajet (algorithme de l'ascenseur).
+fn el_next_target(e) {
+    if (len(e.queue) == 0) { return nil }
+    let here = e.floors[e.floor].y
+    let dir = 0
+    if (has(e, "last_dir") and e.last_dir != nil) { dir = e.last_dir }
+    let best = nil
+    let best_d = 1000000
+    for (pass in [0, 1]) {
+        if (best == nil) {
+            for (i in e.queue) {
+                if (i != e.floor) {
+                    let dy = e.floors[i].y - here
+                    let ok = pass == 1 or dir == 0 or (dy * dir > 0)
+                    if (ok and el_abs(dy) < best_d) {
+                        best = i
+                        best_d = el_abs(dy)
+                    }
+                }
+            }
+        }
+    }
+    return best
+}
+
+fn el_remove_from_queue(e, i) {
+    let next = []
+    for (q in e.queue) { if (q != i) { next.push(q) } }
+    e.queue = next
+}
+
+# Appel ou demande d'un arrêt (bouton de palier, panneau de cabine).
+fn el_request(e, i) {
+    if (i == nil or i < 0 or i >= len(e.floors)) { return false }
+    if (e.state == "maintenance" or e.state == "failed") {
+        el_say("hors service.")
+        return false
+    }
+    if (i == e.floor and (e.state == "idle" or e.state == "doors_open" or e.state == "doors_closing")) {
+        if (e.state == "idle" or e.state == "doors_closing") { el_set_state(e, "doors_opening") } else { e.state_time = 0 }
+        return true
+    }
+    if (not el_contains(e.queue, i)) { e.queue.push(i) }
+    el_show(e, e.floor, 0)
+    el_save()
+    return true
+}
+
+fn el_profile(trip, t) {
+    # Distance parcourue et vitesse au temps t (profil trapézoïdal).
+    let a = trip.a
+    if (t <= 0) { return {s: 0, v: 0} }
+    if (t >= trip.T) { return {s: trip.D, v: 0} }
+    if (t < trip.ta) { return {s: 0.5 * a * t * t, v: a * t} }
+    if (t < trip.ta + trip.tc) { return {s: trip.da + trip.vmax * (t - trip.ta), v: trip.vmax} }
+    let r = trip.T - t
+    return {s: trip.D - 0.5 * a * r * r, v: a * r}
+}
+
+fn el_plan(D, vmax, a) {
+    let trip = {D: D, a: a, vmax: vmax}
+    if (D <= vmax * vmax / a) {
+        trip.vmax = math.sqrt(a * D)
+        trip.ta = trip.vmax / a
+        trip.tc = 0
+    } else {
+        trip.ta = vmax / a
+        trip.tc = (D - vmax * vmax / a) / vmax
+    }
+    trip.da = 0.5 * a * trip.ta * trip.ta
+    trip.T = 2 * trip.ta + trip.tc
+    return trip
+}
+
+# Copie la cabine posée à l'arrêt courant, l'efface et la remplace par
+# l'entité mobile ; rend l'entité.
+fn el_lift_cabin(e) {
+    let min = el_cabin_min(e, e.floor)
+    let max = el_cabin_max(e, e.floor)
+    let clip = format("elevators:cabin:{}", e.id)
+    world.load(min.x, min.y, min.z, max.x, max.y, max.z) # appelée de loin, la cabine peut être hors de la zone chargée
+    structure.copy(clip, min.x, min.y, min.z, max.x, max.y, max.z)
+    let saved = structure.save(clip, el_file(e.id)) # reposée à l'étage après un arrêt brutal du jeu
+    if (saved == nil or not saved.ok) { game.log(format("[elevators] cabine non sauvegardée : {}", saved)) }
+    world.fill(min.x, min.y, min.z, max.x, max.y, max.z, "core:air")
+    return world.spawn_structure(clip, min.x, min.y, min.z, 1)
+}
+
+# Corps (joueurs) dans la cabine mobile `cab` (coin c).
+fn el_riders(c) {
+    let out = []
+    for (p in entity.players()) {
+        let q = entity.pos(p)
+        if (q.x >= c.x and q.x <= c.x + EL.CABIN.w and q.z >= c.z and q.z <= c.z + EL.CABIN.w and q.y >= c.y - 0.5 and q.y <= c.y + EL.CABIN.h) {
+            out.push(p)
+        }
+    }
+    return out
+}
+
+fn el_start_trip(e, target) {
+    let from_y = e.floors[e.floor].y
+    let to_y = e.floors[target].y
+    let dir = 1
+    if (to_y < from_y) { dir = -1 }
+    let speed = EL.settings.speed
+    if (e.speed != nil) { speed = e.speed }
+    let trip = el_plan(el_abs(to_y - from_y), speed, EL.settings.accel)
+    trip.t = 0
+    trip.dir = dir
+    trip.start_y = from_y
+    trip.target = target
+    trip.shown = e.floor
+    trip.creak = 2 + math.random() * 3
+    trip.cab = el_lift_cabin(e)
+    trip.external = nil
+    EL.active[e.id] = trip
+    e.last_dir = dir
+    el_remove_from_queue(e, target)
+    if (dir > 0) { el_set_state(e, "moving_up") } else { el_set_state(e, "moving_down") }
+    el_show(e, e.floor, dir)
+    let c = el_cabin_min(e, e.floor)
+    if (dir > 0) { el_sound("start", c) } else { el_sound("start_down", c) }
+    el_motor_start(e)
+    el_save()
+}
+
+# Repose la cabine (blocs) à l'arrêt `i`, passagers sur son plancher.
+fn el_land_cabin(e, trip, i) {
+    let min = el_cabin_min(e, i)
+    let cab_pos = entity.pos(trip.cab)
+    let riders = el_riders(el_pos(cab_pos.x, cab_pos.y, cab_pos.z))
+    entity.remove(trip.cab)
+    structure.paste(format("elevators:cabin:{}", e.id), min.x, min.y, min.z)
+    for (p in riders) {
+        let q = entity.pos(p)
+        entity.set_pos(p, q.x, min.y + 1, q.z)
+        entity.set_velocity(p, 0, 0, 0)
+    }
+    e.floor = i
+}
+
+fn el_floor_passed(e, y, dir, fallback) {
+    let at = fallback
+    let i = 0
+    while (i < len(e.floors)) {
+        let f = e.floors[i].y
+        if (dir > 0 and y >= f - 0.2 and f >= e.floors[at].y) { at = i }
+        if (dir < 0 and y <= f + 0.2 and f <= e.floors[at].y) { at = i }
+        i += 1
+    }
+    return at
+}
+
+fn el_update_trip(e, trip, dt) {
+    trip.t += dt
+    let pr = el_profile(trip, trip.t)
+    let cab = entity.pos(trip.cab)
+    if (cab == nil) { # entité perdue (déchargée) : on pose la cabine à destination
+        el_fail_safe(e, trip)
+        return nil
+    }
+    let done = el_abs(cab.y - trip.start_y)
+    # Vitesse prévue, corrigée de l'écart à la position prévue (pas de dérive).
+    let v = pr.v + 3 * (pr.s - done)
+    entity.set_velocity(trip.cab, 0, trip.dir * v, 0)
+    # Afficheurs : le dernier étage dont la cabine a atteint la hauteur.
+    let at = el_floor_passed(e, cab.y, trip.dir, trip.shown)
+    if (at != trip.shown) {
+        trip.shown = at
+        el_show(e, at, trip.dir)
+        el_show_in_cabin(e, trip, at)
+        el_sound("tick", el_pos(cab.x + 2, cab.y + 2, cab.z + 2))
+    }
+    # Grincements des câbles, de temps en temps.
+    trip.creak -= dt
+    if (trip.creak <= 0) {
+        trip.creak = 3 + math.random() * 4
+        el_sound("creak", el_pos(cab.x + 2, cab.y + 3, cab.z + 2))
+    }
+    if (trip.external != nil) {
+        el_update_external(e, trip, dt)
+        return nil
+    }
+    if ((e.state == "moving_up" or e.state == "moving_down" or e.state == "transfer") and trip.t >= trip.ta + trip.tc) {
+        el_set_state(e, "decelerating")
+    }
+    if (trip.t >= trip.T) {
+        el_land_cabin(e, trip, trip.target)
+        el_clear_active(e.id)
+        el_set_state(e, "stopping")
+        el_motor_stop(e)
+        el_sound("stop", el_cabin_min(e, e.floor))
+        el_show(e, e.floor, 0)
+        el_save()
+    }
+}
+
+# L'entité de cabine a disparu (chunk déchargé…) : cabine reposée à destination.
+fn el_fail_safe(e, trip) {
+    el_clear_active(e.id)
+    let i = trip.target
+    if (i == nil) { i = e.floor }
+    let min = el_cabin_min(e, i)
+    structure.paste(format("elevators:cabin:{}", e.id), min.x, min.y, min.z)
+    e.floor = i
+    e.state = "idle"
+    el_motor_stop(e)
+    el_refresh_displays(e)
+    el_save()
+}
+
+# Après un arrêt du jeu pendant un trajet : la cabine sauvegardée est reposée
+# à l'arrêt visé, portes fermées, état sûr ; la configuration est gardée.
+fn el_restore(e) {
+    if (e.state == "moving_up" or e.state == "moving_down" or e.state == "decelerating" or e.state == "stopping" or
+        e.state == "transfer" or e.state == "waiting_departure") {
+        let clip = format("elevators:cabin:{}", e.id)
+        let info = structure.load(el_file(e.id), clip)
+        let i = e.floor
+        if (has(e, "target") and e.target != nil) { i = e.target }
+        if (info != nil and info.ok and i != nil) {
+            let min = el_cabin_min(e, i)
+            structure.paste(clip, min.x, min.y, min.z)
+            e.floor = i
+        }
+        e.queue = []
+    }
+    if (e.state != "maintenance" and e.state != "failed") { e.state = "idle" }
+    if (e.floor != nil) { el_doors(e, "closed") }
+    el_refresh_displays(e)
+}
+
+# Réaction à l'entrée dans un état (sons, portes, afficheurs).
+fn el_on_state(e) {
+    if (e.floor == nil) { return nil }
+    let at = el_landing(e, e.floor).door
+    if (e.state == "doors_opening") {
+        el_doors(e, "half")
+        el_sound("door_open", at)
+    } else if (e.state == "doors_closing") {
+        el_doors(e, "half")
+        el_sound("door_close", at)
+    } else if (e.state == "arrived") {
+        el_chime(e, at)
+        el_show(e, e.floor, 0)
+    }
+}
+
+fn el_door_time(e) {
+    if (e.door_time != nil) { return e.door_time }
+    return EL.settings.door_time
+}
+
+fn el_tick(e, dt) {
+    e.state_time += dt
+    let ds = EL.settings.door_speed
+    let s = e.state
+    let wants_out = has(e, "external_target") and e.external_target != nil
+    if (s == "idle") {
+        let target = el_next_target(e)
+        if (wants_out) {
+            el_set_state(e, "waiting_departure")
+        } else if (target != nil) {
+            e.target = target
+            el_set_state(e, "waiting_departure")
+        } else if (el_contains(e.queue, e.floor)) {
+            el_remove_from_queue(e, e.floor)
+            el_set_state(e, "doors_opening")
+        }
+    } else if (s == "doors_opening") {
+        if (e.state_time >= ds) {
+            el_doors(e, "open")
+            el_set_state(e, "doors_open")
+        }
+    } else if (s == "doors_open") {
+        el_remove_from_queue(e, e.floor)
+        let wait = el_door_time(e)
+        if (has(e, "hold") and e.hold) { wait = wait * 3 }
+        if (len(e.queue) > 0 and not (has(e, "hold") and e.hold)) { wait = math.min(wait, 2.5) }
+        if (e.state_time >= wait) {
+            e.hold = false
+            el_set_state(e, "doors_closing")
+        }
+    } else if (s == "doors_closing") {
+        if (el_doorway_blocked(e)) {
+            el_set_state(e, "doors_opening") # quelqu'un dans l'embrasure : on rouvre
+        } else if (e.state_time >= ds) {
+            el_doors(e, "closed")
+            el_sound("lock", el_landing(e, e.floor).door)
+            let target = el_next_target(e)
+            if (wants_out) {
+                el_set_state(e, "waiting_departure")
+            } else if (target != nil) {
+                e.target = target
+                el_set_state(e, "waiting_departure")
+            } else {
+                el_set_state(e, "idle")
+            }
+        }
+    } else if (s == "waiting_departure") {
+        if (e.state_time >= 0.5) {
+            if (has(e, "external_target") and e.external_target != nil) {
+                el_start_external(e, e.external_target)
+            } else if (e.target != nil and e.target != e.floor) {
+                el_start_trip(e, e.target)
+            } else {
+                el_set_state(e, "idle")
+            }
+        }
+    } else if (s == "moving_up" or s == "moving_down" or s == "decelerating" or s == "transfer") {
+        let trip = EL.active[e.id]
+        if (trip == nil) {
+            el_restore(e)
+        } else {
+            el_check_landing_doors(e)
+            el_update_trip(e, trip, dt)
+        }
+    } else if (s == "stopping") {
+        if (e.state_time >= 0.35) { el_set_state(e, "arrived") }
+    } else if (s == "arrived") {
+        if (e.state_time >= 0.4) {
+            e.target = nil
+            el_set_state(e, "doors_opening")
+        }
+    }
+}
+
+voxel.system("elevators", fn(dt) {
+    el_load()
+    el_prepare_dimension(dt)
+    for (id in keys(EL.records)) {
+        let e = EL.records[id]
+        if (e != nil) { el_tick(e, dt) }
+    }
+})

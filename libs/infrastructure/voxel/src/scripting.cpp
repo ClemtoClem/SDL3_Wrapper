@@ -2,6 +2,7 @@
 #include <voxel/game.hpp>
 #include <voxel/json.hpp>
 #include <voxel/scripting.hpp>
+#include <voxel/schematic.hpp>
 
 #include <cmath>
 
@@ -343,6 +344,29 @@ void ScriptHost::InstallWorldApi() {
 			return Ok(Value::Nil());
 		return Ok(Value::Str(m_game.GetWorld().BlockAt(p).id));
 	});
+	// Charge (ou génère) les chunks d'une boîte, hors de la zone du joueur :
+	// une gaine haute, une cabine à l'autre bout. Ils repartent avec la
+	// prochaine mise à jour de la zone chargée. Rend le nombre de chunks chargés.
+	vm.RegisterNamespacedNative("world", "load", 6, 6, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(a, ArgPos(args, 0, "world.load"));
+		TRY(b, ArgPos(args, 3, "world.load"));
+		if (!m_game.HasWorld())
+			return Ok(Value::Int(0));
+		const ChunkPos lo = ChunkOf({std::min(a.x, b.x), std::min(a.y, b.y), std::min(a.z, b.z)});
+		const ChunkPos hi = ChunkOf({std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z)});
+		if (int64_t(hi.x - lo.x + 1) * int64_t(hi.y - lo.y + 1) * int64_t(hi.z - lo.z + 1) > 256)
+			return Err(script::Interpreter::MakeError(String("world.load : boîte trop grande (256 chunks au plus)")));
+		World &world = m_game.GetWorld();
+		int64_t loaded = 0;
+		for (int y = lo.y; y <= hi.y; ++y)
+			for (int z = lo.z; z <= hi.z; ++z)
+				for (int x = lo.x; x <= hi.x; ++x)
+					if (!world.GetChunk({x, y, z})) {
+						(void)world.EnsureChunk({x, y, z});
+						++loaded;
+					}
+		return Ok(Value::Int(loaded));
+	});
 	vm.RegisterNamespacedNative("world", "param", 3, 3, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
 		TRY(p, ArgPos(args, 0, "world.param"));
 		return Ok(Value::Int(m_game.HasWorld() ? m_game.GetWorld().GetParam(p) : 0));
@@ -452,6 +476,51 @@ void ScriptHost::InstallWorldApi() {
 		TRY(p, ArgVec(args, 1, "world.spawn"));
 		return Ok(EntityValue(m_game.SpawnEntity(Qualified(id, m_currentMod), p)));
 	});
+	// Assemblage mobile : world.spawn_structure(presse_papiers, x, y, z [, plancher]) —
+	// le contenu d'un presse-papiers (structure.copy) dessiné comme une seule
+	// entité, coin minimal en (x, y, z), qui emporte les corps posés sur son
+	// plancher (hauteur relative, 1 par défaut) quand on la déplace
+	// (entity.set_velocity / entity.set_pos). Jamais enregistrée.
+	vm.RegisterNamespacedNative("world", "spawn_structure", 4, 5, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(name, sd::ArgString(args, 0, "world.spawn_structure"));
+		TRY(p, ArgVec(args, 1, "world.spawn_structure"));
+		float floor = 1.f;
+		if (args.size() > 4) {
+			TRY(f, sd::ArgNumber(args, 4, "world.spawn_structure"));
+			floor = float(f);
+		}
+		const Schematic *clip = m_game.Clipboard(name);
+		if (!clip || clip->Empty())
+			return Err(Error("world.spawn_structure", String::Format("presse-papiers « %s » vide ou inconnu", name.CStr())));
+		if (clip->Size().x > 14 || clip->Size().y > 14 || clip->Size().z > 14)
+			return Err(Error("world.spawn_structure", String("assemblage trop grand (14 blocs au plus par côté)")));
+		return Ok(EntityValue(SpawnStructure(m_game.Registry(), std::make_shared<const Schematic>(*clip), p, floor)));
+	});
+	// Une cellule d'un assemblage mobile change (afficheur d'une cabine en
+	// marche) : world.structure_set(entité, x, y, z, bloc [, param]) — coordonnées
+	// relatives au coin de l'assemblage. Rend faux hors de l'assemblage.
+	vm.RegisterNamespacedNative("world", "structure_set", 5, 6, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		const ecs::Entity e = EntityOf(args[0]);
+		TRY(p, ArgPos(args, 1, "world.structure_set"));
+		TRY(id, sd::ArgString(args, 4, "world.structure_set"));
+		uint8_t param = 0;
+		if (args.size() > 5) {
+			TRY(pa, sd::ArgNumber(args, 5, "world.structure_set"));
+			param = uint8_t(pa);
+		}
+		auto visual = m_game.Registry().GetComponent<Visual>(e);
+		if (visual.IsNone() || !visual.Unwrap()->structure)
+			return Ok(Value::Boolean(false));
+		const BlockPos size = visual.Unwrap()->structure->Size();
+		if (p.x < 0 || p.y < 0 || p.z < 0 || p.x >= size.x || p.y >= size.y || p.z >= size.z)
+			return Ok(Value::Boolean(false));
+		auto copy = std::make_shared<Schematic>(*visual.Unwrap()->structure);
+		copy->Set(p, Qualified(id, m_currentMod), param);
+		static uint64_t serial = uint64_t(1) << 40; // à part de ceux de SpawnStructure
+		visual.Unwrap()->structure = std::move(copy);
+		visual.Unwrap()->structureSerial = ++serial;
+		return Ok(Value::Boolean(true));
+	});
 	vm.RegisterNamespacedNative("world", "drop", 5, 5, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
 		TRY(item, sd::ArgString(args, 0, "world.drop"));
 		TRY(count, sd::ArgNumber(args, 1, "world.drop"));
@@ -500,6 +569,19 @@ void ScriptHost::InstallWorldApi() {
 	// ── Dimensions ──────────────────────────────────────────────────────────
 	vm.RegisterNamespacedNative("world", "dimension", 0, 0, [this](script::Interpreter &, std::vector<Value> &) -> NativeResult {
 		return Ok(Value::Str(m_game.CurrentDimension()));
+	});
+	// Moteur d'une gaine d'ascenseur générée par le labyrinthe d'une dimension
+	// (étages selon les réglages du mod) : world.maze_shaft(dimension [, id]) → {x, y, z}, ou nil.
+	vm.RegisterNamespacedNative("world", "maze_shaft", 1, 2, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(dimension, sd::ArgString(args, 0, "world.maze_shaft"));
+		String shaft;
+		if (args.size() > 1) {
+			TRY(id, sd::ArgString(args, 1, "world.maze_shaft"));
+			shaft = id;
+		}
+		if (Option<BlockPos> motor = m_game.MazeShaftMotor(dimension, shaft); motor.IsSome())
+			return Ok(PosValue(motor.Value()));
+		return Ok(Value::Nil());
 	});
 	vm.RegisterNamespacedNative("world", "default_dimension", 0, 0, [this](script::Interpreter &, std::vector<Value> &) -> NativeResult {
 		return Ok(Value::Str(m_game.Content().DefaultDimension()));
@@ -1006,15 +1088,8 @@ void ScriptHost::InstallContentApi() {
 	// par l'utilisateur) : voxel.setting("nom") dans les scripts du mod.
 	vm.RegisterNamespacedNative("voxel", "setting", 1, 1, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
 		TRY(name, sd::ArgString(args, 0, "voxel.setting"));
-		if (NodePtr v = json::At(m_game.Options().modSettings, (m_currentMod + String(".") + name).CStr()))
+		if (NodePtr v = m_game.ModSetting(m_currentMod, name))
 			return Ok(script::ValueFromNode(v));
-		for (const ModInfo &mod : m_game.Mods().mods)
-			if (mod.id == m_currentMod)
-				if (NodePtr list = json::At(mod.manifest, "settings"); list && list->IsArray())
-					for (size_t i = 0; i < list->GetSize(); ++i)
-						if (json::Str(list->At(i), "id") == name)
-							if (NodePtr def = json::At(list->At(i), "default"))
-								return Ok(script::ValueFromNode(def));
 		return Ok(Value::Nil());
 	});
 	vm.RegisterNamespacedNative("game", "rule", 1, 1, [this](script::Interpreter &, std::vector<Value> &args) -> NativeResult {

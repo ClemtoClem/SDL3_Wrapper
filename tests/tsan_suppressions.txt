@@ -1,0 +1,24 @@
+# Suppressions ThreadSanitizer — bibliothèques système et SDL non instrumentées
+# (compilées sans -fsanitize=thread) : TSan n'y voit ni les atomiques ni les
+# verrous internes, et signale donc des courses ou des inversions de verrous
+# entre leurs propres threads. Aucune pile de ces rapports ne passe par une
+# synchronisation de ce dépôt. Câblé via TSAN_OPTIONS dans cpp-maker.toml
+# ([tests.env]) ; pour lancer un binaire à la main :
+#   TSAN_OPTIONS=suppressions=tests/tsan_suppressions.txt ./build/host/debug+thread/tests/<module>-tests
+
+# Pilotes graphiques Mesa (Vulkan Intel, Gallium) : threads de compilation
+# de shaders et de soumission internes au pilote (render3d, sdl3).
+race:libvulkan_intel.so
+race:libgallium
+# libdbus (sondage du système par SDL : écran de veille, IME) et PipeWire
+# (pilote audio de SDL) : ordre de prise de leurs verrous internes.
+deadlock:libdbus-1.so
+deadlock:libpipewire-0.3.so
+# SDL_net : le thread de résolution DNS rend sa référence sur l'adresse par
+# un compteur atomique de libSDL3_net (non instrumentée) ; la libération de
+# l'adresse résolue (DestroyAddress) paraît donc concurrente de son écriture.
+race:DestroyAddress
+# Backend Vulkan de SDL_GPU : deux verrous internes pris dans un ordre puis
+# dans l'autre, mais toujours par le MÊME fil (le fil principal, seul à
+# toucher au GPU) : pas d'interblocage possible. Vu en jouant à voxelia.
+deadlock:VULKAN_INTERNAL_RemoveMemoryUsedRegion

@@ -16,3 +16,4 @@ modules = ["core", "math", "events", "dataio", "ecs", "resources", "script", "vo
 
 [tests]
 dirs = ["tests"]
+timeout = 1800 

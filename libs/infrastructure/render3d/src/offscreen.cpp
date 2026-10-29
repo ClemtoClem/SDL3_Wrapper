@@ -67,7 +67,7 @@ Result<bool, StringView> OffscreenTarget::EnsureSize(sdl3::GpuDevice &device, ui
 
 Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Camera &camera,
 		const math::FMatrix4 &viewProjection,
-		OffscreenTarget &target) {
+		OffscreenTarget &target, OffscreenSync sync) {
 	if (!target.IsReady())
 		return Err(StringView("Canvas::RenderObjectOffscreen: target not sized (call OffscreenTarget::EnsureSize "
 							  "first)"));
@@ -338,6 +338,11 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 	// `SDL_Renderer`, qui partage ce device. Il y avait ainsi DEUX barrières
 	// globales par viewport et par image (celle-ci et celle du
 	// téléchargement).
+	if (sync == OffscreenSync::SUBMIT) {
+		if (!cmd.Submit())
+			return Err(sdl3::GetError());
+		return Ok(true);
+	}
 	Option<sdl3::GpuFence> fence = cmd.SubmitAndAcquireFence();
 	if (fence.IsNone())
 		return Err(sdl3::GetError());
@@ -347,13 +352,26 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 	return Ok(true);
 }
 
-Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Camera &camera, OffscreenTarget &target) {
-	return RenderObjectOffscreen(root, camera, camera.ViewProjectionMatrix(), target);
+Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Camera &camera, OffscreenTarget &target,
+													   OffscreenSync sync) {
+	return RenderObjectOffscreen(root, camera, camera.ViewProjectionMatrix(), target, sync);
 }
 
 namespace detail {
 
 Result<bool, StringView> DownloadColorTexture(Canvas &canvas, OffscreenTarget &target, std::vector<uint8_t> &outPixels) {
+	Result<sdl3::GpuFence, StringView> fence = SubmitColorDownload(canvas, target);
+	if (fence.IsError())
+		return Err(fence.Error());
+	Ref<sdl3::GpuFence> fenceRef = MakeRef(fence.Value());
+	if (!canvas.Device().WaitForFences(true, std::span<const Ref<sdl3::GpuFence>>(&fenceRef, 1)))
+		return Err(StringView("DownloadColorTexture: attente de la clôture GPU échouée"));
+	return ReadColorDownload(target, outPixels);
+}
+
+} // namespace detail
+
+Result<sdl3::GpuFence, StringView> SubmitColorDownload(Canvas &canvas, OffscreenTarget &target) {
 	sdl3::GpuDevice &device = canvas.Device();
 	uint32_t width = target.Width();
 	uint32_t height = target.Height();
@@ -363,9 +381,8 @@ Result<bool, StringView> DownloadColorTexture(Canvas &canvas, OffscreenTarget &t
 	// GPU par image et par viewport, pour une taille qui ne change qu'au
 	// redimensionnement.
 	if (!target.HasDownloadBuffer())
-		return Err(StringView("DownloadColorTexture: la cible n'a pas de tampon de transfert"));
+		return Err(StringView("SubmitColorDownload: la cible n'a pas de tampon de transfert"));
 	sdl3::GpuTransferBuffer &downloadBuffer = target.DownloadBuffer();
-	uint32_t byteSize = target.DownloadByteSize();
 
 	auto downloadCmd = device.AcquireCommandBuffer();
 	{
@@ -375,27 +392,25 @@ Result<bool, StringView> DownloadColorTexture(Canvas &canvas, OffscreenTarget &t
 		copyPass.DownloadFromTexture(src, dst);
 	}
 
-	// Attente sur la CLÔTURE de CETTE soumission, et non `WaitIdle()` qui
-	// attendait que le device ENTIER se vide — donc aussi tout travail sans
-	// rapport déjà en vol (les autres viewports, les portails, le rendu 2D de
-	// SDL_Renderer qui partage ce device). C'était une barrière globale posée
-	// une à plusieurs fois par image.
+	// La CLÔTURE de CETTE soumission (et non `WaitIdle()`, qui attendait que
+	// le device ENTIER se vide, rendu 2D de SDL_Renderer compris) : c'est
+	// l'appelant qui l'attend (DownloadColorTexture) ou l'interroge plus tard.
 	Option<sdl3::GpuFence> fence = downloadCmd.SubmitAndAcquireFence();
 	if (fence.IsNone())
 		return Err(sdl3::GetError());
-	Ref<sdl3::GpuFence> fenceRef = MakeRef(fence.Value());
-	if (!device.WaitForFences(true, std::span<const Ref<sdl3::GpuFence>>(&fenceRef, 1)))
-		return Err(StringView("DownloadColorTexture: attente de la clôture GPU échouée"));
-
-	auto mapped = downloadBuffer.Map(false);
-	if (!mapped)
-		return Err(StringView("DownloadColorTexture: mappage du tampon de transfert impossible"));
-	outPixels.resize(byteSize);
-	std::memcpy(outPixels.data(), mapped.GetData(), byteSize);
-	return Ok(true);
+	return Ok(std::move(fence.Value()));
 }
 
-} // namespace detail
+Result<bool, StringView> ReadColorDownload(OffscreenTarget &target, std::vector<uint8_t> &outPixels) {
+	if (!target.HasDownloadBuffer())
+		return Err(StringView("ReadColorDownload: la cible n'a pas de tampon de transfert"));
+	auto mapped = target.DownloadBuffer().Map(false);
+	if (!mapped)
+		return Err(StringView("ReadColorDownload: mappage du tampon de transfert impossible"));
+	outPixels.resize(target.DownloadByteSize());
+	std::memcpy(outPixels.data(), mapped.GetData(), target.DownloadByteSize());
+	return Ok(true);
+}
 
 Result<bool, StringView> RenderObjectToTexture(Canvas &canvas, Object3D &root, Camera camera,
 		OffscreenTarget &target,

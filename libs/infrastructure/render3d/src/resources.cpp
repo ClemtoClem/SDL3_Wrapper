@@ -178,8 +178,9 @@ const char *ShaderResource::KindName(ShaderKind kind) noexcept {
 			return "phong";
 		case ShaderKind::PBR:
 			return "pbr";
+		default:
+			return "phong";
 	}
-	return "phong";
 }
 
 std::shared_ptr<ShaderResource> ShaderResource::Builtin(ShaderKind kind) {

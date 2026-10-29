@@ -1,5 +1,6 @@
 // Définitions de voxel/entities.hpp
 #include <voxel/entities.hpp>
+#include <voxel/schematic.hpp>
 #include <voxel/json.hpp>
 #include <voxel/worldgen.hpp>
 
@@ -66,7 +67,7 @@ ecs::Entity SpawnFromDef(ecs::ArchetypeRegistry &registry, const EntityDef &def,
 	body.flies = def.flies;
 	MoveIntent intent;
 	intent.speed = def.maxSpeed;
-	Visual visual{def.shape, def.look, AIR, 1.f, true, def.rig, String()};
+	Visual visual{def.shape, def.look, AIR, 1.f, true, def.rig, String(), nullptr, 0};
 	if (!def.rig.skins.empty()) // variante tirée selon la position d'apparition
 		visual.skin = def.rig.skins[HashPosition(0x5eedu, int(std::floor(feet.x)), int(std::floor(feet.y)), int(std::floor(feet.z)), 3) %
 									def.rig.skins.size()];
@@ -121,6 +122,22 @@ ecs::Entity SpawnDroppedItem(ecs::ArchetypeRegistry &registry, const ContentRegi
 			face = item->icon;
 	return registry.SpawnBundle(t, Velocity{velocity}, collider, body, EntityKind{ITEM_KIND, "item", nullptr}, visual,
 								DroppedItem{std::move(stack), 0.6f, 0.f}, Persistent{Uuid::Generate()});
+}
+
+ecs::Entity SpawnStructure(ecs::ArchetypeRegistry &registry, std::shared_ptr<const Schematic> structure, const math::FVector3 &corner,
+						   float floor) {
+	static uint64_t serial = 0;
+	Transform t;
+	t.position = t.previous = corner;
+	const BlockPos size = structure->Size();
+	Carrier carrier;
+	carrier.ride = Box{{0.f, 0.f, 0.f}, {float(size.x), float(size.y), float(size.z)}};
+	carrier.floor = floor;
+	Visual visual;
+	visual.shape.kind = ShapeKind::NONE;
+	visual.structure = std::move(structure);
+	visual.structureSerial = ++serial;
+	return registry.SpawnBundle(t, Velocity{}, carrier, EntityKind{STRUCTURE_KIND, "structure", nullptr}, visual);
 }
 
 ecs::Entity SpawnFallingBlock(ecs::ArchetypeRegistry &registry, const ContentRegistry &content, BlockId block, uint8_t param,

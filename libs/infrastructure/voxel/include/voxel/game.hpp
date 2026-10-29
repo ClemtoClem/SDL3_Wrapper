@@ -53,7 +53,7 @@ struct GameOptions {
 	std::vector<String> modDirectories{"mods"};
 	std::vector<String> disabledMods;
 	std::vector<String> modOrder;  ///< ordre de chargement souhaité (dépendances d'abord malgré tout)
-	NodePtr modSettings;           ///< {mod: {réglage: valeur}} : lu par voxel.setting() côté script
+	NodePtr modSettings;           ///< {mod: {réglage: valeur}} : voxel.setting() côté script, {"setting": …} dans le contenu
 	String savesDirectory = "saves";
 	/// Dossier d'ÉCHANGE des structures entre mondes (import / export) ; chaque
 	/// monde a aussi le sien, <sauvegarde>/structures.
@@ -153,6 +153,24 @@ public:
 
 	/// Un pas de jeu (systèmes, scripts).
 	void Tick(float dt);
+
+	// ── Réglages des mods ───────────────────────────────────────────────────
+
+	/// Réglage `name` du mod `mod` : la valeur figée dans ce monde s'il y en
+	/// a une (cf. WorldModSetting), sinon celle de l'utilisateur
+	/// (GameOptions::modSettings), sinon le défaut de mod.json ; nullptr : inconnu.
+	[[nodiscard]] NodePtr ModSetting(const String &mod, const String &name) const;
+	/// Même réglage, FIGÉ dans le monde à la première lecture (metadata
+	/// settings.modSettings) : ce qui façonne le terrain (nombre d'étages…) ne
+	/// change plus pour ce monde quand l'utilisateur modifie le réglage.
+	NodePtr WorldModSetting(const String &mod, const String &name);
+	/// Copie de `node` où chaque {"setting": "nom"[, "fallback": valeur]} est
+	/// remplacé par le réglage figé du mod `mod` (`fallback` quand il vaut 0,
+	/// "", false ou manque). Les générateurs sont créés ainsi.
+	[[nodiscard]] NodePtr ResolveSettings(const NodePtr &node, const String &mod);
+	/// Moteur de la gaine d'ascenseur `shaft` (vide : la première) que génère
+	/// le labyrinthe de `dimension` (« maze », « elevator(s) ») ; NONE : aucune.
+	[[nodiscard]] Option<BlockPos> MazeShaftMotor(const String &dimension, const String &shaft = String());
 
 	// ── Règles du monde (metadata.settings) ─────────────────────────────────
 
@@ -368,6 +386,8 @@ private:
 	void StepRandomTicks(float dt);
 	/// Blocs à capteur (« sensor ») autour des joueurs : état « proche » ou « loin ».
 	void StepSensors(float dt);
+	/// Plateformes mobiles (Carrier) : avancent et emportent leurs passagers.
+	void StepCarriers(float dt);
 	/// Entités lumineuses (bloc qui tombe, objet au sol, créature) : sources
 	/// dynamiques du monde (World::SetDynamicLights), cinq fois par seconde.
 	void StepLights(float dt);
