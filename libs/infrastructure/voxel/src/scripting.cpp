@@ -579,9 +579,15 @@ void ScriptHost::InstallWorldApi() {
 			TRY(id, sd::ArgString(args, 1, "world.maze_shaft"));
 			shaft = id;
 		}
-		if (Option<BlockPos> motor = m_game.MazeShaftMotor(dimension, shaft); motor.IsSome())
-			return Ok(PosValue(motor.Value()));
-		return Ok(Value::Nil());
+		// {x, y, z} du moteur, et la gaine : fond (bottom), côté (size), paliers (side).
+		Option<MazeShaftInfo> info = m_game.MazeShaft(dimension, shaft);
+		if (info.IsNone())
+			return Ok(Value::Nil());
+		Value result = PosValue(info.Value().motor);
+		result.AsMap()->SetKey("bottom", Value::Int(info.Value().bottom));
+		result.AsMap()->SetKey("size", Value::Int(info.Value().size));
+		result.AsMap()->SetKey("side", Value::Str(info.Value().side));
+		return Ok(result);
 	});
 	vm.RegisterNamespacedNative("world", "default_dimension", 0, 0, [this](script::Interpreter &, std::vector<Value> &) -> NativeResult {
 		return Ok(Value::Str(m_game.Content().DefaultDimension()));

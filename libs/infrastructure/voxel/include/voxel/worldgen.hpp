@@ -57,6 +57,14 @@ struct GenerationTuning {
 	int seaLevel = 0;       ///< décalage du niveau de la mer
 };
 
+/// Gaine d'ascenseur générée par un labyrinthe (vue des scripts : world.maze_shaft).
+struct MazeShaftInfo {
+	BlockPos motor;  ///< moteur, au-dessus du centre de la gaine
+	int bottom = 0;  ///< fond de la fosse (premier vide)
+	int size = 7;    ///< côté extérieur de la gaine (impair : 5, 7 ou 9)
+	String side;     ///< côté des paliers (n, s, e, w)
+};
+
 class TerrainGenerator final : public ChunkGenerator {
 public:
 	/// Fonction de génération d'un mod ("script") : remplit le chunk.
@@ -74,6 +82,8 @@ public:
 	/// (`id` vide : la première ; NONE : pas de gaine).
 	[[nodiscard]] int MazeFloors() const noexcept { return m_mazeFloors; }
 	[[nodiscard]] Option<BlockPos> MazeElevatorMotor(const String &id = String()) const;
+	/// Même gaine, avec son fond, sa taille et le côté de ses paliers.
+	[[nodiscard]] Option<MazeShaftInfo> MazeElevatorShaft(const String &id = String()) const;
 	void SetTuning(const GenerationTuning &tuning);
 	[[nodiscard]] const GenerationTuning &Tuning() const noexcept { return m_tuning; }
 
@@ -203,10 +213,12 @@ private:
 	/// « elevator » (une) ou « elevators » (plusieurs) : gaine traversant les
 	/// étages `from`..`to`, un palier par étage, moteur au sommet (blocs du mod
 	/// « elevators », la cabine est posée par son script). Centre au milieu de
-	/// la cellule `cell`, portes côté `side`.
+	/// la cellule `cell`, portes côté `side`, gaine de côté `size` (impair, 5 à 9).
 	struct MazeElevator {
 		String id = "main";
+		String side = "s";
 		int cx = 0, cz = 0;
+		int half = 3; ///< du centre aux parois de la gaine : (size − 1) / 2
 		int dx = 0, dz = 1, ux = -1, uz = 0;
 		uint8_t doorParam = 0;
 		BlockId wall = AIR, rail = AIR, motor = AIR, door = AIR, doorTop = AIR, frame = AIR, call = AIR, display = AIR, arrow = AIR;

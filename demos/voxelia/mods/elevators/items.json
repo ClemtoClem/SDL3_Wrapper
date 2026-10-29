@@ -1,366 +1,612 @@
 // Mod « elevators » : blocs (cabine, paliers, machinerie), objets (kits) et recettes.
-// Généré par docs : voir README.md (« Ajouter un style »).
+// Généré par docs : voir README.md (« Ajouter un style ») ; complété par tools/gen_content.py.
 [
- {
-  "type": "item",
-  "id": "modern_cabin_kit",
-  "displayName": "Kit de cabine d'ascenseur moderne",
-  "icon": "elevators:elevator_modern_panel",
-  "maxStack": 4,
-  "tags": [
-   "elevator_kit"
-  ],
-  "description": "Clic droit sur le sol de la gaine : pose une cabine 5 × 4 × 5, porte vers vous."
- },
- {
-  "type": "item",
-  "id": "modern_landing_kit",
-  "displayName": "Kit de palier d'ascenseur moderne",
-  "icon": "elevators:elevator_modern_door",
-  "maxStack": 16,
-  "tags": [
-   "elevator_kit"
-  ],
-  "description": "Clic droit sur le mur de la gaine (depuis le palier) : encadrement, porte, bouton, afficheur."
- },
- {
-  "type": "item",
-  "id": "modern_landing_kit_glass",
-  "displayName": "Kit de palier vitré moderne",
-  "icon": "elevators:elevator_modern_door_glass",
-  "maxStack": 16,
-  "tags": [
-   "elevator_kit"
-  ],
-  "description": "Comme le kit de palier, avec une porte vitrée."
- },
- {
-  "type": "item",
-  "id": "industrial_cabin_kit",
-  "displayName": "Kit de cabine d'ascenseur industriel",
-  "icon": "elevators:elevator_industrial_panel",
-  "maxStack": 4,
-  "tags": [
-   "elevator_kit"
-  ],
-  "description": "Clic droit sur le sol de la gaine : pose une cabine 5 × 4 × 5, porte vers vous."
- },
- {
-  "type": "item",
-  "id": "industrial_landing_kit",
-  "displayName": "Kit de palier d'ascenseur industriel",
-  "icon": "elevators:elevator_industrial_door",
-  "maxStack": 16,
-  "tags": [
-   "elevator_kit"
-  ],
-  "description": "Clic droit sur le mur de la gaine (depuis le palier) : encadrement, porte, bouton, afficheur."
- },
- {
-  "type": "item",
-  "id": "industrial_landing_kit_glass",
-  "displayName": "Kit de palier vitré industriel",
-  "icon": "elevators:elevator_industrial_door_glass",
-  "maxStack": 16,
-  "tags": [
-   "elevator_kit"
-  ],
-  "description": "Comme le kit de palier, avec une porte vitrée."
- },
- {
-  "type": "item",
-  "id": "backrooms_cabin_kit",
-  "displayName": "Kit de cabine d'ascenseur des Backrooms",
-  "icon": "elevators:elevator_backrooms_panel",
-  "maxStack": 4,
-  "tags": [
-   "elevator_kit"
-  ],
-  "description": "Clic droit sur le sol de la gaine : pose une cabine 5 × 4 × 5, porte vers vous."
- },
- {
-  "type": "item",
-  "id": "backrooms_landing_kit",
-  "displayName": "Kit de palier d'ascenseur des Backrooms",
-  "icon": "elevators:elevator_backrooms_door",
-  "maxStack": 16,
-  "tags": [
-   "elevator_kit"
-  ],
-  "description": "Clic droit sur le mur de la gaine (depuis le palier) : encadrement, porte, bouton, afficheur."
- },
- {
-  "type": "item",
-  "id": "backrooms_landing_kit_glass",
-  "displayName": "Kit de palier vitré des Backrooms",
-  "icon": "elevators:elevator_backrooms_door_glass",
-  "maxStack": 16,
-  "tags": [
-   "elevator_kit"
-  ],
-  "description": "Comme le kit de palier, avec une porte vitrée."
- },
- {
-  "type": "recipe",
-  "id": "modern_cabin_kit",
-  "category": "machines",
-  "pattern": [
-   "III",
-   "IGI",
-   "III"
-  ],
-  "key": {
-   "I": "core:iron_ingot",
-   "G": "core:glowstone"
-  },
-  "result": {
-   "item": "modern_cabin_kit",
-   "count": 1
-  }
- },
- {
-  "type": "recipe",
-  "id": "modern_landing_kit",
-  "category": "machines",
-  "pattern": [
-   "II",
-   "II",
-   "II"
-  ],
-  "key": {
-   "I": "core:iron_ingot"
-  },
-  "result": {
-   "item": "modern_landing_kit",
-   "count": 2
-  }
- },
- {
-  "type": "recipe",
-  "id": "modern_landing_kit_glass",
-  "category": "machines",
-  "pattern": [
-   "IG",
-   "IG",
-   "IG"
-  ],
-  "key": {
-   "I": "core:iron_ingot",
-   "G": "core:glass"
-  },
-  "result": {
-   "item": "modern_landing_kit_glass",
-   "count": 2
-  }
- },
- {
-  "type": "recipe",
-  "id": "industrial_cabin_kit",
-  "category": "machines",
-  "pattern": [
-   "III",
-   "IGI",
-   "III"
-  ],
-  "key": {
-   "I": "core:iron_ingot",
-   "G": "core:glowstone"
-  },
-  "result": {
-   "item": "industrial_cabin_kit",
-   "count": 1
-  }
- },
- {
-  "type": "recipe",
-  "id": "industrial_landing_kit",
-  "category": "machines",
-  "pattern": [
-   "II",
-   "II",
-   "II"
-  ],
-  "key": {
-   "I": "core:iron_ingot"
-  },
-  "result": {
-   "item": "industrial_landing_kit",
-   "count": 2
-  }
- },
- {
-  "type": "recipe",
-  "id": "industrial_landing_kit_glass",
-  "category": "machines",
-  "pattern": [
-   "IG",
-   "IG",
-   "IG"
-  ],
-  "key": {
-   "I": "core:iron_ingot",
-   "G": "core:glass"
-  },
-  "result": {
-   "item": "industrial_landing_kit_glass",
-   "count": 2
-  }
- },
- {
-  "type": "recipe",
-  "id": "backrooms_cabin_kit",
-  "category": "machines",
-  "pattern": [
-   "III",
-   "IGI",
-   "III"
-  ],
-  "key": {
-   "I": "core:iron_ingot",
-   "G": "core:glowstone"
-  },
-  "result": {
-   "item": "backrooms_cabin_kit",
-   "count": 1
-  }
- },
- {
-  "type": "recipe",
-  "id": "backrooms_landing_kit",
-  "category": "machines",
-  "pattern": [
-   "II",
-   "II",
-   "II"
-  ],
-  "key": {
-   "I": "core:iron_ingot"
-  },
-  "result": {
-   "item": "backrooms_landing_kit",
-   "count": 2
-  }
- },
- {
-  "type": "recipe",
-  "id": "backrooms_landing_kit_glass",
-  "category": "machines",
-  "pattern": [
-   "IG",
-   "IG",
-   "IG"
-  ],
-  "key": {
-   "I": "core:iron_ingot",
-   "G": "core:glass"
-  },
-  "result": {
-   "item": "backrooms_landing_kit_glass",
-   "count": 2
-  }
- },
- {
-  "type": "recipe",
-  "id": "motor",
-  "category": "machines",
-  "pattern": [
-   "IRI",
-   "RGR",
-   "IRI"
-  ],
-  "key": {
-   "I": "core:iron_ingot",
-   "R": "core:redstone",
-   "G": "core:gold_ingot"
-  },
-  "result": {
-   "item": "motor",
-   "count": 1
-  }
- },
- {
-  "type": "recipe",
-  "id": "rail",
-  "category": "machines",
-  "pattern": [
-   "I",
-   "I",
-   "I"
-  ],
-  "key": {
-   "I": "core:iron_ingot"
-  },
-  "result": {
-   "item": "rail",
-   "count": 8
-  }
- },
- {
-  "type": "recipe",
-  "id": "cable",
-  "category": "machines",
-  "pattern": [
-   "S",
-   "I",
-   "S"
-  ],
-  "key": {
-   "S": "core:string",
-   "I": "core:iron_ingot"
-  },
-  "result": {
-   "item": "cable",
-   "count": 8
-  }
- },
- {
-  "type": "recipe",
-  "id": "shaft_wall",
-  "category": "building",
-  "pattern": [
-   "SS",
-   "SS"
-  ],
-  "key": {
-   "S": "core:stone"
-  },
-  "result": {
-   "item": "shaft_wall",
-   "count": 4
-  }
- },
- {
-  "type": "recipe",
-  "id": "counterweight",
-  "category": "machines",
-  "pattern": [
-   "III",
-   "III"
-  ],
-  "key": {
-   "I": "core:iron_ingot"
-  },
-  "result": {
-   "item": "counterweight",
-   "count": 1
-  }
- },
- {
-  "type": "recipe",
-  "id": "pulley",
-  "category": "machines",
-  "pattern": [
-   " I ",
-   "IGI",
-   " I "
-  ],
-  "key": {
-   "I": "core:iron_ingot",
-   "G": "core:gold_ingot"
-  },
-  "result": {
-   "item": "pulley",
-   "count": 1
-  }
- }
+    {
+        "type": "item",
+        "id": "modern_cabin_kit",
+        "displayName": "Kit de cabine d'ascenseur moderne",
+        "icon": "elevators:elevator_modern_panel",
+        "maxStack": 4,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Clic droit sur le sol de la gaine : pose une cabine 5 × 4 × 5, porte vers vous."
+    },
+    {
+        "type": "item",
+        "id": "modern_landing_kit",
+        "displayName": "Kit de palier d'ascenseur moderne",
+        "icon": "elevators:elevator_modern_door",
+        "maxStack": 16,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Clic droit sur le mur de la gaine (depuis le palier) : encadrement, porte, bouton, afficheur."
+    },
+    {
+        "type": "item",
+        "id": "modern_landing_kit_glass",
+        "displayName": "Kit de palier vitré moderne",
+        "icon": "elevators:elevator_modern_door_glass",
+        "maxStack": 16,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Comme le kit de palier, avec une porte vitrée."
+    },
+    {
+        "type": "item",
+        "id": "industrial_cabin_kit",
+        "displayName": "Kit de cabine d'ascenseur industriel",
+        "icon": "elevators:elevator_industrial_panel",
+        "maxStack": 4,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Clic droit sur le sol de la gaine : pose une cabine 5 × 4 × 5, porte vers vous."
+    },
+    {
+        "type": "item",
+        "id": "industrial_landing_kit",
+        "displayName": "Kit de palier d'ascenseur industriel",
+        "icon": "elevators:elevator_industrial_door",
+        "maxStack": 16,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Clic droit sur le mur de la gaine (depuis le palier) : encadrement, porte, bouton, afficheur."
+    },
+    {
+        "type": "item",
+        "id": "industrial_landing_kit_glass",
+        "displayName": "Kit de palier vitré industriel",
+        "icon": "elevators:elevator_industrial_door_glass",
+        "maxStack": 16,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Comme le kit de palier, avec une porte vitrée."
+    },
+    {
+        "type": "item",
+        "id": "backrooms_cabin_kit",
+        "displayName": "Kit de cabine d'ascenseur des Backrooms",
+        "icon": "elevators:elevator_backrooms_panel",
+        "maxStack": 4,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Clic droit sur le sol de la gaine : pose une cabine 5 × 4 × 5, porte vers vous."
+    },
+    {
+        "type": "item",
+        "id": "backrooms_landing_kit",
+        "displayName": "Kit de palier d'ascenseur des Backrooms",
+        "icon": "elevators:elevator_backrooms_door",
+        "maxStack": 16,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Clic droit sur le mur de la gaine (depuis le palier) : encadrement, porte, bouton, afficheur."
+    },
+    {
+        "type": "item",
+        "id": "backrooms_landing_kit_glass",
+        "displayName": "Kit de palier vitré des Backrooms",
+        "icon": "elevators:elevator_backrooms_door_glass",
+        "maxStack": 16,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Comme le kit de palier, avec une porte vitrée."
+    },
+    {
+        "type": "recipe",
+        "id": "modern_cabin_kit",
+        "category": "machines",
+        "pattern": [
+            "III",
+            "IGI",
+            "III"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "G": "core:glowstone"
+        },
+        "result": {
+            "item": "modern_cabin_kit",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "modern_landing_kit",
+        "category": "machines",
+        "pattern": [
+            "II",
+            "II",
+            "II"
+        ],
+        "key": {
+            "I": "core:iron_ingot"
+        },
+        "result": {
+            "item": "modern_landing_kit",
+            "count": 2
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "modern_landing_kit_glass",
+        "category": "machines",
+        "pattern": [
+            "IG",
+            "IG",
+            "IG"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "G": "core:glass"
+        },
+        "result": {
+            "item": "modern_landing_kit_glass",
+            "count": 2
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "industrial_cabin_kit",
+        "category": "machines",
+        "pattern": [
+            "III",
+            "IGI",
+            "III"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "G": "core:glowstone"
+        },
+        "result": {
+            "item": "industrial_cabin_kit",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "industrial_landing_kit",
+        "category": "machines",
+        "pattern": [
+            "II",
+            "II",
+            "II"
+        ],
+        "key": {
+            "I": "core:iron_ingot"
+        },
+        "result": {
+            "item": "industrial_landing_kit",
+            "count": 2
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "industrial_landing_kit_glass",
+        "category": "machines",
+        "pattern": [
+            "IG",
+            "IG",
+            "IG"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "G": "core:glass"
+        },
+        "result": {
+            "item": "industrial_landing_kit_glass",
+            "count": 2
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "backrooms_cabin_kit",
+        "category": "machines",
+        "pattern": [
+            "III",
+            "IGI",
+            "III"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "G": "core:glowstone"
+        },
+        "result": {
+            "item": "backrooms_cabin_kit",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "backrooms_landing_kit",
+        "category": "machines",
+        "pattern": [
+            "II",
+            "II",
+            "II"
+        ],
+        "key": {
+            "I": "core:iron_ingot"
+        },
+        "result": {
+            "item": "backrooms_landing_kit",
+            "count": 2
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "backrooms_landing_kit_glass",
+        "category": "machines",
+        "pattern": [
+            "IG",
+            "IG",
+            "IG"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "G": "core:glass"
+        },
+        "result": {
+            "item": "backrooms_landing_kit_glass",
+            "count": 2
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "motor",
+        "category": "machines",
+        "pattern": [
+            "IRI",
+            "RGR",
+            "IRI"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "R": "core:redstone",
+            "G": "core:gold_ingot"
+        },
+        "result": {
+            "item": "motor",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "rail",
+        "category": "machines",
+        "pattern": [
+            "I",
+            "I",
+            "I"
+        ],
+        "key": {
+            "I": "core:iron_ingot"
+        },
+        "result": {
+            "item": "rail",
+            "count": 8
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "cable",
+        "category": "machines",
+        "pattern": [
+            "S",
+            "I",
+            "S"
+        ],
+        "key": {
+            "S": "core:string",
+            "I": "core:iron_ingot"
+        },
+        "result": {
+            "item": "cable",
+            "count": 8
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "shaft_wall",
+        "category": "building",
+        "pattern": [
+            "SS",
+            "SS"
+        ],
+        "key": {
+            "S": "core:stone"
+        },
+        "result": {
+            "item": "shaft_wall",
+            "count": 4
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "counterweight",
+        "category": "machines",
+        "pattern": [
+            "III",
+            "III"
+        ],
+        "key": {
+            "I": "core:iron_ingot"
+        },
+        "result": {
+            "item": "counterweight",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "pulley",
+        "category": "machines",
+        "pattern": [
+            " I ",
+            "IGI",
+            " I "
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "G": "core:gold_ingot"
+        },
+        "result": {
+            "item": "pulley",
+            "count": 1
+        }
+    },
+    {
+        "type": "item",
+        "id": "glass_cabin_kit",
+        "displayName": "Kit de cabine d'ascenseur en verre",
+        "icon": "elevators:elevator_glass_panel",
+        "maxStack": 4,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Clic droit sur le fond de la gaine : pose une cabine vitrée à la taille de la gaine (5 × 5 à 9 × 9)."
+    },
+    {
+        "type": "item",
+        "id": "glass_landing_kit",
+        "displayName": "Kit de palier d'ascenseur en verre",
+        "icon": "elevators:elevator_glass_door",
+        "maxStack": 16,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Clic droit sur le mur de la gaine (depuis le palier) : encadrement, porte, bouton, afficheur."
+    },
+    {
+        "type": "item",
+        "id": "glass_landing_kit_glass",
+        "displayName": "Kit de palier tout verre",
+        "icon": "elevators:elevator_glass_door_glass",
+        "maxStack": 16,
+        "tags": [
+            "elevator_kit"
+        ],
+        "description": "Comme le kit de palier en verre, porte entièrement vitrée."
+    },
+    {
+        "type": "recipe",
+        "id": "glass_cabin_kit",
+        "category": "machines",
+        "pattern": [
+            "GGG",
+            "GLG",
+            "III"
+        ],
+        "key": {
+            "G": "core:glass",
+            "L": "core:glowstone",
+            "I": "core:iron_ingot"
+        },
+        "result": {
+            "item": "glass_cabin_kit",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "glass_landing_kit",
+        "category": "machines",
+        "pattern": [
+            "IG",
+            "IG",
+            "IG"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "G": "core:glass"
+        },
+        "result": {
+            "item": "glass_landing_kit",
+            "count": 2
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "glass_landing_kit_glass",
+        "category": "machines",
+        "pattern": [
+            "GG",
+            "GG",
+            "IG"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "G": "core:glass"
+        },
+        "result": {
+            "item": "glass_landing_kit_glass",
+            "count": 2
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "shaft_wall_glass",
+        "category": "machines",
+        "pattern": [
+            "IGI",
+            "GGG",
+            "IGI"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "G": "core:glass"
+        },
+        "result": {
+            "item": "shaft_wall_glass",
+            "count": 8
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "switchboard",
+        "category": "machines",
+        "pattern": [
+            "IRI",
+            "RGR",
+            "ICI"
+        ],
+        "key": {
+            "I": "core:iron_ingot",
+            "R": "core:redstone",
+            "G": "core:glass",
+            "C": "core:gold_ingot"
+        },
+        "result": {
+            "item": "switchboard",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "modern_cabin_door_wide",
+        "category": "machines",
+        "pattern": [
+            "DD"
+        ],
+        "key": {
+            "D": "modern_cabin_door"
+        },
+        "result": {
+            "item": "modern_cabin_door_wide",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "modern_landing_door_wide",
+        "category": "machines",
+        "pattern": [
+            "DD"
+        ],
+        "key": {
+            "D": "modern_landing_door"
+        },
+        "result": {
+            "item": "modern_landing_door_wide",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "industrial_cabin_door_wide",
+        "category": "machines",
+        "pattern": [
+            "DD"
+        ],
+        "key": {
+            "D": "industrial_cabin_door"
+        },
+        "result": {
+            "item": "industrial_cabin_door_wide",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "industrial_landing_door_wide",
+        "category": "machines",
+        "pattern": [
+            "DD"
+        ],
+        "key": {
+            "D": "industrial_landing_door"
+        },
+        "result": {
+            "item": "industrial_landing_door_wide",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "backrooms_cabin_door_wide",
+        "category": "machines",
+        "pattern": [
+            "DD"
+        ],
+        "key": {
+            "D": "backrooms_cabin_door"
+        },
+        "result": {
+            "item": "backrooms_cabin_door_wide",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "backrooms_landing_door_wide",
+        "category": "machines",
+        "pattern": [
+            "DD"
+        ],
+        "key": {
+            "D": "backrooms_landing_door"
+        },
+        "result": {
+            "item": "backrooms_landing_door_wide",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "glass_cabin_door_wide",
+        "category": "machines",
+        "pattern": [
+            "DD"
+        ],
+        "key": {
+            "D": "glass_cabin_door"
+        },
+        "result": {
+            "item": "glass_cabin_door_wide",
+            "count": 1
+        }
+    },
+    {
+        "type": "recipe",
+        "id": "glass_landing_door_wide",
+        "category": "machines",
+        "pattern": [
+            "DD"
+        ],
+        "key": {
+            "D": "glass_landing_door"
+        },
+        "result": {
+            "item": "glass_landing_door_wide",
+            "count": 1
+        }
+    }
 ]

@@ -632,6 +632,10 @@ void TerrainGenerator::SetupMaze() {
 		el.cx = json::Int(e->Get(String("cell")) ? e->Get(String("cell"))->At(0) : nullptr, "", 1);
 		el.cz = json::Int(e->Get(String("cell")) ? e->Get(String("cell"))->At(1) : nullptr, "", 0);
 		const String side = json::Str(e, "side", "s");
+		el.side = side == "n" || side == "e" || side == "w" ? side : String("s");
+		// Côté impair (moteur au centre exact) : 5 × 5 (cabine utile 1 × 1) à 9 × 9 (5 × 5).
+		const int size = std::clamp(json::Int(e, "size", 7), 5, 9);
+		el.half = (size % 2 == 0 ? size - 1 : size) / 2;
 		if (side == "n") { el.dx = 0; el.dz = -1; el.ux = 1; el.uz = 0; el.doorParam = 0; }
 		else if (side == "e") { el.dx = 1; el.dz = 0; el.ux = 0; el.uz = 1; el.doorParam = 1; }
 		else if (side == "w") { el.dx = -1; el.dz = 0; el.ux = 0; el.uz = -1; el.doorParam = 1; }
@@ -729,11 +733,23 @@ bool TerrainGenerator::MazeWall(const MazeLevel &level, int x, int z, int floor)
 }
 
 Option<BlockPos> TerrainGenerator::MazeElevatorMotor(const String &id) const {
+	if (Option<MazeShaftInfo> shaft = MazeElevatorShaft(id); shaft.IsSome())
+		return Some(shaft.Value().motor);
+	return NONE;
+}
+
+Option<MazeShaftInfo> TerrainGenerator::MazeElevatorShaft(const String &id) const {
 	if (m_def.kind != "maze")
 		return NONE;
 	for (const MazeElevator &e : m_elevators)
-		if (id.IsEmpty() || e.id == id) // comme MazeElevatorColumn : au centre de la cellule, au-dessus de la réserve
-			return Some(BlockPos{e.cx * m_mazeCell + m_mazeCell / 2, e.top + 1, e.cz * m_mazeCell + m_mazeCell / 2});
+		if (id.IsEmpty() || e.id == id) { // comme MazeElevatorColumn : au centre de la cellule, au-dessus de la réserve
+			MazeShaftInfo info;
+			info.motor = BlockPos{e.cx * m_mazeCell + m_mazeCell / 2, e.top + 1, e.cz * m_mazeCell + m_mazeCell / 2};
+			info.bottom = e.bottom;
+			info.size = 2 * e.half + 1;
+			info.side = e.side;
+			return Some(info);
+		}
 	return NONE;
 }
 
@@ -837,7 +853,7 @@ const TerrainGenerator::MazeElevator *TerrainGenerator::MazeElevatorColumn(Chunk
 	const int cell = m_mazeCell;
 	const MazeElevator *found = nullptr;
 	for (const MazeElevator &candidate : m_elevators)
-		if (std::abs(x - (candidate.cx * cell + cell / 2)) <= 3 && std::abs(z - (candidate.cz * cell + cell / 2)) <= 3)
+		if (std::abs(x - (candidate.cx * cell + cell / 2)) <= candidate.half && std::abs(z - (candidate.cz * cell + cell / 2)) <= candidate.half)
 			found = &candidate;
 	if (!found)
 		return nullptr;
@@ -846,11 +862,12 @@ const TerrainGenerator::MazeElevator *TerrainGenerator::MazeElevatorColumn(Chunk
 	const BlockPos origin = chunk.Pos().Origin();
 	const int bottom = e.bottom;
 	const int top = e.top; // dernier vide sous le toit
-	const bool wallColumn = std::abs(ax) == 3 || std::abs(az) == 3;
+	const int h = e.half;
+	const bool wallColumn = std::abs(ax) == h || std::abs(az) == h;
 	// Mur du côté des portes : la colonne de la porte, du bouton, de la flèche.
-	const bool doorWall = (e.dz != 0 && az == 3 * e.dz) || (e.dx != 0 && ax == 3 * e.dx);
+	const bool doorWall = (e.dz != 0 && az == h * e.dz) || (e.dx != 0 && ax == h * e.dx);
 	const int u = e.dz != 0 ? ax * e.ux : az * e.uz; // position le long du mur (porte en 0)
-	const bool backWall = (e.dz != 0 && az == -3 * e.dz) || (e.dx != 0 && ax == -3 * e.dx);
+	const bool backWall = (e.dz != 0 && az == -h * e.dz) || (e.dx != 0 && ax == -h * e.dx);
 	const int along = e.dz != 0 ? ax : az;
 	for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
 		const int y = origin.y + ly;

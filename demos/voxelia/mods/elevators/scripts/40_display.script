@@ -33,12 +33,12 @@ fn el_show(e, at, dir) {
     if (dir < 0) { arrow = "down" }
     let i = 0
     while (i < len(e.floors)) {
-        let l = el_landing(e, i)
-        el_set_if(l.display.x, l.display.y, l.display.z, "_display", label)
-        el_set_if(l.arrow.x, l.arrow.y, l.arrow.z, "_arrow", arrow)
+        let f = e.floors[i]
+        for (p in f.displays) { el_set_if(p.x, p.y, p.z, "_display", label) }
+        for (p in f.arrows) { el_set_if(p.x, p.y, p.z, "_arrow", arrow) }
         let lit = "idle"
         if (el_contains(e.queue, i)) { lit = "lit" }
-        el_set_if(l.call.x, l.call.y, l.call.z, "_call", lit)
+        for (p in f.calls) { el_set_if(p.x, p.y, p.z, "_call", lit) }
         i += 1
     }
 }
@@ -46,15 +46,18 @@ fn el_show(e, at, dir) {
 fn el_refresh_displays(e) {
     el_show(e, e.floor, 0)
     if (e.floor != nil) {
-        let c = el_cabin_cells(e, e.floor)
-        el_set_if(c.display.x, c.display.y, c.display.z, "_display", el_display_state(el_floor_label(e, e.floor)))
+        let min = el_cabin_min(e, e.floor)
+        let state = el_display_state(el_floor_label(e, e.floor))
+        for (d in e.cabin.displays) { el_set_if(min.x + d.x, min.y + d.y, min.z + d.z, "_display", state) }
     }
 }
 
-# Pendant un trajet : l'afficheur de la cabine mobile (cellule de l'assemblage).
+# Pendant un trajet : les afficheurs de la cabine mobile (cellules de l'assemblage).
 fn el_show_in_cabin(e, trip, at) {
-    let c = el_cabin_cells(e, e.floor)
-    let min = el_cabin_min(e, e.floor)
-    world.structure_set(trip.cab, c.display.x - min.x, c.display.y - min.y, c.display.z - min.z,
-                        el_display_block(e.style, el_display_state(el_floor_label(e, at))))
+    let state = el_display_state(el_floor_label(e, at))
+    for (d in e.cabin.displays) {
+        let style = d.style
+        if (style == nil) { style = e.style }
+        world.structure_set(trip.cab, d.x, d.y, d.z, el_display_block(style, state))
+    }
 }

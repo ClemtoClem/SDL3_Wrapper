@@ -103,12 +103,13 @@ fn el_lift_cabin(e) {
     return world.spawn_structure(clip, min.x, min.y, min.z, 1)
 }
 
-# Corps (joueurs) dans la cabine mobile `cab` (coin c).
-fn el_riders(c) {
+# Corps (joueurs) dans la cabine mobile de `e` (coin c).
+fn el_riders(e, c) {
     let out = []
+    let w = 2 * e.half + 1
     for (p in entity.players()) {
         let q = entity.pos(p)
-        if (q.x >= c.x and q.x <= c.x + EL.CABIN.w and q.z >= c.z and q.z <= c.z + EL.CABIN.w and q.y >= c.y - 0.5 and q.y <= c.y + EL.CABIN.h) {
+        if (q.x >= c.x and q.x <= c.x + w and q.z >= c.z and q.z <= c.z + w and q.y >= c.y - 0.5 and q.y <= c.y + e.h) {
             out.push(p)
         }
     }
@@ -146,7 +147,7 @@ fn el_start_trip(e, target) {
 fn el_land_cabin(e, trip, i) {
     let min = el_cabin_min(e, i)
     let cab_pos = entity.pos(trip.cab)
-    let riders = el_riders(el_pos(cab_pos.x, cab_pos.y, cab_pos.z))
+    let riders = el_riders(e, el_pos(cab_pos.x, cab_pos.y, cab_pos.z))
     entity.remove(trip.cab)
     structure.paste(format("elevators:cabin:{}", e.id), min.x, min.y, min.z)
     for (p in riders) {
@@ -187,13 +188,13 @@ fn el_update_trip(e, trip, dt) {
         trip.shown = at
         el_show(e, at, trip.dir)
         el_show_in_cabin(e, trip, at)
-        el_sound("tick", el_pos(cab.x + 2, cab.y + 2, cab.z + 2))
+        el_sound("tick", el_pos(cab.x + e.half, cab.y + 2, cab.z + e.half))
     }
     # Grincements des câbles, de temps en temps.
     trip.creak -= dt
     if (trip.creak <= 0) {
         trip.creak = 3 + math.random() * 4
-        el_sound("creak", el_pos(cab.x + 2, cab.y + 3, cab.z + 2))
+        el_sound("creak", el_pos(cab.x + e.half, cab.y + e.h - 1, cab.z + e.half))
     }
     if (trip.external != nil) {
         el_update_external(e, trip, dt)

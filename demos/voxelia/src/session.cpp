@@ -22,6 +22,27 @@ using ui::WidgetBuilder;
 
 namespace {
 
+/// Réglages des mods d'une partie : ceux de l'utilisateur (écran « Mods »,
+/// pour tous les mondes), remplacés clé par clé par ceux propres au monde.
+dataio::NodePtr MergedModSettings(const dataio::NodePtr &user, const dataio::NodePtr &world) {
+	dataio::NodePtr out = user && user->IsObject() ? user->Clone() : dataio::Node::MakeObject();
+	if (!world || !world->IsObject())
+		return out;
+	for (const String &mod : world->Keys()) {
+		dataio::NodePtr values = world->Get(mod);
+		if (!values || !values->IsObject())
+			continue;
+		dataio::NodePtr target = out->Get(mod);
+		if (!target || !target->IsObject()) {
+			target = dataio::Node::MakeObject();
+			out->Set(mod, target);
+		}
+		for (const String &key : values->Keys())
+			target->Set(key, values->Get(key)->Clone());
+	}
+	return out;
+}
+
 constexpr float EYE = 1.62f;
 constexpr int HOTBAR = 9;
 
@@ -89,7 +110,7 @@ bool Session::Prepare(float &progress, String &status) {
 				if (m.id != "core" && std::find(w.enabledMods.begin(), w.enabledMods.end(), m.id) == w.enabledMods.end())
 					o.disabledMods.push_back(m.id);
 		o.modOrder = json::StrList(w.settings, "mods.order");
-		o.modSettings = json::At(w.settings, "modSettings");
+		o.modSettings = MergedModSettings(prefs.modSettings, json::At(w.settings, "modSettings"));
 		m_game = std::make_unique<voxel::Game>();
 		const ModReport report = m_game->LoadMods(o);
 		for (const String &e : report.errors)

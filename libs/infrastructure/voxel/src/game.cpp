@@ -1781,6 +1781,35 @@ NodePtr Game::WorldModSetting(const String &mod, const String &name) {
 	return value;
 }
 
+void Game::UpdateModSettings(const String &mod, const NodePtr &values, bool forWorld) {
+	if (!values || !values->IsObject())
+		return;
+	auto mergeInto = [&](NodePtr &root) {
+		if (!root || !root->IsObject())
+			root = dataio::Node::MakeObject();
+		NodePtr ofMod = root->Get(mod);
+		if (!ofMod || !ofMod->IsObject()) {
+			ofMod = dataio::Node::MakeObject();
+			root->Set(mod, ofMod);
+		}
+		for (const String &key : values->Keys())
+			ofMod->Set(key, values->Get(key)->Clone());
+	};
+	if (forWorld) {
+		// Valeurs du monde : prioritaires (cf. ModSetting), sauvegardées avec lui.
+		if (!m_metadata.settings || !m_metadata.settings->IsObject())
+			m_metadata.settings = dataio::Node::MakeObject();
+		NodePtr all = m_metadata.settings->Get(String("modSettings"));
+		mergeInto(all);
+		m_metadata.settings->Set("modSettings", all);
+	}
+	// Les options aussi : elles servent tant qu'aucun monde n'est ouvert.
+	m_options.modSettings = m_options.modSettings ? m_options.modSettings->Clone() : NodePtr();
+	mergeInto(m_options.modSettings);
+	if (m_scripts)
+		(void)m_scripts->Emit("settings_changed", {Value::Str(mod)});
+}
+
 NodePtr Game::ResolveSettings(const NodePtr &node, const String &mod) {
 	if (!node)
 		return node;
@@ -1809,6 +1838,12 @@ NodePtr Game::ResolveSettings(const NodePtr &node, const String &mod) {
 }
 
 Option<BlockPos> Game::MazeShaftMotor(const String &dimension, const String &shaft) {
+	if (Option<MazeShaftInfo> info = MazeShaft(dimension, shaft); info.IsSome())
+		return Some(info.Value().motor);
+	return NONE;
+}
+
+Option<MazeShaftInfo> Game::MazeShaft(const String &dimension, const String &shaft) {
 	const DimensionDef *dim = m_content.FindDimension(dimension);
 	const String generator = dim && !dim->generator.IsEmpty() ? dim->generator : m_metadata.generator;
 	const GeneratorDef *found = generator.IsEmpty() ? nullptr : m_content.FindGenerator(generator);
@@ -1816,7 +1851,7 @@ Option<BlockPos> Game::MazeShaftMotor(const String &dimension, const String &sha
 		return NONE;
 	GeneratorDef resolved = *found;
 	resolved.raw = ResolveSettings(found->raw, found->mod);
-	return TerrainGenerator(m_content, resolved, 0).MazeElevatorMotor(shaft);
+	return TerrainGenerator(m_content, resolved, 0).MazeElevatorShaft(shaft);
 }
 
 bool Game::Rule(const char *name) const {

@@ -164,6 +164,11 @@ public:
 	/// settings.modSettings) : ce qui façonne le terrain (nombre d'étages…) ne
 	/// change plus pour ce monde quand l'utilisateur modifie le réglage.
 	NodePtr WorldModSetting(const String &mod, const String &name);
+	/// Nouveaux réglages du mod `mod` en cours de partie (écran de configuration) :
+	/// ceux de l'utilisateur (`forWorld` faux) ou ceux propres à ce monde
+	/// (`forWorld` vrai : fusionnés aux valeurs du monde, enregistrés avec lui).
+	/// Les scripts reçoivent l'événement « settings_changed » (mod).
+	void UpdateModSettings(const String &mod, const NodePtr &values, bool forWorld);
 	/// Copie de `node` où chaque {"setting": "nom"[, "fallback": valeur]} est
 	/// remplacé par le réglage figé du mod `mod` (`fallback` quand il vaut 0,
 	/// "", false ou manque). Les générateurs sont créés ainsi.
@@ -171,6 +176,8 @@ public:
 	/// Moteur de la gaine d'ascenseur `shaft` (vide : la première) que génère
 	/// le labyrinthe de `dimension` (« maze », « elevator(s) ») ; NONE : aucune.
 	[[nodiscard]] Option<BlockPos> MazeShaftMotor(const String &dimension, const String &shaft = String());
+	/// Même gaine, avec son fond, sa taille et le côté de ses paliers.
+	[[nodiscard]] Option<MazeShaftInfo> MazeShaft(const String &dimension, const String &shaft = String());
 
 	// ── Règles du monde (metadata.settings) ─────────────────────────────────
 

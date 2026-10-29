@@ -3,8 +3,8 @@
 # Organisation (scripts/ chargés après ce fichier, dans l'ordre des noms) :
 #   init.script                 réglages, état partagé EL, outils géométriques
 #   scripts/10_registry         enregistrement des ascenseurs, sauvegarde
-#   scripts/20_construction     vérification d'une gaine, kits de cabine / palier
-#   scripts/30_doors            portes coulissantes (cabine + palier)
+#   scripts/20_construction     vérification d'une gaine (diagnostic), kits
+#   scripts/30_doors            portes coulissantes (cabine + paliers)
 #   scripts/40_display          afficheurs (paliers, cabine), boutons allumés
 #   scripts/50_sounds           sons qui suivent l'état réel
 #   scripts/60_movement         machine à états, trajets (accélération, palier,
@@ -13,12 +13,19 @@
 #                               transfert invisible, retour à la surface
 #   scripts/80_controls         boutons d'appel, panneau de cabine, moteur
 #                               (vérification + configuration), formulaires
+#   scripts/85_switchboard      tableau électrique (diagnostic, numérotation,
+#                               essais manuels)
 #
-# Géométrie : le MOTEUR est posé au-dessus du centre de la gaine. La cabine
-# (5 × 4 × 5 : plancher, 2 rangées de parois, plafond) occupe l'emprise
-# 5 × 5 sous le moteur ; elle n'est faite de blocs qu'à l'arrêt — pendant un
-# trajet c'est une seule entité qui emporte ses passagers. Les paliers sont
-# dans le mur de la gaine (à 3 blocs du centre), du côté de la porte de cabine.
+# Géométrie (construite bloc par bloc, rien n'est fixé) : le MOTEUR est posé
+# au-dessus du centre d'une gaine carrée de côté IMPAIR S (5, 7 ou 9 : le
+# moteur tombe au centre exact). L'intérieur de la gaine (S − 2) est rempli par
+# la cabine : plancher (blocs « cabin_floor »), parois libres, plafond (blocs
+# « cabin_ceiling ») ; il reste S − 4 de place utile. Vu du centre :
+#   half = (S − 3) / 2    demi-côté de la cabine (parois de cabine à ± half)
+#   wall = half + 1        parois de la gaine (portes palières à ± wall)
+# Les portes (simples, ou doubles larges de 2 × 2) sont sur n'importe quelle
+# face, à n'importe quelle place le long de la paroi ; chaque porte palière
+# d'un étage doit avoir sa porte de cabine en face.
 
 let EL = {
     settings: {},
@@ -27,7 +34,9 @@ let EL = {
     transfer: nil,        # transfert vers une autre dimension en cours
     loaded_for: nil,      # dimension dont les ascenseurs sont chargés
     STYLES: ["modern", "industrial", "backrooms", "glass"],
-    CABIN: {w: 5, h: 4, half: 2, wall: 3}
+    # Bornes fixes de la géométrie (les réglages du mod restent dedans).
+    SHAFT_MIN: 5, SHAFT_MAX: 9,
+    CABIN_H_MIN: 4, CABIN_H_MAX: 8
 }
 
 # États (machine à états explicite, cf. 60_movement) et transitions permises.
@@ -53,17 +62,39 @@ fn el_setting(name, fallback) {
     return v
 }
 
+# Côté de gaine impair, ramené dans [SHAFT_MIN, SHAFT_MAX].
+fn el_odd_size(v, fallback) {
+    let n = math.floor(v)
+    if (n < EL.SHAFT_MIN or n > EL.SHAFT_MAX) { n = fallback }
+    if (n % 2 == 0) { n -= 1 }
+    if (n < EL.SHAFT_MIN) { n = EL.SHAFT_MIN }
+    return n
+}
+
 fn el_reload_settings() {
+    let lo = el_odd_size(el_setting("shaft_min", 5), EL.SHAFT_MIN)
+    let hi = el_odd_size(el_setting("shaft_max", 9), EL.SHAFT_MAX)
+    if (hi < lo) { hi = lo }
+    let gap = el_setting("floor_gap", 4)
+    if (gap < 4) { gap = 4 }
     EL.settings = {
         speed: el_setting("speed", 3.0),
         accel: el_setting("acceleration", 1.6),
         door_time: el_setting("door_time", 4.0),
         door_speed: el_setting("door_speed", 0.45),
-        max_height: el_setting("max_height", 160),
+        max_height: el_setting("max_height", 30),
+        shaft_min: lo,
+        shaft_max: hi,
+        floor_gap: gap,
         owner_only: el_setting("owner_only", false)
     }
 }
 el_reload_settings()
+
+# Réglages modifiés en cours de partie (écran « Mods ») : relus aussitôt.
+voxel.on("settings_changed", fn(mod) {
+    if (mod == nil or mod == "elevators") { el_reload_settings() }
+})
 
 fn el_key(x, y, z) { return format("{},{},{}", x, y, z) }
 fn el_pos(x, y, z) { return {x: x, y: y, z: z} }
@@ -73,13 +104,27 @@ fn el_contains(list, v) {
     return false
 }
 
-# Côté de la porte : vecteur vers l'extérieur de la gaine et orientation des
-# portes (param : 0 → panneau dans le plan x, 1 → dans le plan z).
+# Géométrie d'une gaine de demi-cabine `half` (1 → gaine 5 × 5 … 3 → 9 × 9).
+fn el_geom(half) {
+    return {half: half, wall: half + 1, w: 2 * half + 1, shaft: 2 * half + 3, useful: 2 * half - 1}
+}
+
+# Côtés : vecteur vers l'extérieur (dx, dz), sens « droite » vu de l'extérieur
+# (ux, uz : bouton d'appel), axe le long de la paroi (ax, az, toujours positif)
+# et orientation des portes (param : 0 → panneau dans le plan x, 1 → plan z).
 let EL_SIDES = {
-    n: {dx: 0, dz: -1, ux: 1, uz: 0, param: 0},
-    s: {dx: 0, dz: 1, ux: -1, uz: 0, param: 0},
-    e: {dx: 1, dz: 0, ux: 0, uz: 1, param: 1},
-    w: {dx: -1, dz: 0, ux: 0, uz: -1, param: 1}
+    n: {dx: 0, dz: -1, ux: 1, uz: 0, ax: 1, az: 0, param: 0},
+    s: {dx: 0, dz: 1, ux: -1, uz: 0, ax: 1, az: 0, param: 0},
+    e: {dx: 1, dz: 0, ux: 0, uz: 1, ax: 0, az: 1, param: 1},
+    w: {dx: -1, dz: 0, ux: 0, uz: -1, ax: 0, az: 1, param: 1}
+}
+let EL_FACES = ["n", "s", "e", "w"]
+let EL_FACE_NAMES = {n: "nord", s: "sud", e: "est", w: "ouest"}
+
+# Cellule d'une paroi : face `side`, à `r` du centre (cx, cz), `u` le long de la paroi.
+fn el_face_cell(cx, cz, side, r, u) {
+    let sd = EL_SIDES[side]
+    return {x: cx + sd.dx * r + sd.ax * u, z: cz + sd.dz * r + sd.az * u}
 }
 
 # Style d'un bloc d'ascenseur (« elevators:modern_cabin_wall » → « modern »).
@@ -97,6 +142,68 @@ fn el_is(block, part) {
     if (s == nil) { return false }
     let rest = block.sub(len(format("elevators:{}_", s)))
     return rest == part or rest.starts_with(part + "_")
+}
+
+# Tags d'un bloc (définition JSON), gardés en cache.
+let EL_TAGS = {}
+fn el_has_tag(block, tag) {
+    if (block == nil) { return false }
+    if (not has(EL_TAGS, block)) {
+        let def = content.get("block", block)
+        let tags = []
+        if (def != nil and has(def, "tags") and def.tags != nil) { tags = def.tags }
+        EL_TAGS[block] = tags
+    }
+    return el_contains(EL_TAGS[block], tag)
+}
+
+# Bloc d'une porte sans son état (« …_landing_door_half » → « …_landing_door »).
+fn el_door_base(block) {
+    for (suffix in ["_half", "_open"]) {
+        if (block.ends_with(suffix)) { return block.sub(0, len(block) - len(suffix)) }
+    }
+    return block
+}
+
+# Décalage de la seconde moitié d'une porte large selon sa rotation (0..3).
+fn el_wide_offset(param) {
+    let p = param % 4
+    if (p == 1) { return {x: 0, z: 1} }
+    if (p == 2) { return {x: -1, z: 0} }
+    if (p == 3) { return {x: 0, z: -1} }
+    return {x: 1, z: 0}
+}
+
+# Porte (bloc principal, bas) en (x, y, z) dans une paroi `side` : `part` vaut
+# « cabin_door » ou « landing_door ». Rend nil, ou {width, lo (décalage le long
+# de la paroi de sa première cellule), base, error}.
+fn el_door_at(x, y, z, side, part) {
+    let b = world.get(x, y, z)
+    if (not el_is(b, part) or b.contains("_top")) { return nil }
+    if (not b.contains("_wide")) { return {width: 1, lo: 0, base: el_door_base(b), error: nil} }
+    if (b.contains("_right")) { return nil } # seconde moitié : vue depuis la première
+    let o = el_wide_offset(world.param(x, y, z))
+    let sd = EL_SIDES[side]
+    let along = o.x * sd.ax + o.z * sd.az
+    if (along == 0) { return {width: 2, lo: 0, base: el_door_base(b), error: "porte large tournée vers la gaine (elle doit suivre la paroi)"} }
+    let lo = 0
+    if (along < 0) { lo = -1 }
+    return {width: 2, lo: lo, base: el_door_base(b), error: nil}
+}
+
+# Pose une porte fermée (simple : 2 blocs ; large : 4) ; `u` : sa première
+# cellule le long de la paroi `side` ; (x, y, z) : cette cellule, en bas.
+fn el_place_door(x, y, z, side, base) {
+    let sd = EL_SIDES[side]
+    if (base.contains("_wide")) {
+        world.set(x, y, z, base, sd.param)
+        world.set(x, y + 1, z, base + "_top", sd.param)
+        world.set(x + sd.ax, y, z + sd.az, base + "_right", sd.param)
+        world.set(x + sd.ax, y + 1, z + sd.az, base + "_right_top", sd.param)
+        return nil
+    }
+    world.set(x, y, z, base, sd.param)
+    world.set(x, y + 1, z, base + "_top", sd.param)
 }
 
 # Tri par insertion (petites listes : étages).

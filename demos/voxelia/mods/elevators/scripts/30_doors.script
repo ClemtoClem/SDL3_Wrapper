@@ -1,38 +1,59 @@
-# Portes coulissantes : la porte de cabine et la porte palière de l'arrêt
-# bougent ensemble (fermée → entrouverte → ouverte, et retour). Fermées et
-# entrouvertes, elles arrêtent les corps ; une porte palière ne s'ouvre
+# Portes coulissantes : à un arrêt, chaque porte palière de l'étage et la
+# porte de cabine qui lui fait face bougent ensemble (fermée → entrouverte →
+# ouverte, et retour) ; les autres portes de la cabine restent fermées. Fermées
+# et entrouvertes, elles arrêtent les corps ; une porte palière ne s'ouvre
 # jamais sans la cabine derrière elle (seule la machine à états les pilote).
 
-# États d'une porte (bas + haut) ; rend faux si un bloc manque.
+# État d'une porte (le reste du bloc — haut, seconde moitié — suit) ; faux si elle manque.
 fn el_door_cell(x, y, z, state) {
     let b = world.get(x, y, z)
     if (not b.contains("door")) { return false }
-    world.set_state(x, y, z, state) # le haut de la porte (partie du bloc) suit
+    world.set_state(x, y, z, state)
     return true
+}
+
+# Paires (porte palière, porte de cabine en face) de l'arrêt i.
+fn el_door_pairs(e, i) {
+    let out = []
+    for (d in e.floors[i].doors) {
+        let c = el_cabin_door_facing(e, d)
+        if (c != nil) { out.push({landing: d, cabin: el_cabin_door_pos(e, i, c), side: d.side, width: d.width}) }
+    }
+    return out
 }
 
 fn el_doors(e, state) {
     let i = e.floor
     if (i == nil) { return false }
-    let l = el_landing(e, i)
-    let c = el_cabin_cells(e, i)
-    let ok = el_door_cell(l.door.x, l.door.y, l.door.z, state)
-    let ok2 = el_door_cell(c.door.x, c.door.y, c.door.z, state)
-    return ok and ok2
+    let ok = true
+    for (p in el_door_pairs(e, i)) {
+        if (not el_door_cell(p.landing.x, p.landing.y, p.landing.z, state)) { ok = false }
+        if (not el_door_cell(p.cabin.x, p.cabin.y, p.cabin.z, state)) { ok = false }
+    }
+    return ok
 }
 
-# Un corps dans l'embrasure (cellules des deux portes) : on ne referme pas.
+# Le corps en (x, y, z) est-il dans la porte (première cellule p, largeur w, face side) ?
+fn el_in_door(x, y, z, p, width, side) {
+    let sd = EL_SIDES[side]
+    let k = 0
+    while (k < width) {
+        if (x == p.x + sd.ax * k and z == p.z + sd.az * k and y >= p.y and y <= p.y + 1) { return true }
+        k += 1
+    }
+    return false
+}
+
+# Un corps dans une embrasure (cellules des portes ouvertes) : on ne referme pas.
 fn el_doorway_blocked(e) {
-    let l = el_landing(e, e.floor)
-    let c = el_cabin_cells(e, e.floor)
-    for (p in entity.players()) {
-        let q = entity.pos(p)
+    let pairs = el_door_pairs(e, e.floor)
+    for (pl in entity.players()) {
+        let q = entity.pos(pl)
         let x = math.floor(q.x)
         let y = math.floor(q.y)
         let z = math.floor(q.z)
-        if ((x == l.door.x and z == l.door.z and y >= l.door.y and y <= l.door.y + 1) or
-            (x == c.door.x and z == c.door.z and y >= c.door.y and y <= c.door.y + 1)) {
-            return true
+        for (p in pairs) {
+            if (el_in_door(x, y, z, p.landing, p.width, p.side) or el_in_door(x, y, z, p.cabin, p.width, p.side)) { return true }
         }
     }
     return false
@@ -40,16 +61,15 @@ fn el_doorway_blocked(e) {
 
 # Une porte palière détruite pendant un trajet : remise en place (sécurité).
 fn el_check_landing_doors(e) {
-    let i = 0
-    while (i < len(e.floors)) {
-        let l = el_landing(e, i)
-        let b = world.get(l.door.x, l.door.y, l.door.z)
-        if (not b.contains("landing_door")) {
-            let door = format("elevators:{}_landing_door", e.style)
-            world.set(l.door.x, l.door.y, l.door.z, door, EL_SIDES[e.side].param)
-            world.set(l.door.x, l.door.y + 1, l.door.z, door + "_top", EL_SIDES[e.side].param)
-            el_say("porte palière remise en place : on ne laisse pas une gaine ouverte.")
+    for (f in e.floors) {
+        for (d in f.doors) {
+            let sd = EL_SIDES[d.side]
+            let missing = not world.get(d.x, d.y, d.z).contains("landing_door")
+            if (d.width == 2 and not world.get(d.x + sd.ax, d.y, d.z + sd.az).contains("landing_door")) { missing = true }
+            if (missing) {
+                el_place_door(d.x, d.y, d.z, d.side, d.base)
+                el_say("porte palière remise en place : on ne laisse pas une gaine ouverte.")
+            }
         }
-        i += 1
     }
 }

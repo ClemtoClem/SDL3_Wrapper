@@ -1,0 +1,205 @@
+# Tableau électrique : posé près de la gaine (machinerie, palier, fosse) ou
+# du moteur. Clic droit : un formulaire avec
+#   Diagnostic      vérification complète (el_scan) et état de marche, en clair
+#                   dans une zone de texte ; les voyants du tableau suivent ;
+#   Numérotation    recherche des étages, numéros réinitialisés de 0 en montant ;
+#   Monter/Descendre  trajets d'essai vers l'arrêt voisin (mêmes règles de
+#                   sécurité qu'un appel : rien ne part portes ouvertes).
+
+let EL_BOARD_RANGE = 8 # distance horizontale au moteur ou à la gaine
+
+# Moteur (position) que commande le tableau en (x, y, z), ou nil.
+fn el_board_motor(x, y, z) {
+    for (id in keys(EL.records)) {
+        let e = EL.records[id]
+        let m = e.motor
+        if (el_abs(x - m.x) <= EL_BOARD_RANGE and el_abs(z - m.z) <= EL_BOARD_RANGE and y <= m.y + 4 and y >= e.floors[0].y - 8) {
+            return m
+        }
+    }
+    # Pas encore en service : un moteur posé dans les environs.
+    let r = EL_BOARD_RANGE
+    let counts = world.count(x - r, y - 4, z - r, x + r, y + 8, z + r)
+    if (counts == nil or not has(counts, "elevators:motor")) { return nil }
+    let dy = -4
+    while (dy <= 8) {
+        let dz = -r
+        while (dz <= r) {
+            let dx = -r
+            while (dx <= r) {
+                if (world.get(x + dx, y + dy, z + dz) == "elevators:motor") { return el_pos(x + dx, y + dy, z + dz) }
+                dx += 1
+            }
+            dz += 1
+        }
+        dy += 1
+    }
+    return nil
+}
+
+# Voyants du tableau : vert (en ordre), rouge (défaillance).
+fn el_board_lamp(b, ok) {
+    if (b == nil) { return nil }
+    let state = "fault"
+    if (ok) { state = "ok" }
+    if (world.get(b.x, b.y, b.z).starts_with("elevators:switchboard")) { world.set_state(b.x, b.y, b.z, state) }
+}
+
+# Rapport complet : vérification de l'installation, puis état de marche.
+fn el_diagnose(m) {
+    let r = el_scan(m.x, m.y, m.z)
+    let lines = []
+    let e = el_get(el_key(m.x, m.y, m.z))
+    if (len(r.problems) == 0) {
+        lines.push("INSTALLATION : en ordre.")
+    } else {
+        lines.push(format("INSTALLATION : {} défaillance(s) — l'ascenseur ne peut pas être mis en service.", len(r.problems)))
+        for (p in r.problems) { lines.push(format("  ✗ {}", p)) }
+    }
+    if (len(r.warnings) > 0) {
+        lines.push(format("AVERTISSEMENTS : {}", len(r.warnings)))
+        for (w in r.warnings) { lines.push(format("  ! {}", w)) }
+    }
+    lines.push("CONFIGURATION :")
+    for (i in r.info) { lines.push(format("  · {}", i)) }
+    if (r.record != nil) {
+        let k = 0
+        while (k < len(r.record.floors)) {
+            let f = r.record.floors[k]
+            let doors = []
+            for (d in f.doors) { doors.push(el_door_label(d)) }
+            lines.push(format("  · arrêt {} : plancher y = {}, portes {}, {} bouton(s), {} afficheur(s).", k, f.y, join(doors, ", "),
+                              len(f.calls), len(f.displays)))
+            k += 1
+        }
+    }
+    lines.push("MARCHE :")
+    if (e == nil) {
+        lines.push("  · pas en service (bouton « Numérotation » ou clic droit sur le moteur pour le mettre en service).")
+    } else {
+        lines.push(format("  · état {}, cabine à l'arrêt {} ({}), {} appel(s) en attente.", e.state, el_floor_label(e, e.floor),
+                          el_floor_name(e, e.floor), len(e.queue)))
+        if (e.state == "failed") { lines.push("  ✗ en panne : un composant a été cassé depuis la mise en service.") }
+        if (e.state == "maintenance") { lines.push("  ! en maintenance (configuration du moteur).") }
+        # Portes palières ouvertes sans la cabine derrière : grave.
+        let i = 0
+        while (i < len(e.floors)) {
+            for (d in e.floors[i].doors) {
+                let b = world.get(d.x, d.y, d.z)
+                if (b == nil or not b.contains("landing_door")) {
+                    lines.push(format("  ✗ arrêt {} : porte palière {} manquante.", i, el_door_label(d)))
+                } else if (i != e.floor and (b.contains("_open") or b.contains("_half"))) {
+                    lines.push(format("  ✗ arrêt {} : porte palière {} ouverte sans la cabine.", i, el_door_label(d)))
+                }
+            }
+            i += 1
+        }
+        if (r.record != nil and r.record.floor != e.floor and not has(EL.active, e.id)) {
+            lines.push("  ! la cabine n'est pas à l'arrêt enregistré : « Numérotation » remet l'enregistrement à jour.")
+        }
+    }
+    return {text: join(lines, "\n"), ok: len(r.problems) == 0}
+}
+
+fn el_open_board(p, b, m, report) {
+    let id = el_key(m.x, m.y, m.z)
+    let e = el_get(id)
+    let status = "pas en service"
+    if (e != nil) { status = format("{}, cabine à l'arrêt {}", e.state, el_floor_label(e, e.floor)) }
+    if (report == nil) { report = "Appuyez sur « Diagnostic » pour vérifier l'installation." }
+    game.open_ui(p, "form", {
+        id: format("elevators:board:{}@{}", id, el_key(b.x, b.y, b.z)), title: "Tableau électrique", width: 720,
+        description: format("Ascenseur {} — {}.", id, status),
+        fields: [{id: "report", type: "textarea", label: "Rapport", rows: 14, default: report}],
+        buttons: [
+            {id: "diag", label: "Diagnostic"},
+            {id: "renumber", label: "Numérotation"},
+            {id: "up", label: "▲ Monter"},
+            {id: "down", label: "▼ Descendre"}
+        ],
+        submit: "", cancel: "Fermer"})
+}
+
+# Étages recherchés à nouveau et numérotés de 0 en montant (noms gardés).
+fn el_renumber(m) {
+    let e = el_register(m.x, m.y, m.z, true)
+    if (e == nil) { return nil }
+    let i = 0
+    while (i < len(e.floors)) {
+        e.floors[i].label = str(i)
+        i += 1
+    }
+    el_refresh_displays(e)
+    el_save()
+    return e
+}
+
+# Trajet d'essai vers l'arrêt voisin (dir : +1 monte, −1 descend).
+fn el_board_test(m, dir) {
+    let e = el_get(el_key(m.x, m.y, m.z))
+    if (e == nil) { return "pas en service : lancez d'abord un diagnostic, puis la numérotation." }
+    if (e.state == "maintenance" or e.state == "failed") { return format("refusé : ascenseur {}.", e.state) }
+    let target = e.floor + dir
+    if (target < 0 or target >= len(e.floors)) {
+        if (dir > 0) { return "déjà au dernier arrêt." }
+        return "déjà au premier arrêt."
+    }
+    if (not el_request(e, target)) { return "appel refusé." }
+    return format("trajet d'essai demandé : arrêt {} → {} ({}).", el_floor_label(e, e.floor), el_floor_label(e, target), el_floor_name(e, target))
+}
+
+voxel.on("block_use", fn(x, y, z, block, actor) {
+    if (block == nil or not block.starts_with("elevators:switchboard")) { return true }
+    let b = el_pos(x, y, z)
+    let m = el_board_motor(x, y, z)
+    if (m == nil) {
+        el_say(format("ce tableau ne commande aucun moteur : posez-le à moins de {} blocs de la gaine ou du moteur.", EL_BOARD_RANGE))
+        return false
+    }
+    el_sound("button", b)
+    el_open_board(actor, b, m, nil)
+    return false
+})
+
+voxel.on("form_submit", fn(p, form, v) {
+    if (not form.starts_with("elevators:board:")) { return nil }
+    let parts = form.sub(len("elevators:board:")).split("@")
+    let mc = parts[0].split(",")
+    let bc = parts[1].split(",")
+    let m = el_pos(num(mc[0]), num(mc[1]), num(mc[2]))
+    let b = el_pos(num(bc[0]), num(bc[1]), num(bc[2]))
+    let button = v._button
+    if (button == nil or button == "submit") { return nil }
+    if (world.get(m.x, m.y, m.z) != "elevators:motor") {
+        el_say("le moteur commandé par ce tableau a disparu.")
+        return nil
+    }
+    el_sound("button", b)
+    let report = nil
+    if (button == "diag") {
+        let d = el_diagnose(m)
+        el_board_lamp(b, d.ok)
+        report = d.text
+    } else if (button == "renumber") {
+        let e = el_renumber(m)
+        if (e == nil) {
+            let d = el_diagnose(m)
+            el_board_lamp(b, false)
+            report = "Numérotation impossible : l'installation a des défaillances.\n\n" + d.text
+        } else {
+            el_board_lamp(b, true)
+            let lines = [format("Numérotation : {} arrêt(s), numérotés de 0 (en bas) à {}.", len(e.floors), len(e.floors) - 1)]
+            let i = 0
+            while (i < len(e.floors)) {
+                lines.push(format("  · arrêt {} : plancher y = {} — {}", el_floor_label(e, i), e.floors[i].y, el_floor_name(e, i)))
+                i += 1
+            }
+            report = join(lines, "\n")
+        }
+    } else if (button == "up") {
+        report = el_board_test(m, 1)
+    } else if (button == "down") {
+        report = el_board_test(m, -1)
+    }
+    el_open_board(p, b, m, report)
+})

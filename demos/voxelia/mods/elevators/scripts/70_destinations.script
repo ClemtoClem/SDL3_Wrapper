@@ -23,14 +23,18 @@
 
 # « motor » : "auto" désigne une gaine que génère le labyrinthe de la
 # dimension (« shaft » : laquelle, sinon la première) ; sa hauteur suit le
-# nombre d'étages, souvent un réglage. Calculée une fois.
+# nombre d'étages, souvent un réglage. Calculée une fois ; la profondeur de
+# la gaine (du moteur au fond) remplace pour elle la « hauteur maximale ».
 let EL_SHAFTS = {}
 
 fn el_shaft_motor(dimension, shaft) {
     let key = format("{}|{}", dimension, shaft)
     if (not has(EL_SHAFTS, key)) {
         let m = world.maze_shaft(dimension, shaft)
-        if (m == nil) { EL_SHAFTS[key] = false } else { EL_SHAFTS[key] = [m.x, m.y, m.z] }
+        if (m == nil) { EL_SHAFTS[key] = false } else {
+            EL_SHAFTS[key] = [m.x, m.y, m.z]
+            if (has(m, "bottom") and m.bottom != nil) { EL_REACH[el_key(m.x, m.y, m.z)] = m.y - m.bottom + 1 }
+        }
     }
     let found = EL_SHAFTS[key]
     if (found == false) { return nil }
@@ -109,11 +113,12 @@ fn el_dest_label(id) {
 # Place libre au-delà de la cabine (sens dir) dans l'emprise de la gaine.
 fn el_free_run(e, dir) {
     let min = el_cabin_min(e, e.floor)
+    let w = 2 * e.half + 1
     let n = 0
     let y = min.y - 1
-    if (dir > 0) { y = min.y + EL.CABIN.h }
+    if (dir > 0) { y = min.y + e.h }
     while (n < 6) {
-        if (el_air_count(min.x, y, min.z, min.x + 4, y, min.z + 4) < 25) { return n }
+        if (el_air_count(min.x, y, min.z, min.x + w - 1, y, min.z + w - 1) < w * w) { return n }
         n += 1
         y += dir
     }
@@ -173,7 +178,7 @@ fn el_update_external(e, trip, dt) {
     if (el_profile(trip, trip.t).s < x.d1) { return nil }
     let d = x.dest
     let cab = entity.pos(trip.cab)
-    let players = el_riders(el_pos(cab.x, cab.y, cab.z))
+    let players = el_riders(e, el_pos(cab.x, cab.y, cab.z))
     if (len(players) == 0) {
         # Personne à bord : la cabine revient simplement à son étage.
         el_land_cabin(e, trip, e.floor)
@@ -189,6 +194,7 @@ fn el_update_external(e, trip, dt) {
     EL.transfer = {
         dest: d, dimension: d.dimension, clip: format("elevators:cabin:{}", e.id), style: e.style,
         offset: el_pos(q.x - cab.x, q.y - cab.y, q.z - cab.z),
+        half: e.half, h: e.h, cabin: e.cabin, sig: el_doors_sig(e.cabin.doors),
         trip: {D: trip.D, a: trip.a, vmax: trip.vmax, ta: trip.ta, tc: trip.tc, da: trip.da, T: trip.T, t: trip.t, dir: trip.dir, d2: x.d2},
         motor_channel: el_motor_channel(e),
         back: {dimension: world.dimension(), motor: [e.motor.x, e.motor.y, e.motor.z], floor: e.floor,
@@ -207,12 +213,25 @@ fn el_update_external(e, trip, dt) {
     if (d.mode == "surface") {
         entity.travel(p, d.dimension)
     } else {
-        let arrival = el_pos(d.motor[0] - EL.CABIN.half, 0, d.motor[2] - EL.CABIN.half)
+        let arrival = el_pos(d.motor[0] - e.half, 0, d.motor[2] - e.half)
         entity.travel(p, d.dimension, arrival.x + EL.transfer.offset.x, d.motor[1], arrival.z + EL.transfer.offset.z)
     }
 }
 
 fn el_set_state_transfer_pending() { EL.loaded_for = nil }
+
+# Signature des portes d'une cabine (même disposition ⇒ même cabine possible).
+fn el_doors_sig(doors) {
+    let out = []
+    for (d in doors) { out.push(format("{}{}x{}", d.side, d.u, d.width)) }
+    return join(out, ";")
+}
+
+fn el_clamp(v, lo, hi) {
+    if (v < lo) { return lo }
+    if (v > hi) { return hi }
+    return v
+}
 
 # Le joueur arrive dans la dimension de destination : la cabine y reprend
 # son trajet. (Appelé par l'événement dimension_changed.)
@@ -236,22 +255,33 @@ fn el_arrive(player) {
     }
     let i = 0
     if (has(d, "floor") and d.floor != nil and d.floor < len(e.floors)) { i = d.floor }
-    # La cabine d'arrivée laisse la place à celle qui arrive.
+    # La cabine du voyage, copiée d'un monde à l'autre (presse-papiers du jeu),
+    # si elle a la taille et les portes de celle d'arrivée ; sinon le voyage
+    # finit dans la cabine d'arrivée (ses portes donnent sur ses paliers).
+    let clip = format("elevators:cabin:{}", e.id)
+    let same = e.half == tr.half and e.h == tr.h and el_doors_sig(e.cabin.doors) == tr.sig
     if (e.floor != nil) {
         let a = el_cabin_min(e, e.floor)
         let b = el_cabin_max(e, e.floor)
+        if (not same) { structure.copy(clip, a.x, a.y, a.z, b.x, b.y, b.z) }
         world.fill(a.x, a.y, a.z, b.x, b.y, b.z, "core:air")
     }
+    if (same) { structure.duplicate(tr.clip, clip) }
     e.floor = i
     let arrival_y = e.floors[i].y
     let t = tr.trip
     let start_y = arrival_y - t.dir * t.D
     let min = el_cabin_min(e, i)
     let cab_y = arrival_y - t.dir * t.d2
-    # La cabine du voyage, copiée d'un monde à l'autre (presse-papiers du jeu).
-    structure.duplicate(tr.clip, format("elevators:cabin:{}", e.id))
-    let cab = world.spawn_structure(format("elevators:cabin:{}", e.id), min.x, cab_y, min.z, 1)
-    entity.set_pos(player, min.x + tr.offset.x, cab_y + tr.offset.y, min.z + tr.offset.z)
+    let cab = world.spawn_structure(clip, min.x, cab_y, min.z, 1)
+    let ox = tr.offset.x
+    let oz = tr.offset.z
+    if (not same) { # même place par rapport au centre, dans la cabine d'arrivée
+        let w = 2 * e.half + 1
+        ox = el_clamp(ox - tr.half + e.half, 1.3, w - 1.3)
+        oz = el_clamp(oz - tr.half + e.half, 1.3, w - 1.3)
+    }
+    entity.set_pos(player, min.x + ox, cab_y + tr.offset.y, min.z + oz)
     let pr = el_profile(t, t.t)
     entity.set_velocity(cab, 0, t.dir * pr.v, 0)
     let trip = {D: t.D, a: t.a, vmax: t.vmax, ta: t.ta, tc: t.tc, da: t.da, T: t.T, t: t.t, dir: t.dir, start_y: start_y,
@@ -269,7 +299,8 @@ fn el_arrive(player) {
     el_save()
 }
 
-# Ascenseur généré (backrooms…) sans cabine : on lui en pose une au premier arrêt.
+# Ascenseur généré (backrooms…) sans cabine : on lui en pose une au premier
+# arrêt, à la taille de la gaine, portes en face des portes palières.
 fn el_prepare_generated(d) {
     let mx = d.motor[0]
     let my = d.motor[1]
@@ -278,25 +309,30 @@ fn el_prepare_generated(d) {
     if (world.get(mx, my, mz) != "elevators:motor") { return nil }
     let style = "backrooms"
     if (has(d, "style")) { style = d.style }
-    # Le palier le plus bas, sur l'un des quatre côtés : la cabine y attend.
+    # Taille : le vide de la réserve, juste sous le moteur.
+    let shaft = el_shaft_around(mx, my - 1, mz)
+    if (shaft.error != nil or shaft.cx != mx or shaft.cz != mz) {
+        game.log(format("[elevators] gaine générée {} : {}", el_key(mx, my, mz), shaft.error))
+        return nil
+    }
+    # Le palier le plus bas (une ou plusieurs portes) : la cabine y attend.
     let found = nil
     let y = my - 2
-    while (y > my - EL.settings.max_height) {
-        for (s in ["n", "s", "e", "w"]) {
-            let sd = EL_SIDES[s]
-            let b = world.get(mx + sd.dx * 3, y, mz + sd.dz * 3)
-            if (el_is(b, "landing_door") and not b.contains("_top")) { found = {y: y, side: s, style: el_style_of(b)} }
-        }
+    while (y >= my - el_reach(el_key(mx, my, mz))) {
+        let doors = el_landing_doors_at(mx, y, mz, shaft.half)
+        if (len(doors) > 0) { found = {y: y, doors: doors} }
         y -= 1
     }
     if (found == nil) { return nil }
-    if (found.style != nil) { style = found.style } # cabine du style des paliers générés
-    el_build_cabin(el_pos(mx - 2, found.y - 1, mz - 2), found.side, style)
+    let s = el_style_of(found.doors[0].base)
+    if (s != nil) { style = s } # cabine du style des paliers générés
+    el_build_cabin(el_pos(mx - shaft.half, found.y - 1, mz - shaft.half), style, shaft.half, EL.CABIN_H_MIN, found.doors)
     return el_register(mx, my, mz, true)
 }
 
-# Retour à la surface : un kiosque d'ascenseur (gaine, palier, moteur) bâti là
-# où le joueur arrive ; la cabine y descend jusqu'au sol. Il reste en place :
+# Retour à la surface : un kiosque d'ascenseur (gaine, paliers, moteur) bâti là
+# où le joueur arrive, à la taille de la cabine du voyage, un palier en face de
+# chacune de ses portes ; la cabine y descend jusqu'au sol. Il reste en place :
 # on peut y reprendre l'ascenseur pour redescendre.
 fn el_build_kiosk(player, tr) {
     let p = entity.pos(player)
@@ -304,36 +340,86 @@ fn el_build_kiosk(player, tr) {
     let cz = math.floor(p.z)
     let ground = world.surface(cx, cz)
     if (ground == nil) { ground = math.floor(p.y) - 1 }
+    let half = tr.half
+    let wall = half + 1
     let y0 = ground          # plancher de cabine au niveau du sol
-    let top = y0 + 4 + tr.trip.d2 + 1
+    let top = y0 + tr.h + tr.trip.d2 + 1
     let style = tr.style
-    # Gaine 7 × 7, fondations, toit, moteur.
-    world.fill(cx - 3, y0 - 1, cz - 3, cx + 3, top, cz + 3, "elevators:shaft_wall")
-    world.fill(cx - 2, y0, cz - 2, cx + 2, top - 1, cz + 2, "core:air")
+    # Gaine, fondations, toit, moteur.
+    world.fill(cx - wall, y0 - 1, cz - wall, cx + wall, top, cz + wall, "elevators:shaft_wall")
+    world.fill(cx - half, y0, cz - half, cx + half, top - 1, cz + half, "core:air")
     world.set(cx, top, cz, "elevators:motor")
-    # Palier côté sud, dégagé devant.
-    world.fill(cx - 1, y0 + 1, cz + 4, cx + 1, y0 + 3, cz + 6, "core:air")
-    el_place_landing_cells(cx, y0 + 1, cz + 3, "s", style, false)
-    let e = {id: el_key(cx, top, cz), motor: el_pos(cx, top, cz), side: "s", style: style,
-             floors: [{y: y0, name: "Surface", label: "0"}], floor: 0, state: "idle", state_time: 0, queue: [],
-             external: [], door_time: nil, speed: nil, owner: ""}
+    let f = {y: y0, name: "Surface", label: "0", doors: [], calls: [], displays: [], arrows: []}
+    for (d in tr.cabin.doors) {
+        # Dégagé devant la porte.
+        let a = el_face_cell(cx, cz, d.side, wall + 1, d.u - 1)
+        let b = el_face_cell(cx, cz, d.side, wall + 3, d.u + d.width)
+        world.fill(math.min(a.x, b.x), y0 + 1, math.min(a.z, b.z), math.max(a.x, b.x), y0 + 3, math.max(a.z, b.z), "core:air")
+        let q = el_face_cell(cx, cz, d.side, wall, d.u)
+        el_add_landing(f, el_place_landing_door(q.x, y0 + 1, q.z, d.side, style, d.width, false), d.u)
+    }
+    let e = {id: el_key(cx, top, cz), motor: el_pos(cx, top, cz), half: half, h: tr.h, reach: top - y0 + 2,
+             side: tr.cabin.doors[0].side, style: style, cabin: tr.cabin, floors: [f], floor: 0, state: "idle",
+             state_time: 0, queue: [], external: [], door_time: nil, speed: nil, owner: ""}
     EL.records[e.id] = e
     return e
 }
 
-# Cellules d'un palier dans le mur (porte en (x, y, z), côté extérieur `side`).
+# Ajoute à l'étage f les cellules d'un palier posé (porte à la place u).
+fn el_add_landing(f, cells, u) {
+    cells.door.u = u
+    f.doors.push(cells.door)
+    for (c in cells.calls) { f.calls.push(c) }
+    for (c in cells.displays) { f.displays.push(c) }
+    for (c in cells.arrows) { f.arrows.push(c) }
+}
+
+# Cellules d'un palier dans le mur (porte en (x, y, z), côté extérieur `side`) :
+# porte simple (vitrée ou non) ; rend les cellules posées.
 fn el_place_landing_cells(x, y, z, side, style, glass) {
     let sd = EL_SIDES[side]
     let door = format("elevators:{}_landing_door", style)
     if (glass) { door = format("elevators:{}_landing_door_glass", style) }
-    world.set(x, y, z, door, sd.param)
-    world.set(x, y + 1, z, door + "_top", sd.param)
+    el_place_door(x, y, z, side, door)
     world.set(x, y + 2, z, format("elevators:{}_display", style))
     world.set(x - sd.ux, y + 2, z - sd.uz, format("elevators:{}_arrow", style))
     world.set(x + sd.ux, y + 1, z + sd.uz, format("elevators:{}_call", style))
     for (cell in [[-1, 0], [-1, 1], [1, 0], [1, 2]]) {
         world.set(x + sd.ux * cell[0], y + cell[1], z + sd.uz * cell[0], format("elevators:{}_frame", style))
     }
+    return {
+        door: {side: side, u: 0, width: 1, base: door, x: x, y: y, z: z},
+        calls: [el_pos(x + sd.ux, y + 1, z + sd.uz)],
+        displays: [el_pos(x, y + 2, z)],
+        arrows: [el_pos(x - sd.ux, y + 2, z - sd.uz)]
+    }
+}
+
+# Palier à porte double large (2 × 2) : première cellule (x, y, z), la seconde
+# vers +ax ; afficheur et sens au-dessus, bouton d'appel et encadrement autour.
+fn el_place_landing_wide(x, y, z, side, style) {
+    let sd = EL_SIDES[side]
+    let door = format("elevators:{}_landing_door_wide", style)
+    el_place_door(x, y, z, side, door)
+    let ax = sd.ax
+    let az = sd.az
+    world.set(x, y + 2, z, format("elevators:{}_display", style))
+    world.set(x + ax, y + 2, z + az, format("elevators:{}_arrow", style))
+    world.set(x + 2 * ax, y + 1, z + 2 * az, format("elevators:{}_call", style))
+    for (cell in [[-1, 0], [-1, 1], [-1, 2], [2, 0], [2, 2]]) {
+        world.set(x + ax * cell[0], y + cell[1], z + az * cell[0], format("elevators:{}_frame", style))
+    }
+    return {
+        door: {side: side, u: 0, width: 2, base: door, x: x, y: y, z: z},
+        calls: [el_pos(x + 2 * ax, y + 1, z + 2 * az)],
+        displays: [el_pos(x, y + 2, z)],
+        arrows: [el_pos(x + ax, y + 2, z + az)]
+    }
+}
+
+fn el_place_landing_door(x, y, z, side, style, width, glass) {
+    if (width == 2) { return el_place_landing_wide(x, y, z, side, style) }
+    return el_place_landing_cells(x, y, z, side, style, glass)
 }
 
 voxel.on("dimension_changed", fn(player, to, from) {
@@ -349,9 +435,11 @@ voxel.on("dimension_changed", fn(player, to, from) {
 # — même pour qui arrive autrement qu'en ascenseur.
 let EL_PREPARE = {timer: 0, tries: {}} # tentatives de mise en service, par dimension et gaine
 
-# Gaine sous le moteur (mx, my, mz), sur toute sa hauteur possible : chargée.
+# Gaine sous le moteur (mx, my, mz), sur toute sa hauteur possible (et la
+# plus large possible, 9 × 9) : chargée.
 fn el_load_shaft(mx, my, mz) {
-    world.load(mx - EL.CABIN.wall, my - EL.settings.max_height, mz - EL.CABIN.wall, mx + EL.CABIN.wall, my, mz + EL.CABIN.wall)
+    let r = (EL.SHAFT_MAX - 1) / 2
+    world.load(mx - r, my - el_reach(el_key(mx, my, mz)), mz - r, mx + r, my, mz + r)
 }
 fn el_prepare_dimension(dt) {
     EL_PREPARE.timer -= dt

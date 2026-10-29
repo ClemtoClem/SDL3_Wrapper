@@ -408,11 +408,15 @@ TEST(Elevators_I_EdgeCasesAreRefusedOrRepaired) {
 	CHECK_EQ(Eval(g, (std::string("el_request_external(") + E + ", \"nulle_part\")").c_str()), String("false"));
 	CHECK_EQ(Eval(g, (std::string("el_request(") + E + ", 9)").c_str()), String("false"));
 	CHECK_EQ(Eval(g, (std::string("el_request(") + E + ", -1)").c_str()), String("false"));
-	// Une paroi de cabine manquante : la vérification le dit.
-	(void)g.Scripts().RunSource(String("let e = ") + E + " let c = el_cabin_min(e, e.floor) world.set(c.x, c.y + 1, c.z + 1, \"core:air\")");
-	const String problems = Eval(g, (std::string("join(el_scan(") + E + ".motor.x, " + E + ".motor.y, " + E + ".motor.z).problems, \" | \")").c_str());
-	CHECK(problems.Contains("cabine incomplète"));
-	(void)g.Scripts().RunSource(String("let e = ") + E + " let c = el_cabin_min(e, e.floor) world.set(c.x, c.y + 1, c.z + 1, \"elevators:modern_cabin_wall\")");
+	const std::string scan = std::string("join(el_scan(") + E + ".motor.x, " + E + ".motor.y, " + E + ".motor.z).problems, \" | \")";
+	// Les parois de cabine sont libres : n'importe quel bloc convient.
+	(void)g.Scripts().RunSource(String("let e = ") + E + " let c = el_cabin_min(e, e.floor) world.set(c.x, c.y + 1, c.z + 1, \"core:stone\")");
+	CHECK_EQ(Eval(g, scan.c_str()), String(""));
+	// Un plafond troué : la vérification le dit.
+	(void)g.Scripts().RunSource(String("let e = ") + E + " let c = el_cabin_min(e, e.floor) world.set(c.x, c.y + 3, c.z + 1, \"core:air\")");
+	CHECK(Eval(g, scan.c_str()).Contains("plafond de cabine incomplet"));
+	(void)g.Scripts().RunSource(String("let e = ") + E + " let c = el_cabin_min(e, e.floor) world.set(c.x, c.y + 3, c.z + 1, \"elevators:modern_cabin_ceiling\")");
+	CHECK_EQ(Eval(g, scan.c_str()), String(""));
 	// Porte palière arrachée pendant la montée : remise en place aussitôt.
 	(void)g.Scripts().RunSource(String("el_request(") + E + ", 2)");
 	REQUIRE(Until(g, (std::string(E) + ".state").c_str(), "moving_up", 4.f));
@@ -422,5 +426,161 @@ TEST(Elevators_I_EdgeCasesAreRefusedOrRepaired) {
 	// Un départ porte ouverte est impossible : la transition est refusée.
 	REQUIRE(Until(g, (std::string(E) + ".state").c_str(), "doors_open", 20.f));
 	CHECK_EQ(Eval(g, (std::string("el_set_state(") + E + ", \"moving_down\")").c_str()), String("false"));
+	g.CloseWorld();
+}
+
+namespace {
+
+/// Ascenseur d'exemple construit par la commande `line`, joueur au milieu de la cabine.
+void BuildWithRider(Game &g, ecs::Entity p, const char *line) {
+	Exec(g, p, line);
+	REQUIRE_EQ(Eval(g, "len(keys(EL.records))"), String("1"));
+	(void)g.Scripts().RunSource(String("let e = ") + E +
+								" let c = el_cabin_min(e, e.floor) entity.set_pos(entity.players()[0], c.x + e.half + 0.5, c.y + 1, c.z + e.half + 0.5)");
+	// Porte de cabine de la face `side` à l'arrêt courant (essais).
+	(void)g.Scripts().RunSource(String("fn t_cabin_door(e, side) { for (d in e.cabin.doors) { if (d.side == side) { "
+									   "return el_cabin_door_pos(e, e.floor, d) } } return nil }"));
+	Run(g, 0.5f);
+}
+
+} // namespace
+
+// J — grande gaine 9 × 9 (cabine utile 5 × 5), portes doubles 2 × 2, style vitré.
+TEST(Elevators_J_LargeShaftWithDoubleDoors) {
+	Game g;
+	REQUIRE(g.LoadMods(ElevatorOptions(Fresh("j"))).errors.empty());
+	REQUIRE(g.OpenWorld("monde", Some(uint32_t(19))).IsOk());
+	Brisk(g);
+	const ecs::Entity p = g.JoinPlayer("Alix");
+	Run(g, 1.f);
+	BuildWithRider(g, p, "/elevator build glass 3 9 wide");
+	CHECK_EQ(Eval(g, (std::string(E) + ".half").c_str()), String("3"));
+	CHECK_EQ(Eval(g, (std::string(E) + ".style").c_str()), String("glass"));
+	CHECK_EQ(Eval(g, (std::string(E) + ".cabin.doors[0].width").c_str()), String("2"));
+	CHECK_EQ(Eval(g, (std::string(E) + ".floors[1].doors[0].width").c_str()), String("2"));
+	const float floor1 = Num(g, (std::string(E) + ".floors[1].y").c_str());
+	(void)g.Scripts().RunSource(String("el_request(") + E + ", 1)");
+	REQUIRE(Until(g, (std::string(E) + ".state + \":\" + str(" + E + ".floor)").c_str(), "doors_open:1", 20.f));
+	CHECK_NEAR(Num(g, "entity.pos(entity.players()[0]).y"), floor1 + 1.f, 0.02f);
+	// Les deux battants de la porte palière et de la porte de cabine sont ouverts.
+	CHECK(Eval(g, (std::string("let d = ") + E + ".floors[1].doors[0] world.get(d.x, d.y, d.z)").c_str()).EndsWith("_wide_open"));
+	CHECK(Eval(g, (std::string("let d = ") + E + ".floors[1].doors[0] world.get(d.x, d.y, d.z + 1)").c_str()).EndsWith("_wide_right_open"));
+	CHECK(Eval(g, (std::string("let c = t_cabin_door(") + E + ", \"w\") world.get(c.x, c.y + 1, c.z + 1)").c_str())
+			  .EndsWith("_wide_right_top_open"));
+	CHECK(!Eval(g, (std::string("let d = ") + E + ".floors[0].doors[0] world.get(d.x, d.y, d.z)").c_str()).Contains("_open"));
+	// Une gaine plus grande que le réglage est refusée.
+	REQUIRE(Until(g, (std::string(E) + ".state").c_str(), "idle", 10.f));
+	(void)g.Scripts().RunSource(String("EL.settings.shaft_max = 7"));
+	CHECK(Eval(g, (std::string("join(el_scan(") + E + ".motor.x, " + E + ".motor.y, " + E + ".motor.z).problems, \" | \")").c_str())
+			  .Contains("gaine 9 × 9"));
+	g.CloseWorld();
+}
+
+// K — portes palières sur deux faces : seules les portes de cabine en face
+// d'une porte palière de l'étage s'ouvrent ; sans porte de cabine alignée,
+// l'installation est refusée.
+TEST(Elevators_K_SeveralLandingDoorsPerFloor) {
+	Game g;
+	REQUIRE(g.LoadMods(ElevatorOptions(Fresh("k"))).errors.empty());
+	REQUIRE(g.OpenWorld("monde", Some(uint32_t(20))).IsOk());
+	Brisk(g);
+	const ecs::Entity p = g.JoinPlayer("Alix");
+	Run(g, 1.f);
+	BuildWithRider(g, p, "/elevator build modern 3 7 multi");
+	CHECK_EQ(Eval(g, (std::string("len(") + E + ".cabin.doors)").c_str()), String("2"));
+	CHECK_EQ(Eval(g, (std::string("len(") + E + ".floors[0].doors)").c_str()), String("2"));
+	CHECK_EQ(Eval(g, (std::string("len(") + E + ".floors[1].doors)").c_str()), String("1"));
+	// Étage 1 : palier à l'ouest seulement.
+	(void)g.Scripts().RunSource(String("el_request(") + E + ", 1)");
+	REQUIRE(Until(g, (std::string(E) + ".state + \":\" + str(" + E + ".floor)").c_str(), "doors_open:1", 20.f));
+	CHECK(Eval(g, (std::string("let c = t_cabin_door(") + E + ", \"w\") world.get(c.x, c.y, c.z)").c_str()).EndsWith("_open"));
+	CHECK(!Eval(g, (std::string("let c = t_cabin_door(") + E + ", \"e\") world.get(c.x, c.y, c.z)").c_str()).Contains("_open"));
+	// Étage 2 : deux paliers, les deux portes de cabine s'ouvrent.
+	(void)g.Scripts().RunSource(String("el_request(") + E + ", 2)");
+	REQUIRE(Until(g, (std::string(E) + ".state + \":\" + str(" + E + ".floor)").c_str(), "doors_open:2", 20.f));
+	CHECK(Eval(g, (std::string("let c = t_cabin_door(") + E + ", \"w\") world.get(c.x, c.y, c.z)").c_str()).EndsWith("_open"));
+	CHECK(Eval(g, (std::string("let c = t_cabin_door(") + E + ", \"e\") world.get(c.x, c.y, c.z)").c_str()).EndsWith("_open"));
+	REQUIRE(Until(g, (std::string(E) + ".state").c_str(), "idle", 10.f));
+	// La porte de cabine est remplacée par une paroi : plus de porte en face du palier est.
+	(void)g.Scripts().RunSource(String("let c = t_cabin_door(") + E + ", \"e\") world.set(c.x, c.y, c.z, \"elevators:modern_cabin_wall\") "
+								"world.set(c.x, c.y + 1, c.z, \"elevators:modern_cabin_wall\")");
+	CHECK(Eval(g, (std::string("join(el_scan(") + E + ".motor.x, " + E + ".motor.y, " + E + ".motor.z).problems, \" | \")").c_str())
+			  .Contains("sans porte de cabine alignée"));
+	g.CloseWorld();
+}
+
+// L — la plus petite gaine : 5 × 5, cabine utile 1 × 1.
+TEST(Elevators_L_SmallestShaft) {
+	Game g;
+	REQUIRE(g.LoadMods(ElevatorOptions(Fresh("l"))).errors.empty());
+	REQUIRE(g.OpenWorld("monde", Some(uint32_t(21))).IsOk());
+	Brisk(g);
+	const ecs::Entity p = g.JoinPlayer("Alix");
+	Run(g, 1.f);
+	BuildWithRider(g, p, "/elevator build industrial 2 5");
+	CHECK_EQ(Eval(g, (std::string(E) + ".half").c_str()), String("1"));
+	const float floor1 = Num(g, (std::string(E) + ".floors[1].y").c_str());
+	(void)g.Scripts().RunSource(String("el_request(") + E + ", 1)");
+	REQUIRE(Until(g, (std::string(E) + ".state + \":\" + str(" + E + ".floor)").c_str(), "doors_open:1", 20.f));
+	CHECK_NEAR(Num(g, "entity.pos(entity.players()[0]).y"), floor1 + 1.f, 0.02f);
+	g.CloseWorld();
+}
+
+// M — tableau électrique : diagnostic, numérotation, essais ; étages trop proches.
+TEST(Elevators_M_SwitchboardAndFloorSpacing) {
+	Game g;
+	REQUIRE(g.LoadMods(ElevatorOptions(Fresh("m"))).errors.empty());
+	REQUIRE(g.OpenWorld("monde", Some(uint32_t(22))).IsOk());
+	Brisk(g);
+	const ecs::Entity p = g.JoinPlayer("Alix");
+	Run(g, 1.f);
+	DemoWithRider(g, p);
+	const std::string m = std::string(E) + ".motor";
+	// Le tableau, posé contre la gaine, trouve son moteur.
+	(void)g.Scripts().RunSource(String("let m = ") + m.c_str() + " world.set(m.x - 4, m.y - 2, m.z + 4, \"elevators:switchboard\")");
+	CHECK_EQ(Eval(g, (std::string("el_board_motor(") + m + ".x - 4, " + m + ".y - 2, " + m + ".z + 4).y == " + m + ".y").c_str()),
+			 String("true"));
+	CHECK(Eval(g, (std::string("el_diagnose(") + m + ").text").c_str()).Contains("INSTALLATION : en ordre"));
+	CHECK_EQ(Eval(g, (std::string("el_board_test(") + m + ", -1)").c_str()), String("déjà au premier arrêt."));
+	CHECK(Eval(g, (std::string("el_board_test(") + m + ", 1)").c_str()).Contains("trajet d'essai"));
+	REQUIRE(Until(g, (std::string(E) + ".state + \":\" + str(" + E + ".floor)").c_str(), "doors_open:1", 20.f));
+	REQUIRE(Until(g, (std::string(E) + ".state").c_str(), "idle", 10.f));
+	// Numérotation : les numéros reviennent à 0, 1, 2.
+	(void)g.Scripts().RunSource(String("let e = ") + E + " e.floors[1].label = \"7\"");
+	(void)g.Scripts().RunSource(String("el_renumber(") + m.c_str() + ")");
+	CHECK_EQ(Eval(g, (std::string(E) + ".floors[1].label").c_str()), String("1"));
+	// Une porte palière 2 blocs au-dessus d'une autre : étages trop proches.
+	(void)g.Scripts().RunSource(String("let e = ") + E + " let d = e.floors[0].doors[0] el_place_door(d.x, d.y + 2, d.z, d.side, d.base)");
+	const String diag = Eval(g, (std::string("el_diagnose(") + m + ").text").c_str());
+	CHECK(diag.Contains("trop proches"));
+	CHECK(diag.Contains("défaillance"));
+	g.CloseWorld();
+}
+
+// N — réglages du mod : ceux de l'utilisateur au chargement, puis modifiés en
+// cours de partie (pour tous les mondes, ou pour ce monde, qui l'emporte).
+TEST(Elevators_N_SettingsChangesAreApplied) {
+	GameOptions o = ElevatorOptions(Fresh("n"));
+	o.modSettings = dataio::Node::MakeObject();
+	dataio::NodePtr mine = dataio::Node::MakeObject();
+	mine->Set("max_height", dataio::Node::MakeInt(512));
+	o.modSettings->Set("elevators", mine);
+	Game g;
+	REQUIRE(g.LoadMods(o).errors.empty());
+	REQUIRE(g.OpenWorld("monde", Some(uint32_t(23))).IsOk());
+	(void)g.JoinPlayer("Alix");
+	Run(g, 0.5f);
+	CHECK_EQ(Eval(g, "EL.settings.max_height"), String("512"));
+	auto values = [](int h) {
+		dataio::NodePtr v = dataio::Node::MakeObject();
+		v->Set("max_height", dataio::Node::MakeInt(h));
+		return v;
+	};
+	g.UpdateModSettings("elevators", values(64), false);
+	CHECK_EQ(Eval(g, "EL.settings.max_height"), String("64"));
+	g.UpdateModSettings("elevators", values(100), true);
+	CHECK_EQ(Eval(g, "EL.settings.max_height"), String("100"));
+	g.UpdateModSettings("elevators", values(200), false); // le réglage du monde reste prioritaire
+	CHECK_EQ(Eval(g, "EL.settings.max_height"), String("100"));
 	g.CloseWorld();
 }

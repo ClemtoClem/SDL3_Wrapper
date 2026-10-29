@@ -1,23 +1,87 @@
 {
- "id": "elevators",
- "name": "Ascenseurs",
- "version": "1.0.0",
- "description": "Ascenseurs réalistes : gaine, moteur, cabine mobile qui emporte ses passagers, portes coulissantes, boutons d'appel, afficheurs, sons. Indépendant : d'autres mods (backrooms) y ajoutent des destinations.",
- "dependencies": [
-  "core"
- ],
- "category": "machines",
- "tags": [
-  "ascenseur",
-  "machines",
-  "transport"
- ],
- "settings": [
-  {"id": "speed", "type": "float", "default": 3.0, "min": 0.5, "max": 12, "label": "Vitesse de croisière (blocs/s)"},
-  {"id": "acceleration", "type": "float", "default": 1.6, "min": 0.2, "max": 8, "label": "Accélération (blocs/s²)"},
-  {"id": "door_time", "type": "float", "default": 4.0, "min": 1, "max": 30, "label": "Durée d'ouverture des portes (s)"},
-  {"id": "door_speed", "type": "float", "default": 0.45, "min": 0.1, "max": 2, "label": "Durée d'un mouvement de porte (s)"},
-  {"id": "max_height", "type": "int", "default": 160, "min": 8, "max": 512, "label": "Hauteur maximale d'une gaine (blocs)"},
-  {"id": "owner_only", "type": "bool", "default": false, "label": "Seul le constructeur configure son ascenseur"}
- ]
+    "id": "elevators",
+    "name": "Ascenseurs",
+    "version": "1.1.0",
+    "description": "Ascenseurs réalistes construits bloc par bloc : gaine de 5 × 5 à 9 × 9, cabine libre (plancher et plafond tagués), portes simples ou doubles sur toutes les faces, moteur, tableau électrique (diagnostic, numérotation, essais), boutons d'appel, afficheurs, sons. Indépendant : d'autres mods (backrooms) y ajoutent des destinations et génèrent des gaines.",
+    "dependencies": [
+        "core"
+    ],
+    "category": "machines",
+    "tags": [
+        "ascenseur",
+        "machines",
+        "transport"
+    ],
+    "settings": [
+        {
+            "id": "speed",
+            "type": "float",
+            "default": 3.0,
+            "min": 0.5,
+            "max": 12,
+            "label": "Vitesse de croisière (blocs/s)"
+        },
+        {
+            "id": "acceleration",
+            "type": "float",
+            "default": 1.6,
+            "min": 0.2,
+            "max": 8,
+            "label": "Accélération (blocs/s²)"
+        },
+        {
+            "id": "door_time",
+            "type": "float",
+            "default": 4.0,
+            "min": 1,
+            "max": 30,
+            "label": "Durée d'ouverture des portes (s)"
+        },
+        {
+            "id": "door_speed",
+            "type": "float",
+            "default": 0.45,
+            "min": 0.1,
+            "max": 2,
+            "label": "Durée d'un mouvement de porte (s)"
+        },
+        {
+            "id": "max_height",
+            "type": "int",
+            "default": 30,
+            "min": 8,
+            "max": 512,
+            "label": "Hauteur maximale entre la cabine et le moteur (blocs)"
+        },
+        {
+            "id": "shaft_min",
+            "type": "int",
+            "default": 5,
+            "min": 5,
+            "max": 9,
+            "label": "Plus petite gaine acceptée (côté extérieur, impair : 5, 7, 9)"
+        },
+        {
+            "id": "shaft_max",
+            "type": "int",
+            "default": 9,
+            "min": 5,
+            "max": 9,
+            "label": "Plus grande gaine acceptée (côté extérieur, impair : 5, 7, 9)"
+        },
+        {
+            "id": "floor_gap",
+            "type": "int",
+            "default": 4,
+            "min": 4,
+            "max": 32,
+            "label": "Écart minimal entre deux portes palières (blocs)"
+        },
+        {
+            "id": "owner_only",
+            "type": "bool",
+            "default": false,
+            "label": "Seul le constructeur configure son ascenseur"
+        }
+    ]
 }

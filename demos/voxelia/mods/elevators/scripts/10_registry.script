@@ -2,9 +2,16 @@
 #
 # Un ascenseur (EL.records[id], id = position du moteur « x,y,z ») :
 #   motor {x, y, z}       moteur, au-dessus du centre de la gaine
-#   side  n|s|e|w         côté des portes (vers l'extérieur de la gaine)
-#   style                 modern | industrial | backrooms (cabine)
-#   floors [{y, name}]    arrêts, du plus bas au plus haut ; y = plancher de cabine
+#   half, h               demi-côté de la cabine (gaine 2·half + 3), hauteur de cabine
+#   reach                 profondeur explorée sous le moteur (réglage max_height,
+#                         ou toute la gaine pour une gaine générée)
+#   style                 modern | industrial | backrooms | glass (plancher de cabine)
+#   side                  côté de la première porte de cabine (information)
+#   cabin                 {doors [{side, u, width, base}], displays [{x, y, z, style}],
+#                          panels [{x, y, z}]} — positions relatives au coin de la cabine
+#   floors [{y, name, label, doors, calls, displays, arrows}]
+#                         arrêts, du plus bas au plus haut ; y = plancher de cabine ;
+#                         doors [{side, u, width, base, x, y, z}] : portes palières
 #   floor                 indice de l'arrêt où se trouve la cabine
 #   state                 état (cf. EL_STATES) ; queue : arrêts demandés
 #   external [ids]        destinations extérieures proposées (70_destinations)
@@ -24,11 +31,41 @@ fn el_load() {
     let dim = world.dimension()
     if (EL.loaded_for == dim) { return nil }
     EL.loaded_for = dim
+    el_reload_settings() # ceux du monde ne sont connus qu'une fois le monde ouvert
     EL.active = {}
     let data = world.data("elevators")
     EL.records = {}
     if (data != nil) { EL.records = data }
-    for (id in keys(EL.records)) { el_restore(EL.records[id]) }
+    for (id in keys(EL.records)) {
+        el_upgrade(EL.records[id])
+        el_restore(EL.records[id])
+    }
+}
+
+# Ascenseur enregistré par une version précédente (cabine 5 × 4 × 5, une
+# porte au milieu de la paroi `side`) : sa géométrie est complétée.
+fn el_upgrade(e) {
+    if (has(e, "half") and e.half != nil and has(e, "cabin") and e.cabin != nil) { return nil }
+    let side = "s"
+    if (has(e, "side") and e.side != nil) { side = e.side }
+    let sd = EL_SIDES[side]
+    e.half = 2
+    e.h = 4
+    e.side = side
+    e.reach = EL.settings.max_height
+    e.cabin = {
+        doors: [{side: side, u: 0, width: 1, base: format("elevators:{}_cabin_door", e.style)}],
+        displays: [{x: 2 + sd.dx * 2, y: 3, z: 2 + sd.dz * 2, style: e.style}],
+        panels: [{x: 2 + sd.dx * 2 + sd.ux, y: 2, z: 2 + sd.dz * 2 + sd.uz}]
+    }
+    for (f in e.floors) {
+        let dx = e.motor.x + sd.dx * 3
+        let dz = e.motor.z + sd.dz * 3
+        f.doors = [{side: side, u: 0, width: 1, base: format("elevators:{}_landing_door", e.style), x: dx, y: f.y + 1, z: dz}]
+        f.displays = [el_pos(dx, f.y + 3, dz)]
+        f.arrows = [el_pos(dx - sd.ux, f.y + 3, dz - sd.uz)]
+        f.calls = [el_pos(dx + sd.ux, f.y + 2, dz + sd.uz)]
+    }
 }
 
 fn el_get(id) {
@@ -41,8 +78,8 @@ fn el_find_at(x, y, z) {
     for (id in keys(EL.records)) {
         let e = EL.records[id]
         let m = e.motor
-        if (el_abs(x - m.x) <= EL.CABIN.wall + 1 and el_abs(z - m.z) <= EL.CABIN.wall + 1 and y < m.y and
-            y >= e.floors[0].y - 1) {
+        let r = e.half + 2
+        if (el_abs(x - m.x) <= r and el_abs(z - m.z) <= r and y < m.y and y >= e.floors[0].y - 1) {
             return e
         }
     }
@@ -50,36 +87,64 @@ fn el_find_at(x, y, z) {
 }
 
 # Coin minimal de la cabine posée à l'arrêt d'indice i.
-fn el_cabin_min(e, i) { return el_pos(e.motor.x - EL.CABIN.half, e.floors[i].y, e.motor.z - EL.CABIN.half) }
+fn el_cabin_min(e, i) { return el_pos(e.motor.x - e.half, e.floors[i].y, e.motor.z - e.half) }
 fn el_cabin_max(e, i) {
     let a = el_cabin_min(e, i)
-    return el_pos(a.x + EL.CABIN.w - 1, a.y + EL.CABIN.h - 1, a.z + EL.CABIN.w - 1)
+    let w = 2 * e.half + 1
+    return el_pos(a.x + w - 1, a.y + e.h - 1, a.z + w - 1)
 }
 
-# Cellules d'un palier (dans le mur de la gaine) : porte, afficheur, sens, bouton.
+# Position monde (bas, première cellule) d'une porte de cabine à l'arrêt i.
+fn el_cabin_door_pos(e, i, d) {
+    let c = el_face_cell(e.motor.x, e.motor.z, d.side, e.half, d.u)
+    return el_pos(c.x, e.floors[i].y + 1, c.z)
+}
+
+# Porte de cabine en face d'une porte palière (même face, même place, même largeur).
+fn el_cabin_door_facing(e, d) {
+    for (c in e.cabin.doors) {
+        if (c.side == d.side and c.u == d.u and c.width == d.width) { return c }
+    }
+    return nil
+}
+
+# Première cellule d'une liste (ou, à défaut, `fallback`).
+fn el_first(list, fallback) {
+    if (list != nil and len(list) > 0) { return list[0] }
+    return fallback
+}
+
+# Cellules principales d'un palier (la première de chaque sorte) : porte,
+# afficheur, sens, bouton. Les listes complètes sont dans e.floors[i].
 fn el_landing(e, i) {
-    let sd = EL_SIDES[e.side]
-    let y = e.floors[i].y
-    let dx = e.motor.x + sd.dx * EL.CABIN.wall
-    let dz = e.motor.z + sd.dz * EL.CABIN.wall
+    let f = e.floors[i]
+    let d = el_first(f.doors, nil)
+    let door = el_pos(e.motor.x, f.y + 1, e.motor.z)
+    if (d != nil) { door = el_pos(d.x, d.y, d.z) }
     return {
-        door: el_pos(dx, y + 1, dz),
-        display: el_pos(dx, y + 3, dz),
-        arrow: el_pos(dx - sd.ux, y + 3, dz - sd.uz),
-        call: el_pos(dx + sd.ux, y + 2, dz + sd.uz)
+        door: door,
+        display: el_first(f.displays, el_pos(door.x, door.y + 2, door.z)),
+        arrow: el_first(f.arrows, el_pos(door.x, door.y + 2, door.z)),
+        call: el_first(f.calls, el_pos(door.x, door.y + 1, door.z))
     }
 }
-# Cellules de la cabine à l'arrêt i (porte, afficheur intérieur, panneau).
+
+# Cellules principales de la cabine à l'arrêt i (porte, afficheur, panneau).
 fn el_cabin_cells(e, i) {
-    let sd = EL_SIDES[e.side]
-    let y = e.floors[i].y
-    let dx = e.motor.x + sd.dx * EL.CABIN.half
-    let dz = e.motor.z + sd.dz * EL.CABIN.half
-    return {
-        door: el_pos(dx, y + 1, dz),
-        display: el_pos(dx, y + 3, dz),
-        panel: el_pos(dx + sd.ux, y + 2, dz + sd.uz)
+    let min = el_cabin_min(e, i)
+    let door = el_pos(e.motor.x, min.y + 1, e.motor.z)
+    if (len(e.cabin.doors) > 0) { door = el_cabin_door_pos(e, i, e.cabin.doors[0]) }
+    let display = el_pos(door.x, min.y + e.h - 1, door.z)
+    if (len(e.cabin.displays) > 0) {
+        let d = e.cabin.displays[0]
+        display = el_pos(min.x + d.x, min.y + d.y, min.z + d.z)
     }
+    let panel = el_pos(e.motor.x, min.y + 2, e.motor.z)
+    if (len(e.cabin.panels) > 0) {
+        let p = e.cabin.panels[0]
+        panel = el_pos(min.x + p.x, min.y + p.y, min.z + p.z)
+    }
+    return {door: door, display: display, panel: panel}
 }
 
 fn el_floor_name(e, i) {
@@ -89,6 +154,7 @@ fn el_floor_name(e, i) {
 }
 
 fn el_floor_label(e, i) {
+    if (i == nil) { return "--" }
     let f = e.floors[i]
     if (has(f, "label") and f.label != nil) { return f.label }
     return str(i)

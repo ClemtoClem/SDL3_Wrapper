@@ -16,8 +16,9 @@ fn el_may_configure(e, p) {
 fn el_floor_of_call(e, x, y, z) {
     let i = 0
     while (i < len(e.floors)) {
-        let l = el_landing(e, i)
-        if (l.call.x == x and l.call.y == y and l.call.z == z) { return i }
+        for (c in e.floors[i].calls) {
+            if (c.x == x and c.y == y and c.z == z) { return i }
+        }
         i += 1
     }
     # Bouton posé ailleurs : l'arrêt le plus proche en hauteur.
@@ -72,12 +73,13 @@ fn el_open_config(p, e) {
     }
     fields.push({id: "maintenance", type: "bool", label: "En maintenance (hors service)", default: e.state == "maintenance"})
     game.open_ui(p, "form", {id: format("elevators:config:{}", e.id), title: format("Ascenseur {}", e.id), width: 640,
-        description: format("Cabine {}, {} arrêt(s), portes côté {}.", e.style, len(e.floors), e.side),
+        description: format("Cabine {} × {} {}, {} arrêt(s), {} porte(s) de cabine.", 2 * e.half + 1, 2 * e.half + 1, e.style,
+                            len(e.floors), len(e.cabin.doors)),
         submit: "Enregistrer", fields: fields})
 }
 
 voxel.on("form_submit", fn(p, form, v) {
-    if (not form.starts_with("elevators:")) { return nil }
+    if (not form.starts_with("elevators:") or form.starts_with("elevators:board:")) { return nil }
     let parts = form.split(":")
     let e = el_get(form.sub(len(parts[0]) + len(parts[1]) + 2))
     if (e == nil) { return nil }
@@ -188,78 +190,117 @@ voxel.on("block_broken", fn(x, y, z, block, actor) {
     }
 })
 
-# Ascenseur d'exemple, bâti à côté du joueur : gaine 7 × 7, un palier tous
-# les 5 blocs avec sa passerelle, cabine au rez-de-chaussée, moteur.
-fn el_build_demo(p, style, n) {
+# Ascenseur d'exemple, bâti à côté du joueur : gaine de côté `size` (5, 7, 9),
+# un palier tous les 5 blocs avec sa passerelle (côté ouest, vers le joueur),
+# cabine au rez-de-chaussée, moteur. `mode` : "wide" (portes doubles 2 × 2),
+# "multi" (une seconde porte côté est, desservie un étage sur deux).
+fn el_build_demo(p, style, n, size, mode) {
+    let g = el_geom((size - 3) / 2)
+    let half = g.half
+    let wall = g.wall
     let q = entity.pos(p)
-    let cx = math.floor(q.x) + 6
+    let cx = math.floor(q.x) + wall + 3
     let cz = math.floor(q.z)
     let y0 = math.floor(q.y) - 1
-    let top = y0 + 5 * (n - 1) + 4 + 1
-    world.fill(cx - 3, y0 - 1, cz - 3, cx + 3, top, cz + 3, "elevators:shaft_wall")
-    world.fill(cx - 2, y0, cz - 2, cx + 2, top - 1, cz + 2, "core:air")
-    # Rails de guidage et câbles visibles dans la gaine (côté du fond).
+    let gap = math.max(5, EL.settings.floor_gap)
+    let h = EL.CABIN_H_MIN
+    let top = y0 + gap * (n - 1) + h + 1
+    world.fill(cx - wall, y0 - 1, cz - wall, cx + wall, top, cz + wall, "elevators:shaft_wall")
+    world.fill(cx - half, y0, cz - half, cx + half, top - 1, cz + half, "core:air")
+    # Rails de guidage et câbles visibles dans la gaine (paroi nord).
     let y = y0
     while (y < top) {
-        world.set(cx + 3, y, cz - 1, "elevators:rail")
-        world.set(cx + 3, y, cz + 1, "elevators:rail")
+        world.set(cx - 1, y, cz - wall, "elevators:rail")
+        world.set(cx + 1, y, cz - wall, "elevators:rail")
         y += 1
     }
     world.set(cx, top, cz, "elevators:motor")
+    let width = 1
+    let u0 = 0
+    if (mode == "wide" and half >= 2) {
+        width = 2
+        u0 = -1
+    }
+    let doors = [{side: "w", u: u0, width: width}]
+    if (mode == "multi") { doors.push({side: "e", u: 0, width: 1}) }
     let i = 0
     while (i < n) {
-        let fy = y0 + 5 * i
-        # Passerelle devant la porte (côté ouest, vers le joueur).
-        world.fill(cx - 7, fy, cz - 2, cx - 4, fy, cz + 2, "core:stone")
-        world.fill(cx - 7, fy + 1, cz - 2, cx - 4, fy + 3, cz + 2, "core:air")
-        el_place_landing_cells(cx - 3, fy + 1, cz, "w", style, i % 2 == 1)
+        let fy = y0 + gap * i
+        # Passerelle devant la porte ouest (et est, aux étages pairs en « multi »).
+        world.fill(cx - wall - 4, fy, cz - wall + 1, cx - wall - 1, fy, cz + wall - 1, "core:stone")
+        world.fill(cx - wall - 4, fy + 1, cz - wall + 1, cx - wall - 1, fy + 3, cz + wall - 1, "core:air")
+        let a = el_face_cell(cx, cz, "w", wall, u0)
+        el_place_landing_door(a.x, fy + 1, a.z, "w", style, width, i % 2 == 1)
+        if (mode == "multi" and i % 2 == 0) {
+            world.fill(cx + wall + 1, fy, cz - wall + 1, cx + wall + 4, fy, cz + wall - 1, "core:stone")
+            world.fill(cx + wall + 1, fy + 1, cz - wall + 1, cx + wall + 4, fy + 3, cz + wall - 1, "core:air")
+            let b = el_face_cell(cx, cz, "e", wall, 0)
+            el_place_landing_cells(b.x, fy + 1, b.z, "e", style, false)
+        }
         i += 1
     }
-    el_build_cabin(el_pos(cx - 2, y0, cz - 2), "w", style)
+    el_build_cabin(el_pos(cx - half, y0, cz - half), style, half, h, doors)
     return el_register(cx, top, cz, false)
 }
 
-voxel.command("elevator", "/elevator build [style] [floors] | verify | list", "ascenseurs", fn(sender, args) {
-    let what = "liste"
+let EL_USAGE = "usage : /elevator build [style] [étages] [5|7|9] [wide|multi] | verify | list"
+
+fn el_command(sender, args) {
+    let what = "list"
     if (len(args) > 0) { what = args[0] }
-    if (what == "build") {
+    if (what == "build" or what == "demo") {
         let style = "modern"
         if (len(args) > 1) { style = args[1] }
-        if (not el_contains(EL.STYLES, style)) { return format("style inconnu « {} » (modern, industrial, backrooms, glass)", style) }
+        if (not el_contains(EL.STYLES, style)) { return format("style inconnu « {} » ({})", style, join(EL.STYLES, ", ")) }
         let n = 3
         if (len(args) > 2) {
             let k = num(args[2])
-            if (k >= 1) { n = k }
+            if (k != nil and k >= 1) { n = k }
         }
-        let e = el_build_demo(sender, style, n)
+        let size = 7
+        if (len(args) > 3) {
+            let k = num(args[3])
+            if (k != nil) { size = el_odd_size(k, 7) }
+        }
+        if (size < EL.settings.shaft_min or size > EL.settings.shaft_max) {
+            return format("gaine de {} × {} hors des réglages ({} à {})", size, size, EL.settings.shaft_min, EL.settings.shaft_max)
+        }
+        let mode = ""
+        if (len(args) > 4) { mode = args[4] }
+        let e = el_build_demo(sender, style, n, size, mode)
         if (e == nil) { return "construction impossible ici" }
-        return format("ascenseur {} : {} étages, moteur en {}", style, n, e.id)
+        return format("ascenseur {} : {} étages, gaine {} × {}, moteur en {}", style, n, size, size, e.id)
     }
-    if (what == "list") {
+    if (what == "list" or what == "liste") {
         let out = []
         for (id in keys(EL.records)) {
             let e = EL.records[id]
-            out.push(format("{} ({}, {} arrêts, {}, cabine à {})", id, e.style, len(e.floors), e.state, el_floor_label(e, e.floor)))
+            out.push(format("{} ({}, gaine {} × {}, {} arrêts, {}, cabine à {})", id, e.style, 2 * e.half + 3, 2 * e.half + 3,
+                            len(e.floors), e.state, el_floor_label(e, e.floor)))
         }
         if (len(out) == 0) { return "aucun ascenseur en service dans cette dimension" }
         return join(out, " ; ")
     }
-    if (what == "verify") {
-        let q = entity.pos(sender)
+    if (what == "verify" or what == "verifier") {
+        let out = []
         for (id in keys(EL.records)) {
             let e = EL.records[id]
             let r = el_scan(e.motor.x, e.motor.y, e.motor.z)
-            if (len(r.problems) == 0) { return format("{} : en ordre", id) }
-            return format("{} : {}", id, join(r.problems, " ; "))
+            if (len(r.problems) == 0) { out.push(format("{} : en ordre", id)) } else { out.push(format("{} : {}", id, join(r.problems, " ; "))) }
         }
-        return "aucun ascenseur enregistré"
+        if (len(out) == 0) { return "aucun ascenseur enregistré" }
+        return join(out, "\n")
     }
     if (what == "help") {
-        return "/elevator build [style] [floors]\n" +
-               "    style : modern, industrial, backrooms, glass\n" +
-               "    floors : >= 1\n" +
+        return "/elevator build [style] [floors] [size] [mode]\n" +
+               format("    style : {}\n", join(EL.STYLES, ", ")) +
+               "    floors : >= 1 ; size : 5, 7 ou 9 (côté de la gaine)\n" +
+               "    mode : wide (portes doubles), multi (deux faces)\n" +
                "/elevator verify\n" +
                "/elevator list"
     }
-    return "usage : /elevator build [style] [floors] | verify | list"
-})
+    return EL_USAGE
+}
+
+voxel.command("elevator", "/elevator build [style] [floors] [size] [wide|multi] | verify | list", "ascenseurs", el_command)
+voxel.command("ascenseur", "/ascenseur demo [style] [étages] [taille] | verifier | liste", "ascenseurs", el_command)

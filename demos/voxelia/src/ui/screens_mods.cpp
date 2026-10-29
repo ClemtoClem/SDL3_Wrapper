@@ -798,8 +798,12 @@ private:
 				return;
 			}
 		}
+		// Partie en cours (ce monde, ou réglage pour tous) : appliqué tout de suite.
+		const bool applied = shell.Game() && (m_folder.IsEmpty() || m_folder == shell.Game()->Folder());
+		if (applied)
+			shell.Game()->Game().UpdateModSettings(m_id, m_values, !m_folder.IsEmpty());
 		shell.UiSound("ui_save");
-		shell.Notify(Tone::SUCCESS, "Configuration enregistrée", m_id);
+		shell.Notify(Tone::SUCCESS, "Configuration enregistrée", applied ? m_id + String(" — appliquée à la partie en cours") : m_id);
 		shell.Pop();
 	}
 

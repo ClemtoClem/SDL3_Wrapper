@@ -1,13 +1,29 @@
 # Construction : vérifier qu'une gaine forme un ascenseur, poser cabine et paliers.
 #
 # Méthode (README.md, « Construire un ascenseur ») :
-#   1. Une gaine verticale d'au moins 7 × 7 (intérieur 5 × 5), murs pleins.
-#   2. La cabine : kit de cabine (clic droit sur le fond de la gaine, porte
-#      tournée vers soi), ou ses blocs un à un.
-#   3. À chaque étage, un palier dans le mur, du côté de la porte de cabine :
-#      kit de palier (clic droit sur le mur depuis l'étage), ou ses blocs.
-#   4. Le moteur au-dessus du centre de la gaine ; clic droit dessus : le
-#      mod vérifie tout, dit ce qui manque, puis ouvre la configuration.
+#   1. Une gaine verticale carrée de côté impair (5 × 5 à 9 × 9, réglages du
+#      mod), murs pleins ; le moteur au-dessus de son centre exact.
+#   2. La cabine remplit l'intérieur de la gaine : un plancher (blocs tagués
+#      « cabin_floor »), des parois LIBRES (n'importe quels blocs) avec une ou
+#      plusieurs portes de cabine (simples, ou doubles 2 × 2), un plafond
+#      (blocs « cabin_ceiling »), un panneau, un afficheur s'il le faut.
+#      Le kit de cabine la pose d'un coup, à la taille de la gaine.
+#   3. À chaque étage (4 blocs au moins entre deux), une ou plusieurs portes
+#      palières dans les murs de la gaine, sur n'importe quelle face : chacune
+#      doit avoir sa porte de cabine en face.
+#   4. Clic droit sur le moteur (ou le tableau électrique) : le mod vérifie
+#      tout, dit ce qui manque, puis met l'ascenseur en service.
+
+# Profondeur explorée sous un moteur : le réglage « hauteur maximale », ou
+# toute la gaine pour une gaine générée (EL_REACH, rempli par 70_destinations).
+let EL_REACH = {}
+
+fn el_reach(id) {
+    if (has(EL_REACH, id)) { return EL_REACH[id] }
+    let e = el_get(id)
+    if (e != nil and has(e, "reach") and e.reach != nil and e.reach > EL.settings.max_height) { return e.reach }
+    return EL.settings.max_height
+}
 
 # Cellules d'air dans la boîte [a, b].
 fn el_air_count(x1, y1, z1, x2, y2, z2) {
@@ -16,66 +32,66 @@ fn el_air_count(x1, y1, z1, x2, y2, z2) {
     return counts["core:air"]
 }
 
-# Cabine attendue (relative au coin minimal, porte vers « n » = −z) : rôle de chaque cellule.
-fn el_cabin_role(lx, ly, lz) {
-    if (ly == 0) { return "cabin_floor" }
-    if (ly == 3) {
-        if (lx == 2 and lz == 2) { return "cabin_lamp" }
-        if (lx == 2 and lz == 0) { return "display" }
-        return "cabin_ceiling"
-    }
-    let ring = lx == 0 or lx == 4 or lz == 0 or lz == 4
-    if (not ring) { return "air" }
-    if (lx == 2 and lz == 0) {
-        if (ly == 1) { return "cabin_door" }
-        return "cabin_door_top"
-    }
-    if (lx == 3 and lz == 0 and ly == 2) { return "cabin_panel" }
-    return "cabin_wall"
+# Plancher de cabine continu depuis (x, y, z) dans la direction (dx, dz).
+fn el_floor_extent(x, y, z, dx, dz) {
+    let k = 0
+    while (k < 5 and el_has_tag(world.get(x + dx * (k + 1), y, z + dz * (k + 1)), "cabin_floor")) { k += 1 }
+    return k
 }
 
-# Position monde d'une cellule de cabine (coin minimal c, côté de la porte).
-fn el_cabin_cell(c, side, lx, ly, lz) {
-    # Rotation de la disposition « n » vers le côté voulu, autour du centre (2, 2).
-    let rx = lx - 2
-    let rz = lz - 2
-    if (side == "s") {
-        rx = -rx
-        rz = -rz
+# La porte `doors[i]` couvre-t-elle la cellule `u` de la face `side` ?
+fn el_door_covers(doors, side, u) {
+    for (d in doors) {
+        if (d.side == side and u >= d.u and u < d.u + d.width) { return true }
     }
-    if (side == "e") {
-        let t = rx
-        rx = -rz
-        rz = t
-    }
-    if (side == "w") {
-        let t = rx
-        rx = rz
-        rz = -t
-    }
-    return el_pos(c.x + 2 + rx, c.y + ly, c.z + 2 + rz)
+    return false
 }
 
-fn el_build_cabin(c, side, style) {
-    let param = EL_SIDES[side].param
-    let lz = 0
-    while (lz < 5) {
-        let lx = 0
-        while (lx < 5) {
-            let ly = 0
-            while (ly < 4) {
-                let role = el_cabin_role(lx, ly, lz)
-                let p = el_cabin_cell(c, side, lx, ly, lz)
-                if (role == "air") {
-                    world.set(p.x, p.y, p.z, "core:air")
-                } else {
-                    world.set(p.x, p.y, p.z, format("elevators:{}_{}", style, role), param)
-                }
-                ly += 1
-            }
-            lx += 1
+fn el_door_label(d) {
+    let kind = "simple"
+    if (d.width == 2) { kind = "double" }
+    return format("{} (position {}, {})", EL_FACE_NAMES[d.side], d.u, kind)
+}
+
+# Pose une cabine : coin minimal c, style, demi-côté, hauteur, portes
+# [{side, u, width}] (u : première cellule le long de la paroi, depuis le
+# centre). Afficheur au-dessus de la première porte, panneau à côté d'elle.
+fn el_build_cabin(c, style, half, h, doors) {
+    let w = 2 * half + 1
+    let x2 = c.x + w - 1
+    let z2 = c.z + w - 1
+    let top = c.y + h - 1
+    let wall = format("elevators:{}_cabin_wall", style)
+    world.fill(c.x, c.y, c.z, x2, top, z2, "core:air")
+    world.fill(c.x, c.y, c.z, x2, c.y, z2, format("elevators:{}_cabin_floor", style))
+    world.fill(c.x, top, c.z, x2, top, z2, format("elevators:{}_cabin_ceiling", style))
+    world.set(c.x + half, top, c.z + half, format("elevators:{}_cabin_lamp", style))
+    world.fill(c.x, c.y + 1, c.z, x2, top - 1, c.z, wall)
+    world.fill(c.x, c.y + 1, z2, x2, top - 1, z2, wall)
+    world.fill(c.x, c.y + 1, c.z, c.x, top - 1, z2, wall)
+    world.fill(x2, c.y + 1, c.z, x2, top - 1, z2, wall)
+    let cx = c.x + half
+    let cz = c.z + half
+    for (d in doors) {
+        let p = el_face_cell(cx, cz, d.side, half, d.u)
+        let base = format("elevators:{}_cabin_door", style)
+        if (d.width == 2) { base = base + "_wide" }
+        el_place_door(p.x, c.y + 1, p.z, d.side, base)
+    }
+    if (len(doors) == 0) { return nil }
+    let d = doors[0]
+    # Afficheur juste au-dessus de la porte (dans le plafond d'une cabine de 4).
+    let p = el_face_cell(cx, cz, d.side, half, d.u)
+    world.set(p.x, c.y + math.min(3, h - 1), p.z, format("elevators:{}_display", style))
+    # Panneau : à droite de la porte, sinon à gauche, sinon sur une paroi sans porte.
+    let spots = [[d.side, d.u + d.width], [d.side, d.u - 1]]
+    for (s in EL_FACES) { spots.push([s, 0]) }
+    for (spot in spots) {
+        if (el_abs(spot[1]) <= half - 1 and not el_door_covers(doors, spot[0], spot[1])) {
+            let q = el_face_cell(cx, cz, spot[0], half, spot[1])
+            world.set(q.x, c.y + 2, q.z, format("elevators:{}_cabin_panel", style))
+            return nil
         }
-        lz += 1
     }
 }
 
@@ -89,18 +105,75 @@ fn el_side_toward(dx, dz) {
     return "n"
 }
 
+# Vide continu depuis (x, y, z) dans la direction (dx, dz) (10 blocs au plus).
+fn el_air_run(x, y, z, dx, dz) {
+    let k = 0
+    while (k < 10 and world.get(x + dx * (k + 1), y, z + dz * (k + 1)) == "core:air") { k += 1 }
+    return k
+}
+
+# Intérieur de la gaine autour de (x, y, z) : {cx, cz, half}, ou un message.
+fn el_shaft_around(x, y, z) {
+    let xp = el_air_run(x, y, z, 1, 0)
+    let xn = el_air_run(x, y, z, -1, 0)
+    let zp = el_air_run(x, y, z, 0, 1)
+    let zn = el_air_run(x, y, z, 0, -1)
+    let wx = xp + xn + 1
+    let wz = zp + zn + 1
+    if (wx != wz or wx % 2 == 0) {
+        return {error: format("intérieur de gaine de {} × {} : il faut un carré de côté impair (3 × 3 à 7 × 7).", wx, wz)}
+    }
+    let g = el_geom((wx - 1) / 2)
+    if (g.shaft < EL.settings.shaft_min or g.shaft > EL.settings.shaft_max) {
+        return {error: format("gaine de {} × {} : de {} × {} à {} × {} (réglages du mod).", g.shaft, g.shaft,
+                              EL.settings.shaft_min, EL.settings.shaft_min, EL.settings.shaft_max, EL.settings.shaft_max)}
+    }
+    return {cx: x + (xp - xn) / 2, cz: z + (zp - zn) / 2, half: g.half, error: nil}
+}
+
+# Portes palières dont le seuil est à la hauteur `y` (dans les murs de la gaine).
+fn el_landing_doors_at(cx, y, cz, half) {
+    let wall = half + 1
+    let out = []
+    for (s in EL_FACES) {
+        let u = -(wall - 1)
+        while (u <= wall - 1) {
+            let c = el_face_cell(cx, cz, s, wall, u)
+            let d = el_door_at(c.x, y, c.z, s, "landing_door")
+            if (d != nil and d.error == nil) { out.push({side: s, u: u + d.lo, width: d.width, base: d.base}) }
+            u += 1
+        }
+    }
+    return out
+}
+
 fn el_place_cabin_kit(actor, x, y, z, item) {
     let style = el_style_of(item)
-    let c = el_pos(x - 2, y + 1, z - 2)
-    let p = entity.pos(actor)
-    let side = el_side_toward(p.x - (x + 0.5), p.z - (z + 0.5))
-    if (el_air_count(c.x, c.y, c.z, c.x + 4, c.y + 3, c.z + 4) < 100) {
-        el_say("pas assez de place : la cabine occupe 5 × 4 × 5 blocs vides au-dessus du bloc visé (gaine de 7 × 7 murs compris).")
+    let shaft = el_shaft_around(x, y + 1, z)
+    if (shaft.error != nil) {
+        el_say(format("visez le fond de la gaine : {}", shaft.error))
         return false
     }
-    el_build_cabin(c, side, style)
+    let half = shaft.half
+    let w = 2 * half + 1
+    let h = EL.CABIN_H_MIN
+    let c = el_pos(shaft.cx - half, y + 1, shaft.cz - half)
+    if (el_air_count(c.x, c.y, c.z, c.x + w - 1, c.y + h - 1, c.z + w - 1) < w * w * h) {
+        el_say(format("pas assez de place : la cabine occupe {} × {} × {} blocs vides au-dessus du fond de la gaine.", w, h, w))
+        return false
+    }
+    # Portes de cabine en face des portes palières déjà posées à ce niveau,
+    # sinon une porte tournée vers le joueur.
+    let doors = el_landing_doors_at(shaft.cx, y + 2, shaft.cz, half)
+    if (len(doors) == 0) {
+        let p = entity.pos(actor)
+        doors = [{side: el_side_toward(p.x - (shaft.cx + 0.5), p.z - (shaft.cz + 0.5)), u: 0, width: 1}]
+    }
+    el_build_cabin(c, style, half, h, doors)
     entity.take(actor, item, 1)
-    el_say(format("cabine posée (porte côté {}). Posez un palier à chaque étage, puis le moteur au-dessus du centre.", side))
+    let names = []
+    for (d in doors) { names.push(el_door_label(d)) }
+    el_say(format("cabine {} × {} posée, porte(s) : {}. Posez les paliers, puis le moteur au-dessus du centre.", w, w, join(names, ", ")))
     return true
 }
 
@@ -113,120 +186,246 @@ fn el_place_landing_kit(actor, x, y, z, item) {
     let side = el_side_toward(p.x - (x + 0.5), p.z - (z + 0.5)) # côté extérieur (là où est le joueur)
     el_place_landing_cells(x, y, z, side, style, glass)
     entity.take(actor, item, 1)
-    el_say("palier posé. Clic droit sur le moteur pour mettre l'ascenseur en service.")
+    el_say("palier posé. Clic droit sur le moteur (ou le tableau électrique) pour mettre l'ascenseur en service.")
     return true
 }
 
-# Vérifie la gaine du moteur (mx, my, mz). Rend {record, problems}.
+# Vérifie la gaine du moteur (mx, my, mz). Rend {record, problems, warnings,
+# info} : `problems` empêchent la mise en service, `warnings` non.
 fn el_scan(mx, my, mz) {
     let problems = []
-    let result = {record: nil, problems: problems}
+    let warnings = []
+    let info = []
+    let result = {record: nil, problems: problems, warnings: warnings, info: info}
     if (world.get(mx, my, mz) != "elevators:motor") {
         problems.push("pas de moteur ici.")
         return result
     }
-    let max_h = EL.settings.max_height
-    # La cabine : un plancher 5 × 5 sous le moteur.
+    let id = el_key(mx, my, mz)
+    let reach = el_reach(id)
+    # 1. Le plancher de la cabine, sous le moteur.
     let y0 = nil
     let y = my - 1
-    while (y > my - max_h and y0 == nil) {
-        if (el_is(world.get(mx, y, mz), "cabin_floor")) { y0 = y }
+    while (y >= my - reach and y0 == nil) {
+        if (el_has_tag(world.get(mx, y, mz), "cabin_floor")) { y0 = y }
         y -= 1
     }
     if (y0 == nil) {
-        problems.push(format("aucune cabine sous le moteur (sur {} blocs) : posez un kit de cabine au fond de la gaine, centré sous le moteur.", max_h))
+        problems.push(format("aucun plancher de cabine (tag cabin_floor) sous le moteur sur {} blocs (réglage « hauteur maximale ») : posez la cabine au fond de la gaine, centrée sous le moteur.", reach))
+        return result
+    }
+    let ex = el_floor_extent(mx, y0, mz, 1, 0)
+    let wx = el_floor_extent(mx, y0, mz, -1, 0)
+    let sz = el_floor_extent(mx, y0, mz, 0, 1)
+    let nz = el_floor_extent(mx, y0, mz, 0, -1)
+    if (wx != ex or sz != ex or nz != ex) {
+        problems.push(format("plancher de cabine décentré (est {}, ouest {}, sud {}, nord {} blocs depuis le centre) : le moteur doit être au-dessus du centre exact de la gaine.", ex, wx, sz, nz))
+        return result
+    }
+    let half = ex
+    let g = el_geom(half)
+    if (half < 1 or g.shaft < EL.settings.shaft_min or g.shaft > EL.settings.shaft_max) {
+        problems.push(format("cabine de {} × {} (gaine {} × {}) : la gaine doit être impaire, de {} × {} à {} × {} (réglages du mod).",
+                             g.w, g.w, g.shaft, g.shaft, EL.settings.shaft_min, EL.settings.shaft_min, EL.settings.shaft_max, EL.settings.shaft_max))
         return result
     }
     let style = el_style_of(world.get(mx, y0, mz))
-    let side = nil
-    for (s in ["n", "s", "e", "w"]) {
-        let sd = EL_SIDES[s]
-        let b = world.get(mx + sd.dx * 2, y0 + 1, mz + sd.dz * 2)
-        if (el_is(b, "cabin_door") and not b.contains("_top")) { side = s }
-    }
-    if (side == nil) {
-        problems.push("la cabine n'a pas de porte (au milieu d'une paroi, au-dessus du plancher).")
-        return result
-    }
-    # Cabine complète ?
-    let missing = 0
-    let c = el_pos(mx - 2, y0, mz - 2)
+    if (style == nil) { style = "modern" } # plancher d'un autre mod : sons et afficheurs modernes
+    let min = el_pos(mx - half, y0, mz - half)
+    let bad = 0
     let lz = 0
-    while (lz < 5) {
+    while (lz < g.w) {
         let lx = 0
-        while (lx < 5) {
-            let ly = 0
-            while (ly < 4) {
-                let role = el_cabin_role(lx, ly, lz)
-                let p = el_cabin_cell(c, side, lx, ly, lz)
-                let b = world.get(p.x, p.y, p.z)
-                if (role == "air") {
-                    if (b != "core:air") { missing += 1 }
-                } else {
-                    if (role == "display") {
-                        if (not el_is(b, "display")) { missing += 1 }
-                    } else {
-                        if (not el_is(b, role)) { missing += 1 }
-                    }
-                }
-                ly += 1
-            }
+        while (lx < g.w) {
+            if (not el_has_tag(world.get(min.x + lx, y0, min.z + lz), "cabin_floor")) { bad += 1 }
             lx += 1
         }
         lz += 1
     }
-    if (missing > 0) {
-        problems.push(format("cabine incomplète : {} cellule(s) ne correspondent pas (plancher, parois, porte, panneau, plafond, éclairage, afficheur).", missing))
+    if (bad > 0) { problems.push(format("plancher de cabine incomplet : {} bloc(s) sans le tag cabin_floor.", bad)) }
+    # 2. Le plafond (4 à 8 blocs de haut, plancher et plafond compris).
+    let h = nil
+    let yy = y0 + EL.CABIN_H_MIN - 1
+    while (h == nil and yy <= y0 + EL.CABIN_H_MAX - 1 and yy < my) {
+        if (el_has_tag(world.get(mx, yy, mz), "cabin_ceiling")) { h = yy - y0 + 1 }
+        yy += 1
     }
-    # Les paliers : une porte palière dans le mur de la gaine, côté porte.
-    let sd = EL_SIDES[side]
-    let floors = []
-    let current = nil
+    if (h == nil) {
+        problems.push(format("aucun plafond de cabine (tag cabin_ceiling) au centre, de {} à {} blocs au-dessus du plancher.", EL.CABIN_H_MIN - 1, EL.CABIN_H_MAX - 1))
+        return result
+    }
+    bad = 0
+    lz = 0
+    while (lz < g.w) {
+        let lx = 0
+        while (lx < g.w) {
+            let b = world.get(min.x + lx, y0 + h - 1, min.z + lz)
+            if (not el_has_tag(b, "cabin_ceiling") and not el_is(b, "display")) { bad += 1 }
+            lx += 1
+        }
+        lz += 1
+    }
+    if (bad > 0) { problems.push(format("plafond de cabine incomplet : {} bloc(s) sans le tag cabin_ceiling.", bad)) }
+    # 3. Le contenu de la cabine : afficheurs, panneaux (parois libres).
+    let cabin = {doors: [], displays: [], panels: []}
+    let ly = 1
+    while (ly < h) {
+        lz = 0
+        while (lz < g.w) {
+            let lx = 0
+            while (lx < g.w) {
+                let b = world.get(min.x + lx, y0 + ly, min.z + lz)
+                if (el_is(b, "display")) { cabin.displays.push({x: lx, y: ly, z: lz, style: el_style_of(b)}) }
+                if (el_is(b, "cabin_panel")) { cabin.panels.push({x: lx, y: ly, z: lz}) }
+                lx += 1
+            }
+            lz += 1
+        }
+        ly += 1
+    }
+    # 4. Les portes de cabine : dans les parois, hors des angles, au-dessus du plancher.
+    for (s in EL_FACES) {
+        let u = -half
+        while (u <= half) {
+            let c = el_face_cell(mx, mz, s, half, u)
+            let d = el_door_at(c.x, y0 + 1, c.z, s, "cabin_door")
+            if (d != nil) {
+                let first = u + d.lo
+                let entry = {side: s, u: first, width: d.width, base: d.base}
+                if (d.error != nil) {
+                    problems.push(format("porte de cabine {} : {}.", el_door_label(entry), d.error))
+                } else if (first < -(half - 1) or first + d.width - 1 > half - 1) {
+                    problems.push(format("porte de cabine {} dans un angle : elle doit être au milieu d'une paroi.", el_door_label(entry)))
+                } else if (not world.get(c.x, y0 + 2, c.z).contains("_top")) {
+                    problems.push(format("porte de cabine {} sans son haut (2 blocs de haut).", el_door_label(entry)))
+                } else {
+                    cabin.doors.push(entry)
+                }
+            }
+            u += 1
+        }
+    }
+    if (len(cabin.doors) == 0) {
+        problems.push("la cabine n'a pas de porte : posez une porte de cabine (simple ou double) dans une paroi, juste au-dessus du plancher, hors des angles.")
+    }
+    if (len(cabin.panels) == 0) { warnings.push("pas de panneau de commande dans la cabine : seuls les boutons d'appel et le tableau électrique la commandent.") }
+    if (len(cabin.displays) == 0) { info.push("pas d'afficheur dans la cabine (facultatif).") }
+    # 5. Les paliers : portes palières dans les murs de la gaine, toutes faces.
+    let wall = g.wall
+    let by_y = {}
+    let ys = []
     y = my - 2
-    while (y > my - max_h) {
-        let b = world.get(mx + sd.dx * 3, y, mz + sd.dz * 3)
-        if (el_is(b, "landing_door") and not b.contains("_top")) {
-            floors.push({y: y - 1, name: ""})
+    while (y >= my - reach) {
+        for (s in EL_FACES) {
+            let u = -(wall - 1)
+            while (u <= wall - 1) {
+                let c = el_face_cell(mx, mz, s, wall, u)
+                let d = el_door_at(c.x, y, c.z, s, "landing_door")
+                if (d != nil) {
+                    let first = u + d.lo
+                    let p = el_face_cell(mx, mz, s, wall, first)
+                    let entry = {side: s, u: first, width: d.width, base: d.base, x: p.x, y: y, z: p.z}
+                    if (d.error != nil) {
+                        problems.push(format("porte palière y = {}, {} : {}.", y, el_door_label(entry), d.error))
+                    } else {
+                        if (not world.get(c.x, y + 1, c.z).contains("_top")) {
+                            warnings.push(format("porte palière y = {}, {} sans son haut.", y, el_door_label(entry)))
+                        }
+                        let k = str(y)
+                        if (not has(by_y, k)) {
+                            by_y[k] = {y: y - 1, name: "", doors: [], calls: [], displays: [], arrows: []}
+                            ys.push(by_y[k])
+                        }
+                        by_y[k].doors.push(entry)
+                    }
+                }
+                u += 1
+            }
         }
         y -= 1
     }
-    floors = el_sort_by(floors, "y")
+    let floors = el_sort_by(ys, "y")
+    let current = nil
     let i = 0
     while (i < len(floors)) {
-        if (floors[i].y == y0) { current = i }
-        floors[i].label = str(i)
+        let f = floors[i]
+        if (f.y == y0) { current = i }
+        f.label = str(i)
+        # Boutons, afficheurs, flèches du palier : dans les murs, 3 rangs au-dessus du plancher.
+        let row = f.y + 1
+        while (row <= f.y + 3) {
+            for (s in EL_FACES) {
+                let lim = wall
+                if (s == "e" or s == "w") { lim = wall - 1 } # angles comptés une fois (faces n, s)
+                let u = -lim
+                while (u <= lim) {
+                    let c = el_face_cell(mx, mz, s, wall, u)
+                    let b = world.get(c.x, row, c.z)
+                    if (el_is(b, "call")) { f.calls.push(el_pos(c.x, row, c.z)) }
+                    if (el_is(b, "display")) { f.displays.push(el_pos(c.x, row, c.z)) }
+                    if (el_is(b, "arrow")) { f.arrows.push(el_pos(c.x, row, c.z)) }
+                    u += 1
+                }
+            }
+            row += 1
+        }
+        if (len(f.calls) == 0) { warnings.push(format("étage {} (y = {}) : pas de bouton d'appel dans le mur de la gaine.", i, f.y + 1)) }
+        # Sécurité : chaque porte palière a sa porte de cabine en face.
+        for (d in f.doors) {
+            if (el_cabin_door_facing({cabin: cabin}, d) == nil) {
+                problems.push(format("étage {} (y = {}) : porte palière {} sans porte de cabine alignée en face.", i, f.y + 1, el_door_label(d)))
+            }
+        }
+        if (i > 0 and f.y - floors[i - 1].y < EL.settings.floor_gap) {
+            problems.push(format("étages {} et {} trop proches ({} blocs) : {} blocs au moins entre deux portes palières.",
+                                 i - 1, i, f.y - floors[i - 1].y, EL.settings.floor_gap))
+        }
         i += 1
     }
     if (len(floors) == 0) {
-        problems.push(format("aucun palier : posez une porte palière dans le mur de la gaine, côté {}, à chaque étage.", side))
-    } else {
-        if (current == nil) {
-            problems.push("la cabine n'est à la hauteur d'aucun palier (son plancher doit être un bloc sous le seuil de la porte palière).")
-        }
+        problems.push(format("aucun palier : posez une porte palière dans un mur de la gaine (à {} blocs du centre), au-dessus du plancher de cabine, à chaque étage.", wall))
+    } else if (current == nil) {
+        problems.push("la cabine n'est à la hauteur d'aucun palier (son plancher doit être un bloc sous le seuil des portes palières).")
     }
-    if (len(problems) == 0) {
-        # Trajectoire libre entre le plus bas et le plus haut arrêt.
-        let top = floors[len(floors) - 1].y + 3
+    let top = y0 + h - 1
+    if (len(floors) > 0) {
+        top = floors[len(floors) - 1].y + h - 1
         if (top >= my) {
-            problems.push("le moteur doit être au-dessus du dernier étage, cabine comprise (4 blocs au-dessus du dernier plancher).")
+            problems.push(format("le moteur doit être au-dessus de la cabine au dernier étage (plafond à y = {}).", top))
         }
-        let yy = floors[0].y
+        # 6. Trajectoire libre entre le plus bas et le plus haut arrêt.
+        yy = floors[0].y
         let blocked = 0
-        while (yy <= top and blocked < 3) {
-            if (yy < y0 or yy > y0 + 3) {
-                let free = el_air_count(mx - 2, yy, mz - 2, mx + 2, yy, mz + 2)
-                if (free < 25) {
-                    problems.push(format("obstacle dans la gaine à y = {} (l'emprise 5 × 5 doit être vide entre les étages).", yy))
+        while (yy <= top and yy < my and blocked < 3) {
+            if (yy < y0 or yy > y0 + h - 1) {
+                let free = el_air_count(mx - half, yy, mz - half, mx + half, yy, mz + half)
+                if (free < g.w * g.w) {
+                    problems.push(format("obstacle dans la gaine à y = {} (l'emprise {} × {} doit être vide entre les étages).", yy, g.w, g.w))
                     blocked += 1
                 }
             }
             yy += 1
         }
+        # Murs de la gaine percés : on pourrait y tomber.
+        let lo = floors[0].y
+        for (s in EL_FACES) {
+            let a = el_face_cell(mx, mz, s, wall, -wall)
+            let b = el_face_cell(mx, mz, s, wall, wall)
+            let holes = el_air_count(math.min(a.x, b.x), lo, math.min(a.z, b.z), math.max(a.x, b.x), top, math.max(a.z, b.z))
+            if (holes > 0) { warnings.push(format("mur de gaine {} ouvert : {} cellule(s) vide(s) entre y = {} et y = {}.", EL_FACE_NAMES[s], holes, lo, top)) }
+        }
     }
+    let names = []
+    for (d in cabin.doors) { names.push(el_door_label(d)) }
+    info.push(format("gaine {} × {} (intérieur {} × {}), cabine {} × {} × {} (place utile {} × {}), style {}.",
+                     g.shaft, g.shaft, g.w, g.w, g.w, h, g.w, g.useful, g.useful, style))
+    info.push(format("portes de cabine : {}.", join(names, ", ")))
+    info.push(format("{} palier(s) trouvé(s) sur {} blocs sous le moteur.", len(floors), reach))
     if (len(problems) > 0) { return result }
+    let side = cabin.doors[0].side
     result.record = {
-        id: el_key(mx, my, mz), motor: el_pos(mx, my, mz), side: side, style: style, floors: floors, floor: current,
-        state: "idle", state_time: 0, queue: [], external: [], door_time: nil, speed: nil, owner: ""
+        id: id, motor: el_pos(mx, my, mz), half: half, h: h, reach: reach, side: side, style: style, cabin: cabin,
+        floors: floors, floor: current, state: "idle", state_time: 0, queue: [], external: [], door_time: nil, speed: nil, owner: ""
     }
     return result
 }
@@ -247,6 +446,7 @@ fn el_register(mx, my, mz, quiet) {
         rec.door_time = old.door_time
         rec.speed = old.speed
         rec.owner = old.owner
+        if (has(old, "back")) { rec.back = old.back }
         let i = 0
         while (i < len(rec.floors)) {
             for (f in old.floors) {
@@ -262,7 +462,9 @@ fn el_register(mx, my, mz, quiet) {
     el_save()
     el_refresh_displays(rec)
     if (not quiet) {
-        el_say(format("en service : {} arrêt(s), cabine {} à l'arrêt {}.", len(rec.floors), rec.style, el_floor_label(rec, rec.floor)))
+        for (w in r.warnings) { el_say(format("attention : {}", w)) }
+        el_say(format("en service : {} arrêt(s), cabine {} × {} {} à l'arrêt {}.", len(rec.floors), 2 * rec.half + 1, 2 * rec.half + 1,
+                      rec.style, el_floor_label(rec, rec.floor)))
     }
     return rec
 }

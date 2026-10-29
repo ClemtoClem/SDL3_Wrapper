@@ -1469,7 +1469,8 @@ private:
 ///    fields: [{id, type, label, description, default, options, labels, min, max, step,
 ///              visible_if: {field, in: [...]}}]}
 /// Types : text, number, slider, bool, choice, block (texte + blocs de
-/// l'inventaire), label. Validation : événement « form_submit » (joueur, id,
+/// l'inventaire), label, textarea (texte multiligne en lecture seule :
+/// « default » ou « text », « rows » lignes visibles). Validation : événement « form_submit » (joueur, id,
 /// valeurs ; « _button » : bouton utilisé).
 class FormScreen final : public Screen {
 public:
@@ -1548,6 +1549,25 @@ private:
 		NodePtr value = json::At(m_values, id.CStr());
 		if (type == "label") {
 			parent.Append(kit.Paragraph(json::Str(field, "text", label), Text::SMALL));
+		} else if (type == "textarea") {
+			// Zone de texte en lecture seule (rapport, journal) : « text » ou la
+			// valeur du champ, sur « rows » lignes au moins, défilante au-delà.
+			const Palette &p = kit.Colors();
+			const float sc = kit.Scale();
+			const String text = value && value->IsString() ? value->stringValue : json::Str(field, "text");
+			const float rows = float(std::clamp(json::Int(field, "rows", 8), 2, 30));
+			if (!label.IsEmpty() && label != id)
+				parent.Append(kit.Label(label, Text::SMALL).Color(p.textMuted));
+			WidgetBuilder area = kit.Scroll(2.f);
+			area.GrowWidth()
+				.MinHeight(ui::Length::Px(rows * 18.f * sc))
+				.MaxHeight(ui::Length::Px(rows * 18.f * sc))
+				.Padding(math::Sides(10.f, 8.f))
+				.BorderRadius(8.f)
+				.Background(p.bg2);
+			ui::Widget box = parent.Append(area);
+			for (const String &line : text.Split('\n'))
+				box.Append(kit.Paragraph(line.IsEmpty() ? String(" ") : line, Text::SMALL).Color(p.text));
 		} else if (type == "bool") {
 			kit.ToggleRow(parent, label, help, value && value->IsBool() && value->boolValue,
 						  [this, id](bool v) { Set(id, json::MakeBool(v), true); });
