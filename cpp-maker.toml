@@ -66,6 +66,10 @@ modules = [
     "tests/integration",
 ]
 
+[paths]
+backups = ".backups"
+out = ".out"
+
 # Toolchains : cpp-maker build -t <nom>[,<nom>…] (ou -t all).
 # Sans profil, tout préfixe de triplet du PATH fonctionne : -t arm-linux-gnueabihf
 [toolchains.host]

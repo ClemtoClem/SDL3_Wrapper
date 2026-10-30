@@ -323,7 +323,7 @@
 		"schemaVersion": 1,
 		"id": "core:lamp",
 		"sounds": "core:metal",
-		"displayName": "Lampe (modèle JSON)",
+		"displayName": "Lampe",
 		"shape": {
 			"type": "model",
 			"model": "core:lamp_model"

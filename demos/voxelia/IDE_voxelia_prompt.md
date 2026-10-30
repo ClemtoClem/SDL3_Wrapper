@@ -398,10 +398,15 @@ Chaque étape est livrée avec ses tests unitaires verts et ses scénarios rc=0.
 
 Pour la compilation et les tests utilise les commandes suivantes :
 ```sh
-cpp-maker build -m voxelia --sanitizer all
-cpp-maker build release -m voxelia
-cpp-maker test -m voxelia --sanitizer all
-cpp-maker test release -m voxelia
-cpp-maker run -m voxelia --output sortie.txt
+cpp-maker build -m voxelia --sanitizer all --output sortie.txt
+cpp-maker build release -m voxelia --output sortie.txt
+cpp-maker test -m voxelia --sanitizer all --output sortie.txt
+cpp-maker test release -m voxelia --output sortie.txt
+cpp-maker run -m voxelia
 cpp-maker help # pour en savoir plus
+```
+
+Si l'execution ne fonctionne pas utilise ces commandes avant cpp-maker:
+```sh
+env -u GTK_PATH -u GTK_MODULES cpp-maker ...
 ```

@@ -552,7 +552,7 @@
  },
  {
   "id": "redstone_lamp",
-  "displayName": "Lampe",
+  "displayName": "Lampe redstone",
   "tags": [
    "light"
   ],

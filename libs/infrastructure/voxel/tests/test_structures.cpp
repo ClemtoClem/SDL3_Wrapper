@@ -237,10 +237,10 @@ TEST(Schematic_FilesRoundTripInEveryFormat) {
 	CHECK_EQ(int(s.world->GetParam(stair)), 0); // 3 + 1 quart de tour
 	// WorldEdit de Minetest (clés nues, métadonnées imbriquées, +z au nord).
 	Result<Schematic, String> we = Schematic::FromWorldEdit(String(
-		R"(5:return {{x = 0, y = 0, z = 0, name = "default:cobble"}, {["x"] = 1, ["y"] = 0, ["z"] = 2, ["name"] = "default:chest", ["param2"] = 0, ["meta"] = {["fields"] = {["infotext"] = "a {b}"}}}})"));
+		R"(5:return {{x = 0, y = 0, z = 0, name = "core:cobble"}, {["x"] = 1, ["y"] = 0, ["z"] = 2, ["name"] = "core:chest", ["param2"] = 0, ["meta"] = {["fields"] = {["infotext"] = "a {b}"}}}})"));
 	REQUIRE(we.IsOk());
 	CHECK(we.Value().Size() == (BlockPos{2, 1, 3}));
-	CHECK(we.Value().BlockAt({0, 0, 2}) == "default:cobble"); // z inversé
+	CHECK(we.Value().BlockAt({0, 0, 2}) == "core:cobble"); // z inversé
 	CHECK_EQ(int(we.Value().ParamAt({1, 0, 0})), 2);         // façade au sud (Minetest 0)
 	// Fichiers abîmés : refusés proprement.
 	CHECK(Schematic::FromMts({'M', 'T', 'S', 'M', 0, 4, 0, 2}).IsError());
@@ -355,7 +355,7 @@ TEST(Game_StructuresLiveInTheWorldAndTheExchangeFolder) {
 	CHECK(game.DeleteStructureFile("coffre.mts", true).IsOk());
 	CHECK(game.StructureFiles(true).empty());
 	// Import d'un fichier Minetest : alias de la configuration.
-	Write(fs::path(game.StructuresDirectory(true).CStr()) / "mt.we", R"(5:return {{x=0,y=0,z=0,name="default:cobble"},{x=1,y=0,z=0,name="mod_absent:truc"}})");
+	Write(fs::path(game.StructuresDirectory(true).CStr()) / "mt.we", R"(5:return {{x=0,y=0,z=0,name="core:cobble"},{x=1,y=0,z=0,name="mod_absent:truc"}})");
 	std::vector<String> unknown;
 	Result<Schematic, String> mt = game.LoadStructureFile("mt.we", true, &unknown);
 	REQUIRE(mt.IsOk());

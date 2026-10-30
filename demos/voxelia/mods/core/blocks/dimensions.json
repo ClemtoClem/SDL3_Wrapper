@@ -200,8 +200,8 @@
   "graphics": {
    "textures": {
     "top": "core:crystal_grass^colorize(150,80,230,0.55)",
-    "bottom": "core:inverted_soil",
-    "side": "core:inverted_soil^(core:crystal_grass_side^colorize(150,80,230,0.5))"
+    "bottom": "crystal_dirt.png^colorize(90,50,120,0.5)",
+    "side": "(crystal_dirt.png^colorize(90,50,120,0.5))^(core:crystal_grass_side^colorize(150,80,230,0.5))"
    }
   },
   "sounds": "core:grass",
