@@ -1,11 +1,11 @@
 ---
 name: game-editor-audio
-description: "game_editor_demo — ressources partagées du ResourceCache (primitives et modèles glTF chargés en arrière-plan) et son sur SDL3_mixer : AudioEngine, composant AudioSource, écoute dans l'explorateur, API de script audio.*."
+description: "sandbox — ressources partagées du ResourceCache (primitives et modèles glTF chargés en arrière-plan) et son sur SDL3_mixer : AudioEngine, composant AudioSource, écoute dans l'explorateur, API de script audio.*."
 metadata:
   type: project
 ---
 
-# Ressources partagées et son dans game_editor_demo
+# Ressources partagées et son dans sandbox
 
 Depuis le 2026-10-12, l'éditeur utilise l'étape 1 de la
 [refonte du moteur](architecture_moteur.md) : ses maillages et ses sons sont
@@ -104,7 +104,7 @@ qui range ses sons dans son `assets/sounds/` les emporte avec lui.
 ## Exemple : l'ambiance sonore de Projet_1
 
 Les sons utilisés (140 `.ogg`, 4,6 Mo) sont copiés dans
-`data/game_editor_demo/projects/Projet_1/assets/sounds/`.
+`data/sandbox/projects/Projet_1/assets/sounds/`.
 
 Le module `scripts/sons.script` (`const sons = import "sons"`) fournit :
 - `variante(famille, options)`, qui tire une variante au hasard

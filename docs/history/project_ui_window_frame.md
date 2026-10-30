@@ -13,7 +13,7 @@ système (`SDL_SetWindowHitTest`).
 |---|---|---|
 | `ui::WindowFrame` | `ui/window_frame.hpp` | Toute application `ui::` : un appel construit la racine (barre de titre, zone de contenu, barre d'état), charge la police d'icônes et branche le hit-test. `Content()` reçoit le contenu, `Update()` à chaque image, `CloseRequested()`. Construction depuis `ui::Ui` ou depuis UiFactory + LayoutSystem + RenderSystem (pipelines manuels). |
 | `ui::CanvasWindowFrame` | `ui/canvas_window_frame.hpp` | Applications qui dessinent en 3D directement dans la swapchain (`render3d::Canvas`). L'interface est rendue en logiciel sur une surface ; seules les deux barres (opaques) sont copiées par-dessus la scène via `Canvas::SetOverlay`. Le rendu 3D reste complet (ombres, IBL, instanciation) — ce qu'un `Viewport3D` (rendu hors écran) ne permet pas. |
-| `ui::TitleBar` / `ui::StatusBar` / `ui::WindowChrome` | `ui/chrome.hpp` | Applications à coquille propre (game_editor_demo, emulator_demo) : on place les barres où l'on veut, puis `WindowChrome::Attach(window, …, titleBar, &statusBar)`. `TitleBarWidgets::Update` fait suivre l'icône agrandir/restaurer à l'état réel de la fenêtre. |
+| `ui::TitleBar` / `ui::StatusBar` / `ui::WindowChrome` | `ui/chrome.hpp` | Applications à coquille propre (sandbox, emulator_demo) : on place les barres où l'on veut, puis `WindowChrome::Attach(window, …, titleBar, &statusBar)`. `TitleBarWidgets::Update` fait suivre l'icône agrandir/restaurer à l'état réel de la fenêtre. |
 
 ```cpp
 auto window = sdl3::Window::Create("Titre", 1280, 720, ui::WindowFrame::WINDOW_FLAGS);
@@ -40,7 +40,7 @@ while (running) {
 | render3d_cube, render3d_showcase, render3d_shadows_ibl_showcase | `CanvasWindowFrame` + `Canvas::SetOverlay`. |
 | adhoc_chat_demo | `WindowFrame` (remplace l'assemblage manuel). |
 | emulator_demo | `TitleBar` + `StatusBar` + `WindowChrome` dans sa coquille (remplace une barre texte et un hit-test maison sans redimensionnement). |
-| game_editor_demo | `EditorUi::SetWindow` : barre de titre en tête de l'interface (page d'accueil comprise), poignée dans la barre d'état existante, hit-test rebranché à chaque reconstruction (changement de projet ou de thème). Sans fenêtre (tests), rien n'est ajouté. |
+| sandbox | `EditorUi::SetWindow` : barre de titre en tête de l'interface (page d'accueil comprise), poignée dans la barre d'état existante, hit-test rebranché à chaque reconstruction (changement de projet ou de thème). Sans fenêtre (tests), rien n'est ajouté. |
 
 ## Ajouts et corrections au passage
 

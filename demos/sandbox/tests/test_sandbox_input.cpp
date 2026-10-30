@@ -1,4 +1,4 @@
-// Tests unitaires — game_editor : mode de capture de la souris pendant une
+// Tests unitaires — sandbox : mode de capture de la souris pendant une
 // partie (libre / capturée / confinée), choisi par les scripts ou basculé au
 // clavier. Sans fenêtre : on vérifie la décision du runtime, que l'hôte
 // applique ensuite à la fenêtre (cf. App::Run).

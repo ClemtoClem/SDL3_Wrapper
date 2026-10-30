@@ -162,6 +162,36 @@
   }
  },
  {
+  "id": "core:crystal_dirt",
+  "displayName": "Terre de crystale",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "textures": "crystal_dirt.png"
+  },
+  "sounds": "core:dirt",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "shovel"
+  }
+ },
+ {
+  "id": "core:inverted_soil",
+  "displayName": "Terre inversée",
+  "tags": [
+   "terrain"
+  ],
+  "graphics": {
+   "texture": "crystal_dirt.png^colorize(90,50,120,0.5)"
+  },
+  "sounds": "core:dirt",
+  "gameplay": {
+   "hardness": 1,
+   "tool": "shovel"
+  }
+ },
+ {
   "id": "inverted_grass",
   "displayName": "Herbe inversée",
   "tags": [
@@ -170,8 +200,8 @@
   "graphics": {
    "textures": {
     "top": "core:crystal_grass^colorize(150,80,230,0.55)",
-    "bottom": "core:crystal_dirt^colorize(90,50,120,0.5)",
-    "side": "core:crystal_grass_side^colorize(150,80,230,0.5)"
+    "bottom": "core:inverted_soil",
+    "side": "core:inverted_soil^(core:crystal_grass_side^colorize(150,80,230,0.5))"
    }
   },
   "sounds": "core:grass",
@@ -179,21 +209,6 @@
    "hardness": 1.2,
    "tool": "shovel",
    "drops": "core:inverted_soil"
-  }
- },
- {
-  "id": "inverted_soil",
-  "displayName": "Terre inversée",
-  "tags": [
-   "terrain"
-  ],
-  "graphics": {
-   "texture": "core:crystal_dirt^colorize(90,50,120,0.5)"
-  },
-  "sounds": "core:dirt",
-  "gameplay": {
-   "hardness": 1,
-   "tool": "shovel"
   }
  },
  {

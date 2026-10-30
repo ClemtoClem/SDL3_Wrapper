@@ -161,6 +161,7 @@ fn el_start_external(e, dest_id) {
     trip.target = e.floor
     trip.shown = e.floor
     trip.creak = 2
+    el_scan_cabin_items(e)
     trip.cab = el_lift_cabin(e)
     trip.external = {dest: d, d1: d1, d2: d2}
     EL.active[e.id] = trip
@@ -326,8 +327,24 @@ fn el_prepare_generated(d) {
     if (found == nil) { return nil }
     let s = el_style_of(found.doors[0].base)
     if (s != nil) { style = s } # cabine du style des paliers générés
-    el_build_cabin(el_pos(mx - shaft.half, found.y - 1, mz - shaft.half), style, shaft.half, EL.CABIN_H_MIN, found.doors)
-    return el_register(mx, my, mz, true)
+    # Hauteur réglée, sans dépasser l'étage au-dessus (ni le moteur).
+    let h = EL.settings.cabin_height
+    let next = el_landing_doors_above(mx, found.y, mz, shaft.half, my)
+    if (next - found.y < h) { h = EL.CABIN_H_MIN }
+    el_build_cabin(el_pos(mx - shaft.half, found.y - 1, mz - shaft.half), style, shaft.half, h, found.doors)
+    let e = el_register(mx, my, mz, true)
+    if (e != nil) { el_place_switchboard(e) } # poste de commande, à l'étage le plus bas
+    return e
+}
+
+# Seuil de la porte palière suivante au-dessus de `y` (sinon le moteur).
+fn el_landing_doors_above(mx, y, mz, half, my) {
+    let yy = y + 1
+    while (yy < my - 1) {
+        if (len(el_landing_doors_at(mx, yy, mz, half)) > 0) { return yy }
+        yy += 1
+    }
+    return my
 }
 
 # Retour à la surface : un kiosque d'ascenseur (gaine, paliers, moteur) bâti là
@@ -362,6 +379,7 @@ fn el_build_kiosk(player, tr) {
              side: tr.cabin.doors[0].side, style: style, cabin: tr.cabin, floors: [f], floor: 0, state: "idle",
              state_time: 0, queue: [], external: [], door_time: nil, speed: nil, owner: ""}
     EL.records[e.id] = e
+    el_place_switchboard(e)
     return e
 }
 

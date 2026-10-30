@@ -47,7 +47,7 @@ monde ECS et réécrites depuis lui par les sérialiseurs.
 | Scenes | `Scene` (enregistrement de nœuds + instances) et `SceneSettings` (environnement, skybox, caméra active, rendu, physique, jeu) — n'hérite PAS d'un objet ; chargement dans / extraction depuis un monde ECS | `scene/` |
 | Rendering | systèmes : parcours des entités → extraction → `RenderQueue` → `Renderer` ; maillages = assets partagés (cache GPU par asset) | `render3d/` |
 | Physics | corps et formes en composants, synchronisés par système | `physics/` |
-| Editor | `Selection`, `UndoRedo` + `ICommand` (`SetTransformCommand`, `RenameNodeCommand`, `AddNodeCommand`, `RemoveNodeCommand`, `ReparentNodeCommand`, `SetMaterialCommand`…) qui désignent les entités par `Uuid`, panneaux | `examples/game_editor_demo/editor` |
+| Editor | `Selection`, `UndoRedo` + `ICommand` (`SetTransformCommand`, `RenameNodeCommand`, `AddNodeCommand`, `RemoveNodeCommand`, `ReparentNodeCommand`, `SetMaterialCommand`…) qui désignent les entités par `Uuid`, panneaux | `examples/sandbox/editor` |
 
 ## Règles
 

@@ -1,4 +1,4 @@
-// Tests unitaires — game_editor : l'environnement 2D (document, moteur pur,
+// Tests unitaires — sandbox : l'environnement 2D (document, moteur pur,
 // API des scripts). Aucune fenêtre : le dessin SDL (canvas2d_render.hpp)
 // n'est pas exercé ici, seulement ce qu'il reçoit.
 #include "test.hpp"

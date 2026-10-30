@@ -281,6 +281,8 @@ TEST(Backrooms_C_LevelFloorsStairsAndElevator) {
 	REQUIRE(Until(g, "len(keys(EL.records))", "1", 5.f));
 	CHECK_EQ(Eval(g, (std::string("len(") + E + ".floors)").c_str()), String("3"));
 	CHECK_EQ(Eval(g, (std::string(E) + ".floor").c_str()), String("0"));
+	// Son tableau électrique : étage le plus bas, à droite de l'encadrement (paliers au sud).
+	CHECK_EQ(Eval(g, "world.get(8, 2, 6)"), String("elevators:switchboard"));
 	// Étage 1 : les salles de soins (faïence) ; étages 0 et 2 : les couloirs (liste répétée).
 	CHECK_EQ(Eval(g, "world.count(-30, 7, -30, 30, 9, 30)[\"backrooms:hospital_wall_tiles\"] > 0"), String("true"));
 	CHECK_EQ(Eval(g, "has(world.count(-30, 1, -30, 30, 3, 30), \"backrooms:hospital_wall\")"), String("true"));
@@ -540,9 +542,9 @@ TEST(Elevators_M_SwitchboardAndFloorSpacing) {
 	(void)g.Scripts().RunSource(String("let m = ") + m.c_str() + " world.set(m.x - 4, m.y - 2, m.z + 4, \"elevators:switchboard\")");
 	CHECK_EQ(Eval(g, (std::string("el_board_motor(") + m + ".x - 4, " + m + ".y - 2, " + m + ".z + 4).y == " + m + ".y").c_str()),
 			 String("true"));
-	CHECK(Eval(g, (std::string("el_diagnose(") + m + ").text").c_str()).Contains("INSTALLATION : en ordre"));
+	CHECK(Eval(g, (std::string("el_diagnose(") + m + ").text").c_str()).Contains("INSTALLATION : ✓ en ordre"));
 	CHECK_EQ(Eval(g, (std::string("el_board_test(") + m + ", -1)").c_str()), String("déjà au premier arrêt."));
-	CHECK(Eval(g, (std::string("el_board_test(") + m + ", 1)").c_str()).Contains("trajet d'essai"));
+	CHECK(Eval(g, (std::string("el_board_test(") + m + ", 1)").c_str()).Contains("trajet demandé"));
 	REQUIRE(Until(g, (std::string(E) + ".state + \":\" + str(" + E + ".floor)").c_str(), "doors_open:1", 20.f));
 	REQUIRE(Until(g, (std::string(E) + ".state").c_str(), "idle", 10.f));
 	// Numérotation : les numéros reviennent à 0, 1, 2.
@@ -582,5 +584,83 @@ TEST(Elevators_N_SettingsChangesAreApplied) {
 	CHECK_EQ(Eval(g, "EL.settings.max_height"), String("100"));
 	g.UpdateModSettings("elevators", values(200), false); // le réglage du monde reste prioritaire
 	CHECK_EQ(Eval(g, "EL.settings.max_height"), String("100"));
+	g.CloseWorld();
+}
+
+// O — hauteur des cabines construites (4 ou 5) et afficheurs de cabine :
+// au-dessus de la porte (5), sur une paroi latérale (4), ou posés n'importe
+// où après la mise en service — tous suivent l'étage.
+TEST(Elevators_O_CabinHeightAndDisplaysAnywhere) {
+	Game g;
+	REQUIRE(g.LoadMods(ElevatorOptions(Fresh("o"))).errors.empty());
+	REQUIRE(g.OpenWorld("monde", Some(uint32_t(24))).IsOk());
+	Brisk(g);
+	const ecs::Entity p = g.JoinPlayer("Alix");
+	Run(g, 1.f);
+	BuildWithRider(g, p, "/elevator build industrial 3 7 5");
+	CHECK_EQ(Eval(g, (std::string(E) + ".h").c_str()), String("5"));
+	// Cabine de 5 : l'afficheur est juste au-dessus de la porte (rang 3).
+	CHECK(Eval(g, (std::string("let c = t_cabin_door(") + E + ", \"w\") world.get(c.x, c.y + 2, c.z)").c_str()).Contains("_display"));
+	CHECK_EQ(Eval(g, (std::string(E) + ".cabin.displays[0].y").c_str()), String("3"));
+	// Un second afficheur posé après coup, sur la paroi du fond : relu au pas suivant.
+	(void)g.Scripts().RunSource(String("let e = ") + E + " let m = el_cabin_min(e, e.floor) world.set(m.x + 2 * e.half, m.y + 2, m.z + e.half, \"elevators:modern_display\") e.cabin_dirty = true");
+	Run(g, 0.2f);
+	CHECK_EQ(Eval(g, (std::string("len(") + E + ".cabin.displays)").c_str()), String("2"));
+	(void)g.Scripts().RunSource(String("el_request(") + E + ", 2)");
+	REQUIRE(Until(g, (std::string(E) + ".state + \":\" + str(" + E + ".floor)").c_str(), "doors_open:2", 25.f));
+	CHECK(Eval(g, (std::string("let c = t_cabin_door(") + E + ", \"w\") world.get(c.x, c.y + 2, c.z)").c_str()).EndsWith("_display_2"));
+	CHECK(Eval(g, (std::string("let e = ") + E + " let m = el_cabin_min(e, e.floor) world.get(m.x + 2 * e.half, m.y + 2, m.z + e.half)").c_str())
+			  .EndsWith("modern_display_2"));
+	g.CloseWorld();
+}
+
+// O bis — cabine de 4 : l'afficheur est sur une paroi latérale, au rang haut.
+TEST(Elevators_O_LowCabinDisplayOnTheSide) {
+	Game g;
+	REQUIRE(g.LoadMods(ElevatorOptions(Fresh("o4"))).errors.empty());
+	REQUIRE(g.OpenWorld("monde", Some(uint32_t(25))).IsOk());
+	Brisk(g);
+	const ecs::Entity p = g.JoinPlayer("Alix");
+	Run(g, 1.f);
+	BuildWithRider(g, p, "/elevator build modern 2 7 4");
+	CHECK_EQ(Eval(g, (std::string(E) + ".h").c_str()), String("4"));
+	CHECK_EQ(Eval(g, (std::string("len(") + E + ".cabin.displays)").c_str()), String("1"));
+	CHECK_EQ(Eval(g, (std::string(E) + ".cabin.displays[0].y").c_str()), String("2"));       // rang haut de la paroi
+	CHECK(Eval(g, (std::string(E) + ".cabin.displays[0].z").c_str()) != String("2"));         // pas sur la paroi de la porte (ouest, x = 0)
+	CHECK_EQ(Eval(g, (std::string(E) + ".cabin.displays[0].x").c_str()), String("1"));       // contre la paroi de la porte
+	(void)g.Scripts().RunSource(String("el_request(") + E + ", 1)");
+	REQUIRE(Until(g, (std::string(E) + ".state + \":\" + str(" + E + ".floor)").c_str(), "doors_open:1", 20.f));
+	CHECK(Eval(g, (std::string("let e = ") + E + " let d = e.cabin.displays[0] let m = el_cabin_min(e, e.floor) world.get(m.x + d.x, m.y + d.y, m.z + d.z)").c_str())
+			  .EndsWith("_display_1"));
+	g.CloseWorld();
+}
+
+// P — tableau électrique posé à la construction (étage le plus bas, à droite
+// de l'encadrement de la porte palière) : il commande et configure tout, et
+// signale un moteur disparu ; le moteur n'a plus d'interface.
+TEST(Elevators_P_BuiltElevatorHasItsSwitchboard) {
+	Game g;
+	REQUIRE(g.LoadMods(ElevatorOptions(Fresh("p"))).errors.empty());
+	REQUIRE(g.OpenWorld("monde", Some(uint32_t(26))).IsOk());
+	Brisk(g);
+	const ecs::Entity p = g.JoinPlayer("Alix");
+	Run(g, 1.f);
+	DemoWithRider(g, p);
+	// Porte palière côté ouest : la droite (vue du palier) est vers −z ; encadrement en −1, tableau en −2.
+	const std::string board = std::string("let e = ") + E + " let c = el_face_cell(e.motor.x, e.motor.z, \"w\", e.half + 1, -2) ";
+	CHECK_EQ(Eval(g, (board + "world.get(c.x, e.floors[0].y + 2, c.z)").c_str()), String("elevators:switchboard"));
+	CHECK_EQ(Eval(g, (board + "world.param(c.x, e.floors[0].y + 2, c.z)").c_str()), String("1")); // face avant vers l'ouest
+	(void)g.Scripts().RunSource((board + "let m = el_board_motor(c.x, e.floors[0].y + 2, c.z) EL.t_board = m.y == e.motor.y").c_str());
+	CHECK_EQ(Eval(g, "EL.t_board"), String("true"));
+	const std::string m = std::string(E) + ".motor";
+	CHECK(Eval(g, (std::string("el_diagnose(") + m + ").text").c_str()).Contains("peut fonctionner"));
+	// Configuration depuis le tableau.
+	(void)g.Scripts().RunSource(String("EL.t_msg = el_apply_config(") + E + ", entity.players()[0], {\"name:1\": \"Atelier\", door_time: 2, maintenance: true})");
+	CHECK_EQ(Eval(g, "EL.t_msg"), String("configuration enregistrée."));
+	CHECK_EQ(Eval(g, (std::string(E) + ".floors[1].name").c_str()), String("Atelier"));
+	CHECK_EQ(Eval(g, (std::string(E) + ".state").c_str()), String("maintenance"));
+	// Le moteur disparaît : le tableau le dit.
+	(void)g.Scripts().RunSource(String("let m = ") + m.c_str() + " world.set(m.x, m.y, m.z, \"core:air\")");
+	CHECK(Eval(g, (std::string("el_diagnose(") + m + ").text").c_str()).Contains("MOTEUR : ✗ absent"));
 	g.CloseWorld();
 }

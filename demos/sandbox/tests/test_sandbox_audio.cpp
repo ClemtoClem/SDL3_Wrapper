@@ -1,4 +1,4 @@
-// Tests unitaires — game_editor : ressources partagées et son.
+// Tests unitaires — sandbox : ressources partagées et son.
 //  - deux nœuds de la même primitive montrent la MÊME géométrie (cache), et
 //    modifier l'un ne touche jamais l'autre ;
 //  - un modèle glTF se charge en arrière-plan derrière un cube d'attente ;

@@ -127,10 +127,10 @@ build quand une source change (`[generate.shaders]`).
 | `lib/*/jobs, net, physics, render3d, sql` | modules homonymes |
 | `lib/scene` | `libs/application/scene` |
 | `examples/emulator_demo` | `demos/emulator` (`emulator::`) |
-| `examples/game_editor_demo` | `demos/sandbox` (`sandbox::`) |
+| `examples/sandbox` | `demos/sandbox` (`sandbox::`) |
 | `examples/*.cpp` | `examples/<nom>/src/main.cpp` |
 | `tests/*_smoke_test.cpp` | `tests/` du module concerné |
-| `saves/emulator_demo`, `saves/game_editor_demo` | `saves/emulator`, `saves/sandbox` |
+| `saves/emulator_demo`, `saves/sandbox` | `saves/emulator`, `saves/sandbox` |
 | `docs/*.md` | `docs/history/` (notes de conception d'origine, chemins d'époque) |
 | `Makefile` | `cpp-maker.toml` + `module.toml` |
 

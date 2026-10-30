@@ -1,4 +1,4 @@
-// Tests unitaires — game_editor : assemblage d'un niveau à partir de scènes
+// Tests unitaires — sandbox : assemblage d'un niveau à partir de scènes
 // emballées (« pièces ») — instanciation PLACÉE (position et rotation posées
 // avant la construction, corps physiques compris), chemins relatifs au
 // projet, scripts de nœud des instances en mode Jeu.

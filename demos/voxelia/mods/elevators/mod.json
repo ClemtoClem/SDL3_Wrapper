@@ -78,6 +78,16 @@
             "label": "Écart minimal entre deux portes palières (blocs)"
         },
         {
+            "id": "cabin_height",
+            "type": "int",
+            "default": 4,
+            "min": 4,
+            "max": 5,
+            "unit": "blocs",
+            "label": "Hauteur des cabines posées automatiquement (kit, gaines générées, /elevator build)",
+            "description": "4 : 2 blocs libres à l'intérieur, afficheur sur une paroi latérale ; 5 : 3 blocs libres, afficheur au-dessus de la porte."
+        },
+        {
             "id": "owner_only",
             "type": "bool",
             "default": false,

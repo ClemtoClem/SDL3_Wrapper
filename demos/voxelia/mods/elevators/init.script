@@ -77,6 +77,9 @@ fn el_reload_settings() {
     if (hi < lo) { hi = lo }
     let gap = el_setting("floor_gap", 4)
     if (gap < 4) { gap = 4 }
+    # Cabines posées automatiquement : 4 de haut (2 blocs libres) ou 5 (3).
+    let ch = 4
+    if (num(str(el_setting("cabin_height", 4))) == 5) { ch = 5 }
     EL.settings = {
         speed: el_setting("speed", 3.0),
         accel: el_setting("acceleration", 1.6),
@@ -86,6 +89,7 @@ fn el_reload_settings() {
         shaft_min: lo,
         shaft_max: hi,
         floor_gap: gap,
+        cabin_height: ch,
         owner_only: el_setting("owner_only", false)
     }
 }

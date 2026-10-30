@@ -1,6 +1,6 @@
 ---
 name: project-game-editor
-description: "Engine expansion Phase 9, milestones M31+M32 (final milestones of the whole 9-phase plan): the game-editor capstone example (examples/game_editor_demo.cpp + examples/game_editor/editor.hpp) — outliner/inspector/toolbar UI + Play/Stop mode wiring together every prior phase (ui::, ECS scene bridge, portals, animation, physics, JSON project save/load). Part of /home/clement/.claude/plans/optimized-humming-toast.md."
+description: "Engine expansion Phase 9, milestones M31+M32 (final milestones of the whole 9-phase plan): the game-editor capstone example (examples/sandbox.cpp + examples/sandbox/editor.hpp) — outliner/inspector/toolbar UI + Play/Stop mode wiring together every prior phase (ui::, ECS scene bridge, portals, animation, physics, JSON project save/load). Part of /home/clement/.claude/plans/optimized-humming-toast.md."
 metadata:
   type: project
 ---
@@ -9,8 +9,8 @@ M31 (editor UI) + M32 (play/test mode) — the final milestones of the entire en
 
 ## What was built
 
-- `examples/game_editor_demo.cpp` — completed a pre-existing WIP scaffold (async GPU-warmup loading screen, mirroring `ui_viewport3d_demo.cpp`'s established pattern) rather than starting fresh. Fixed its two small bugs (unused `ui::UiFactory &f`, missing `return 0`) as part of finishing it. Has a `LEVEL_EDITOR_DEMO_AUTOQUIT_FRAMES` env-var hook for automated smoke-testing (runs N frames then exits cleanly) — the established verification technique for a UI example that can't be driven interactively in this environment.
-- `examples/game_editor/editor.hpp` (887 lines, was empty) — the `game_editor::Editor` class and free functions: scene setup (obstacles, a linked portal pair reusing M30, one `AnimationClip`-driven object), outliner (`TreeNode` per `SceneNode`-bearing entity), inspector (`DragValue`s bound to the selected entity's `SceneTransform`), toolbar (New/Save/Load/placement-mode/Play-Stop), and the play-mode state machine.
+- `examples/sandbox.cpp` — completed a pre-existing WIP scaffold (async GPU-warmup loading screen, mirroring `ui_viewport3d_demo.cpp`'s established pattern) rather than starting fresh. Fixed its two small bugs (unused `ui::UiFactory &f`, missing `return 0`) as part of finishing it. Has a `LEVEL_EDITOR_DEMO_AUTOQUIT_FRAMES` env-var hook for automated smoke-testing (runs N frames then exits cleanly) — the established verification technique for a UI example that can't be driven interactively in this environment.
+- `examples/sandbox/editor.hpp` (887 lines, was empty) — the `sandbox::Editor` class and free functions: scene setup (obstacles, a linked portal pair reusing M30, one `AnimationClip`-driven object), outliner (`TreeNode` per `SceneNode`-bearing entity), inspector (`DragValue`s bound to the selected entity's `SceneTransform`), toolbar (New/Save/Load/placement-mode/Play-Stop), and the play-mode state machine.
 
 ## Two legitimately new, editor-domain ECS components
 
@@ -34,7 +34,7 @@ The whole of "Play" is a `std::vector<TransformSnapshot>` captured via `Snapshot
 
 ## Remplacé (2026-09-12)
 
-`examples/game_editor/editor.hpp` a été SUPPRIMÉ et toute la démo réécrite —
+`examples/sandbox/editor.hpp` a été SUPPRIMÉ et toute la démo réécrite —
 voir [[project-game-editor-app]], qui est désormais le document de référence
 pour l'éditeur de niveau. Ce document-ci reste utile pour deux choses :
 l'historique du jalon M31/M32, et le contournement du bug FLOAT/INT de

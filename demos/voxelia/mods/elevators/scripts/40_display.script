@@ -43,13 +43,45 @@ fn el_show(e, at, dir) {
     }
 }
 
-fn el_refresh_displays(e) {
-    el_show(e, e.floor, 0)
-    if (e.floor != nil) {
-        let min = el_cabin_min(e, e.floor)
-        let state = el_display_state(el_floor_label(e, e.floor))
-        for (d in e.cabin.displays) { el_set_if(min.x + d.x, min.y + d.y, min.z + d.z, "_display", state) }
+# Afficheurs et panneaux de la cabine posée, relus là où ils sont (posés,
+# déplacés ou cassés depuis la mise en service : paroi, plafond, n'importe où).
+fn el_scan_cabin_items(e) {
+    if (e.floor == nil or has(EL.active, e.id)) { return nil }
+    let min = el_cabin_min(e, e.floor)
+    let w = 2 * e.half + 1
+    let displays = []
+    let panels = []
+    let ly = 1
+    while (ly < e.h) {
+        let lz = 0
+        while (lz < w) {
+            let lx = 0
+            while (lx < w) {
+                let b = world.get(min.x + lx, min.y + ly, min.z + lz)
+                if (el_is(b, "display")) { displays.push({x: lx, y: ly, z: lz, style: el_style_of(b)}) }
+                if (el_is(b, "cabin_panel")) { panels.push({x: lx, y: ly, z: lz}) }
+                lx += 1
+            }
+            lz += 1
+        }
+        ly += 1
     }
+    e.cabin.displays = displays
+    e.cabin.panels = panels
+}
+
+# Afficheurs de la cabine posée en blocs : l'étage où elle est.
+fn el_show_cabin(e) {
+    if (e.floor == nil) { return nil }
+    let min = el_cabin_min(e, e.floor)
+    let state = el_display_state(el_floor_label(e, e.floor))
+    for (d in e.cabin.displays) { el_set_if(min.x + d.x, min.y + d.y, min.z + d.z, "_display", state) }
+}
+
+fn el_refresh_displays(e) {
+    el_scan_cabin_items(e)
+    el_show(e, e.floor, 0)
+    el_show_cabin(e)
 }
 
 # Pendant un trajet : les afficheurs de la cabine mobile (cellules de l'assemblage).

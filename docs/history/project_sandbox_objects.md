@@ -1,4 +1,4 @@
-# Objets réutilisables (`.object`) — game_editor_demo
+# Objets réutilisables (`.object`) — sandbox
 
 Depuis le 2026-10-06, un projet de l'éditeur contient deux genres de
 documents :
@@ -23,7 +23,7 @@ scènes, sans rien dupliquer sur le disque.
 |---|---|
 | `document/objects.hpp` | `IsInstance`, `SourceOf`, `IsGenerated`, `MakeInstance`, `EditableAncestor`, `StripGenerated` (ce qui s'enregistre), `ExpandInstance(s)`, `ExpandProject` (objets dans l'ordre des dépendances, puis scènes), `DependsOn`, `RenameReferences`. |
 | `document/project.hpp` | `SceneKind { SCENE, OBJECT }` sur `SceneDesc` ; l'accès passe par `Project::Fs()` (`ListObjects`, `FindObject(ObjectRef)`… cf. [système de fichiers](project_game_editor_fs.md)). |
-| `document/project_files.hpp` | Format `game_editor.object` v1 ; manifeste : liste `objects` ; dossier `objects/` ; développement des instances au chargement. |
+| `document/project_files.hpp` | Format `sandbox.object` v1 ; manifeste : liste `objects` ; dossier `objects/` ; développement des instances au chargement. |
 | `engine/runtime.hpp` | `IsEditingObject`, `RefreshObjectInstances` (à chaque changement de document), `AddEmptyObject`, `CreateObjectFromNode`, `InstantiateObject`, `DetachInstance`, `DefineObjectFromNode`. Renommer un objet renomme ses références ; le supprimer laisse ses instances vides (référence et transform conservés). |
 | `engine/script_owners.cpp` | Base de script `ObjectAsset`. |
 
@@ -87,7 +87,7 @@ destruction), `exists()`, `define(nœud)`, propriété `name`.
 
 ## Exemple : le donjon de Projet_1
 
-`data/game_editor_demo/projects/Projet_1` (« Les Cryptes de Script ») est
+`data/sandbox/projects/Projet_1` (« Les Cryptes de Script ») est
 bâti sur des objets — 30 dans `objects/` ; aucune scène ne recopie leur JSON
 (« Atelier des pièces » : 26 instances, 17 Ko au lieu de 885 Ko) :
 

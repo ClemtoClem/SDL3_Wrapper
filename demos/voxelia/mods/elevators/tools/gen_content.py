@@ -170,8 +170,9 @@ def switchboard():
     return {
         "id": "switchboard",
         "displayName": "Tableau électrique d'ascenseur",
-        "description": ("Près de la gaine ou du moteur (8 blocs au plus). Clic droit : diagnostic de l'installation, "
-                        "numérotation des étages, essais de montée et de descente. Voyant vert : en ordre ; rouge : défaillance."),
+        "description": ("Poste de commande de l'ascenseur, posé tout seul à l'étage le plus bas (à droite de la porte palière) "
+                        "ou à 8 blocs au plus de la gaine. Clic droit : moteur présent ?, diagnostic, mise en service, "
+                        "numérotation, appels, portes, configuration. Voyant vert : en ordre ; rouge : défaillance."),
         "tags": ["elevator", "elevator_switchboard"],
         "sounds": "core:metal",
         "graphics": look("elevator_switchboard"),

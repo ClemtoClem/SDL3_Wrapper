@@ -15,14 +15,23 @@ Copier le dossier `elevators/` dans `demos/voxelia/mods/` (dépendance :
 (écran du mod) : vitesse, accélération, durée d'ouverture des portes, durée
 d'un mouvement de porte, hauteur maximale entre la cabine et le moteur (30 par
 défaut), plus petite et plus grande gaine acceptées (5 et 9), écart minimal
-entre deux portes palières (4), configuration réservée au constructeur.
+entre deux portes palières (4), hauteur des cabines posées automatiquement (4
+ou 5), configuration réservée au constructeur. Un réglage modifié en cours de
+partie s'applique aussitôt.
 
 ## Construire un ascenseur
 
 Commande d'exemple : `/elevator build [modern|industrial|backrooms|glass] [étages]
-[5|7|9] [wide|multi]` (alias `/ascenseur demo …`) bâtit à côté de vous un
-ascenseur complet : gaine de la taille donnée (7 par défaut), `wide` : portes
-doubles 2 × 2, `multi` : une seconde face de portes desservie un étage sur deux.
+[5|7|9] [4|5] [wide|multi]` (alias `/ascenseur demo …`) bâtit à côté de vous un
+ascenseur complet : gaine de la taille donnée (7 par défaut), cabine de 4 de
+haut (2 blocs libres) ou de 5 (3 blocs libres ; aussi `h4` / `h5`, sinon le
+réglage `cabin_height`), `wide` : portes doubles 2 × 2, `multi` : une seconde
+face de portes desservie un étage sur deux.
+
+Afficheur des cabines posées automatiquement (commande, kit, gaines générées) :
+au-dessus de la porte dans une cabine de 5 ; dans une cabine de 4, le haut de la
+porte touche le plafond, il va donc sur une paroi latérale, au rang haut, contre
+la paroi de la porte.
 
 Rien n'est fixé : le mod lit ce qui est construit.
 
@@ -51,7 +60,8 @@ règlent (`shaft_min`, `shaft_max`).
    - une ou plusieurs **portes de cabine** (simples 1 × 2 ou doubles 2 × 2),
      juste au-dessus du plancher, sur n'importe quelle face, hors des angles ;
    - un **panneau de commande** et des **afficheurs**, où l'on veut dans la
-     cabine (conseillés, pas obligatoires).
+     cabine (conseillés, pas obligatoires) : chaque afficheur indique l'étage,
+     même posé, déplacé ou cassé après la mise en service.
 
    Le *kit de cabine* (clic droit sur le fond de la gaine) la pose d'un coup à
    la taille de la gaine, avec des portes en face des portes palières déjà
@@ -69,8 +79,12 @@ règlent (`shaft_min`, `shaft_max`).
    face d'une porte palière de l'étage s'ouvrent.
 5. **Le moteur**, au-dessus du centre de la gaine, à `max_height` blocs au plus
    au-dessus de la cabine, plus haut que le plafond de la cabine au dernier
-   étage. **Clic droit sur le moteur** (ou sur le tableau électrique) : le mod
-   vérifie tout, dit ce qui manque, puis met l'ascenseur en service.
+   étage. Il n'a pas d'interface : tout passe par le tableau électrique.
+6. **Le tableau électrique** : posé tout seul par la construction automatique
+   (commande, gaines générées, kiosque) à l'étage le plus bas, dans le mur de
+   la gaine, à droite de l'encadrement de la porte palière. À la main, on le
+   pose à 8 blocs au plus de la gaine ou du moteur. « Mettre en service » :
+   le mod vérifie tout et dit ce qui manque.
 
 Contrepoids, poulies et câbles sont des blocs de décor pour la machinerie.
 
@@ -86,35 +100,31 @@ Contrepoids, poulies et câbles sont des blocs de décor pour la machinerie.
   porte palière ne s'ouvre jamais sans la cabine ; quelqu'un dans
   l'embrasure : les portes se rouvrent.
 
-## Tableau électrique
+## Tableau électrique (commande et configuration)
 
-Le bloc `Tableau électrique d'ascenseur` se pose à 8 blocs au plus de la
-gaine ou du moteur (machinerie, palier, fosse). Clic droit : un formulaire avec
-une zone de rapport et quatre commandes :
+Le bloc `Tableau électrique d'ascenseur` est le seul poste de commande. Il
+garde le moteur qu'il commande (données du monde) : si ce moteur disparaît,
+il le dit. Clic droit : un formulaire avec
 
-- **Diagnostic** : vérification complète de l'installation (gaine, plancher,
-  plafond, portes alignées, écart des étages, obstacles, murs percés), puis
-  l'état de marche (panne, maintenance, portes palières ouvertes sans cabine,
-  cabine hors de l'arrêt enregistré). Voyant vert : en ordre ; rouge :
-  défaillance.
-- **Numérotation** : recherche des étages et numéros remis de 0 (en bas) en
-  montant (les noms sont gardés) ; met l'ascenseur en service s'il ne l'était
-  pas.
-- **▲ Monter / ▼ Descendre** : trajet d'essai vers l'arrêt voisin, avec les
-  règles de sécurité habituelles.
+- un **rapport** (zone de texte) : moteur présent ou absent, installation
+  (gaine, plancher, plafond, portes alignées, écart des étages, obstacles, murs
+  percés), état de marche (panne, maintenance, portes palières ouvertes sans
+  cabine, cabine hors de l'arrêt enregistré), puis un **verdict** : l'ascenseur
+  peut-il fonctionner ? Voyant vert : en ordre ; rouge : défaillance ;
+- **Diagnostic**, **Mettre en service** (ou remettre en service après une
+  réparation), **Numérotation** (étages recherchés et numérotés de 0 en bas,
+  noms gardés) ;
+- la **commande** : ▼ Descendre / ▲ Monter (arrêt voisin), un bouton par
+  arrêt, ◀▶ Ouvrir / ▶◀ Fermer les portes ;
+- la **configuration** : pour chaque arrêt un nom (« Atelier ») et le numéro
+  affiché (0 à 19, `--`, sinon `??`), la durée d'ouverture des portes, la
+  vitesse, les destinations extérieures (cases à cocher), la maintenance (hors
+  service) ; bouton **Enregistrer**. Avec le réglage « configuration réservée
+  au constructeur », seul celui qui l'a configurée la première fois (ou le mode
+  créatif) peut la modifier. Tout est enregistré avec le monde.
 
-## Configurer (clic droit sur le moteur)
-
-Pour chaque arrêt : un **nom** (« Atelier ») et le **numéro affiché** (0 à 19,
-`--`, sinon `??`) ; la **durée d'ouverture** des portes ; la **vitesse** ; les
-**destinations extérieures** proposées (cases à cocher) ; **maintenance**
-(hors service). Avec le réglage « configuration réservée au constructeur »,
-seul celui qui l'a configuré la première fois (ou le mode créatif) peut la
-modifier. Tout est enregistré avec le monde.
-
-Régler les durées : réglages du mod (vitesse de croisière, accélération,
-portes) ou, par ascenseur, la configuration du moteur. Un trajet suit un profil
-trapézoïdal : accélération, croisière, décélération, arrêt précis à l'étage.
+Un trajet suit un profil trapézoïdal : accélération, croisière,
+décélération, arrêt précis à l'étage.
 
 ## Machine à états
 
@@ -249,5 +259,6 @@ Le tableau électrique donne le rapport complet ; en bref :
   palières.
 - « obstacle dans la gaine à y = … » : un bloc dans l'emprise de la cabine
   entre deux étages (rails à mettre dans le mur, pas dans la gaine).
-- « hors service » : maintenance cochée, ou un composant cassé.
+- « hors service » : maintenance cochée, ou un composant cassé (« Mettre en
+  service » au tableau, une fois réparé).
 - `/elevator list`, `/elevator verify`.

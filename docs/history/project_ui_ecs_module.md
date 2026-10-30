@@ -2579,7 +2579,7 @@ visuel des cinq modes par capture (`/tmp` — non versionnée).
 
 ## Ajouts pour l'éditeur de jeu — 2026-09-26
 
-Trouvés ou demandés en refaisant l'interface de `game_editor_demo` :
+Trouvés ou demandés en refaisant l'interface de `sandbox` :
 
 - **Menus contextuels** : `UiCallbacks::onContextMenu(x, y)` / `.OnContextMenu`
   (le plus PROCHE porteur de la chaîne de premier plan est notifié ; rien dans

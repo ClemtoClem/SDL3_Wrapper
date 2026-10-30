@@ -1,4 +1,4 @@
-# Le projet comme système de fichiers — game_editor_demo
+# Le projet comme système de fichiers — sandbox
 
 Depuis le 2026-10-12, chaque élément d'un projet de l'éditeur a une **adresse
 typée** et un **type C++ à lui**. Une scène, un objet, un script, une ressource

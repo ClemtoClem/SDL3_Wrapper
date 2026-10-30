@@ -1,16 +1,16 @@
 ---
 name: game-editor-scripts
-description: "game_editor_demo — les scripts de jeu DÉFINISSENT des classes dérivées des bases C++ du moteur (Scene, Behaviour, Node3D, Mesh3D, Node2D, PhysicsBody, Light3D, Gameplay, SceneAsset), instanciées et appelées par le moteur, avec cycle de vie RAII."
+description: "sandbox — les scripts de jeu DÉFINISSENT des classes dérivées des bases C++ du moteur (Scene, Behaviour, Node3D, Mesh3D, Node2D, PhysicsBody, Light3D, Gameplay, SceneAsset), instanciées et appelées par le moteur, avec cycle de vie RAII."
 metadata:
   type: project
 ---
 
-# Scripts de jeu de game_editor_demo : classes dérivées des bases du moteur
+# Scripts de jeu de sandbox : classes dérivées des bases du moteur
 
 Depuis le 2026-10-05, un script de jeu ne déclare plus des fonctions globales
 (`fn on_update(dt)`, `fn on_start(self)` + tables indexées par `self`) : il
 **définit des classes** qui dérivent des **bases écrites en C++** par le
-moteur (`examples/game_editor_demo/engine/script_owners.hpp`), et c'est le
+moteur (`examples/sandbox/engine/script_owners.hpp`), et c'est le
 moteur qui les instancie et appelle leurs méthodes. Le mécanisme générique
 (héritage d'un type de l'hôte, registre, séquence RAII) est dans la
 bibliothèque : `lib/include/data/script/script_owners.hpp`, cf.

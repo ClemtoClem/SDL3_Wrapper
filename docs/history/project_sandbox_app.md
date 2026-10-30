@@ -1,13 +1,13 @@
 ---
 name: project-game-editor-app
-description: "examples/game_editor — éditeur de niveau 3D complet (menus/docks à onglets/inspecteur/console/profileur, 3 scènes dont un circuit de voiture jouable, sélection au clic + manipulateur déplacer/tourner/redimensionner avec magnétisme, annuler/rétablir, scénarios scriptés, captures d'écran, rapport d'exécution) et les bugs et manques de la bibliothèque qu'il a fait sortir (6 bugs corrigés, 8 ajouts, 4 ruptures de compilation préexistantes réparées)."
+description: "examples/sandbox — éditeur de niveau 3D complet (menus/docks à onglets/inspecteur/console/profileur, 3 scènes dont un circuit de voiture jouable, sélection au clic + manipulateur déplacer/tourner/redimensionner avec magnétisme, annuler/rétablir, scénarios scriptés, captures d'écran, rapport d'exécution) et les bugs et manques de la bibliothèque qu'il a fait sortir (6 bugs corrigés, 8 ajouts, 4 ruptures de compilation préexistantes réparées)."
 metadata:
   type: project
 ---
 
 prompt:
 ```
-Ta mission est d'implémenter entièrement un éditeur de niveau de jeux vidéos 3D en ce basant seulement sur le wrapper C++23 en cours de développement ( @examples/game_editor_demo.cpp  ). Le développement de cette démo permettra d'identifier les points faibles de la librairie qui nécessiterons un développement ou un raffinement (comme le module ui pour l'interface dynamique, le module generator pour générer des structure, le module audio pour le son, sfx et autre, le module math pour les forme géométrique et fonctions mathématique, le module render3D d'affichage 3D ou le module physics de calcul de la physique, le module resources pour gérer les ressources dans un pool, le module sql pour gérer une base de données, le module ecs) afin de cette démo fonctionne correctement.
+Ta mission est d'implémenter entièrement un éditeur de niveau de jeux vidéos 3D en ce basant seulement sur le wrapper C++23 en cours de développement ( @examples/sandbox.cpp  ). Le développement de cette démo permettra d'identifier les points faibles de la librairie qui nécessiterons un développement ou un raffinement (comme le module ui pour l'interface dynamique, le module generator pour générer des structure, le module audio pour le son, sfx et autre, le module math pour les forme géométrique et fonctions mathématique, le module render3D d'affichage 3D ou le module physics de calcul de la physique, le module resources pour gérer les ressources dans un pool, le module sql pour gérer une base de données, le module ecs) afin de cette démo fonctionne correctement.
 Le résultat attendu est une démo moderne, maintenable, testée en s'inspirant des application actuelle telle que blender, godot ou unrealengine. L'ui de la démo devra être fluide et complète avec des panneaux, des onglets, des bar d'outils pour se rapprocher le plus possible d'une interface professionnelle.
 Pour que la démonstration soit testable implémente des options en ligne de commandes afin de manipuler l'application en ligne de commandes afin de lui demander de générer un rapport d’exécution (listes des scènes, listes de objets, nb de thread max activés en même temps, fps min mesuré, fps max mesuré, script en exécutions....) et lui demander de prendre des screenshoot pour observer l'évolution de l’application (ouverture d'un panneau, changement de thème, animation dans la scène 3D, ajout d'un objet, configuration des propriété visuelle des objets, configuration des propriété physique des objets, test de la scène pour vérifier sa jouabilité (exemple petit circuit de voiture) et tester les performance de l'application).
 L'implémentation nécessite une analyse fine de la libraire existante, car l'implémentation et l'amélioration de la librairie s’effectuera en parallèle de l'implémentation de l'application de démonstration.
@@ -201,7 +201,7 @@ Deux enseignements qui valaient tout le reste :
 Un chronométrage PAR PHASE a été ajouté pour ne plus optimiser à l'aveugle :
 `ui::UiFrameTimings` (styles / mise en page / viewport 3D / effets / dessin 2D,
 publié par `ui::Ui::LastFrameTimings()`), plus `Runtime::SimulationMs()` /
-`PortalMs()`, agrégés par `game_editor::PhaseStats` et publiés dans le
+`PortalMs()`, agrégés par `sandbox::PhaseStats` et publiés dans le
 rapport (texte et JSON) ainsi que dans l'onglet Profil.
 
 ### Optimisations de la bibliothèque
@@ -433,19 +433,19 @@ VÉRIFIE que l'orbite conserve la distance au pivot.
 ## Commandes
 
 ```sh
-make game_editor_demo && ./build/bin/game_editor_demo --help
-./build/bin/game_editor_demo --list-scenarios
-xvfb-run -a ./build/bin/game_editor_demo --scenario=tour \
+make sandbox && ./build/bin/sandbox --help
+./build/bin/sandbox --list-scenarios
+xvfb-run -a ./build/bin/sandbox --scenario=tour \
     --screenshot-dir=captures --report=captures/tour.json --report-format=json
-./build/bin/game_editor_demo --headless --scenario=smoke --frames=200 --verbose
-./build/bin/game_editor_demo --headless --scenario=circuit --frames=1500 --report=circuit.txt
+./build/bin/sandbox --headless --scenario=smoke --frames=200 --verbose
+./build/bin/sandbox --headless --scenario=circuit --frames=1500 --report=circuit.txt
 
 # Édition directe : clic, manipulateur, magnétisme, annulation (8 captures)
-xvfb-run -a ./build/bin/game_editor_demo --scenario=edition --frames=140 \
+xvfb-run -a ./build/bin/sandbox --scenario=edition --frames=140 \
     --screenshot-dir=captures
 
 # Navigation : orbite, plongée, molette, panoramique, vol libre (6 captures)
-xvfb-run -a ./build/bin/game_editor_demo --scenario=camera --frames=110 \
+xvfb-run -a ./build/bin/sandbox --scenario=camera --frames=110 \
     --screenshot-dir=captures
 ```
 
@@ -543,7 +543,7 @@ marge explicitement.
 
 L'utilisateur a séparé `assets/` (ressources, lecture seule) de
 `data/<demo>/` (sauvegardes). Options `--assets-dir` et `--saves-dir`
-(défaut `data/game_editor_demo`, sous-dossiers `projects/`, `scenes/`,
+(défaut `data/sandbox`, sous-dossiers `projects/`, `scenes/`,
 `scripts/`), globales de script `assets_dir` et `saves_dir`. Le scénario
 `node_hierarchy` écrit dans `saves_dir`. Lancer les scénarios avec un
 `--saves-dir` de brouillon pour ne pas toucher aux sauvegardes réelles.

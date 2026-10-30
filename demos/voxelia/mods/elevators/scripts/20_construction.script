@@ -11,8 +11,8 @@
 #   3. À chaque étage (4 blocs au moins entre deux), une ou plusieurs portes
 #      palières dans les murs de la gaine, sur n'importe quelle face : chacune
 #      doit avoir sa porte de cabine en face.
-#   4. Clic droit sur le moteur (ou le tableau électrique) : le mod vérifie
-#      tout, dit ce qui manque, puis met l'ascenseur en service.
+#   4. Le tableau électrique (près de la gaine) : diagnostic, mise en service,
+#      commande et configuration (le moteur n'a pas d'interface).
 
 # Profondeur explorée sous un moteur : le réglage « hauteur maximale », ou
 # toute la gaine pour une gaine générée (EL_REACH, rempli par 70_destinations).
@@ -80,19 +80,49 @@ fn el_build_cabin(c, style, half, h, doors) {
     }
     if (len(doors) == 0) { return nil }
     let d = doors[0]
-    # Afficheur juste au-dessus de la porte (dans le plafond d'une cabine de 4).
-    let p = el_face_cell(cx, cz, d.side, half, d.u)
-    world.set(p.x, c.y + math.min(3, h - 1), p.z, format("elevators:{}_display", style))
+    let sd = EL_SIDES[d.side]
+    let lim = half - 1
     # Panneau : à droite de la porte, sinon à gauche, sinon sur une paroi sans porte.
+    let panel = nil
     let spots = [[d.side, d.u + d.width], [d.side, d.u - 1]]
     for (s in EL_FACES) { spots.push([s, 0]) }
     for (spot in spots) {
-        if (el_abs(spot[1]) <= half - 1 and not el_door_covers(doors, spot[0], spot[1])) {
+        if (panel == nil and el_abs(spot[1]) <= lim and not el_door_covers(doors, spot[0], spot[1])) { panel = spot }
+    }
+    if (panel != nil) {
+        let q = el_face_cell(cx, cz, panel[0], half, panel[1])
+        world.set(q.x, c.y + 2, q.z, format("elevators:{}_cabin_panel", style))
+    }
+    # Afficheur : au-dessus de la porte s'il y a la place (cabine de 5 et plus) ;
+    # dans une cabine de 4, le haut de la porte touche le plafond : sur une
+    # paroi latérale, au rang haut, le plus près possible de la porte.
+    let display = format("elevators:{}_display", style)
+    if (h >= 5) {
+        let p = el_face_cell(cx, cz, d.side, half, d.u)
+        world.set(p.x, c.y + 3, p.z, display)
+        return nil
+    }
+    let toward = (sd.dx + sd.dz) * lim # place, sur une paroi latérale, au bord côté porte
+    let sides = ["e", "w"]
+    if (d.side == "e" or d.side == "w") { sides = ["n", "s"] }
+    let candidates = []
+    for (s in sides) {
+        candidates.push([s, toward])
+        candidates.push([s, 0])
+    }
+    candidates.push([d.side, d.u - 1])
+    candidates.push([d.side, d.u + d.width + 1])
+    for (spot in candidates) {
+        let free = el_abs(spot[1]) <= lim and not el_door_covers(doors, spot[0], spot[1])
+        if (free and panel != nil and spot[0] == panel[0] and spot[1] == panel[1]) { free = false }
+        if (free) {
             let q = el_face_cell(cx, cz, spot[0], half, spot[1])
-            world.set(q.x, c.y + 2, q.z, format("elevators:{}_cabin_panel", style))
+            world.set(q.x, c.y + 2, q.z, display)
             return nil
         }
     }
+    let p = el_face_cell(cx, cz, d.side, half, d.u) # rien de libre : dans le plafond, au-dessus de la porte
+    world.set(p.x, c.y + h - 1, p.z, display)
 }
 
 # Côté (n, s, e, w) dont la direction est la plus proche de (dx, dz).
@@ -156,7 +186,7 @@ fn el_place_cabin_kit(actor, x, y, z, item) {
     }
     let half = shaft.half
     let w = 2 * half + 1
-    let h = EL.CABIN_H_MIN
+    let h = EL.settings.cabin_height
     let c = el_pos(shaft.cx - half, y + 1, shaft.cz - half)
     if (el_air_count(c.x, c.y, c.z, c.x + w - 1, c.y + h - 1, c.z + w - 1) < w * w * h) {
         el_say(format("pas assez de place : la cabine occupe {} × {} × {} blocs vides au-dessus du fond de la gaine.", w, h, w))
@@ -186,7 +216,7 @@ fn el_place_landing_kit(actor, x, y, z, item) {
     let side = el_side_toward(p.x - (x + 0.5), p.z - (z + 0.5)) # côté extérieur (là où est le joueur)
     el_place_landing_cells(x, y, z, side, style, glass)
     entity.take(actor, item, 1)
-    el_say("palier posé. Clic droit sur le moteur (ou le tableau électrique) pour mettre l'ascenseur en service.")
+    el_say("palier posé. Mise en service au tableau électrique (à poser près de la gaine s'il n'y en a pas).")
     return true
 }
 

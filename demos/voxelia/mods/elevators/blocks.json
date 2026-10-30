@@ -4010,7 +4010,7 @@
             "hardness": 5,
             "tool": "pickaxe"
         },
-        "description": "Au-dessus du centre de la gaine. Clic droit : vérifier l'ascenseur et le configurer."
+        "description": "Au-dessus du centre exact de la gaine. Il se commande depuis le tableau électrique de l'ascenseur (diagnostic, mise en service, configuration)."
     },
     {
         "id": "shaft_wall",
@@ -8454,7 +8454,7 @@
     {
         "id": "switchboard",
         "displayName": "Tableau électrique d'ascenseur",
-        "description": "Près de la gaine ou du moteur (8 blocs au plus). Clic droit : diagnostic de l'installation, numérotation des étages, essais de montée et de descente. Voyant vert : en ordre ; rouge : défaillance.",
+        "description": "Poste de commande de l'ascenseur, posé tout seul à l'étage le plus bas (à droite de la porte palière) ou à 8 blocs au plus de la gaine. Clic droit : moteur présent ?, diagnostic, mise en service, numérotation, appels, portes, configuration. Voyant vert : en ordre ; rouge : défaillance.",
         "tags": [
             "elevator",
             "elevator_switchboard"

@@ -9,14 +9,19 @@
 # monte ; elle s'éteint aussi en quittant les backrooms.
 
 let level_sounds = {
-    level_lobby: "backrooms:backrooms_amb_city",
-    level_hotel: "backrooms:backrooms_amb_hotel",
+    level_lobby:    "backrooms:backrooms_amb_city",
+    level_hotel:    "backrooms:backrooms_amb_hotel",
     level_hospital: "backrooms:backrooms_amb_hospital",
-    level_parking: "backrooms:backrooms_amb_parking",
-    level_pool: "backrooms:backrooms_amb_pool"
+    level_parking:  "backrooms:backrooms_amb_parking",
+    level_pool:     "backrooms:backrooms_amb_pool"
 }
-let details = ["backrooms:backrooms_creak", "backrooms:backrooms_ligh_buzz", "backrooms:backrooms_ventilation",
-               "backrooms:backrooms_ventilation_motor", "backrooms:backrooms_drip"]
+let details = [
+    "backrooms:backrooms_creak",
+    "backrooms:backrooms_ligh_buzz",
+    "backrooms:backrooms_ventilation",
+    "backrooms:backrooms_ventilation_motor",
+    "backrooms:backrooms_drip"
+]
 
 let channel = "backrooms"
 let fade = {fade_in: 4, fade_out: 5}

@@ -130,6 +130,7 @@ fn el_start_trip(e, target) {
     trip.target = target
     trip.shown = e.floor
     trip.creak = 2 + math.random() * 3
+    el_scan_cabin_items(e) # les afficheurs de la cabine, où qu'ils soient
     trip.cab = el_lift_cabin(e)
     trip.external = nil
     EL.active[e.id] = trip
@@ -156,6 +157,8 @@ fn el_land_cabin(e, trip, i) {
         entity.set_velocity(p, 0, 0, 0)
     }
     e.floor = i
+    # La cabine reposée est la copie du départ : ses afficheurs montrent l'arrivée.
+    el_show_cabin(e)
 }
 
 fn el_floor_passed(e, y, dir, fallback) {
@@ -272,6 +275,12 @@ fn el_door_time(e) {
 
 fn el_tick(e, dt) {
     e.state_time += dt
+    # Afficheur ou panneau posé / cassé dans la cabine : relu, puis affiché.
+    if (has(e, "cabin_dirty") and e.cabin_dirty and not has(EL.active, e.id)) {
+        e.cabin_dirty = false
+        el_refresh_displays(e)
+        el_save()
+    }
     let ds = EL.settings.door_speed
     let s = e.state
     let wants_out = has(e, "external_target") and e.external_target != nil

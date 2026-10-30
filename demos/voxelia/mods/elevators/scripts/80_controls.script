@@ -52,8 +52,9 @@ fn el_open_panel(p, e) {
         fields: [], buttons: buttons, submit: ""})
 }
 
-# Configuration (moteur) : noms et numéros des étages, portes, vitesse, destinations.
-fn el_open_config(p, e) {
+# Champs de configuration d'un ascenseur (tableau électrique) : noms et
+# numéros des étages, portes, vitesse, destinations, maintenance.
+fn el_config_fields(e) {
     let fields = []
     let i = 0
     while (i < len(e.floors)) {
@@ -62,20 +63,44 @@ fn el_open_config(p, e) {
         fields.push({id: format("label:{}", i), type: "text", label: "Numéro affiché (0 à 19, -- …)", default: el_floor_label(e, i)})
         i += 1
     }
-    let door = el_door_time(e)
     let speed = EL.settings.speed
     if (e.speed != nil) { speed = e.speed }
-    fields.push({id: "door_time", type: "number", label: "Portes ouvertes (s)", default: door, min: 1, max: 30})
+    fields.push({id: "door_time", type: "number", label: "Portes ouvertes (s)", default: el_door_time(e), min: 1, max: 30})
     fields.push({id: "speed", type: "number", label: "Vitesse (blocs/s)", default: speed, min: 0.5, max: 12})
     for (id in keys(el_destinations())) {
         fields.push({id: format("ext:{}", id), type: "bool", label: format("Destination : {}", el_dest_label(id)),
                      default: el_contains(e.external, id)})
     }
     fields.push({id: "maintenance", type: "bool", label: "En maintenance (hors service)", default: e.state == "maintenance"})
-    game.open_ui(p, "form", {id: format("elevators:config:{}", e.id), title: format("Ascenseur {}", e.id), width: 640,
-        description: format("Cabine {} × {} {}, {} arrêt(s), {} porte(s) de cabine.", 2 * e.half + 1, 2 * e.half + 1, e.style,
-                            len(e.floors), len(e.cabin.doors)),
-        submit: "Enregistrer", fields: fields})
+    return fields
+}
+
+# Applique les valeurs du formulaire ; rend un message.
+fn el_apply_config(e, p, v) {
+    if (not el_may_configure(e, p)) { return "refusé : seul son constructeur peut configurer cet ascenseur." }
+    let i = 0
+    while (i < len(e.floors)) {
+        let name = v[format("name:{}", i)]
+        if (name != nil) { e.floors[i].name = name }
+        let label = v[format("label:{}", i)]
+        if (label != nil and label != "") { e.floors[i].label = label }
+        i += 1
+    }
+    let door = num(str(v["door_time"]))
+    if (door != nil and door >= 1 and door <= 30) { e.door_time = door }
+    let speed = num(str(v["speed"]))
+    if (speed != nil and speed >= 0.5 and speed <= 12) { e.speed = speed }
+    let ext = []
+    for (id in keys(el_destinations())) {
+        if (v[format("ext:{}", id)] == true) { ext.push(id) }
+    }
+    e.external = ext
+    if (v["maintenance"] == true and e.state == "idle") { e.state = "maintenance" }
+    if (v["maintenance"] != true and e.state == "maintenance") { e.state = "idle" }
+    e.owner = el_player_name(p)
+    el_refresh_displays(e)
+    el_save()
+    return "configuration enregistrée."
 }
 
 voxel.on("form_submit", fn(p, form, v) {
@@ -103,32 +128,6 @@ voxel.on("form_submit", fn(p, form, v) {
         }
         return nil
     }
-    if (parts[1] == "config") {
-        if (not el_may_configure(e, p)) {
-            el_say("seul son constructeur peut configurer cet ascenseur.")
-            return nil
-        }
-        let i = 0
-        while (i < len(e.floors)) {
-            e.floors[i].name = v[format("name:{}", i)]
-            let label = v[format("label:{}", i)]
-            if (label != nil and label != "") { e.floors[i].label = label }
-            i += 1
-        }
-        e.door_time = v["door_time"]
-        e.speed = v["speed"]
-        let ext = []
-        for (id in keys(el_destinations())) {
-            if (v[format("ext:{}", id)] == true) { ext.push(id) }
-        }
-        e.external = ext
-        if (v["maintenance"] == true and e.state == "idle") { e.state = "maintenance" }
-        if (v["maintenance"] != true and e.state == "maintenance") { e.state = "idle" }
-        e.owner = el_player_name(p)
-        el_refresh_displays(e)
-        el_save()
-        el_say("configuration enregistrée.")
-    }
 })
 
 voxel.on("block_use", fn(x, y, z, block, actor) {
@@ -139,14 +138,13 @@ voxel.on("block_use", fn(x, y, z, block, actor) {
     }
     if (block == nil or not block.starts_with("elevators:")) { return true }
     if (block == "elevators:motor") {
-        let e = el_register(x, y, z, false)
-        if (e != nil) { el_open_config(actor, e) }
+        el_say("le moteur se commande depuis le tableau électrique de l'ascenseur (étage le plus bas, à droite de la porte palière).")
         return false
     }
     let e = el_find_at(x, y, z)
     if (e == nil) {
         if (el_is(block, "call") or el_is(block, "cabin_panel")) {
-            el_say("cet ascenseur n'est pas en service : clic droit sur son moteur pour le vérifier.")
+            el_say("cet ascenseur n'est pas en service : diagnostic et mise en service au tableau électrique.")
             return false
         }
         return true
@@ -170,11 +168,24 @@ voxel.on("block_use", fn(x, y, z, block, actor) {
     return true
 })
 
+# Afficheur ou panneau posé dans une cabine : pris en compte au pas suivant
+# (l'événement précède la pose du bloc).
+voxel.on("block_placed", fn(x, y, z, block, actor) {
+    if (block == nil or not (el_is(block, "display") or el_is(block, "cabin_panel"))) { return true }
+    let e = el_find_at(x, y, z)
+    if (e != nil) { e.cabin_dirty = true }
+    return true
+})
+
 # Un composant cassé : l'ascenseur est revérifié (et mis hors service s'il manque l'essentiel).
 voxel.on("block_broken", fn(x, y, z, block, actor) {
     if (block == nil or not block.starts_with("elevators:")) { return nil }
     let e = el_find_at(x, y, z)
     if (e == nil) { return nil }
+    if (el_is(block, "display") or el_is(block, "cabin_panel")) {
+        e.cabin_dirty = true
+        return nil
+    }
     if (block == "elevators:motor") {
         EL.records[e.id] = nil
         el_save()
@@ -185,7 +196,7 @@ voxel.on("block_broken", fn(x, y, z, block, actor) {
         if (el_register(e.motor.x, e.motor.y, e.motor.z, true) == nil) {
             e.state = "failed"
             el_save()
-            el_say("ascenseur en panne : un composant manque (clic droit sur le moteur pour le détail).")
+            el_say("ascenseur en panne : un composant manque (diagnostic au tableau électrique).")
         }
     }
 })
@@ -193,8 +204,9 @@ voxel.on("block_broken", fn(x, y, z, block, actor) {
 # Ascenseur d'exemple, bâti à côté du joueur : gaine de côté `size` (5, 7, 9),
 # un palier tous les 5 blocs avec sa passerelle (côté ouest, vers le joueur),
 # cabine au rez-de-chaussée, moteur. `mode` : "wide" (portes doubles 2 × 2),
-# "multi" (une seconde porte côté est, desservie un étage sur deux).
-fn el_build_demo(p, style, n, size, mode) {
+# "multi" (une seconde porte côté est, desservie un étage sur deux) ; `h` :
+# hauteur de la cabine (4 : 2 blocs libres, 5 : 3 blocs libres).
+fn el_build_demo(p, style, n, size, mode, h) {
     let g = el_geom((size - 3) / 2)
     let half = g.half
     let wall = g.wall
@@ -202,8 +214,7 @@ fn el_build_demo(p, style, n, size, mode) {
     let cx = math.floor(q.x) + wall + 3
     let cz = math.floor(q.z)
     let y0 = math.floor(q.y) - 1
-    let gap = math.max(5, EL.settings.floor_gap)
-    let h = EL.CABIN_H_MIN
+    let gap = math.max(h + 1, EL.settings.floor_gap)
     let top = y0 + gap * (n - 1) + h + 1
     world.fill(cx - wall, y0 - 1, cz - wall, cx + wall, top, cz + wall, "elevators:shaft_wall")
     world.fill(cx - half, y0, cz - half, cx + half, top - 1, cz + half, "core:air")
@@ -228,22 +239,24 @@ fn el_build_demo(p, style, n, size, mode) {
         let fy = y0 + gap * i
         # Passerelle devant la porte ouest (et est, aux étages pairs en « multi »).
         world.fill(cx - wall - 4, fy, cz - wall + 1, cx - wall - 1, fy, cz + wall - 1, "core:stone")
-        world.fill(cx - wall - 4, fy + 1, cz - wall + 1, cx - wall - 1, fy + 3, cz + wall - 1, "core:air")
+        world.fill(cx - wall - 4, fy + 1, cz - wall + 1, cx - wall - 1, fy + h - 1, cz + wall - 1, "core:air")
         let a = el_face_cell(cx, cz, "w", wall, u0)
         el_place_landing_door(a.x, fy + 1, a.z, "w", style, width, i % 2 == 1)
         if (mode == "multi" and i % 2 == 0) {
             world.fill(cx + wall + 1, fy, cz - wall + 1, cx + wall + 4, fy, cz + wall - 1, "core:stone")
-            world.fill(cx + wall + 1, fy + 1, cz - wall + 1, cx + wall + 4, fy + 3, cz + wall - 1, "core:air")
+            world.fill(cx + wall + 1, fy + 1, cz - wall + 1, cx + wall + 4, fy + h - 1, cz + wall - 1, "core:air")
             let b = el_face_cell(cx, cz, "e", wall, 0)
             el_place_landing_cells(b.x, fy + 1, b.z, "e", style, false)
         }
         i += 1
     }
     el_build_cabin(el_pos(cx - half, y0, cz - half), style, half, h, doors)
-    return el_register(cx, top, cz, false)
+    let e = el_register(cx, top, cz, false)
+    if (e != nil) { el_place_switchboard(e) } # poste de commande, au rez-de-chaussée
+    return e
 }
 
-let EL_USAGE = "usage : /elevator build [style] [étages] [5|7|9] [wide|multi] | verify | list"
+let EL_USAGE = "usage : /elevator build [style] [étages] [5|7|9] [4|5] [wide|multi] | verify | list"
 
 fn el_command(sender, args) {
     let what = "list"
@@ -257,19 +270,39 @@ fn el_command(sender, args) {
             let k = num(args[2])
             if (k != nil and k >= 1) { n = k }
         }
+        # Puis, dans l'ordre : côté de la gaine (5, 7, 9), hauteur de cabine
+        # (4, 5) ; « h4 » / « h5 » et « wide » / « multi » à n'importe quelle place.
         let size = 7
-        if (len(args) > 3) {
-            let k = num(args[3])
-            if (k != nil) { size = el_odd_size(k, 7) }
+        let h = EL.settings.cabin_height
+        let mode = ""
+        let numbers = 0
+        let k = 3
+        while (k < len(args)) {
+            let a = args[k]
+            let v = num(a)
+            if (a == "wide" or a == "multi") {
+                mode = a
+            } else if (a == "h4" or a == "h5") {
+                h = num(a.sub(1))
+            } else if (v != nil and numbers == 0) {
+                size = el_odd_size(v, 7)
+                numbers = 1
+            } else if (v != nil and numbers == 1) {
+                if (v != 4 and v != 5) { return "hauteur de cabine : 4 (2 blocs libres) ou 5 (3 blocs libres)" }
+                h = v
+                numbers = 2
+            } else {
+                return format("argument inconnu « {} » — {}", a, EL_USAGE)
+            }
+            k += 1
         }
         if (size < EL.settings.shaft_min or size > EL.settings.shaft_max) {
             return format("gaine de {} × {} hors des réglages ({} à {})", size, size, EL.settings.shaft_min, EL.settings.shaft_max)
         }
-        let mode = ""
-        if (len(args) > 4) { mode = args[4] }
-        let e = el_build_demo(sender, style, n, size, mode)
+        let e = el_build_demo(sender, style, n, size, mode, h)
         if (e == nil) { return "construction impossible ici" }
-        return format("ascenseur {} : {} étages, gaine {} × {}, moteur en {}", style, n, size, size, e.id)
+        return format("ascenseur {} : {} étages, gaine {} × {}, cabine de {} de haut ({} blocs libres), moteur en {}", style, n, size, size,
+                      h, h - 2, e.id)
     }
     if (what == "list" or what == "liste") {
         let out = []
@@ -292,9 +325,10 @@ fn el_command(sender, args) {
         return join(out, "\n")
     }
     if (what == "help") {
-        return "/elevator build [style] [floors] [size] [mode]\n" +
+        return "/elevator build [style] [floors] [size] [height] [mode]\n" +
                format("    style : {}\n", join(EL.STYLES, ", ")) +
                "    floors : >= 1 ; size : 5, 7 ou 9 (côté de la gaine)\n" +
+               "    height : 4 (2 blocs libres) ou 5 (3 blocs libres), ou h4 / h5\n" +
                "    mode : wide (portes doubles), multi (deux faces)\n" +
                "/elevator verify\n" +
                "/elevator list"
@@ -302,5 +336,5 @@ fn el_command(sender, args) {
     return EL_USAGE
 }
 
-voxel.command("elevator", "/elevator build [style] [floors] [size] [wide|multi] | verify | list", "ascenseurs", el_command)
-voxel.command("ascenseur", "/ascenseur demo [style] [étages] [taille] | verifier | liste", "ascenseurs", el_command)
+voxel.command("elevator", "/elevator build [style] [floors] [size] [height] [wide|multi] | verify | list", "ascenseurs", el_command)
+voxel.command("ascenseur", "/ascenseur demo [style] [étages] [taille] [hauteur] | verifier | liste", "ascenseurs", el_command)
