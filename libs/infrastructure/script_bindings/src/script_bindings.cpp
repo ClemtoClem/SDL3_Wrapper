@@ -5,6 +5,10 @@ namespace script {
 std::vector<String> InstallAll(Interpreter &vm, const BindingsConfig &config) {
     std::vector<String> installed;
 
+    if (config.archive) {
+        InstallArchiveLibrary(vm);
+        installed.push_back("archive");
+    }
     if (config.audioEngine) {
         InstallAudioLibrary(vm, *config.audioEngine, config.audioResolve);
         installed.push_back("audio");
@@ -30,7 +34,7 @@ std::vector<String> InstallAll(Interpreter &vm, const BindingsConfig &config) {
         installed.push_back("render3d");
     }
     if (config.sqlDatabase) {
-        InstallSqlLibrary(vm, *config.sqlDatabase);
+        InstallSqlLibrary(vm, config.sqlDatabase);
         installed.push_back("sql");
     }
     if (config.uiBinding) {

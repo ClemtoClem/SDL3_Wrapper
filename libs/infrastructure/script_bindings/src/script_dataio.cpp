@@ -430,14 +430,8 @@ Result<Value, ScriptError> MeshSave(const Args &args) {
             return Err(Fail(String("`dataio.mesh.save` : `uvs` doit contenir 2 flottants par sommet")));
     }
 
-    if (auto v = get("colors"); v.IsSome()) {
-        auto r = ReadFloatList(v.Unwrap(), "colors", reinterpret_cast<std::vector<float> &>(positions) ==
-                                                     positions ? *(new std::vector<float>()) : *(new std::vector<float>()));
-        delete &r;  // (voir note ci-dessous : pas nécessaire en réalité)
-    }
-    // NOTE : on ne peut pas réutiliser ReadFloatList tel quel pour `colors`
-    // parce que le conteneur final est `std::vector<uint8_t>` ; on relit ici
-    // explicitement.
+    // `colors` : pas de ReadFloatList (le conteneur final est
+    // `std::vector<uint8_t>`) — lecture explicite.
     colors.clear();
     if (auto v = get("colors"); v.IsSome()) {
         if (!v.Value().IsList() || !v.Value().AsList())
@@ -510,12 +504,12 @@ Result<Value, ScriptError> MeshSave(const Args &args) {
 // ============================================================================
 
 void InstallDataioLibrary(Interpreter &vm) {
-    TypeBuilder doc("dataio.doc");
+    TypeBuilder docBuilder("dataio.doc");
     TypeBuilder gltfDoc("dataio.gltf_doc");
-    DefineDoc(doc);
+    DefineDoc(docBuilder);
     DefineGltf(gltfDoc);
 
-    auto docType = vm.RegisterHostType(String("dataio"), String("doc"), doc.type);
+    auto docType = vm.RegisterHostType(String("dataio"), String("doc"), docBuilder.type);
     auto gltfType = vm.RegisterHostType(String("dataio"), String("gltf_doc"), gltfDoc.type);
 
     constexpr auto ANY = Interpreter::NativeThread::ANY;

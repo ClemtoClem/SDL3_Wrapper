@@ -1267,4 +1267,42 @@ void Session::EndSimulation() {
 		m_game->Scripts().Vm().SetMainThread(); // de retour au fil principal (commandes, actions du joueur)
 }
 
+Result<Session::ContentReload, String> Session::ReloadDefinition(const NodePtr &definition,
+																 const ContentRegistry::LoadContext &context) {
+	if (!m_game || !m_world)
+		return Err(String("aucune partie prête"));
+	ContentReload out = ReloadDefinitions({Definition{definition, context}});
+	if (!out.errors.empty())
+		return Err(out.errors.front());
+	return Ok(std::move(out));
+}
+
+Session::ContentReload Session::ReloadDefinitions(const std::vector<Definition> &definitions) {
+	ContentReload out;
+	if (!m_game || !m_world) {
+		out.errors.push_back(String("aucune partie prête"));
+		return out;
+	}
+	const uint64_t start = sdl3::GetPerformanceCounter();
+	EndSimulation();    // la simulation lit le contenu à chaque pas
+	m_world->Quiesce(); // les fils de maillage aussi
+	const std::set<std::string> before = m_world->TextureReferences();
+	for (const Definition &d : definitions) {
+		Result<std::vector<String>, String> loaded = m_game->ReloadDefinition(d.node, d.context);
+		if (loaded.IsError()) {
+			out.errors.push_back(loaded.Error());
+			continue;
+		}
+		for (String &id : loaded.Value())
+			out.blocks.push_back(std::move(id));
+	}
+	if (out.blocks.empty())
+		return out;
+	out.atlasRebuilt = m_world->AtlasMissing(out.blocks, before);
+	if (Result<bool, String> r = m_world->ReloadContent(out.atlasRebuilt); r.IsError())
+		out.errors.push_back(r.Error());
+	out.milliseconds = double(sdl3::GetPerformanceCounter() - start) * 1000.0 / double(sdl3::GetPerformanceFrequency());
+	return out;
+}
+
 } // namespace voxelia

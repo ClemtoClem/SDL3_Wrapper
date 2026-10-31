@@ -1,3 +1,4 @@
+#include <script/script.hpp>
 #include <script_bindings/script_sql.hpp>
 
 #include <memory>
@@ -108,7 +109,7 @@ void DefineRow(TypeBuilder &b) {
 
 // ── Database ────────────────────────────────────────────────────────────
 
-const std::vector<String> &ColumnsOf(DatabaseObj &db, const String &table, const char *fn) {
+const std::vector<String> &ColumnsOf(DatabaseObj &db, const String &table, const char * /*fn*/) {
     auto it = db.columnsCache.find(table);
     if (it != db.columnsCache.end()) return it->second;
     auto schema = db.db->GetSchema(table);
@@ -176,7 +177,7 @@ void DefineDatabase(TypeBuilder &b) {
         auto r = o.db->FindByKey(t, key.Value());
         if (r.IsError()) return Err(Fail(r.Error()));
         if (r.Value().IsNone()) return Ok(Value::Nil());
-        return Ok(RowToTable(*r.Value().Value(), cols));
+        return Ok(RowToTable(r.Value().Value(), cols));
     });
     b.Method("delete", 2, 2, [](Interpreter &, const HostRef &self, Args &a) -> Result<Value, ScriptError> {
         DatabaseObj &o = As<DatabaseObj>(self);

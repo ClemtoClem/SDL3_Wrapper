@@ -13,7 +13,7 @@ public = ["include"]      # propagé aux modules dépendants
 private = ["src"]
 
 [dependencies]
-modules = ["script", "ecs", "ui", "generators", "audio"]
+modules = ["script", "ecs", "ui", "generators", "audio", "archive", "physics", "sql", "dataio", "render3d"]
 pkg_config = []
 system = []
 

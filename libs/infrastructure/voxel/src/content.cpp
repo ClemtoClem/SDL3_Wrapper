@@ -550,9 +550,11 @@ void ParseOptics(const NodePtr &def, BlockDef &b, std::vector<String> &warnings)
 
 } // namespace
 
-Result<String, String> ContentRegistry::Load(const NodePtr &definition, const LoadContext &ctx) {
+Result<String, String> ContentRegistry::Load(const NodePtr &definition, const LoadContext &context) {
 	if (!definition || !definition->IsObject())
-		return Err(String::Format("%s : une définition doit être un objet JSON", ctx.source.CStr()));
+		return Err(String::Format("%s : une définition doit être un objet JSON", context.source.CStr()));
+	LoadContext ctx = context;
+	ctx.definition = definition->Clone();
 	NodePtr def = definition->Clone();
 	Migrate(def);
 	const String type = Lower(json::Str(def, "type", "block"));
@@ -814,6 +816,9 @@ Result<String, String> ContentRegistry::LoadBlock(const NodePtr &def, const Load
 	if (b.containerSlots > 0 && b.use.IsEmpty())
 		b.use = "container";
 	b.raw = def;
+	b.source = ctx.definition ? ctx.definition : def;
+	b.sourceFile = ctx.source;
+	b.baseDir = ctx.baseDir;
 
 	// Identifiant numérique : conservé quand un mod surcharge un bloc.
 	const std::string key(b.id.CStr());
@@ -1377,6 +1382,11 @@ float ContentRegistry::MaxLightRange() const {
 		if (e->look.light.Active())
 			range = std::max(range, e->look.light.range);
 	return std::min(range, lighting::MAX_RANGE);
+}
+
+void ContentRegistry::ForgetLoadWarnings(const String &owner) {
+	const String prefix = owner + String(" :");
+	std::erase_if(m_loadWarnings, [&](const String &w) { return w.StartsWith(prefix); });
 }
 
 std::vector<String> ContentRegistry::Validate() const {

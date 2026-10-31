@@ -1,4 +1,6 @@
+#include <script/script.hpp>
 #include <script_bindings/script_physics.hpp>
+#include <script_bindings/script_common.hpp>
 
 namespace script {
 namespace {
@@ -21,23 +23,8 @@ struct WorldObj : HostObject {
     physics::World *world = nullptr;
 };
 
-Result<math::FVector3, ScriptError> Vec3Of(const Value &v, const char *fn) {
-    if (v.IsList() && v.AsList() && v.AsList()->Size() == 3) {
-        const std::vector<Value> it = v.AsList()->Snapshot();
-        return Ok(math::FVector3{it[0].AsFloat(), it[1].AsFloat(), it[2].AsFloat()});
-    }
-    if (v.IsMap() && v.AsMap()) {
-        auto g = [&](const char *k) { return v.AsMap()->Get(String(k)).UnwrapOr(Value::Number(0.0)).AsFloat(); };
-        return Ok(math::FVector3{g("x"), g("y"), g("z")});
-    }
-    return Err(Fail(String::Format("`%s` : vec3 attendu", fn)));
-}
-
-Value Vec3Value(const math::FVector3 &v) {
-    auto l = std::make_shared<ListObject>();
-    l->items = {Value::Number(v.x), Value::Number(v.y), Value::Number(v.z)};
-    return Value::List(std::move(l));
-}
+// (Lecture d'un vec3 : scriptlib::Vec3Of — math.vec3, [x, y, z] ou {x, y, z}.
+//  Sortie : scriptlib::Vec3List — une liste [x, y, z].)
 
 /// Fabrique une poignée `physics.body` — factorisé pour les sites `spawn`.
 Value MakeBodyHandle(physics::World &world, ecs::Entity e) {
@@ -62,7 +49,7 @@ void DefineShape(TypeBuilder &b) {
     });
     // Box : demi-étendues comme `physics::Box`.
     b.StaticFn("box", 1, 1, [make](Interpreter &, Args &a) -> Result<Value, ScriptError> {
-        auto v = Vec3Of(a[0], "physics.box");
+        auto v = scriptlib::Vec3Of(a[0], "physics.box");
         if (v.IsError()) return Err(v.Error());
         return Ok(make(physics::Box{{0, 0, 0}, v.Value()}));
     });
@@ -80,7 +67,7 @@ void DefineBody(TypeBuilder &b) {
         return {o.world, o.entity};
     };
     b.Method("apply_impulse", 1, 1, [pair](Interpreter &, const HostRef &self, Args &a) -> Result<Value, ScriptError> {
-        auto v = Vec3Of(a[0], "body.apply_impulse");
+        auto v = scriptlib::Vec3Of(a[0], "body.apply_impulse");
         if (v.IsError()) return Err(v.Error());
         auto [w, e] = pair(self);
         if (auto rb = w->Registry().GetComponent<physics::RigidBody>(e); rb.IsSome())
@@ -88,7 +75,7 @@ void DefineBody(TypeBuilder &b) {
         return Ok(Value::Host(self));
     });
     b.Method("apply_force", 1, 1, [pair](Interpreter &, const HostRef &self, Args &a) -> Result<Value, ScriptError> {
-        auto v = Vec3Of(a[0], "body.apply_force");
+        auto v = scriptlib::Vec3Of(a[0], "body.apply_force");
         if (v.IsError()) return Err(v.Error());
         auto [w, e] = pair(self);
         if (auto rb = w->Registry().GetComponent<physics::RigidBody>(e); rb.IsSome())
@@ -101,9 +88,9 @@ void DefineBody(TypeBuilder &b) {
         auto rb = o.world->Registry().GetComponent<physics::RigidBody>(o.entity);
         if (rb.IsNone()) return NONE;
         const auto &r = *rb.Unwrap();
-        if (name == "position") return Some(Vec3Value(r.position));
-        if (name == "velocity") return Some(Vec3Value(r.linearVelocity));
-        if (name == "angular_velocity") return Some(Vec3Value(r.angularVelocity));
+        if (name == "position") return Some(scriptlib::Vec3List(r.position));
+        if (name == "velocity") return Some(scriptlib::Vec3List(r.linearVelocity));
+        if (name == "angular_velocity") return Some(scriptlib::Vec3List(r.angularVelocity));
         if (name == "mass") return Some(Value::Number(double(r.mass)));
         if (name == "restitution") return Some(Value::Number(double(r.restitution)));
         if (name == "friction") return Some(Value::Number(double(r.friction)));
@@ -118,9 +105,9 @@ void DefineBody(TypeBuilder &b) {
         auto rb = o.world->Registry().GetComponent<physics::RigidBody>(o.entity);
         if (rb.IsNone()) return Ok(false);
         auto &r = *rb.Unwrap();
-        if (name == "position") { auto p = Vec3Of(v, "body.position"); if (p.IsError()) return Err(p.Error()); r.position = p.Value(); return Ok(true); }
-        if (name == "velocity") { auto p = Vec3Of(v, "body.velocity"); if (p.IsError()) return Err(p.Error()); r.linearVelocity = p.Value(); return Ok(true); }
-        if (name == "angular_velocity") { auto p = Vec3Of(v, "body.angular_velocity"); if (p.IsError()) return Err(p.Error()); r.angularVelocity = p.Value(); return Ok(true); }
+        if (name == "position") { auto p = scriptlib::Vec3Of(v, "body.position"); if (p.IsError()) return Err(p.Error()); r.position = p.Value(); return Ok(true); }
+        if (name == "velocity") { auto p = scriptlib::Vec3Of(v, "body.velocity"); if (p.IsError()) return Err(p.Error()); r.linearVelocity = p.Value(); return Ok(true); }
+        if (name == "angular_velocity") { auto p = scriptlib::Vec3Of(v, "body.angular_velocity"); if (p.IsError()) return Err(p.Error()); r.angularVelocity = p.Value(); return Ok(true); }
         if (name == "restitution" && v.IsNumber()) { r.restitution = float(v.AsFloat()); return Ok(true); }
         if (name == "friction" && v.IsNumber())    { r.friction = float(v.AsFloat());    return Ok(true); }
         return Ok(false);
@@ -140,7 +127,7 @@ void DefineWorld(TypeBuilder &b) {
         if (!a[0].IsHost()) return Err(Fail(String("`spawn` : physics.shape attendu")));
         const auto *shape = dynamic_cast<const ShapeObj *>(a[0].AsHost().get());
         if (!shape) return Err(Fail(String("`spawn` : physics.shape attendu")));
-        auto pos = Vec3Of(a[1], "spawn");
+        auto pos = scriptlib::Vec3Of(a[1], "spawn");
         if (pos.IsError()) return Err(pos.Error());
         const float mass = a.size() > 2 ? float(a[2].AsFloat()) : 1.f;
         const ecs::Entity e = o.world->Registry().Spawn();
@@ -152,7 +139,7 @@ void DefineWorld(TypeBuilder &b) {
         if (!a[0].IsHost()) return Err(Fail(String("`spawn_static` : physics.shape attendu")));
         const auto *shape = dynamic_cast<const ShapeObj *>(a[0].AsHost().get());
         if (!shape) return Err(Fail(String("`spawn_static` : physics.shape attendu")));
-        auto pos = Vec3Of(a[1], "spawn_static");
+        auto pos = scriptlib::Vec3Of(a[1], "spawn_static");
         if (pos.IsError()) return Err(pos.Error());
         const ecs::Entity e = o.world->Registry().Spawn();
         o.world->Registry().AddComponent(e, physics::RigidBody::MakeStatic(shape->shape, pos.Value()));
@@ -167,7 +154,7 @@ void DefineWorld(TypeBuilder &b) {
     });
     b.type->get = [](const HostObject &self, const String &name) -> Option<Value> {
         const WorldObj &o = As<WorldObj>(self);
-        if (name == "gravity") return Some(Vec3Value(o.world->config.gravity));
+        if (name == "gravity") return Some(scriptlib::Vec3List(o.world->config.gravity));
         if (name == "solver_iterations") return Some(Value::Int(o.world->config.solverIterations));
         if (name == "joint_iterations") return Some(Value::Int(o.world->config.jointIterations));
         return NONE;
@@ -175,7 +162,7 @@ void DefineWorld(TypeBuilder &b) {
     b.type->set = [](Interpreter &, const HostRef &self, const String &name,
                      const Value &v) -> Result<bool, ScriptError> {
         WorldObj &o = As<WorldObj>(self);
-        if (name == "gravity") { auto g = Vec3Of(v, "gravity"); if (g.IsError()) return Err(g.Error()); o.world->config.gravity = g.Value(); return Ok(true); }
+        if (name == "gravity") { auto g = scriptlib::Vec3Of(v, "gravity"); if (g.IsError()) return Err(g.Error()); o.world->config.gravity = g.Value(); return Ok(true); }
         if (name == "solver_iterations" && v.IsNumber()) { o.world->config.solverIterations = int(v.AsInt64()); return Ok(true); }
         if (name == "joint_iterations" && v.IsNumber())  { o.world->config.jointIterations = int(v.AsInt64());  return Ok(true); }
         return Ok(false);

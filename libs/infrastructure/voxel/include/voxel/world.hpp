@@ -57,6 +57,12 @@ public:
 	/// Avance à chaque changement (affichage à reconstruire).
 	[[nodiscard]] uint64_t Revision() const noexcept { return m_revision; }
 	void Touch() noexcept { ++m_revision; }
+	/// Les DÉFINITIONS des blocs ont changé (rechargement à chaud) : les
+	/// sources de lumière sont à relire et l'affichage à refaire.
+	void InvalidateContent() noexcept {
+		m_lightRevision = 0;
+		++m_revision;
+	}
 	/// Modifié depuis sa génération : à enregistrer.
 	[[nodiscard]] bool IsModified() const noexcept { return m_modified; }
 	void SetModified(bool modified) noexcept { m_modified = modified; }
@@ -146,6 +152,12 @@ public:
 	[[nodiscard]] float MaxLightRange() const noexcept { return m_maxLightRange; }
 	/// Chunks chargés que touche la boîte englobant la sphère : à refaire.
 	void TouchSphere(const math::FVector3 &center, float radius);
+	/// Après le rechargement de définitions de blocs (ContentRegistry::Load
+	/// d'un id déjà connu : ids numériques conservés) : portée des lumières
+	/// relue, sources et affichage de TOUS les chunks chargés à refaire. Le
+	/// contenu ne doit être modifié qu'en l'absence de lecteur concurrent
+	/// (simulation et fils de maillage à l'arrêt).
+	void ContentChanged();
 	[[nodiscard]] const WorldSettings &Settings() const noexcept { return m_settings; }
 
 	void SetGenerator(std::shared_ptr<ChunkGenerator> generator) { m_generator = std::move(generator); }

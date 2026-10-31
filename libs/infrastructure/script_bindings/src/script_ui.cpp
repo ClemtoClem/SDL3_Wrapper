@@ -1,7 +1,8 @@
-// Définitions de data/script/script_ui.hpp
+// Définitions de script_bindings/script_ui.hpp
 // L'en-tête n'est pas autonome : il compte sur ce qu'inclut son module.
 #include <script/script.hpp>
 #include <script_bindings/script_ui.hpp>
+#include <script_bindings/script_color.hpp>
 
 namespace script {
 
@@ -44,40 +45,9 @@ size_t UiBinding::Flush() {
 namespace uilib {
 
 Result<sdl3::FColor, ScriptError> ParseColor(const Value &v, const char *fn) {
-	if (v.IsString()) {
-		const String &text = v.AsString();
-		const char *s = text.CStr();
-		if (s[0] == '#' && (text.GetSize() == 7 || text.GetSize() == 9)) {
-			unsigned value = 0;
-			float channels[4] = {0, 0, 0, 1};
-			const int count = text.GetSize() == 9 ? 4 : 3;
-			for (int i = 0; i < count; ++i) {
-				if (std::sscanf(s + 1 + i * 2, "%2x", &value) != 1)
-					return Err(Fail(String::Format("`%s` : couleur `%s` invalide", fn, s)));
-				channels[i] = float(value) / 255.f;
-			}
-			return Ok(sdl3::FColor{channels[0], channels[1], channels[2], channels[3]});
-		}
-		return Err(Fail(String::Format("`%s` : couleur `%s` invalide (attendu #rrggbb ou #rrggbbaa)", fn, s)));
-	}
-	if (v.IsList() && v.AsList() && (v.AsList()->Size() == 3 || v.AsList()->Size() == 4)) {
-		const std::vector<Value> items = v.AsList()->Snapshot();
-		float c[4] = {0, 0, 0, 1};
-		bool bytes = false;
-		for (size_t i = 0; i < items.size(); ++i) {
-			if (!items[i].IsNumber())
-				return Err(Fail(String::Format("`%s` : composante de couleur non numérique", fn)));
-			c[i] = items[i].AsFloat();
-			bytes = bytes || c[i] > 1.f;
-		}
-		if (bytes)
-			for (float &channel : c)
-				channel /= 255.f;
-		if (items.size() == 3)
-			c[3] = 1.f;
-		return Ok(sdl3::FColor{c[0], c[1], c[2], c[3]});
-	}
-	return Err(Fail(String::Format("`%s` : couleur attendue (\"#rrggbb\" ou [r, g, b]), trouvé `%s`", fn, v.TypeName())));
+	// Lecture commune : "#rrggbb(aa)", [r, g, b(, a)] ou {r, g, b, a}
+	// (cf. script_color.hpp) — les échelles 0-255 sont tolérées.
+	return scriptlib::FloatColor(v, fn);
 }
 
 Result<ui::Length, ScriptError> ParseDimension(const Value &v, const char *fn) {

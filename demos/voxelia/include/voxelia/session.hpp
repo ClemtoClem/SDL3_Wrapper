@@ -58,6 +58,26 @@ public:
 	void BeginSimulation();
 	/// Fil principal : attend la fin du pas de simulation en cours.
 	void EndSimulation();
+	/// Rechargement à chaud d'une définition (Voxelia Studio), sans quitter le
+	/// monde. Ordre imposé par les fils : pas de simulation en cours (attendu
+	/// au besoin), fils de maillage attendus, contenu rechargé
+	/// (Game::ReloadDefinition), atlas reconstruit s'il manque une texture,
+	/// mailleurs refaits et chunks remaillés.
+	struct ContentReload {
+		std::vector<String> blocks; ///< blocs (re)définis, états compris
+		std::vector<String> errors; ///< définitions refusées (lot)
+		bool atlasRebuilt = false;
+		double milliseconds = 0.0; ///< attente des fils comprise
+	};
+	Result<ContentReload, String> ReloadDefinition(const dataio::NodePtr &definition, const voxel::ContentRegistry::LoadContext &context);
+	/// Un LOT de définitions (un mod entier) : fils attendus, atlas et
+	/// mailleurs refaits UNE fois. Les définitions refusées sont listées dans
+	/// `errors`, les autres rechargées.
+	struct Definition {
+		dataio::NodePtr node;
+		voxel::ContentRegistry::LoadContext context;
+	};
+	ContentReload ReloadDefinitions(const std::vector<Definition> &definitions);
 	/// Durée du dernier pas de simulation (ms, moyenne glissante).
 	[[nodiscard]] float TickMilliseconds() const noexcept { return m_tickMs; }
 	void BuildHud(ui::Widget layer);

@@ -5,6 +5,22 @@
 
 namespace ui {
 
+sdl3::FPoint Context::WindowViewport() const {
+	if (!window)
+		return viewport;
+	if (contentScale == 1.f || !renderer) {
+		const sdl3::Point size = window->GetSize();
+		return {float(size.x), float(size.y)};
+	}
+	// SDL_GetRenderOutputSize ignore l'échelle de rendu : pixels réels.
+	int w = 0, h = 0;
+	if (!SDL_GetRenderOutputSize(renderer->Get(), &w, &h) || w <= 0 || h <= 0) {
+		const sdl3::Point size = window->GetSize();
+		return {float(size.x), float(size.y)};
+	}
+	return {float(w) / contentScale, float(h) / contentScale};
+}
+
 Context::Context() {
 	painter.SetFonts(&fonts);
 	painter.SetTextures(&textures);

@@ -196,6 +196,33 @@ ModReport Game::LoadMods(const GameOptions &options) {
 
 // ── Monde ────────────────────────────────────────────────────────────────────
 
+Result<std::vector<String>, String> Game::ReloadDefinition(const NodePtr &definition,
+															 const ContentRegistry::LoadContext &context) {
+	// Les avertissements de chargement de l'ancienne version ne valent plus.
+	const String base = json::Str(definition, "id");
+	if (!base.IsEmpty()) {
+		const String id = ContentRegistry::Qualify(base, context.mod);
+		m_content.ForgetLoadWarnings(id);
+		if (const BlockDef *old = m_content.FindBlock(id))
+			for (const auto &[state, stateId] : old->stateIds)
+				m_content.ForgetLoadWarnings(stateId);
+	}
+	Result<String, String> loaded = m_content.Load(definition, context);
+	if (loaded.IsError())
+		return Err(loaded.Error());
+	m_content.Finalize();
+	std::vector<String> blocks;
+	if (const BlockDef *block = m_content.FindBlock(loaded.Value())) {
+		blocks.push_back(block->id);
+		for (const auto &[state, stateId] : block->stateIds)
+			if (stateId != block->id)
+				blocks.push_back(stateId);
+	}
+	if (m_world)
+		m_world->ContentChanged();
+	return Ok(std::move(blocks));
+}
+
 Result<bool, String> Game::OpenWorld(const String &name, Option<uint32_t> seed, const String &generator) {
 	if (m_world)
 		CloseWorld();

@@ -212,13 +212,18 @@ public:
 	[[nodiscard]] Point GetPosition() const;
 	[[nodiscard]] bool IsFullscreen() const { return m_handle && SDL_GetWindowFlags(m_handle) & SDL_WINDOW_FULLSCREEN; }
 	[[nodiscard]] bool IsResizable() const { return m_handle && SDL_GetWindowFlags(m_handle) & SDL_WINDOW_RESIZABLE; }
-	[[nodiscard]] bool IsBordered() const { return m_handle && SDL_GetWindowFlags(m_handle) & SDL_WINDOW_BORDERLESS; }
-	[[nodiscard]] bool IsVisible() const { return m_handle && SDL_GetWindowFlags(m_handle) & SDL_WINDOW_HIDDEN; }
+	[[nodiscard]] bool IsBordered() const { return m_handle && !(SDL_GetWindowFlags(m_handle) & SDL_WINDOW_BORDERLESS); }
+	[[nodiscard]] bool IsVisible() const { return m_handle && !(SDL_GetWindowFlags(m_handle) & SDL_WINDOW_HIDDEN); }
 	[[nodiscard]] bool HasInputFocus() const;
 	[[nodiscard]] bool HasMouseFocus() const;
 	[[nodiscard]] bool IsMinimized() const { return m_handle && SDL_GetWindowFlags(m_handle) & SDL_WINDOW_MINIMIZED; }
 	[[nodiscard]] bool IsMaximized() const { return m_handle && SDL_GetWindowFlags(m_handle) & SDL_WINDOW_MAXIMIZED; }
 	[[nodiscard]] SDL_WindowID GetId() const { return m_handle ? SDL_GetWindowID(m_handle) : 0; }
+	/// Échelle d'affichage (SDL_GetWindowDisplayScale : densité de pixels ×
+	/// échelle de contenu de l'écran qui porte la fenêtre) ; 1 si inconnue.
+	[[nodiscard]] float DisplayScale() const;
+	/// Écran qui porte la fenêtre (0 si inconnu).
+	[[nodiscard]] SDL_DisplayID DisplayId() const { return m_handle ? SDL_GetDisplayForWindow(m_handle) : 0; }
 	[[nodiscard]] String Title() const;
 
 	// ── Setters ──────────────────────────────────────────────────────────────
@@ -265,6 +270,15 @@ private:
 
 	static SDL_HitTestResult SDLCALL HitTestTrampoline(SDL_Window *, const SDL_Point *area, void *data);
 };
+
+// ── Écrans ──────────────────────────────────────────────────────────────────
+
+/// Écrans connectés, dans l'ordre de SDL_GetDisplays (le premier est le principal).
+[[nodiscard]] std::vector<SDL_DisplayID> GetDisplays();
+/// Rectangle de l'écran dans le bureau virtuel, NONE si l'écran est inconnu.
+[[nodiscard]] Option<Rect> GetDisplayBounds(SDL_DisplayID display);
+/// Échelle de contenu de l'écran (SDL_GetDisplayContentScale) ; 1 si inconnue.
+[[nodiscard]] float GetDisplayContentScale(SDL_DisplayID display);
 
 // ============================================================================
 // Texture
@@ -350,6 +364,15 @@ public:
 		: Renderer(SDL_CreateRenderer(win->Get(), name.IsSome() ? name->CStr() : nullptr)) {}
 
 	[[nodiscard]] static Result<Renderer, Error> Create(Window &window, const char *driver = nullptr);
+	/// Renderer « gpu » d'une AUTRE fenêtre sur le MÊME SDL_GPUDevice que
+	/// `gpuRenderer` (SDL_CreateGPURenderer) : une swapchain par fenêtre, un
+	/// seul device — les textures GPU (vues 3D DIRECT) s'affichent alors dans
+	/// les deux fenêtres. Err si `gpuRenderer` n'utilise pas le backend "gpu".
+	/// `gpuRenderer` doit survivre au renderer rendu (il possède le device).
+	[[nodiscard]] static Result<Renderer, Error> CreateSharingGpu(const Renderer &gpuRenderer, Window &window);
+	/// Renderer « gpu » sur un SDL_GPUDevice existant (SDL_CreateGPURenderer) ;
+	/// le renderer N'EN EST PAS propriétaire : le device doit lui survivre.
+	[[nodiscard]] static Result<Renderer, Error> CreateOnGpuDevice(SDL_GPUDevice *device, Window &window);
 
 	// ── Synchronisation verticale ────────────────────────────────────────────
 

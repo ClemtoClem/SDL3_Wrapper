@@ -9,8 +9,7 @@ Ui::Ui(ecs::ArchetypeRegistry &world, sdl3::Window &window, sdl3::Renderer &rend
 	: m_world(&world), m_ctx(std::make_shared<Context>()) {
 	m_ctx->window = &window;
 	m_ctx->renderer = &renderer;
-	const sdl3::Point size = window.GetSize();
-	m_ctx->viewport = {float(size.x), float(size.y)};
+	m_ctx->viewport = m_ctx->WindowViewport();
 	m_ctx->painter.SetRenderer(&renderer);
 	m_ctx->textures.SetRenderer(&renderer);
 	window.StartTextInput();
@@ -171,6 +170,20 @@ void Ui::Update(float dt) {
 	AnimationSystem::Run(*m_world, *m_ctx, dt);
 }
 
+void Ui::SetContentScale(float scale) {
+	scale = scale > 0.f ? scale : 1.f;
+	if (scale == m_ctx->contentScale)
+		return;
+	const float previous = m_ctx->contentScale;
+	m_ctx->contentScale = scale;
+	if (m_ctx->renderer)
+		(void)m_ctx->renderer->SetScale(scale, scale);
+	// Sans fenêtre : la surface en pixels ne change pas, l'espace logique si.
+	SetViewport(m_ctx->window ? m_ctx->WindowViewport()
+							  : sdl3::FPoint{m_ctx->viewport.x * previous / scale, m_ctx->viewport.y * previous / scale});
+	m_ctx->MarkAllDirty();
+}
+
 void Ui::SetViewport(sdl3::FPoint size) {
 	if (size.x != m_ctx->viewport.x || size.y != m_ctx->viewport.y) {
 		m_ctx->viewport = size;
@@ -179,10 +192,8 @@ void Ui::SetViewport(sdl3::FPoint size) {
 }
 
 void Ui::Layout() {
-	if (m_ctx->window) {
-		const sdl3::Point size = m_ctx->window->GetSize();
-		SetViewport({float(size.x), float(size.y)});
-	}
+	if (m_ctx->window)
+		SetViewport(m_ctx->WindowViewport());
 	const double rate = double(SDL_GetPerformanceFrequency());
 	uint64_t mark = SDL_GetPerformanceCounter();
 	auto elapsed = [&] {

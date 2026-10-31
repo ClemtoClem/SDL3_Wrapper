@@ -1773,9 +1773,9 @@ bool InputSystem::HandleEvent(ecs::ArchetypeRegistry &world, Context &ctx, const
 	// La fenêtre de l'interface change de taille : la mise en page suit.
 	if (ctx.window && (ev.raw.type == SDL_EVENT_WINDOW_RESIZED || ev.raw.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) &&
 		ev.raw.window.windowID == SDL_GetWindowID(ctx.window->Get())) {
-		const sdl3::Point size = ctx.window->GetSize();
-		if (size.x > 0 && size.y > 0 && (float(size.x) != ctx.viewport.x || float(size.y) != ctx.viewport.y)) {
-			ctx.viewport = {float(size.x), float(size.y)};
+		const sdl3::FPoint size = ctx.WindowViewport();
+		if (size.x > 0.f && size.y > 0.f && (size.x != ctx.viewport.x || size.y != ctx.viewport.y)) {
+			ctx.viewport = size;
 			ctx.MarkLayoutDirty();
 		}
 	}

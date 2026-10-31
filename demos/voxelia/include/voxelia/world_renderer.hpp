@@ -22,6 +22,7 @@
  */
 #include <map>
 #include <memory>
+#include <set>
 #include <unordered_map>
 
 #include <render3d/canvas.hpp>
@@ -76,6 +77,24 @@ public:
 
 	/// Applique les réglages (l'occlusion et la végétation font remailler).
 	void Configure(const WorldRenderSettings &settings);
+
+	// ── Rechargement à chaud du contenu (Voxelia Studio) ────────────────────
+	/// À appeler AVANT de modifier le contenu : attend les fils de maillage
+	/// (ils lisent le ContentRegistry) ; leurs résultats en vol seront jetés.
+	void Quiesce();
+	/// Textures que référencent les blocs du contenu (faces, « lueur »,
+	/// liquides) — à relever AVANT un rechargement.
+	[[nodiscard]] std::set<std::string> TextureReferences() const;
+	/// Un de ces blocs référence une texture que l'atlas n'a pas et que rien
+	/// ne référençait avant (`before`) : l'atlas est à reconstruire. Une
+	/// texture déjà absente (expression, modèle) ne déclenche rien.
+	[[nodiscard]] bool AtlasMissing(const std::vector<String> &blocks, const std::set<std::string> &before) const;
+	/// APRÈS la modification : atlas reconstruit si `rebuildAtlas`, mailleurs
+	/// refaits (ils précalculent le rendu de chaque bloc), chunks et entités
+	/// remaillés au fil des images.
+	Result<bool, String> ReloadContent(bool rebuildAtlas);
+	/// Rechargements faits (rapport, tests).
+	[[nodiscard]] size_t ContentReloads() const noexcept { return m_contentReloads; }
 	/// Éclats d'un bloc cassé (petits cubes texturés qui retombent).
 	void SpawnBreakParticles(voxel::BlockId block, const voxel::BlockPos &pos, int count);
 
@@ -185,6 +204,7 @@ private:
 	math::FVector3 m_lastCamera{0.f, 0.f, 0.f};
 	double m_lastTime = -1.0;
 	size_t m_pending = 0, m_triangles = 0;
+	size_t m_contentReloads = 0;
 
 	// Fil de rendu : maillage des chunks sur des instantanés.
 	/// Copies figées des chunks (révision copiée → copie), partagées par les

@@ -6,6 +6,7 @@
 // tests de ui::.
 #include "test.hpp"
 #include <script/script.hpp>
+#include <script_bindings/script_color.hpp>
 #include <script_bindings/script_ecs.hpp>
 #include <script_bindings/script_generator.hpp>
 #include <script_bindings/script_ui.hpp>
@@ -316,4 +317,27 @@ TEST(ScriptUi, LabelGrowsWithItsText) {
 	h.Layout();
 	const float after = h.W(label).Bounds().w;
 	EXPECT_TRUE(after > before * 2.f);
+}
+
+// ============================================================================
+// Couleurs (script_color.hpp)
+// ============================================================================
+
+TEST(ScriptColor, ScalesAndDefaultAlpha) {
+	Interpreter vm;
+	auto color = [&](const char *source) {
+		auto parsed = scriptlib::ByteColor(Eval(vm, source), "test");
+		EXPECT_TRUE(parsed.IsOk());
+		const sdl3::Color c = parsed.IsOk() ? parsed.Value() : sdl3::Color(0, 0, 0, 0);
+		return String::Format("%d,%d,%d,%d", c.r, c.g, c.b, c.a);
+	};
+	// Alpha absent : opaque, en octets comme en flottants.
+	EXPECT_EQ(color("return [0, 255, 0]"), "0,255,0,255");
+	EXPECT_EQ(color("return [0, 1, 0]"), "0,255,0,255");
+	EXPECT_EQ(color("return {r: 255, g: 128, b: 0}"), "255,128,0,255");
+	// Alpha fourni : même échelle que les autres composantes.
+	EXPECT_EQ(color("return [255, 0, 0, 128]"), "255,0,0,128");
+	EXPECT_EQ(color("return [1, 0, 0, 0.5]"), "255,0,0,128");
+	EXPECT_EQ(color("return \"#00ff0080\""), "0,255,0,128");
+	EXPECT_TRUE(scriptlib::ByteColor(Eval(vm, "return [1, \"x\", 0]"), "test").IsError());
 }

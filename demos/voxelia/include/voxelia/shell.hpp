@@ -137,6 +137,15 @@ public:
 	/// Son d'interface (« ui_click », « ui_confirm »…).
 	void UiSound(const char *id);
 	void Quit() { m_running = false; }
+	/// Studio : simulation suspendue (la partie reste affichée, la caméra et
+	/// l'interface vivent) ; StepSimulation laisse passer `steps` pas.
+	void HoldSimulation(bool hold) noexcept {
+		m_simulationHold = hold;
+		if (!hold)
+			m_simulationSteps = 0;
+	}
+	[[nodiscard]] bool SimulationHeld() const noexcept { return m_simulationHold; }
+	void StepSimulation(int steps = 1) noexcept { m_simulationSteps += steps > 0 ? steps : 0; }
 	/// Capture d'écran (dossier data/voxelia/screenshots).
 	void Screenshot(const String &path = String());
 
@@ -187,6 +196,8 @@ private:
 	int m_loadingDelay = 0;
 	bool m_running = true;
 	bool m_rebuildAll = false;
+	bool m_simulationHold = false;
+	int m_simulationSteps = 0;
 	float m_autosaveTimer = 0.f;
 	audio::AudioEngine::VoiceId m_menuMusic = audio::AudioEngine::NO_VOICE;
 };

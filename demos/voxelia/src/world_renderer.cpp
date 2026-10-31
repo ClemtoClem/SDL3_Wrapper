@@ -851,6 +851,86 @@ void WorldRenderer::UpdateSky() {
 	}
 }
 
+void WorldRenderer::Quiesce() {
+	for (std::unique_ptr<Worker> &worker : m_renderThreads)
+		worker->Wait();
+}
+
+namespace {
+
+/// Textures d'un bloc telles que l'atlas les range (lueur : GlowId).
+void BlockTextures(const BlockDef &b, std::vector<String> &out) {
+	const bool glow = b.look.lightEmission > 0 && json::Bool(b.raw, "graphics.glow", true);
+	for (const String &face : b.look.faces)
+		if (!face.IsEmpty()) {
+			out.push_back(face);
+			if (glow)
+				out.push_back(TextureAtlas::GlowId(face));
+		}
+	if (!b.liquid.flowingTexture.IsEmpty())
+		out.push_back(b.liquid.flowingTexture);
+}
+
+} // namespace
+
+std::set<std::string> WorldRenderer::TextureReferences() const {
+	std::set<std::string> out;
+	std::vector<String> textures;
+	for (const BlockDef &b : m_game.Content().Blocks())
+		BlockTextures(b, textures);
+	for (const String &t : textures)
+		out.insert(t.CStr());
+	return out;
+}
+
+bool WorldRenderer::AtlasMissing(const std::vector<String> &blocks, const std::set<std::string> &before) const {
+	std::vector<String> textures;
+	for (const String &id : blocks)
+		if (const BlockDef *b = m_game.Content().FindBlock(id))
+			BlockTextures(*b, textures);
+	for (const String &t : textures)
+		if (!m_atlas.Contains(t) && !before.contains(t.CStr()))
+			return true;
+	return false;
+}
+
+Result<bool, String> WorldRenderer::ReloadContent(bool rebuildAtlas) {
+	Quiesce();
+	if (rebuildAtlas) {
+		// L'ancienne texture peut encore servir à une image en vol.
+		(void)m_canvas.Device().WaitIdle();
+		m_atlas.Build(m_game.Assets(), m_game.Content(), 16, 256);
+		(void)m_game.Assets().ReleaseUnused();
+		const Image &pixels = m_atlas.Pixels();
+		std::vector<std::span<const uint8_t>> mipmaps;
+		for (const Image &level : m_atlas.Mipmaps())
+			mipmaps.emplace_back(level.rgba);
+		auto texture = render3d::CreateTextureFromPixels(m_canvas.Device(), uint32_t(pixels.width), uint32_t(pixels.height),
+														 pixels.rgba, mipmaps);
+		if (texture.IsError())
+			return Err(texture.Error());
+		m_atlasTexture = Some(std::move(texture).Unwrap());
+		for (render3d::Material *material : {&m_opaque, &m_translucent, &m_entity, &m_emissive})
+			material->albedo = Some(MakeRef(m_atlasTexture.Value()));
+	}
+	// Les mailleurs précalculent le rendu de chaque bloc (faces, lueur, teintes).
+	const ChunkMesher::Options options = m_mesher->options;
+	m_mesher = std::make_unique<ChunkMesher>(m_game.Content(), m_atlas, &m_game.Assets());
+	m_mesher->options = options;
+	for (std::unique_ptr<ChunkMesher> &mesher : m_jobMeshers)
+		mesher = std::make_unique<ChunkMesher>(m_game.Content(), m_atlas, &m_game.Assets());
+	for (auto &[p, view] : m_chunks)
+		view.revision = 0; // remaillés au fil des images (les plus proches d'abord)
+	m_inFlight.clear();
+	++m_meshSerial; // maillés avec l'ancien contenu : jetés au retour
+	m_meshCache.clear();
+	for (auto &[key, view] : m_entities)
+		DropView(view);
+	m_entities.clear();
+	++m_contentReloads;
+	return Ok(true);
+}
+
 void WorldRenderer::Configure(const WorldRenderSettings &settings) {
 	const bool remesh = settings.ambientOcclusion != m_settings.ambientOcclusion ||
 						std::fabs(settings.vegetationDensity - m_settings.vegetationDensity) > 0.01f;

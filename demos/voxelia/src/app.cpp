@@ -18,6 +18,8 @@
 #include <voxel/scripting.hpp>
 #include <voxelia/session.hpp>
 #include <voxelia/shell.hpp>
+#include <voxelia/studio/studio.hpp>
+#include <ui/window_manager.hpp>
 
 namespace voxelia {
 
@@ -60,9 +62,18 @@ const char *Usage() {
 		   "  --viewport=MODE        vue 3D → interface : direct (défaut, sans copie), pipelined, readback\n"
 		   "  --width=W --height=H   taille de la fenêtre\n"
 		   "\n"
+		   "Voxelia Studio (éditeur, dans sa propre fenêtre, sur la même partie) :\n"
+		   "  --studio               ouvre le studio au démarrage (F10 l'ouvre / le ferme)\n"
+		   "  --studio-display=N     écran du studio (0 : principal)\n"
+		   "  --studio-screenshot=N:FICHIER  capture la fenêtre du studio à l'image N\n"
+		   "  --screenshot-desktop=N:FICHIER capture toutes les fenêtres, à leur place, à l'image N\n"
+		   "  --exec=N:!studio LIGNE commande de la console du studio (studio.select, studio.pause…)\n"
+		   "  --report=FICHIER       rapport d'exécution (texte, et FICHIER.json)\n"
+		   "\n"
 		   "Touches par défaut (Réglages > Commandes) : ZQSD/WASD, souris, Espace, Maj, Ctrl, F vol,\n"
 		   "E inventaire, C fabrication, T discussion, / terminal, Tab informations, Échap pause,\n"
-		   "F1 masquer l'interface, F2 capture, F3 informations techniques, F5 vue, F6 enregistrer.\n";
+		   "F1 masquer l'interface, F2 capture, F3 informations techniques, F5 vue, F6 enregistrer,\n"
+		   "F10 Voxelia Studio, Ctrl+Q quitter (toutes les fenêtres).\n";
 }
 
 Option<String> ParseOptions(int argc, char **argv, Options &o) {
@@ -123,6 +134,19 @@ Option<String> ParseOptions(int argc, char **argv, Options &o) {
 		else if (auto screenshotArg = value("--screenshot"); screenshotArg.IsSome()) {
 			if (!framed(screenshotArg.Unwrap(), o.screenshotsAt))
 				return Some(String("--screenshot=N:FICHIER attendu"));
+		} else if (arg == "--studio") {
+			o.studio = true;
+		} else if (auto displayArg = value("--studio-display"); displayArg.IsSome()) {
+			o.studioDisplay = Some(size_t(std::max(0, std::atoi(displayArg.Unwrap().CStr()))));
+			o.studio = true;
+		} else if (auto studioShot = value("--studio-screenshot"); studioShot.IsSome()) {
+			if (!framed(studioShot.Unwrap(), o.studioShots))
+				return Some(String("--studio-screenshot=N:FICHIER attendu"));
+		} else if (auto desktopShot = value("--screenshot-desktop"); desktopShot.IsSome()) {
+			if (!framed(desktopShot.Unwrap(), o.desktopShots))
+				return Some(String("--screenshot-desktop=N:FICHIER attendu"));
+		} else if (auto reportArg = value("--report"); reportArg.IsSome()) {
+			o.report = reportArg.Unwrap();
 		} else if (auto execArg = value("--exec"); execArg.IsSome()) {
 			if (!framed(execArg.Unwrap(), o.commands))
 				return Some(String("--exec=N:/commande attendu"));
@@ -258,18 +282,26 @@ int App::RunWindowed() {
 		std::printf("TTF : %s\n", String(ttf.Error()).CStr());
 		return 1;
 	}
-	auto windowResult = sdl3::Window::Create(String("Voxelia"), m_options.width, m_options.height, sdl3::window_flags::RESIZABLE);
-	if (!windowResult) {
-		std::printf("fenêtre : %s\n", String(windowResult.Error()).CStr());
+	// Fenêtres : la partie (principale) et, à la demande, Voxelia Studio. Un
+	// seul device GPU (ui::WindowManager), une swapchain par fenêtre : la vue 3D
+	// du studio affiche la scène de la partie sans copie (DIRECT).
+	ui::WindowManager windows;
+	ui::WindowSpec gameSpec;
+	gameSpec.title = "Voxelia";
+	gameSpec.width = m_options.width;
+	gameSpec.height = m_options.height;
+	gameSpec.role = "game";
+	gameSpec.primary = true;
+	gameSpec.followDisplayScale = false; // le jeu a son échelle d'interface (réglages)
+	auto gameWindow = windows.Create(gameSpec);
+	if (!gameWindow) {
+		std::printf("fenêtre : %s\n", gameWindow.Error().CStr());
 		return 1;
 	}
-	sdl3::Window &window = windowResult.Value();
-	auto rendererResult = sdl3::Renderer::Create(window, "gpu");
-	if (!rendererResult) {
-		std::printf("renderer : %s\n", String(rendererResult.Error()).CStr());
-		return 1;
-	}
-	sdl3::Renderer &renderer = rendererResult.Value();
+	ui::WindowContext &gameContext = *gameWindow.Value();
+	sdl3::Window &window = *gameContext.Window();
+	sdl3::Renderer &renderer = *gameContext.Renderer();
+	// Détruit avant `windows` (qui possède le device GPU qu'il emprunte).
 	auto canvasResult = render3d::Canvas::Create(renderer);
 	if (!canvasResult) {
 		std::printf("canvas 3D : %s\n", String(canvasResult.Error()).CStr());
@@ -277,8 +309,7 @@ int App::RunWindowed() {
 	}
 	render3d::Canvas canvas = std::move(canvasResult.Value());
 	// Polices (DejaVu Sans et ses variantes, icônes) chargées par l'interface.
-	ecs::ArchetypeRegistry uiWorld;
-	ui::Ui gui(uiWorld, window, renderer, ui::Theme::Dark);
+	ui::Ui &gui = gameContext.Gui();
 	if (gui.GetFonts().DefaultFamily().IsEmpty()) {
 		std::printf("police introuvable\n");
 		return 1;
@@ -308,7 +339,54 @@ int App::RunWindowed() {
 		}
 		shell.PlayWorld(m_options.world);
 	}
-	// Orchestration d'une image par le fil principal :
+	// ── Voxelia Studio ──────────────────────────────────────────────────────
+	studio::StudioReport report;
+	report.Set(String("viewport"), m_options.viewport);
+	report.Set(String("threads"), String(m_options.threaded ? "on" : "off"));
+	report.Set(String("meshThreads"), String::Format("%d", m_options.meshThreads));
+	report.Set(String("gpuShared"), String(gameContext.SharesGpuDevice() ? "oui" : "non"));
+	std::unique_ptr<studio::Studio> studioApp; // détruit avant le Shell qu'il référence
+	ui::WindowId studioId = 0;
+	auto openStudio = [&]() -> bool {
+		if (studioApp)
+			return true;
+		ui::WindowSpec spec;
+		spec.title = "Voxelia Studio";
+		spec.width = 1360;
+		spec.height = 820;
+		spec.role = "studio";
+		spec.vsync = false; // la fenêtre de jeu attend le balayage pour les deux
+		if (m_options.studioDisplay.IsSome())
+			spec.display = m_options.studioDisplay;
+		else
+			spec.position = Some(sdl3::Point{gameContext.DesktopPosition().x + window.GetWidth() + 8, gameContext.DesktopPosition().y});
+		auto created = windows.Create(spec);
+		if (!created) {
+			shell.Log(String("[erreur] studio : ") + created.Error());
+			report.Visit(String("studio.open"), studio::FeatureStatus::Error, created.Error());
+			return false;
+		}
+		ui::WindowContext &context = *created.Value();
+		context.Gui().Initialize(canvas);
+		studioApp = std::make_unique<studio::Studio>(shell, context, &report, m_options.viewport);
+		studioId = context.Id();
+		report.Visit(String("windows.studio"), studio::FeatureStatus::Ok,
+					 String::Format("%zu fenêtre(s), device GPU %s", windows.Count(),
+									context.SharesGpuDevice() ? "partagé" : "distinct"));
+		context.onClose = [&](ui::WindowContext &) {
+			studioApp.reset();
+			studioId = 0;
+			report.Visit(String("studio.close"));
+		};
+		return true;
+	};
+	bool toggleStudio = false, quitAll = false;
+	windows.AddGlobalShortcut({SDLK_Q, SDL_KMOD_CTRL, "quit", [&](ui::WindowContext &) { quitAll = true; }});
+	windows.AddGlobalShortcut({SDLK_F10, SDL_KMOD_NONE, "studio", [&](ui::WindowContext &) { toggleStudio = true; }});
+	if (m_options.studio)
+		(void)openStudio();
+
+
 	//  1. il attend la fin du pas de simulation lancé à l'image précédente
 	//     (fil « voxel-update ») : à partir d'ici, le jeu est à lui seul ;
 	//  2. événements, commandes, scène (WorldRenderer : il dépose les chunks
@@ -341,22 +419,77 @@ int App::RunWindowed() {
 			stats.frames.push_back(frameMs);
 			stats.pending += double(session->Renderer().PendingChunks());
 		}
-		while (auto event = sdl3::PollEvent())
-			shell.HandleEvent(event.Value());
+		while (auto event = sdl3::PollEvent()) {
+			sdl3::Event &ev = event.Value();
+			if (studioApp && windows.Target(ev) == windows.Find(studioId)) {
+				// Fenêtre du studio : raccourcis globaux, interface, caméra.
+				const ui::DispatchResult routed = windows.Dispatch(ev);
+				if (routed.shortcut.IsEmpty())
+					studioApp->HandleEvent(ev, routed.consumed);
+				continue;
+			}
+			// Fenêtre de jeu (et évènements sans fenêtre) : le Shell, comme avant.
+			ui::WindowContext *target = windows.Observe(ev);
+			if (target && windows.TriggerShortcut(ev, *target))
+				continue;
+			if (ev.Type() == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
+				continue; // HandleCloseRequests : la principale arrête l'application
+			shell.HandleEvent(ev);
+		}
+		if (toggleStudio) {
+			toggleStudio = false;
+			if (studioApp)
+				(void)windows.Close(studioId);
+			else
+				(void)openStudio();
+		}
+		windows.HandleCloseRequests();
+		if (quitAll || windows.QuitRequested())
+			shell.Quit();
 		for (const auto &[at, command] : m_options.commands)
 			if (at == frame) {
-				if (command.StartsWith("!"))
+				if (command.StartsWith("!studio")) {
+					const String line = command.Substring(7).Trim();
+					if (line == "close") {
+						if (studioApp)
+							(void)windows.Close(studioId);
+					} else if (openStudio() && !line.IsEmpty() && line != "open") {
+						const studio::CommandResult r = studioApp->Execute(line);
+						if (r.status == studio::CommandStatus::Error)
+							report.Warning(String("!studio ") + line + String(" : ") + r.message);
+					}
+				} else if (command.StartsWith("!"))
 					shell.AppCommand(command);
 				else
 					shell.GameCommand(command);
 			}
 		const uint64_t t0 = sdl3::GetPerformanceCounter();
 		shell.Update(dt, frame);
+		// Le studio lit et modifie la partie ICI : le pas de simulation de
+		// l'image précédente est terminé, le suivant n'est pas lancé.
+		if (studioApp)
+			studioApp->Update(dt);
 		const uint64_t t1 = sdl3::GetPerformanceCounter();
-		gui.Update(dt);
-		renderer.SetDrawColor(sdl3::FColor{0.f, 0.f, 0.f, 1.f});
-		renderer.Clear();
-		gui.Render();
+		windows.Update(dt);
+		for (const auto &[at, path] : m_options.desktopShots)
+			if (at == frame) {
+				windows.RequestDesktopCapture(path);
+				report.Capture(path);
+				report.Visit(String("capture.desktop"), studio::FeatureStatus::Ok, String::Format("%zu fenêtre(s)", windows.Count()));
+			}
+		for (const auto &[at, path] : m_options.studioShots)
+			if (at == frame) {
+				if (studioApp) {
+					windows.RequestCapture(studioId, path);
+					report.Capture(path);
+					report.Visit(String("capture.studio"));
+				} else {
+					report.Error(String("capture du studio ") + path + String(" : studio fermé"));
+				}
+			}
+		windows.Draw({0.f, 0.f, 0.f, 1.f});
+		for (const String &error : windows.CaptureErrors())
+			report.Error(error);
 		const uint64_t t2 = sdl3::GetPerformanceCounter();
 		if (!shell.pendingThumbnail.IsEmpty()) {
 			SaveThumbnail(renderer, shell.pendingThumbnail);
@@ -368,7 +501,9 @@ int App::RunWindowed() {
 					(void)sdl3::ImgSavePng(surface.Value(), path);
 		const uint64_t built = sdl3::GetPerformanceCounter();
 		shell.BeginSimulation();
-		renderer.Present();
+		windows.Present();
+		if (frame > 60)
+			report.Frame(frameMs);
 		if (counted) {
 			stats.wait += ms(now, joined);
 			stats.update += ms(t0, t1);
@@ -409,6 +544,19 @@ int App::RunWindowed() {
 	for (const String &line : shell.RecentLog())
 		if (line.StartsWith("[erreur") || line.StartsWith("[script") || line.StartsWith("[son"))
 			std::printf("%s\n", line.CStr());
+	// Le studio se détache avant le Shell et le Canvas qu'il emprunte.
+	if (studioApp)
+		(void)windows.Close(studioId);
+	if (!m_options.report.IsEmpty()) {
+		report.Set(String("frames"), String::Format("%ld", frame));
+		if (Result<bool, String> written = report.Write(m_options.report); written.IsError()) {
+			std::printf("%s\n", written.Error().CStr());
+			return 1;
+		}
+		std::printf("rapport : %s (%s)\n", m_options.report.CStr(), report.Passed() ? "succès" : "ÉCHEC");
+		if (!report.Passed())
+			return 3;
+	}
 	return 0;
 }
 

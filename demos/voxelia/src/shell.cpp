@@ -487,7 +487,12 @@ void Shell::Update(float dt, long frame) {
 	}
 	const bool blocking = !m_stack.empty() && !m_stack.back().screen->PassThrough();
 	if (m_session && m_session->Ready()) {
-		const bool paused = HasScreen("pause") || HasScreen("settings") || HasScreen("worldsettings");
+		bool held = m_simulationHold;
+		if (held && m_simulationSteps > 0) {
+			--m_simulationSteps;
+			held = false;
+		}
+		const bool paused = held || HasScreen("pause") || HasScreen("settings") || HasScreen("worldsettings");
 		m_session->Update(dt, paused, blocking);
 		// Sauvegarde automatique (et vignette du monde).
 		if (m_settings.autosaveMinutes > 0 && !paused) {

@@ -210,6 +210,10 @@ struct BlockDef {
 		String nearBlock, farBlock;
 	} sensor;
 	NodePtr raw;
+	/// Définition telle qu'écrite dans le mod — `states` compris, la même
+	/// pour tous les états d'un bloc — et son fichier (éditeur, rechargement).
+	NodePtr source;
+	String sourceFile, baseDir;
 
 	[[nodiscard]] bool HasTag(const String &tag) const;
 	[[nodiscard]] bool IsAir() const noexcept { return numeric == AIR; }
@@ -451,6 +455,9 @@ public:
 		String mod = "core";
 		String baseDir;    ///< dossier du mod (chemins relatifs des fichiers)
 		String source;     ///< fichier lu (messages d'erreur)
+		/// Définition telle qu'écrite (avant migration et découpage des
+		/// états) : posée par Load, gardée dans BlockDef::source (éditeurs).
+		NodePtr definition{};
 	};
 
 	/// Lit UNE définition (migrée, validée) ; rend son id. Une définition
@@ -523,6 +530,9 @@ public:
 
 	/// Vérifie les renvois entre définitions ; rend les avertissements.
 	[[nodiscard]] std::vector<String> Validate() const;
+	/// Oublie les avertissements de chargement de `owner` (« owner : … ») —
+	/// avant de recharger sa définition, pour ne pas les répéter.
+	void ForgetLoadWarnings(const String &owner);
 	/// Plus grande portée des lumières (blocs et entités) ; 0 : aucune.
 	[[nodiscard]] float MaxLightRange() const;
 

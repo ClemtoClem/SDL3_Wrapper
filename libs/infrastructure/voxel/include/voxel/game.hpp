@@ -118,6 +118,14 @@ public:
 
 	/// Ouvre (ou crée) le monde `name` du dossier des sauvegardes.
 	Result<bool, String> OpenWorld(const String &name, Option<uint32_t> seed = NONE, const String &generator = String());
+	/// Rechargement à chaud d'UNE définition (bloc et ses états, objet…) sans
+	/// quitter le monde : ContentRegistry::Load (un id connu est remplacé, son
+	/// id numérique conservé — les chunks restent valides), puis
+	/// World::ContentChanged (lumières relues, chunks à remailler). Rend les
+	/// ids des blocs (re)définis. À n'appeler que sans lecteur concurrent du
+	/// contenu : simulation arrêtée, fils de maillage attendus.
+	Result<std::vector<String>, String> ReloadDefinition(const NodePtr &definition,
+														 const ContentRegistry::LoadContext &context);
 	/// Enregistre tout (chunks modifiés, entités, joueurs, métadonnées).
 	Result<bool, String> Save();
 	void CloseWorld();

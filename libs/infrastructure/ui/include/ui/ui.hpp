@@ -130,6 +130,12 @@ public:
 	/// Ajoute les systèmes ui au Schedule (alternative à Update/Render).
 	void Install(ecs::Schedule &schedule, bool withRender = true) { ui::Install(schedule, withRender); }
 	void SetViewport(sdl3::FPoint size);
+	/// Échelle HiDPI (devicePixelRatio) : le renderer dessine à `scale`, la
+	/// mise en page travaille en unités logiques (sortie / scale) et les
+	/// coordonnées du pointeur sont converties (cf. WindowManager::Dispatch,
+	/// SDL_ConvertEventToRenderCoordinates). 1 : comportement historique.
+	void SetContentScale(float scale);
+	[[nodiscard]] float ContentScale() const noexcept { return m_ctx->contentScale; }
 	[[nodiscard]] sdl3::FPoint Viewport() const noexcept { return m_ctx->viewport; }
 
 	// ── Saisie ──────────────────────────────────────────────────────────────

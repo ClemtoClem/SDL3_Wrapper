@@ -132,6 +132,12 @@ public:
 	sdl3::Renderer *renderer = nullptr;
 	render3d::Canvas *canvas3d = nullptr;
 	sdl3::FPoint viewport{800.f, 600.f};
+	/// Unités logiques → pixels du renderer (HiDPI, cf. Ui::SetContentScale) :
+	/// 2 = tout est dessiné deux fois plus grand, pointeur converti en retour.
+	float contentScale = 1.f;
+	/// Taille logique de la fenêtre : sa taille en points à l'échelle 1, la
+	/// sortie du renderer divisée par l'échelle sinon ; `viewport` sans fenêtre.
+	[[nodiscard]] sdl3::FPoint WindowViewport() const;
 
 	Fonts fonts;
 	Textures textures;

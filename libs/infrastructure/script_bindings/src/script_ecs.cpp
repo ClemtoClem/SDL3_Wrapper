@@ -1,4 +1,4 @@
-// Définitions de data/script/script_ecs.hpp
+// Définitions de script_bindings/script_ecs.hpp
 // L'en-tête n'est pas autonome : il compte sur ce qu'inclut son module.
 #include <script/script.hpp>
 #include <script_bindings/script_ecs.hpp>

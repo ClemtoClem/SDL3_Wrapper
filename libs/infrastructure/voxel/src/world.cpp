@@ -233,6 +233,12 @@ void World::TouchSphere(const math::FVector3 &center, float radius) {
 					c->Touch();
 }
 
+void World::ContentChanged() {
+	m_maxLightRange = m_content.MaxLightRange();
+	for (auto &[pos, chunk] : m_chunks)
+		chunk->InvalidateContent();
+}
+
 void World::InvalidateLight(const BlockPos &p, BlockId before, uint8_t paramBefore, BlockId after, uint8_t paramAfter) {
 	if (m_maxLightRange <= 0.f && m_dynamicLights.empty())
 		return;

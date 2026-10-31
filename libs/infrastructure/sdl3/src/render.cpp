@@ -203,6 +203,34 @@ void Window::Hide() {
 		SDL_HideWindow(m_handle);
 }
 
+float Window::DisplayScale() const {
+	const float scale = m_handle ? SDL_GetWindowDisplayScale(m_handle) : 0.f;
+	return scale > 0.f ? scale : 1.f;
+}
+
+std::vector<SDL_DisplayID> GetDisplays() {
+	int count = 0;
+	SDL_DisplayID *ids = SDL_GetDisplays(&count);
+	std::vector<SDL_DisplayID> out;
+	if (ids) {
+		out.assign(ids, ids + count);
+		SDL_free(ids);
+	}
+	return out;
+}
+
+Option<Rect> GetDisplayBounds(SDL_DisplayID display) {
+	SDL_Rect r;
+	if (!SDL_GetDisplayBounds(display, &r))
+		return NONE;
+	return Some(Rect(r.x, r.y, r.w, r.h));
+}
+
+float GetDisplayContentScale(SDL_DisplayID display) {
+	const float scale = SDL_GetDisplayContentScale(display);
+	return scale > 0.f ? scale : 1.f;
+}
+
 void Window::Raise() {
 	if (m_handle)
 		SDL_RaiseWindow(m_handle);
@@ -341,6 +369,26 @@ std::vector<FPoint> GenerateArcPoints(FPoint center, float radius, float startAn
 
 Result<Renderer, Error> Renderer::Create(Window &window, const char *driver) {
 	auto *r = SDL_CreateRenderer(window, driver);
+	if (!r)
+		return Err(GetError());
+	return Ok(Renderer(r));
+}
+
+Result<Renderer, Error> Renderer::CreateSharingGpu(const Renderer &gpuRenderer, Window &window) {
+	SDL_GPUDevice *device = gpuRenderer.Get() ? SDL_GetGPURendererDevice(gpuRenderer.Get()) : nullptr;
+	if (!device) {
+		SetError(StringView("Renderer::CreateSharingGpu : le renderer source n'utilise pas le backend \"gpu\""));
+		return Err(GetError());
+	}
+	return CreateOnGpuDevice(device, window);
+}
+
+Result<Renderer, Error> Renderer::CreateOnGpuDevice(SDL_GPUDevice *device, Window &window) {
+	if (!device) {
+		SetError(StringView("Renderer::CreateOnGpuDevice : device nul"));
+		return Err(GetError());
+	}
+	auto *r = SDL_CreateGPURenderer(device, window);
 	if (!r)
 		return Err(GetError());
 	return Ok(Renderer(r));

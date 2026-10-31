@@ -25,6 +25,7 @@
 
 #include <generators/generators.hpp>
 #include <script/script_std.hpp>
+#include <script_bindings/script_common.hpp>
 
 namespace script {
 
@@ -37,31 +38,15 @@ using lib::TypeBuilder;
 
 // ── Lecture des options ─────────────────────────────────────────────────────
 
-/// Options d'une table : lecture typée, et refus des clés inconnues.
-class Options {
-public:
-	Options(const Value &v, const char *fn);
-	[[nodiscard]] Option<Value> Get(const char *key);
-	[[nodiscard]] double Number(const char *key, double fallback);
-	[[nodiscard]] int Int(const char *key, int fallback) { return int(Number(key, double(fallback))); }
-	[[nodiscard]] bool Bool(const char *key, bool fallback);
-	[[nodiscard]] String Text(const char *key, const char *fallback);
-	void Fault(String message);
-	/// Erreur de lecture, ou clé inconnue (à appeler après toutes les lectures).
-	[[nodiscard]] Option<ScriptError> Finish();
-
-private:
-	const char *m_fn;
-	std::vector<std::pair<String, Value>> m_entries;
-	std::vector<String> m_known;
-	Option<ScriptError> m_error = NONE;
-};
+/// Options d'une table : lecture typée, et refus des clés inconnues —
+/// l'outil commun de toutes les bibliothèques (cf. script_common.hpp).
+using Options = scriptlib::Options;
 
 template <typename E> [[nodiscard]] Option<E> Named(const String &name, std::initializer_list<std::pair<const char *, E>> table) {
-	for (const auto &[key, value] : table)
-		if (name == key)
-			return Some(value);
-	return NONE;
+        for (const auto &[key, value] : table)
+                if (name == key)
+                        return Some(value);
+        return NONE;
 }
 
 /// Réglages de bruit depuis une table (cf. en-tête).
@@ -76,26 +61,26 @@ template <typename E> [[nodiscard]] Option<E> Named(const String &name, std::ini
 // ── Objets ──────────────────────────────────────────────────────────────────
 
 struct NoiseObject : HostObject {
-	generators::Noise noise;
+        generators::Noise noise;
 };
 
 struct HeightMapObject : HostObject {
-	mutable std::mutex mutex;
-	generators::HeightMap map;
+        mutable std::mutex mutex;
+        generators::HeightMap map;
 };
 
 struct DungeonObject : HostObject {
-	generators::Dungeon dungeon; // immuable une fois généré : aucune garde
+        generators::Dungeon dungeon; // immuable une fois généré : aucune garde
 };
 
 struct NamesObject : HostObject {
-	std::mutex mutex;
-	generators::MarkovNames names{{}, 2};
-	generators::Rng rng;
+        std::mutex mutex;
+        generators::MarkovNames names{{}, 2};
+        generators::Rng rng;
 };
 
 struct GenTypes {
-	std::shared_ptr<const HostType> noise, heightmap, dungeon, names;
+        std::shared_ptr<const HostType> noise, heightmap, dungeon, names;
 };
 [[nodiscard]] GenTypes TypesOf(Interpreter &vm);
 
@@ -107,15 +92,15 @@ struct GenTypes {
 [[nodiscard]] Value Pair(double a, double b);
 [[nodiscard]] Value IntPair(int a, int b);
 template <typename T> [[nodiscard]] Value NumberList(const std::vector<T> &values) {
-	auto list = std::make_shared<ListObject>();
-	list->items.reserve(values.size());
-	for (T v : values) {
-		if constexpr (std::is_floating_point_v<T>)
-			list->items.push_back(Value::Number(double(v)));
-		else
-			list->items.push_back(Value::Int(int64_t(v)));
-	}
-	return Value::List(std::move(list));
+        auto list = std::make_shared<ListObject>();
+        list->items.reserve(values.size());
+        for (T v : values) {
+                if constexpr (std::is_floating_point_v<T>)
+                        list->items.push_back(Value::Number(double(v)));
+                else
+                        list->items.push_back(Value::Int(int64_t(v)));
+        }
+        return Value::List(std::move(list));
 }
 
 void DefineNoise(TypeBuilder &builder);

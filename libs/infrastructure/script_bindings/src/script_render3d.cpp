@@ -1,9 +1,13 @@
+#include <script/script.hpp>
 #include <script_bindings/script_render3d.hpp>
+#include <script_bindings/script_common.hpp>
+#include <script_bindings/script_color.hpp>
 
 #include <algorithm>
 #include <cmath>
 
 #include <render3d/camera.hpp>
+#include <render3d/shape.hpp>
 
 namespace script {
 namespace {
@@ -40,97 +44,8 @@ struct NodeObj : HostObject {
     SceneObj *scene = nullptr;           // scène propriétaire (validation)
 };
 
-// ── Couleurs ───────────────────────────────────────────────────────────────
-
-sdl3::Color ToSDColor(float r, float g, float b, float a) noexcept {
-    auto b8 = [](float f) {
-        return uint8_t(std::lround(std::clamp(f, 0.f, 1.f) * 255.f));
-    };
-    return sdl3::Color(b8(r), b8(g), b8(b), b8(a));
-}
-
-Result<float, ScriptError> Channel(const Value &v, float fallback, const char *fn) {
-    if (v.IsNil())
-        return Ok(fallback);
-    if (!v.IsNumber())
-        return Err(Fail(String::Format("`%s` : composante de couleur non numérique", fn)));
-    return Ok(v.AsFloat());
-}
-
-Result<sdl3::Color, ScriptError> ParseSDColor(const Value &v, const char *fn) {
-    // "#rrggbb" / "#rrggbbaa"
-    if (v.IsString()) {
-        const String &s = v.AsString();
-        if (s.GetSize() == 7 || s.GetSize() == 9) {
-            unsigned out[4] = {0, 0, 0, 255};
-            int count = s.GetSize() == 9 ? 4 : 3;
-            for (int i = 0; i < count; ++i) {
-                unsigned value = 0;
-                if (std::sscanf(s.CStr() + 1 + i * 2, "%2x", &value) != 1)
-                    return Err(Fail(String::Format("`%s` : couleur `%s` invalide", fn, s.CStr())));
-                out[i] = value;
-            }
-            return Ok(sdl3::Color(uint8_t(out[0]), uint8_t(out[1]), uint8_t(out[2]), uint8_t(out[3])));
-        }
-        return Err(Fail(String::Format("`%s` : couleur `%s` invalide (attendu #rrggbb ou #rrggbbaa)", fn, s.CStr())));
-    }
-    // Table {r, g, b, a} ou liste [r, g, b, a] — 0..1 (float) ou 0..255 (int > 1)
-    Value r, g, b, a = Value::Number(1.0);
-    if (v.IsList() && v.AsList() && v.AsList()->Size() >= 3) {
-        const std::vector<Value> items = v.AsList()->Snapshot();
-        r = items[0];
-        g = items[1];
-        b = items[2];
-        if (items.size() > 3)
-            a = items[3];
-    } else if (v.IsMap() && v.AsMap()) {
-        r = v.AsMap()->Get(String("r")).UnwrapOr(Value::Number(1.0));
-        g = v.AsMap()->Get(String("g")).UnwrapOr(Value::Number(1.0));
-        b = v.AsMap()->Get(String("b")).UnwrapOr(Value::Number(1.0));
-        a = v.AsMap()->Get(String("a")).UnwrapOr(Value::Number(1.0));
-    } else {
-        return Err(Fail(String::Format("`%s` : couleur attendue (string ou tableau [r,g,b(,a)])", fn)));
-    }
-    auto toF = [&](const Value &x) -> float {
-        const float f = x.AsFloat();
-        return f > 1.f ? f / 255.f : f;
-    };
-    auto fr = Channel(r, 1.f, fn);  // l'exception "vide" ne concerne que la table
-    if (r.IsNumber()) fr = Ok(toF(r));
-    auto fg = Channel(g, 1.f, fn);
-    if (g.IsNumber()) fg = Ok(toF(g));
-    auto fb = Channel(b, 1.f, fn);
-    if (b.IsNumber()) fb = Ok(toF(b));
-    auto fa = Channel(a, 1.f, fn);
-    if (a.IsNumber()) fa = Ok(toF(a));
-    if (fr.IsError() || fg.IsError() || fb.IsError() || fa.IsError())
-        return Err(Fail(String::Format("`%s` : composante de couleur invalide", fn)));
-    return Ok(ToSDColor(fr.Value(), fg.Value(), fb.Value(), fa.Value()));
-}
-
-Result<math::FVector3, ScriptError> ParseVec3(const Value &v, const char *fn) {
-    if (v.IsList() && v.AsList() && v.AsList()->Size() == 3) {
-        const std::vector<Value> it = v.AsList()->Snapshot();
-        return Ok(math::FVector3{it[0].AsFloat(), it[1].AsFloat(), it[2].AsFloat()});
-    }
-    if (v.IsMap() && v.AsMap()) {
-        auto get = [&](const char *k) { return v.AsMap()->Get(String(k)).UnwrapOr(Value::Number(0.0)).AsFloat(); };
-        return Ok(math::FVector3{get("x"), get("y"), get("z")});
-    }
-    return Err(Fail(String::Format("`%s` : vec3 attendu ([x,y,z] ou {x,y,z})", fn)));
-}
-
-Value ToValue(math::FVector3 v) {
-    auto list = std::make_shared<ListObject>();
-    list->items = {Value::Number(v.x), Value::Number(v.y), Value::Number(v.z)};
-    return Value::List(std::move(list));
-}
-
-Value ToValue(math::FQuaternion q) {
-    auto list = std::make_shared<ListObject>();
-    list->items = {Value::Number(q.x), Value::Number(q.y), Value::Number(q.z), Value::Number(q.w)};
-    return Value::List(std::move(list));
-}
+// (Vecteurs et couleurs : scriptlib::Vec3Of / Vec3List / QuatList — cf.
+// script_common.hpp — et scriptlib::ByteColor, cf. script_color.hpp.)
 
 // ── Définitions de types ───────────────────────────────────────────────────
 
@@ -210,7 +125,7 @@ void DefineMaterial(TypeBuilder &builder) {
                 auto opts = args[0].AsMap();
                 auto colorV = opts->Get(String("color"));
                 if (colorV.IsSome()) {
-                    auto c = ParseSDColor(colorV.Unwrap(), "render3d.material");
+                    auto c = scriptlib::ByteColor(colorV.Unwrap(), "render3d.material");
                     if (c.IsError())
                         return Err(c.Error());
                     m.baseColor = c.Value();
@@ -255,19 +170,19 @@ void DefineCamera(TypeBuilder &builder) {
                                                    args[0].TypeName())));
                 auto opts = args[0].AsMap();
                 if (auto v = opts->Get(String("position")); v.IsSome()) {
-                    auto p = ParseVec3(v.Unwrap(), "render3d.camera");
+                    auto p = scriptlib::Vec3Of(v.Unwrap(), "render3d.camera");
                     if (p.IsError())
                         return Err(p.Error());
                     object->camera.position = p.Value();
                 }
                 if (auto v = opts->Get(String("target")); v.IsSome()) {
-                    auto t = ParseVec3(v.Unwrap(), "render3d.camera");
+                    auto t = scriptlib::Vec3Of(v.Unwrap(), "render3d.camera");
                     if (t.IsError())
                         return Err(t.Error());
                     object->camera.target = t.Value();
                 }
                 if (auto v = opts->Get(String("up")); v.IsSome()) {
-                    auto u = ParseVec3(v.Unwrap(), "render3d.camera");
+                    auto u = scriptlib::Vec3Of(v.Unwrap(), "render3d.camera");
                     if (u.IsError())
                         return Err(u.Error());
                     object->camera.up = u.Value();
@@ -285,9 +200,9 @@ void DefineCamera(TypeBuilder &builder) {
         });
     builder.type->get = [](const HostObject &self, const String &name) -> Option<Value> {
         const auto &c = As<CameraObj>(self).camera;
-        if (name == "position") return Some(ToValue(c.position));
-        if (name == "target") return Some(ToValue(c.target));
-        if (name == "up") return Some(ToValue(c.up));
+        if (name == "position") return Some(scriptlib::Vec3List(c.position));
+        if (name == "target") return Some(scriptlib::Vec3List(c.target));
+        if (name == "up") return Some(scriptlib::Vec3List(c.up));
         if (name == "fov") return Some(Value::Number(double(c.fovYRadians)));
         if (name == "near") return Some(Value::Number(double(c.nearPlane)));
         if (name == "far") return Some(Value::Number(double(c.farPlane)));
@@ -297,9 +212,9 @@ void DefineCamera(TypeBuilder &builder) {
     builder.type->set = [](Interpreter &, const HostRef &self, const String &name,
                             const Value &v) -> Result<bool, ScriptError> {
         auto &c = As<CameraObj>(self).camera;
-        if (name == "position") { auto p = ParseVec3(v, "camera.position"); if (p.IsError()) return Err(p.Error()); c.position = p.Value(); return Ok(true); }
-        if (name == "target")   { auto p = ParseVec3(v, "camera.target");   if (p.IsError()) return Err(p.Error()); c.target = p.Value();   return Ok(true); }
-        if (name == "up")       { auto p = ParseVec3(v, "camera.up");       if (p.IsError()) return Err(p.Error()); c.up = p.Value();       return Ok(true); }
+        if (name == "position") { auto p = scriptlib::Vec3Of(v, "camera.position"); if (p.IsError()) return Err(p.Error()); c.position = p.Value(); return Ok(true); }
+        if (name == "target")   { auto p = scriptlib::Vec3Of(v, "camera.target");   if (p.IsError()) return Err(p.Error()); c.target = p.Value();   return Ok(true); }
+        if (name == "up")       { auto p = scriptlib::Vec3Of(v, "camera.up");       if (p.IsError()) return Err(p.Error()); c.up = p.Value();       return Ok(true); }
         if (name == "fov" && v.IsNumber())   { c.fovYRadians = float(v.AsFloat()); return Ok(true); }
         if (name == "near" && v.IsNumber())  { c.nearPlane = float(v.AsFloat());   return Ok(true); }
         if (name == "far" && v.IsNumber())   { c.farPlane = float(v.AsFloat());    return Ok(true); }
@@ -309,9 +224,9 @@ void DefineCamera(TypeBuilder &builder) {
 }
 
 void DefineNode(TypeBuilder &builder) {
-    auto nodeOf = [](const HostRef &self) -> render3d::Object3D * { return As<NodeObj>(self).node; };
+    auto nodeOf = [](const HostObject &self) -> render3d::Object3D * { return As<NodeObj>(self).node; };
     builder.Method("find", 1, 1, [nodeOf](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
-        render3d::Object3D *n = nodeOf(self);
+        render3d::Object3D *n = nodeOf(*self);
         if (!n) return Ok(Value::Nil());
         render3d::Object3D *found = n->FindByName(args[0].ToDisplayString().View());
         if (!found) return Ok(Value::Nil());
@@ -324,7 +239,7 @@ void DefineNode(TypeBuilder &builder) {
     });
     builder.Method("children", 0, 0, [nodeOf](Interpreter &, const HostRef &self, Args &) -> Result<Value, ScriptError> {
         auto list = std::make_shared<ListObject>();
-        render3d::Object3D *n = nodeOf(self);
+        render3d::Object3D *n = nodeOf(*self);
         if (n) {
             for (const auto &child : n->Children()) {
                 auto handle = std::make_shared<NodeObj>();
@@ -338,7 +253,7 @@ void DefineNode(TypeBuilder &builder) {
         return Ok(Value::List(std::move(list)));
     });
     builder.Method("parent", 0, 0, [nodeOf](Interpreter &, const HostRef &self, Args &) -> Result<Value, ScriptError> {
-        render3d::Object3D *n = nodeOf(self);
+        render3d::Object3D *n = nodeOf(*self);
         if (!n || !n->Parent()) return Ok(Value::Nil());
         auto handle = std::make_shared<NodeObj>();
         handle->type = self->type;
@@ -348,20 +263,20 @@ void DefineNode(TypeBuilder &builder) {
         return Ok(Value::Host(std::move(handle)));
     });
     builder.Method("set_position", 1, 1, [nodeOf](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
-        auto v = ParseVec3(args[0], "node.set_position");
+        auto v = scriptlib::Vec3Of(args[0], "node.set_position");
         if (v.IsError()) return Err(v.Error());
-        if (render3d::Object3D *n = nodeOf(self)) n->SetPosition(v.Value());
+        if (render3d::Object3D *n = nodeOf(*self)) n->SetPosition(v.Value());
         return Ok(Value::Host(self));
     });
     builder.Method("set_euler", 3, 3, [nodeOf](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
-        if (render3d::Object3D *n = nodeOf(self))
+        if (render3d::Object3D *n = nodeOf(*self))
             n->SetRotation(math::FQuaternion::FromEuler(float(args[0].AsFloat()), float(args[1].AsFloat()), float(args[2].AsFloat())));
         return Ok(Value::Host(self));
     });
     builder.Method("set_scale", 1, 1, [nodeOf](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
-        auto v = ParseVec3(args[0], "node.set_scale");
+        auto v = scriptlib::Vec3Of(args[0], "node.set_scale");
         if (v.IsError()) return Err(v.Error());
-        if (render3d::Object3D *n = nodeOf(self)) n->SetScale(v.Value());
+        if (render3d::Object3D *n = nodeOf(*self)) n->SetScale(v.Value());
         return Ok(Value::Host(self));
     });
     builder.Method("set_material", 1, 1, [](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
@@ -375,29 +290,40 @@ void DefineNode(TypeBuilder &builder) {
     });
     // Propriétés directes (getter + setter)
     builder.type->get = [nodeOf](const HostObject &self, const String &name) -> Option<Value> {
-        render3d::Object3D *n = nodeOf(MakeRef(self));
+        render3d::Object3D *n = nodeOf(self);
         if (!n) return NONE;
-        if (name == "position") return Some(ToValue(n->Position()));
-        if (name == "rotation") return Some(ToValue(n->Rotation()));
-        if (name == "scale")    return Some(ToValue(n->Scale()));
+        if (name == "position") return Some(scriptlib::Vec3List(n->Position()));
+        if (name == "rotation") return Some(scriptlib::QuatList(n->Rotation()));
+        if (name == "scale")    return Some(scriptlib::Vec3List(n->Scale()));
         if (name == "visible")  return Some(Value::Boolean(n->IsVisible()));
         if (name == "name")     return Some(Value::Str(n->Name()));
         return NONE;
     };
     builder.type->set = [nodeOf](Interpreter &, const HostRef &self, const String &name,
                                    const Value &v) -> Result<bool, ScriptError> {
-        render3d::Object3D *n = nodeOf(self);
+        render3d::Object3D *n = nodeOf(*self);
         if (!n) return Ok(false);
-        if (name == "position") { auto x = ParseVec3(v, "node.position"); if (x.IsError()) return Err(x.Error()); n->SetPosition(x.Value()); return Ok(true); }
-        if (name == "scale")    { auto x = ParseVec3(v, "node.scale");    if (x.IsError()) return Err(x.Error()); n->SetScale(x.Value());    return Ok(true); }
+        if (name == "position") { auto x = scriptlib::Vec3Of(v, "node.position"); if (x.IsError()) return Err(x.Error()); n->SetPosition(x.Value()); return Ok(true); }
+        if (name == "scale")    { auto x = scriptlib::Vec3Of(v, "node.scale");    if (x.IsError()) return Err(x.Error()); n->SetScale(x.Value());    return Ok(true); }
         if (name == "visible")  { n->SetVisible(v.IsTruthy()); return Ok(true); }
         if (name == "name")     { n->SetName(v.ToDisplayString()); return Ok(true); }
         return Ok(false);
     };
     builder.type->display = [nodeOf](const HostObject &self) {
-        render3d::Object3D *n = nodeOf(MakeRef(self));
+        render3d::Object3D *n = nodeOf(self);
         return n ? String::Format("<render3d.node %s>", n->Name().CStr()) : String("<render3d.node>");
     };
+}
+
+/// Poignée `render3d.node` — définie avant DefineScene, qui l'utilise.
+Value MakeRawNodeHandle(render3d::Object3D *node, render3d::Shape *asShape, SceneObj *scene,
+                        std::shared_ptr<const HostType> nodeType) {
+    auto handle = std::make_shared<NodeObj>();
+    handle->type = std::move(nodeType);
+    handle->node = node;
+    handle->asShape = asShape;
+    handle->scene = scene;
+    return Value::Host(std::move(handle));
 }
 
 void DefineScene(TypeBuilder &builder) {
@@ -407,12 +333,6 @@ void DefineScene(TypeBuilder &builder) {
         auto node = std::make_unique<render3d::Object3D>();
         render3d::Object3D *raw = node.get();
         o.pending.push_back(std::move(node));
-        auto handle = std::make_shared<NodeObj>();
-        handle->type = self->type;  // même type que la scène ? non — voir add()
-        (void)handle;
-        // Le handle est renvoyé comme nœud ; le type réel sera rétabli par
-        // l'appelant (le TypeBuilder de la scène n'est pas réutilisable).
-        // On délègue à une fonction dédiée :
         return Ok(MakeRawNodeHandle(raw, nullptr, &o, self->type));
     });
     builder.Method("create_shape", 1, 2, [](Interpreter &, const HostRef &self, Args &args) -> Result<Value, ScriptError> {
@@ -473,22 +393,6 @@ void DefineScene(TypeBuilder &builder) {
         return Ok(Value::Nil());
     });
     builder.type->display = [](const HostObject &) { return String("<render3d.scene>"); };
-}
-
-// Helper hors TypeBuilder : construit un NodeObj dont le type est celui du
-// NodeBuilder déjà enregistré.
-Value MakeRawNodeHandle(render3d::Object3D *node, render3d::Shape *asShape, SceneObj *scene,
-                        std::shared_ptr<const HostType> nodeType);
-
-// (implémentation)
-Value MakeRawNodeHandle(render3d::Object3D *node, render3d::Shape *asShape, SceneObj *scene,
-                        std::shared_ptr<const HostType> nodeType) {
-    auto handle = std::make_shared<NodeObj>();
-    handle->type = std::move(nodeType);
-    handle->node = node;
-    handle->asShape = asShape;
-    handle->scene = scene;
-    return Value::Host(std::move(handle));
 }
 
 } // namespace

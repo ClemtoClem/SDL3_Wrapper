@@ -48,6 +48,12 @@ struct Options {
 	int width = 1280, height = 760;
 	std::vector<std::pair<long, String>> screenshotsAt; ///< image → fichier
 	std::vector<std::pair<long, String>> commands;      ///< image → commande (/…) ou commande d'application (!…)
+	// Voxelia Studio (fenêtre d'édition sur la même partie, cf. studio/studio.hpp)
+	bool studio = false;                                ///< --studio : ouvre le studio au démarrage
+	Option<size_t> studioDisplay = NONE;                ///< --studio-display=N : écran du studio
+	std::vector<std::pair<long, String>> studioShots;   ///< --studio-screenshot=N:FICHIER
+	std::vector<std::pair<long, String>> desktopShots;  ///< --screenshot-desktop=N:FICHIER (toutes les fenêtres)
+	String report;                                      ///< --report=FICHIER (texte, + FICHIER.json)
 	bool help = false;
 };
 

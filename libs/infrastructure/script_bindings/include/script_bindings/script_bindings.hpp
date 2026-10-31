@@ -8,12 +8,11 @@
  *
  *   | Module     | Espace de noms | Dépendance hôte requise            |
  *   |------------|----------------|------------------------------------|
+ *   | archive    | `archive`      | (aucune — fichiers uniquement)     |
  *   | audio      | `audio`        | audio::AudioEngine                 |
  *   | ecs        | `ecs`          | (monde possédé ou hôte)            |
+ *   | dataio     | `dataio`       | (aucune — documents JSON/YAML/CSV…) |
  *   | generators | `gen`          | (aucune — pur calcul)              |
- *   | dataio     | `dataio`       | dataio::                           |
- *   | modeling   | `modeling`     | modeling::Model                    |
- *   | net        | `net`          | net::chat::ChatNode                |
  *   | physics    | `physics`      | physics::World                     |
  *   | render3d   | `render3d`     | render3d::Canvas + Object3D racine |
  *   | sql        | `sql`          | sql::Database                      |
@@ -25,6 +24,10 @@
  * fenêtre GPU n'a donc pas besoin des bindings `render3d`, et un script qui
  * ne fait que du calcul n'a besoin d'aucun module.
  *
+ * Les outils partagés par plusieurs bibliothèques (lecture des tables
+ * d'options, vecteurs, octets, couleurs) sont dans `script_common.hpp` et
+ * `script_color.hpp` — espace `scriptlib`.
+ *
  * Les modules `jobs`, `platform` et `resources` exposent aussi leurs propres
  * headers `script_jobs.hpp`, `script_platform.hpp`, `script_resources.hpp`
  * (voir leurs fichiers respectifs) — ils suivent exactement le même patron.
@@ -34,10 +37,11 @@
 
 #include <script/script.hpp>
 
+#include "script_archive.hpp"
 #include "script_audio.hpp"
 #include "script_ecs.hpp"
-#include "script_generator.hpp"
 #include "script_dataio.hpp"
+#include "script_generator.hpp"
 #include "script_physics.hpp"
 #include "script_render3d.hpp"
 #include "script_sql.hpp"
@@ -46,6 +50,9 @@
 namespace script {
 
 struct BindingsConfig {
+    // ── archive (aucune dépendance : fichiers du disque seulement) ────────
+    bool archive = false;
+
     // ── audio ─────────────────────────────────────────────────────────────
     audio::AudioEngine *audioEngine = nullptr;
     AudioPathResolver audioResolve{};

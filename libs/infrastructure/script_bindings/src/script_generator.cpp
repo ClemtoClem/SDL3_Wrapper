@@ -1,4 +1,4 @@
-// Définitions de data/script/script_generator.hpp
+// Définitions de script_bindings/script_generator.hpp
 // L'en-tête n'est pas autonome : il compte sur ce qu'inclut son module.
 #include <script/script.hpp>
 #include <script_bindings/script_generator.hpp>
@@ -7,57 +7,9 @@ namespace script {
 
 namespace genlib {
 
-// ── Options ──────────────────────────────────────────────────────────────────
-
-Options::Options(const Value &v, const char *fn) : m_fn(fn) {
-	if (v.IsMap() && v.AsMap())
-		m_entries = v.AsMap()->Snapshot();
-	else if (!v.IsNil())
-		m_error = Some(Fail(String::Format("`%s` : table d'options attendue, trouvé `%s`", fn, v.TypeName())));
-}
-
-Option<Value> Options::Get(const char *key) {
-	m_known.push_back(String(key));
-	for (const auto &entry : m_entries)
-		if (entry.first == key)
-			return Some(entry.second);
-	return NONE;
-}
-
-double Options::Number(const char *key, double fallback) {
-	Option<Value> v = Get(key);
-	if (v.IsNone())
-		return fallback;
-	if (!v.Value().IsNumber()) {
-		Fault(String::Format("`%s` : option `%s` : nombre attendu", m_fn, key));
-		return fallback;
-	}
-	return v.Value().AsNumber();
-}
-
-bool Options::Bool(const char *key, bool fallback) {
-	Option<Value> v = Get(key);
-	return v.IsNone() ? fallback : v.Value().IsTruthy();
-}
-
-String Options::Text(const char *key, const char *fallback) {
-	Option<Value> v = Get(key);
-	return v.IsNone() ? String(fallback) : v.Value().ToDisplayString();
-}
-
-void Options::Fault(String message) {
-	if (m_error.IsNone())
-		m_error = Some(Fail(std::move(message)));
-}
-
-Option<ScriptError> Options::Finish() {
-	if (m_error.IsSome())
-		return m_error;
-	for (const auto &entry : m_entries)
-		if (std::find(m_known.begin(), m_known.end(), entry.first) == m_known.end())
-			return Some(Fail(String::Format("`%s` : option `%s` inconnue", m_fn, entry.first.CStr())));
-	return NONE;
-}
+// ── Lecture des options ─────────────────────────────────────────────────
+// (Options est l'outil commun de toutes les bibliothèques — cf.
+// script_common.hpp ; rien à définir ici.)
 
 Result<generators::NoiseSettings, ScriptError> ReadNoise(Options &o, const char *fn) {
 	using namespace generators;
