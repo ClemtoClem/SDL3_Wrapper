@@ -705,6 +705,29 @@ const TerrainGenerator::MazeLevel &TerrainGenerator::MazeLevelAt(int x, int z, i
 	return m_levels.back();
 }
 
+MazeLayout TerrainGenerator::Maze() const {
+	MazeLayout out;
+	if (m_def.kind != "maze")
+		return out;
+	out.cell = m_mazeCell;
+	out.height = m_mazeHeight;
+	for (const MazeLevel &level : m_levels)
+		out.levels.push_back(level.id);
+	for (int k = 0; k < m_mazeFloors; ++k) {
+		MazeLayout::Floor f;
+		f.index = k;
+		f.floorY = MazeFloorY(k);
+		f.ceilingY = f.floorY + m_mazeHeight;
+		f.seed = m_seed + uint32_t(k) * 7919u; // comme MazeWall
+		if (size_t(k) < m_floorLevels.size() && m_floorLevels[size_t(k)] >= 0 && size_t(m_floorLevels[size_t(k)]) < m_levels.size())
+			f.level = m_levels[size_t(m_floorLevels[size_t(k)])].id;
+		out.floors.push_back(f);
+	}
+	for (const MazeElevator &e : m_elevators)
+		out.shafts.push_back(MazeLayout::Shaft{e.id, e.cx, e.cz, e.from, e.to, e.half * 2 + 1, e.side});
+	return out;
+}
+
 bool TerrainGenerator::MazeWall(const MazeLevel &level, int x, int z, int floor) const {
 	const uint32_t seed = m_seed + uint32_t(floor) * 7919u; // un plan par étage
 	const int cell = m_mazeCell;

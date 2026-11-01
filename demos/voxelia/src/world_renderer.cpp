@@ -982,6 +982,28 @@ std::vector<WorldRenderer::MeshPart> WorldRenderer::StructureMeshes(const Schema
 	return out;
 }
 
+std::vector<WorldRenderer::MeshPart> WorldRenderer::ChunkMeshes(const World &world, const ContentRegistry &content,
+																 const std::vector<ChunkPos> &chunks) const {
+	std::vector<MeshPart> out;
+	// Un mailleur propre à ce contenu (il précalcule le rendu de chaque bloc).
+	ChunkMesher mesher(content, m_atlas, &m_game.Assets());
+	if (m_mesher)
+		mesher.options = m_mesher->options;
+	for (const ChunkPos &p : chunks) {
+		if (!world.GetChunk(p))
+			continue;
+		const ChunkMesh built = mesher.Build(world, p);
+		for (const auto &[buffer, material] : {std::pair{&built.opaque, &m_opaque}, std::pair{&built.emissive, &m_emissive},
+											   std::pair{&built.translucent, &m_translucent}})
+			if (!buffer->IsEmpty()) {
+				render3d::Material m = *material;
+				m.voxelReflections = false;
+				out.push_back(MeshPart{std::make_shared<render3d::Mesh>(ToMesh(*buffer)), m, p.Origin().ToVector()});
+			}
+	}
+	return out;
+}
+
 void WorldRenderer::SetGhost(std::shared_ptr<const Schematic> structure, const BlockPos &corner) {
 	if (structure != m_ghost) {
 		while (!m_ghostRoot->Children().empty())

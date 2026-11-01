@@ -10,14 +10,15 @@
  *                    joueur, état (img/s, chunks en attente, ms simulation,
  *                    ms maillage, fils) ;
  *   gauche  : World Outliner (filtre, groupes par catégorie, 5 Hz), blocs,
- *             modèles, structures, textures, entités (catalogues) ;
+ *             modèles, structures, textures, entités, monde (catalogues) ;
  *   centre  : vue 3D DIRECT (même device GPU que la fenêtre de jeu : aucune
  *             copie) — clic droit maintenu + ZQSD/WASD, E/A montée/descente,
  *             molette avance/recule ; double-clic d'une entité : caméra
  *             dessus ; « Suivre » : poursuite, cap pris sur la vitesse ;
  *   droite  : inspecteur de l'entité sélectionnée (rafraîchi à chaque image),
  *             éditeurs de bloc, de modèle, de structure, de texture et
- *             d'entité (aperçu de comportement : sélectionnée et suivie) ;
+ *             d'entité (aperçu de comportement : sélectionnée et suivie),
+ *             de biomes / générateurs / dimensions (aperçu autonome) ;
  *   bas     : console à code d'état (ConsoleModel).
  *
  * Fils : Update et HandleEvent ne s'appellent que lorsque le fil principal a
@@ -39,6 +40,7 @@
 #include "report.hpp"
 #include "structure_editor.hpp"
 #include "texture_editor.hpp"
+#include "worldgen_editor.hpp"
 
 namespace voxelia {
 
@@ -82,6 +84,7 @@ public:
 	[[nodiscard]] StructureEditor &Structures() noexcept { return *m_structures; }
 	[[nodiscard]] TextureEditor &Textures() noexcept { return *m_textures; }
 	[[nodiscard]] EntityEditor &Entities() noexcept { return *m_entities; }
+	[[nodiscard]] WorldgenEditor &Worldgen() noexcept { return *m_worldgen; }
 
 private:
 	void Build();
@@ -107,10 +110,11 @@ private:
 	std::unique_ptr<StructureEditor> m_structures;
 	std::unique_ptr<TextureEditor> m_textures;
 	std::unique_ptr<EntityEditor> m_entities;
+	std::unique_ptr<WorldgenEditor> m_worldgen;
 
 	// Widgets
 	ui::Widget m_viewport, m_outlinerList, m_outlinerCount, m_inspector, m_consoleLog, m_consoleInput, m_consoleBar;
-	ui::Widget m_status, m_pauseButton, m_followButton, m_stats;
+	ui::Widget m_status, m_pauseButton, m_followButton, m_stats, m_leftTabs, m_rightTabs;
 	struct RowView {
 		String label;
 		ui::Widget value;

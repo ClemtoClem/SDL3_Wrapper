@@ -102,6 +102,14 @@ public:
 
 	/// Mods (JSON puis scripts) ; à appeler avant OpenWorld.
 	ModReport LoadMods(const GameOptions &options);
+	/// Avance à chaque changement du contenu (mods chargés, définition
+	/// rechargée) : un affichage qui en dépend sait qu'il est à refaire.
+	[[nodiscard]] uint64_t ContentGeneration() const noexcept { return m_contentGeneration; }
+	/// Garde appelée AVANT tout changement du contenu (LoadMods,
+	/// ReloadDefinition), sur le fil qui le change : un lecteur d'un autre
+	/// fil (recherche d'un éditeur) y est attendu. Rend un jeton de retrait.
+	size_t AddContentGuard(std::function<void()> guard);
+	void RemoveContentGuard(size_t token);
 	[[nodiscard]] ContentRegistry &Content() noexcept { return m_content; }
 	[[nodiscard]] const ModReport &Mods() const noexcept { return m_mods; }
 	[[nodiscard]] AssetManager &Assets() noexcept { return *m_assets; }
@@ -181,6 +189,13 @@ public:
 	/// remplacé par le réglage figé du mod `mod` (`fallback` quand il vaut 0,
 	/// "", false ou manque). Les générateurs sont créés ainsi.
 	[[nodiscard]] NodePtr ResolveSettings(const NodePtr &node, const String &mod);
+	/// Générateur de la dimension `dimension` selon `content` (celui de la
+	/// partie, ou une copie modifiée par un éditeur) et la graine du monde
+	/// ouvert — exactement celui que CreateWorld construirait, réglages des
+	/// mods résolus. Aperçus : rien n'est touché.
+	[[nodiscard]] std::shared_ptr<TerrainGenerator> DimensionGenerator(const ContentRegistry &content, const String &dimension);
+	/// Graine d'une dimension du monde ouvert (« seedFrom » : celle d'une autre).
+	[[nodiscard]] uint32_t DimensionSeed(const String &dimension) const;
 	/// Moteur de la gaine d'ascenseur `shaft` (vide : la première) que génère
 	/// le labyrinthe de `dimension` (« maze », « elevator(s) ») ; NONE : aucune.
 	[[nodiscard]] Option<BlockPos> MazeShaftMotor(const String &dimension, const String &shaft = String());
@@ -440,6 +455,10 @@ private:
 	std::map<std::string, std::pair<BlockPos, Inventory>> m_containers; ///< « x,y,z » → rangement chargé
 	std::map<std::string, Schematic> m_clipboards;
 	std::vector<Highlight> m_highlights;
+	uint64_t m_contentGeneration = 0;
+	std::vector<std::pair<size_t, std::function<void()>>> m_contentGuards;
+	size_t m_nextGuard = 1;
+	void GuardContent(); ///< appelle les gardes
 	float m_randomTickTimer = 0.f;
 	float m_sensorTimer = 0.f;
 	float m_lightTimer = 0.f;

@@ -173,7 +173,23 @@ void Game::PlayBlockSound(BlockId block, const char *event, const BlockPos &pos)
 
 // ── Contenu ──────────────────────────────────────────────────────────────────
 
+size_t Game::AddContentGuard(std::function<void()> guard) {
+	m_contentGuards.push_back({m_nextGuard, std::move(guard)});
+	return m_nextGuard++;
+}
+
+void Game::RemoveContentGuard(size_t token) {
+	std::erase_if(m_contentGuards, [token](const auto &g) { return g.first == token; });
+}
+
+void Game::GuardContent() {
+	for (const auto &[token, guard] : m_contentGuards)
+		if (guard)
+			guard();
+}
+
 ModReport Game::LoadMods(const GameOptions &options) {
+	GuardContent();
 	m_options = options;
 	m_mods = ModLoader::LoadAll(m_content, options.modDirectories, options.disabledMods, options.modOrder);
 	// Scripts : dans l'ordre des mods, après les définitions JSON de chacun
@@ -191,6 +207,7 @@ ModReport Game::LoadMods(const GameOptions &options) {
 	for (const String &w : m_mods.warnings)
 		LogLine(String("[avertissement] ") + w);
 	LogLine(String::Format("%d mod(s), %d définition(s)", int(m_mods.mods.size()), int(m_content.DefinitionCount())));
+	++m_contentGeneration;
 	return m_mods;
 }
 
@@ -198,6 +215,7 @@ ModReport Game::LoadMods(const GameOptions &options) {
 
 Result<std::vector<String>, String> Game::ReloadDefinition(const NodePtr &definition,
 															 const ContentRegistry::LoadContext &context) {
+	GuardContent(); // les lecteurs des autres fils s'arrêtent avant
 	// Les avertissements de chargement de l'ancienne version ne valent plus.
 	const String base = json::Str(definition, "id");
 	if (!base.IsEmpty()) {
@@ -226,6 +244,7 @@ Result<std::vector<String>, String> Game::ReloadDefinition(const NodePtr &defini
 	}
 	if (m_world)
 		m_world->ContentChanged();
+	++m_contentGeneration;
 	return Ok(std::move(blocks));
 }
 
@@ -297,19 +316,12 @@ void Game::CreateWorld(const String &dimension) {
 	// Le monde ordinaire garde les clés de sauvegarde d'origine.
 	m_save->SetDimension(overworld ? String() : dimension);
 	const String generator = def && !def->generator.IsEmpty() ? def->generator : m_metadata.generator;
-	const uint32_t seed = overworld ? m_metadata.seed : m_metadata.seed ^ HashText(dimension);
+	const uint32_t seed = DimensionSeed(dimension);
 	WorldSettings settings{m_metadata.name, seed, generator, m_metadata.settings};
 	m_world = std::make_unique<World>(m_content, settings);
 	m_world->SetStorage(m_save.get());
 	// Paramètres tirés des réglages des mods ({"setting": …}) : résolus, et figés dans ce monde.
-	std::shared_ptr<TerrainGenerator> terrain;
-	if (const GeneratorDef *found = generator.IsEmpty() ? nullptr : m_content.FindGenerator(generator)) {
-		GeneratorDef resolved = *found;
-		resolved.raw = ResolveSettings(found->raw, found->mod);
-		terrain = std::make_shared<TerrainGenerator>(m_content, resolved, seed, m_scripts->Generator());
-	} else {
-		terrain = MakeGenerator(m_content, generator, seed, m_scripts->Generator());
-	}
+	std::shared_ptr<TerrainGenerator> terrain = DimensionGenerator(m_content, dimension);
 	if (overworld && m_metadata.generator.IsEmpty())
 		m_metadata.generator = terrain->Definition().id;
 	// Réglages de génération choisis à la création du monde (monde ordinaire).
@@ -337,6 +349,33 @@ void Game::CreateWorld(const String &dimension) {
 	m_physics.gravity = m_baseGravity * (def ? def->gravity : 1.f);
 	m_dimensionEnter = m_metadata.playTime;
 	++m_worldSerial;
+}
+
+uint32_t Game::DimensionSeed(const String &dimension) const {
+	// « seedFrom » : la graine d'une autre dimension (copie temporaire d'un
+	// éditeur, variante d'un niveau) — même terrain à mêmes règles.
+	// Chaîne bornée : une boucle (A → B → A) s'arrête au bout de 8 sauts.
+	String id = dimension;
+	for (int hop = 0; hop < 8; ++hop) {
+		const DimensionDef *def = m_content.FindDimension(id);
+		const String from = def ? json::Str(def->raw, "seedFrom") : String();
+		if (from.IsEmpty())
+			break;
+		id = ContentRegistry::Qualify(from, def->mod);
+	}
+	return IsDefaultDimension(id) ? m_metadata.seed : m_metadata.seed ^ HashText(id);
+}
+
+std::shared_ptr<TerrainGenerator> Game::DimensionGenerator(const ContentRegistry &content, const String &dimension) {
+	const DimensionDef *def = content.FindDimension(dimension.IsEmpty() ? m_dimension : dimension);
+	const String generator = def && !def->generator.IsEmpty() ? def->generator : m_metadata.generator;
+	const uint32_t seed = DimensionSeed(dimension.IsEmpty() ? m_dimension : dimension);
+	if (const GeneratorDef *found = generator.IsEmpty() ? nullptr : content.FindGenerator(generator)) {
+		GeneratorDef resolved = *found;
+		resolved.raw = ResolveSettings(found->raw, found->mod);
+		return std::make_shared<TerrainGenerator>(content, resolved, seed, m_scripts->Generator());
+	}
+	return MakeGenerator(content, generator, seed, m_scripts->Generator());
 }
 
 NodePtr Game::DimensionData(const String &dimension) {

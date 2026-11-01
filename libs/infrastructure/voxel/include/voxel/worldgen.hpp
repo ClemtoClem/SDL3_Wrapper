@@ -57,6 +57,27 @@ struct GenerationTuning {
 	int seaLevel = 0;       ///< décalage du niveau de la mer
 };
 
+/// Plan d'un labyrinthe (« maze ») tel que le générateur le construit :
+/// étages (hauteur du sol et du plafond, graine du plan, niveau imposé) et
+/// gaines d'ascenseur (étages desservis) — éditeur de dimensions.
+struct MazeLayout {
+	struct Floor {
+		int index = 0;
+		int floorY = 0, ceilingY = 0;
+		uint32_t seed = 0;  ///< graine du plan de l'étage : graine du monde + 7919 × étage
+		String level;       ///< niveau imposé (« floors ») ; vide : régions de niveaux
+	};
+	struct Shaft {
+		String id;
+		int cellX = 0, cellZ = 0, from = 0, to = 0, size = 7;
+		String side;
+	};
+	int cell = 7, height = 5;
+	std::vector<Floor> floors;
+	std::vector<String> levels; ///< niveaux déclarés (« levels »)
+	std::vector<Shaft> shafts;
+};
+
 /// Gaine d'ascenseur générée par un labyrinthe (vue des scripts : world.maze_shaft).
 struct MazeShaftInfo {
 	BlockPos motor;  ///< moteur, au-dessus du centre de la gaine
@@ -81,6 +102,8 @@ public:
 	/// Labyrinthe : nombre d'étages, et moteur d'une de ses gaines d'ascenseur
 	/// (`id` vide : la première ; NONE : pas de gaine).
 	[[nodiscard]] int MazeFloors() const noexcept { return m_mazeFloors; }
+	/// Plan complet du labyrinthe (vide pour les autres genres).
+	[[nodiscard]] MazeLayout Maze() const;
 	[[nodiscard]] Option<BlockPos> MazeElevatorMotor(const String &id = String()) const;
 	/// Même gaine, avec son fond, sa taille et le côté de ses paliers.
 	[[nodiscard]] Option<MazeShaftInfo> MazeElevatorShaft(const String &id = String()) const;

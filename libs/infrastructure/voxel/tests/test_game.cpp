@@ -438,3 +438,33 @@ TEST(Behaviors_DefaultSpeedsComeFromTheBody) {
 	CHECK_NEAR(maxFlee, 2.8f, 1e-3f);           // 1,4 × 2, sans emballement
 	game.CloseWorld();
 }
+
+TEST(Content_GuardsRunBeforeEveryChangeAndGenerationAdvances) {
+	// Un lecteur d'un autre fil (catalogue d'un éditeur) est attendu avant
+	// chaque changement du contenu ; la génération dit qu'il a changé.
+	const String root = MakeMods("guards");
+	Game game;
+	std::vector<uint64_t> seen; // génération vue par la garde au moment de l'appel
+	const size_t token = game.AddContentGuard([&] { seen.push_back(game.ContentGeneration()); });
+	const uint64_t before = game.ContentGeneration();
+	(void)game.LoadMods(Options(root));
+	REQUIRE_EQ(seen.size(), size_t(1));
+	CHECK_EQ(seen[0], before);                       // appelée AVANT le chargement
+	CHECK(game.ContentGeneration() > before);
+	const uint64_t loaded = game.ContentGeneration();
+	ContentRegistry::LoadContext ctx;
+	ctx.mod = "basic";
+	REQUIRE(game.ReloadDefinition(json::Parse(String(R"({"id": "stone", "graphics": {"texture": "stone"}})")).Value(), ctx).IsOk());
+	REQUIRE_EQ(seen.size(), size_t(2));
+	CHECK_EQ(seen[1], loaded);
+	CHECK(game.ContentGeneration() > loaded);
+	// Un rechargement refusé n'avance pas la génération (la garde a quand même attendu).
+	const uint64_t accepted = game.ContentGeneration();
+	CHECK(game.ReloadDefinition(json::Parse(String(R"({"type": "blob_inconnu", "id": "x"})")).Value(), ctx).IsError());
+	CHECK_EQ(game.ContentGeneration(), accepted);
+	// Retirée : plus appelée.
+	game.RemoveContentGuard(token);
+	const size_t calls = seen.size();
+	REQUIRE(game.ReloadDefinition(json::Parse(String(R"({"id": "stone", "graphics": {"texture": "stone"}})")).Value(), ctx).IsOk());
+	CHECK_EQ(seen.size(), calls);
+}

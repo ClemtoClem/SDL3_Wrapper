@@ -2,6 +2,7 @@
 #include <voxelia/studio/block_editor.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <set>
@@ -10,6 +11,7 @@
 #include <voxel/json.hpp>
 #include <voxelia/session.hpp>
 #include <voxelia/shell.hpp>
+#include <voxelia/worker.hpp>
 
 namespace voxelia::studio {
 
@@ -94,8 +96,67 @@ std::vector<NodePtr> Definitions(const NodePtr &root) {
 
 } // namespace
 
+/// Recherche du catalogue : le fil, la demande en cours et le dernier résultat.
+struct BlockEditor::CatalogSearch {
+	struct Entry {
+		String mod, label, id;
+	};
+	/// Résultat d'une recherche (`serial` : la demande qui l'a produit).
+	struct Found {
+		uint64_t serial = 0;
+		std::vector<Entry> entries; ///< les CATALOG_MAX premiers
+		size_t total = 0;           ///< tous ceux qui correspondent
+		double milliseconds = 0.0;
+	};
+	static constexpr size_t CATALOG_MAX = 400;
+
+	Option<sdl3::Mutex> mutex = NONE;
+	uint64_t requested = 0;     ///< dernière demande lancée (fil principal)
+	Option<Found> found = NONE; ///< protégé par `mutex`
+	Worker worker{String("studio-catalog")}; ///< dernier membre : joint en premier
+
+	CatalogSearch() {
+		if (auto m = sdl3::Mutex::Create())
+			mutex = Some(std::move(m.Value()));
+	}
+	[[nodiscard]] Option<sdl3::MutexGuard> Lock() {
+		return mutex.IsSome() ? Option<sdl3::MutexGuard>(Some(sdl3::MutexGuard(mutex.Value()))) : Option<sdl3::MutexGuard>(NONE);
+	}
+	[[nodiscard]] bool Busy() { return worker.Pending() > 0; }
+
+	/// Sur le fil de recherche : lit le contenu (la partie attend la fin de
+	/// cette tâche avant de le changer, cf. Game::AddContentGuard).
+	static Found Search(const voxel::ContentRegistry &content, const String &filter, uint64_t serial) {
+		const auto start = std::chrono::steady_clock::now();
+		Found out;
+		out.serial = serial;
+		const String lower = filter.ToLower();
+		for (const voxel::BlockDef &b : content.Blocks()) {
+			if (b.IsAir() || (!b.stateGroup.IsEmpty() && b.stateGroup != b.id))
+				continue; // un état s'ouvre avec son bloc
+			if (!lower.IsEmpty() && b.id.ToLower().Find(lower) == String::NPOS && b.displayName.ToLower().Find(lower) == String::NPOS)
+				continue;
+			if (++out.total <= CATALOG_MAX)
+				out.entries.push_back(Entry{b.mod,
+											String("  ") + (b.displayName.IsEmpty() ? b.id : b.displayName) +
+												(b.stateIds.empty() ? String() : String::Format(" (%zu états)", b.stateIds.size())),
+											b.id});
+		}
+		out.milliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+		return out;
+	}
+};
+
 BlockEditor::BlockEditor(Shell &shell, StudioReport *report, std::function<voxel::BlockPos()> placeAt)
-	: m_shell(shell), m_report(report), m_placeAt(std::move(placeAt)) {}
+	: m_shell(shell), m_report(report), m_placeAt(std::move(placeAt)), m_search(std::make_shared<CatalogSearch>()) {}
+
+BlockEditor::~BlockEditor() {
+	m_search->worker.Wait(); // plus aucune lecture du contenu en cours
+	// La garde ne tient qu'un pointeur faible : elle devient inerte. On la
+	// retire si la partie qui l'a reçue est toujours là.
+	if (Session *session = m_shell.Game(); session && m_guardedGame == &session->Game())
+		session->Game().RemoveContentGuard(m_guardToken);
+}
 
 voxel::Game *BlockEditor::Game() {
 	Session *session = m_shell.Game();
@@ -172,7 +233,7 @@ void BlockEditor::Build(ui::Widget parent) {
 void BlockEditor::BuildCatalog(ui::Widget parent) {
 	parent.Append(ui::Column().Grow().Gap(4.f).Children({
 		ui::Row().Gap(4.f).Children({
-			ui::Input("Filtrer les blocs…").Id("block-filter").Grow().OnTextChange([this](const String &text) {
+			ui::Input("Filtrer les blocs…").Id("block-filter").Grow().Ref(m_catalogFilterInput).OnTextChange([this](const String &text) {
 				m_catalogFilter = text;
 				RebuildCatalog();
 			}),
@@ -180,42 +241,100 @@ void BlockEditor::BuildCatalog(ui::Widget parent) {
 				(void)New(String::Format("nouveau_%zu", size_t(m_version + 1)), String("core"));
 			}),
 		}),
+		// Recherche en cours (fil à part) ou partie qui charge : un spinner.
+		ui::Row().Id("block-catalog-busy").Gap(6.f).Ref(m_catalogBusy).Children({
+			ui::Spinner(3.f, 300.f).Width(18.f).Height(18.f),
+			ui::Label("").Class("studio-status").Ref(m_catalogStatus),
+		}),
 		ui::ScrollView().Id("block-catalog").Grow().Ref(m_catalogList),
 	}));
 	RebuildCatalog();
 }
 
-void BlockEditor::RebuildCatalog() {
+void BlockEditor::RebuildCatalog() { m_catalogDirty = true; }
+
+CommandResult BlockEditor::SetCatalogFilter(const String &text) {
+	m_catalogFilter = text;
+	if (m_catalogFilterInput.Valid())
+		m_catalogFilterInput.SetText(text);
+	RebuildCatalog();
+	Visit("block.catalog_filter", FeatureStatus::Ok, text);
+	return CommandResult::Ok(text.IsEmpty() ? String("filtre vidé") : String("filtre : ") + text);
+}
+
+bool BlockEditor::CatalogBusy() const { return m_catalogDirty || m_search->Busy(); }
+
+void BlockEditor::PumpCatalog() {
 	if (!m_catalogList.Valid())
 		return;
-	m_catalogList.Clear();
-	voxel::Game *game = Game();
-	if (!game) {
-		m_catalogList.Append(ui::Label("aucune partie en cours").Class("studio-status"));
+	CatalogSearch &search = *m_search;
+	// Un résultat est arrivé : affiché s'il répond à la dernière demande.
+	Option<CatalogSearch::Found> found = NONE;
+	{
+		Option<sdl3::MutexGuard> lock = search.Lock();
+		found = std::move(search.found);
+		search.found = NONE;
+	}
+	if (found.IsSome() && found.Value().serial == search.requested) {
+		const CatalogSearch::Found &f = found.Value();
+		m_catalogList.Clear();
+		String mod;
+		for (const CatalogSearch::Entry &e : f.entries) {
+			if (e.mod != mod) {
+				mod = e.mod;
+				m_catalogList.Append(ui::Label(mod).Class("studio-group"));
+			}
+			const String id = e.id;
+			m_catalogList.Append(ui::Label(e.label).Class("studio-row").Tooltip(id).OnClick([this, id] { (void)Open(id); }));
+		}
+		if (f.total > f.entries.size())
+			m_catalogList.Append(ui::Label(String::Format("… %zu de plus (affinez le filtre)", f.total - f.entries.size())).Class("studio-status"));
+		if (f.total == 0)
+			m_catalogList.Append(ui::Label("aucun bloc ne correspond").Class("studio-status"));
+		Visit("block.catalog", FeatureStatus::Ok, String::Format("%zu bloc(s), %.1f ms", f.total, f.milliseconds));
+	}
+	// Partie absente, ou qui charge encore ses mods : on attend.
+	Session *session = m_shell.Game();
+	if (!session || !session->Ready()) {
+		m_catalogBusy.Show();
+		m_catalogStatus.SetText(session ? String("chargement des mods…") : String("en attente d'une partie…"));
+		if (!m_catalogList.Children().empty())
+			m_catalogList.Clear(); // l'ancienne partie n'est plus là
+		m_catalogGeneration = ~0ull;
 		return;
 	}
-	const String filter = m_catalogFilter.ToLower();
-	String mod;
-	size_t shown = 0;
-	for (const voxel::BlockDef &b : game->Content().Blocks()) {
-		if (b.IsAir() || (!b.stateGroup.IsEmpty() && b.stateGroup != b.id))
-			continue; // un état s'ouvre avec son bloc
-		if (!filter.IsEmpty() && b.id.ToLower().Find(filter) == String::NPOS && b.displayName.ToLower().Find(filter) == String::NPOS)
-			continue;
-		if (b.mod != mod) {
-			mod = b.mod;
-			m_catalogList.Append(ui::Label(mod).Class("studio-group"));
-		}
-		const String id = b.id;
-		m_catalogList.Append(ui::Label(String("  ") + (b.displayName.IsEmpty() ? b.id : b.displayName) +
-									   (b.stateIds.empty() ? String() : String::Format(" (%zu états)", b.stateIds.size())))
-								 .Class("studio-row")
-								 .Tooltip(id)
-								 .OnClick([this, id] { (void)Open(id); }));
-		if (++shown >= 400) {
-			m_catalogList.Append(ui::Label("… (affinez le filtre)").Class("studio-status"));
-			break;
-		}
+	voxel::Game &game = session->Game();
+	// Garde : la partie attend la recherche avant de changer le contenu.
+	if (m_guardedGame != &game) {
+		m_guardedGame = &game;
+		std::weak_ptr<CatalogSearch> weak = m_search;
+		m_guardToken = game.AddContentGuard([weak] {
+			if (std::shared_ptr<CatalogSearch> alive = weak.lock())
+				alive->worker.Wait();
+		});
+		m_catalogGeneration = ~0ull;
+	}
+	if (game.ContentGeneration() != m_catalogGeneration)
+		m_catalogDirty = true;
+	// Nouvelle demande quand la précédente est finie (sinon au tour suivant).
+	if (m_catalogDirty && !search.Busy()) {
+		m_catalogDirty = false;
+		m_catalogGeneration = game.ContentGeneration();
+		const uint64_t serial = ++search.requested;
+		const voxel::ContentRegistry *content = &game.Content();
+		CatalogSearch *target = &search; // la tâche finit avant la destruction (~BlockEditor attend)
+		search.worker.Post([target, content, filter = m_catalogFilter, serial] {
+			CatalogSearch::Found result = CatalogSearch::Search(*content, filter, serial);
+			Option<sdl3::MutexGuard> lock = target->Lock();
+			target->found = Some(std::move(result));
+		});
+	}
+	const bool busy = search.Busy() || m_catalogDirty;
+	if (busy) {
+		m_catalogBusy.Show();
+		m_catalogStatus.SetText(String("recherche des blocs…"));
+	} else {
+		m_catalogBusy.Hide();
 	}
 }
 
@@ -351,6 +470,7 @@ void BlockEditor::CloseGesture() {
 }
 
 void BlockEditor::Update(float dt) {
+	PumpCatalog();
 	if (m_gesture) {
 		m_gestureTimer -= dt;
 		if (m_gestureTimer <= 0.f)

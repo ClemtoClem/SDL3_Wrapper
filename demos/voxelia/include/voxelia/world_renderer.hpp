@@ -116,8 +116,14 @@ public:
 	struct MeshPart {
 		std::shared_ptr<render3d::Mesh> mesh;
 		render3d::Material material;
+		math::FVector3 origin{0.f, 0.f, 0.f}; ///< où poser la forme
 	};
 	[[nodiscard]] std::vector<MeshPart> StructureMeshes(const voxel::Schematic &structure) const;
+	/// Chunks d'un monde AUTRE que celui de la partie (aperçu d'un générateur),
+	/// maillés avec l'atlas de la partie et le contenu `content` de ce monde ;
+	/// chaque forme à l'origine de son chunk.
+	[[nodiscard]] std::vector<MeshPart> ChunkMeshes(const voxel::World &world, const voxel::ContentRegistry &content,
+													const std::vector<voxel::ChunkPos> &chunks) const;
 	/// Fantôme d'une structure (aperçu d'un collage) : translucide, coin
 	/// minimal en `corner` ; nullptr : retiré.
 	void SetGhost(std::shared_ptr<const voxel::Schematic> structure, const voxel::BlockPos &corner);

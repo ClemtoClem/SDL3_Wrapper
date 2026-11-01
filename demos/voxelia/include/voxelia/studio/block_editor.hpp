@@ -11,9 +11,16 @@
  * Gestes : un changement continu (curseur numérique glissé) n'ouvre qu'UNE
  * étape d'annulation, close après 0,4 s sans changement.
  *
+ * Catalogue : affiché une fois la partie prête (tous les mods chargés) ; la
+ * recherche des blocs (filtre compris) tourne sur un fil à part — un
+ * spinner tourne pendant ce temps — et repart quand le contenu change
+ * (voxel::Game::ContentGeneration) ; la partie l'attend avant de toucher au
+ * contenu (Game::AddContentGuard).
+ *
  * Fil principal uniquement, quand la simulation ne tourne pas (cf. Studio).
  */
 #include <functional>
+#include <memory>
 #include <vector>
 
 #include <render3d/object3d.hpp>
@@ -34,6 +41,9 @@ class BlockEditor {
 public:
 	/// `placeAt` : bloc devant la caméra de l'éditeur (pose).
 	BlockEditor(Shell &shell, StudioReport *report, std::function<voxel::BlockPos()> placeAt);
+	~BlockEditor();
+	BlockEditor(const BlockEditor &) = delete;
+	BlockEditor &operator=(const BlockEditor &) = delete;
 
 	/// Construit le panneau sous `parent` (onglet du dock).
 	void Build(ui::Widget parent);
@@ -43,6 +53,10 @@ public:
 
 	// ── Actions (boutons, console, scénarios) ───────────────────────────────
 	CommandResult Open(const String &blockId);
+	/// Filtre du catalogue (la recherche repart sur son fil).
+	CommandResult SetCatalogFilter(const String &text);
+	/// Une recherche du catalogue est en cours (ou en attente de la partie).
+	[[nodiscard]] bool CatalogBusy() const;
 	CommandResult New(const String &id, const String &mod);
 	CommandResult SetField(const String &path, const String &jsonValue);
 	CommandResult SetScope(const String &state); ///< "" : bloc commun
@@ -76,7 +90,12 @@ private:
 	void Edit(const char *field, dataio::NodePtr value, bool continuous);
 	void CloseGesture();
 	void RebuildForm();
+	/// Le catalogue est à refaire (filtre, contenu) : la recherche repartira.
 	void RebuildCatalog();
+	/// Catalogue (à chaque image) : attend que la partie soit prête (mods
+	/// chargés), lance la recherche sur son fil quand le contenu ou le filtre
+	/// ont changé, et affiche son résultat quand elle est finie.
+	void PumpCatalog();
 	void RefreshDiagnostics();
 	void RefreshStates();
 	void RefreshHeader();
@@ -96,6 +115,14 @@ private:
 	bool m_gesture = false;
 	size_t m_reloads = 0;
 	String m_catalogFilter;
+	/// Recherche des blocs sur le fil « studio-catalog » (partagée avec la
+	/// garde de contenu de la partie, qui l'attend avant tout changement).
+	struct CatalogSearch;
+	std::shared_ptr<CatalogSearch> m_search;
+	voxel::Game *m_guardedGame = nullptr;
+	size_t m_guardToken = 0;
+	uint64_t m_catalogGeneration = ~0ull; ///< génération du contenu affichée
+	bool m_catalogDirty = true;
 
 	void RebuildShape();
 	CommandResult ShapeDone(Result<bool, String> result, const char *feature);
@@ -107,7 +134,7 @@ private:
 	float m_shapeOrbit = 0.7f;
 	ui::Widget m_shapeView, m_shapeBoxes, m_tabs;
 
-	ui::Widget m_title, m_scopeRow, m_form, m_jsonEditor, m_jsonStatus, m_states, m_diagnosticList, m_catalogList;
+	ui::Widget m_title, m_scopeRow, m_form, m_jsonEditor, m_jsonStatus, m_states, m_diagnosticList, m_catalogList, m_catalogBusy, m_catalogStatus, m_catalogFilterInput;
 };
 
 } // namespace studio

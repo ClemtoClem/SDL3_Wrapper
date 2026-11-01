@@ -578,13 +578,111 @@ modèles) ; arène dans une dimension temporaire (elle est bâtie dans le monde
 courant, puis rendue) ; paramètres d'IA par formulaire typé (saisie
 « clé valeur »).
 
-## Reste à faire (étapes 7+ du prompt)
+## Étape 7 — éditeurs de biomes, générateurs et dimensions (2026-11-01)
 
-Éditeurs de biomes et de dimensions (étape 7), peinture sur modèle 3D,
-poignées de Bézier glissées dans le graphe, import des animations glTF,
-`.glb`, sélection au clic dans la vue (`PickMeshFace`), gizmo, arborescence
-de structures, navigateur de ressources, Mod Manager, édition des valeurs
-dans l'inspecteur, vérification `--seed`, scénarios nommés `--scenario=`.
+### Moteur
+
+- `Game::DimensionGenerator(content, dimension)` : le générateur exact que
+  `CreateWorld` construirait (réglages des mods résolus), pour n'importe quel
+  contenu — `CreateWorld` s'en sert lui-même ; `Game::DimensionSeed`.
+- « seedFrom » (dimension) : la graine d'une autre dimension (chaîne bornée à
+  8 sauts) — la copie temporaire de l'éditeur a donc le même terrain.
+- `TerrainGenerator::Maze()` → `MazeLayout` : étages (sol, plafond, graine
+  « graine + 7919 × étage » — celle de MazeWall —, niveau imposé), niveaux
+  déclarés, gaines (cellule, taille, côté, étages desservis).
+- `BiomeDef / GeneratorDef / DimensionDef::source / sourceFile / baseDir`.
+
+### Studio
+
+- `WorldgenDocument` (biome, générateur, dimension) : `Scratch` (le contenu
+  avec le document chargé), `Validate` à blanc (blocs des couches et des
+  décorations, structures, climat 0..1, genre du générateur, biomes, couches,
+  générateur et ciel d'une dimension, bornes d'apparition, gravité nulle),
+  `Settings` (réglages de mod « {"setting": …} » et leur chemin),
+  `PreviewDimension` (la dimension, celle du biome, ou celle qui utilise le
+  générateur ; le monde ordinaire sinon).
+- `BuildPreview` : un monde AUTONOME (sa copie du contenu, le générateur et
+  la graine de la dimension) de N × N chunks — la tranche des étages d'un
+  labyrinthe (coupé au plafond du premier : on voit les couloirs d'en haut),
+  sinon ± 24 blocs autour de la surface ; la partie n'est pas touchée
+  (`WorldRenderer::ChunkMeshes` maille ce monde avec l'atlas de la partie).
+- `BuildDimensionGraph` : morts (« enterOnDeath »), ascenseurs
+  (« elevators.destinations » et leurs « from »), portails (« portal.dimension »).
+- `WorldgenEditor` : onglet « Monde » (dimensions, générateurs, biomes),
+  onglet « Monde » — formulaire selon le genre (champs absents : valeur du
+  moteur), aperçu 3D en orbite, sous-onglets Carte (biomes du générateur sur
+  512 × 512 blocs, légende), Labyrinthe (graine de la dimension, étages,
+  niveaux, gaines), Réglages (valeur figée dans ce monde, repli,
+  avertissement si des chunks existent), Chaîne (graphe dessiné, dimension
+  courante en jaune), JSON ; diagnostics en direct. « Appliquer à chaud » :
+  rechargé, avec l'AVERTISSEMENT que les chunks déjà générés ne changent pas ;
+  « Régénérer dans une dimension temporaire » (confirmation) : document
+  rechargé, copie « <dimension>_studio » (seedFrom, sans enterOnDeath), le
+  joueur y est envoyé ; « Revenir ».
+- Commandes `studio.world.*` : open, new, set, apply, save, undo, redo,
+  preview [chunks] [coupe], regenerate, return, check, graph.
+
+### Vérification
+
+- voxelia : `StudioWorldgen_*` (3) — documents réels, validation (références,
+  genre, générateur inconnu, définition qui ne se charge pas), réglages du
+  labyrinthe (« floors_level_0 » et son repli) ; aperçu autonome (la partie ne
+  charge rien de plus, même générateur), biome modifié (surface en or) visible
+  dans l'aperçu seulement, labyrinthe coupé (rien au-dessus), graines des
+  étages, gaine ; graphe : mort → niveau 0, ascenseurs 0 → 2 → 4 → 5.
+- Scénario studio : plaines dorées dans l'aperçu (forêts voisines intactes),
+  labyrinthe du niveau 0 vu d'en haut avec sa gaine (18 chunks, 2,2 s en
+  debug), graphe (13 liens), rechargement à chaud averti, régénération du
+  niveau 2 dans « backrooms:level_2_studio » puis retour — rc=0, stderr vide.
+
+### Non fait
+
+Édition point à point de la carte des biomes (le générateur « noise » les
+choisit par climat : rien à peindre) ; portails créés à la volée et test
+« traverser » ; gaines dessinées dans la vue 3D (listées) ; la dimension
+temporaire reste dans la sauvegarde du monde.
+
+## Catalogue des blocs sur son fil (2026-11-01)
+
+- Le catalogue de l'éditeur de blocs attend que la partie soit prête (tous
+  les mods chargés : `Session::Ready`) — jusque-là un spinner et « chargement
+  des mods… » ; il n'affiche plus « aucune partie » pour toujours quand le
+  studio s'ouvre avant la fin du chargement.
+- La recherche (parcours des blocs, filtre, libellés) tourne sur le fil
+  « studio-catalog » (`Worker`) ; le résultat est posé dans l'interface au
+  fil principal ; un spinner tourne pendant la recherche. Une demande plus
+  récente (filtre retapé) rend caduc un résultat en vol (numéro de demande).
+- Le catalogue repart quand le contenu change, d'où qu'il vienne :
+  `voxel::Game::ContentGeneration()` avance à chaque `LoadMods` et à chaque
+  `ReloadDefinition` réussi.
+- Sûreté : le fil LIT le ContentRegistry ; la partie appelle ses « gardes »
+  (`Game::AddContentGuard`) AVANT tout changement du contenu, et celle du
+  catalogue attend la fin de la recherche (pointeur faible : inerte si
+  l'éditeur a disparu ; retirée à sa destruction). Limite : un script qui
+  enregistre une définition pendant la partie (`voxel.register`) passe
+  par ContentRegistry::Load sans garde — c'est le cas au chargement des
+  mods, pas en jeu.
+- Commandes : `studio.block.filter [texte]`, `studio.tab left|right <n>`
+  (onglets des docks, pour les scénarios).
+- Vérifié : `Content_GuardsRunBeforeEveryChangeAndGenerationAdvances` (garde
+  appelée avant chargement et rechargement, génération qui avance, pas pour
+  un refus, garde retirée) ; scénario (spinner pendant le chargement,
+  catalogue une fois prêt, filtre « verre » — 1,8 ms sur le fil) ; scénario
+  sous ThreadSanitizer (3 filtres, rechargement à chaud d'un bloc pendant que
+  le catalogue est servi) : AUCUNE course de données. TSan y signale
+  seulement une inversion d'ordre de verrous INTERNE au pilote Vulkan de
+  SDL3 (`VULKAN_Submit` / `VULKAN_INTERNAL_RemoveMemoryUsedRegion`, sous
+  `WindowManager::Present`, fil principal seul : sans risque réel), étrangère
+  au catalogue.
+
+## Reste à faire (étapes 8+ du prompt)
+
+World Inspector complet (édition des valeurs) et console (étape 8, en grande
+partie faits au socle), Mod Manager et rechargement global (étape 9),
+scénarios nommés `--scenario=` (étape 10) ; peinture sur modèle 3D, poignées
+de Bézier glissées, animations glTF importées, `.glb`, sélection au clic
+(`PickMeshFace`), gizmo, arborescence de structures, navigateur de
+ressources, vérification `--seed`.
 
 `script_bindings` (et donc `sandbox`), cassé à HEAD et dans l'index, a été
 réparé le 2026-10-31 :

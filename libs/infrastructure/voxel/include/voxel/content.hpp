@@ -341,6 +341,9 @@ struct BiomeDef {
 	/// « colormaps » de la configuration selon température et humidité.
 	std::optional<std::array<uint8_t, 3>> grassColor, foliageColor, waterColor;
 	NodePtr raw;
+	/// Définition telle qu'écrite et son fichier (éditeur, rechargement).
+	NodePtr source;
+	String sourceFile, baseDir;
 };
 
 struct GeneratorDef {
@@ -355,6 +358,9 @@ struct GeneratorDef {
 	std::vector<std::pair<String, int>> layers; ///< "flat" : bloc, épaisseur (du bas vers le haut)
 	String script;            ///< "script" : fonction appelée par chunk
 	NodePtr raw;
+	/// Définition telle qu'écrite et son fichier (éditeur, rechargement).
+	NodePtr source;
+	String sourceFile, baseDir;
 };
 
 /// Dimension : un monde à part au sein de la même sauvegarde (son
@@ -392,6 +398,9 @@ struct DimensionDef {
 	String music;          ///< ambiance (son) jouée à l'entrée
 	std::array<uint8_t, 3> color{120, 120, 140}; ///< couleur d'interface
 	NodePtr raw;
+	/// Définition telle qu'écrite et son fichier (éditeur, rechargement).
+	NodePtr source;
+	String sourceFile, baseDir;
 };
 
 struct TextureDef {

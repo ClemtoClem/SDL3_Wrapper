@@ -1032,6 +1032,9 @@ Result<String, String> ContentRegistry::LoadBiome(const NodePtr &def, const Load
 			*slot = std::array<uint8_t, 3>{c[0], c[1], c[2]};
 		}
 	b.raw = def;
+	b.source = ctx.definition ? ctx.definition : def;
+	b.sourceFile = ctx.source;
+	b.baseDir = ctx.baseDir;
 	m_biomes.Put(b);
 	return Ok(b.id);
 }
@@ -1127,6 +1130,9 @@ Result<String, String> ContentRegistry::LoadDimension(const NodePtr &def, const 
 	const auto color = Color4(def, "color", {d.color[0], d.color[1], d.color[2], 255});
 	d.color = {color[0], color[1], color[2]};
 	d.raw = def;
+	d.source = ctx.definition ? ctx.definition : def;
+	d.sourceFile = ctx.source;
+	d.baseDir = ctx.baseDir;
 	m_dimensions.Put(d);
 	return Ok(d.id);
 }
@@ -1149,6 +1155,9 @@ Result<String, String> ContentRegistry::LoadGenerator(const NodePtr &def, const 
 				g.layers.push_back(stack);
 	g.script = json::Str(def, "script");
 	g.raw = def;
+	g.source = ctx.definition ? ctx.definition : def;
+	g.sourceFile = ctx.source;
+	g.baseDir = ctx.baseDir;
 	m_generators.Put(g);
 	return Ok(g.id);
 }
