@@ -31,3 +31,9 @@ New `tests/viewport3d_smoke_test.cpp`, 3 tests, all passing (real GPU compile + 
 ## Status
 
 M22 (Phase 3) DONE as of 2026-08-23. Next: M23 (widget custom-shader effects, Phase 4) — the second consumer of M21's offscreen primitive, this time in the 2D-into-3D direction (`UploadSurfaceToGpuTexture`).
+
+## 2026-11-01 — Surface de l'application (`AppSurface`)
+
+**Régression** : depuis la refonte ui du 26/10 (0a25123), un évènement pointeur posé sur un widget « plein » est consommé (`Input::Over` / `IsSolid` : fond, image, extension mesurée, `DropTarget`…). La vue 3D du sandbox est un `Viewport3D` qui est aussi `DropTarget`, et `EditorUi::HandleEvent` ignore les évènements consommés. Résultat : plus d'orbite, de panoramique, de sélection ni de gizmo dans la vue. Diagnostic : un shim `LD_PRELOAD` qui injecte des clics synthétiques dans `SDL_PollEvent`, puis gdb, qui montre `consumed=1` à l'entrée d'EditorUi.
+
+**Correctif** : brique `ui::AppSurface` (et `WidgetBuilder::AppSurface()`). `Over` s'arrête sur une telle surface sans consommer. Les liaisons et le dépôt du widget marchent toujours, et un widget plein posé dessus (bouton, gizmo d'interface) garde le clic. C'est opt-in, parce que voxelia (shell, studio) compte sur la consommation par ses vues. Le sandbox en marque ses deux vues (éditeur et mode Jeu). Test : `Pointer.AnAppSurfaceLetsThePointerThroughToTheApplication`.

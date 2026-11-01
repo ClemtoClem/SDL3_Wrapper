@@ -184,6 +184,8 @@ public:
 		return With(ui::DropTarget{std::move(accepts), highlight});
 	}
 	D &Reorderable() { return With(ui::Reorderable{}); }
+	/// Les clics qui l'atteignent suivent vers l'application (cf. ui::AppSurface).
+	D &AppSurface() { return With(ui::AppSurface{}); }
 	/// Menu contextuel ouvert au clic droit (cf. ui::ContextMenu).
 	D &ContextMenu(AnyWidget menu) {
 		With(PopupTrigger{PopupOpen::ContextMenu, Placement::Point});

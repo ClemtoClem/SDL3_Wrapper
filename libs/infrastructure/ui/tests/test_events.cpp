@@ -219,6 +219,26 @@ TEST(Pointer, EnterLeaveAndConsumption) {
 	CHECK_EQ(behind, 1);
 }
 
+TEST(Pointer, AnAppSurfaceLetsThePointerThroughToTheApplication) {
+	Harness h;
+	int drops = 0, clicks = 0;
+	ui::Widget view, button;
+	h.Mount(ui::Stack().Size(200.f, 120.f).Background(sdl3::Color{0, 0, 0, 255}).AppSurface().Ref(view).DropTarget().OnDrop(
+		[&](int64_t) { ++drops; }).Children({
+		ui::Button("gizmo").Size(40.f, 30.f).Ref(button).OnClick([&] { ++clicks; }),
+	}));
+	const sdl3::FRect r = view.Bounds();
+	// Une vue pleine (fond, cible de dépôt) laisse passer clics, glissés et molette…
+	CHECK(!h.Click(r.x + 150.f, r.y + 90.f));
+	CHECK(!h.Click(r.x + 150.f, r.y + 90.f, SDL_BUTTON_MIDDLE));
+	CHECK(!h.Drag(r.x + 120.f, r.y + 60.f, r.x + 180.f, r.y + 100.f));
+	CHECK(!h.Wheel(r.x + 150.f, r.y + 90.f, 1.f));
+	// … sauf vers un widget plein posé dessus, qui reste à l'interface.
+	CHECK(h.Click(button));
+	CHECK_EQ(clicks, 1);
+	CHECK_EQ(drops, 0);
+}
+
 TEST(Window, WindowEventsReachEveryListener) {
 	Harness h;
 	int resized = 0;

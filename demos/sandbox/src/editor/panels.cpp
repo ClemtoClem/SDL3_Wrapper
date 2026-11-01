@@ -287,7 +287,8 @@ void EditorUi::EnterRunMode() {
 	m_runRoot = m_ctx.gui.Mount(root);
 
 	ui::WidgetBuilder viewport = ui::Viewport3D(Rt().SceneRoot(), Rt().ActiveCamera());
-	viewport.GrowWidth().GrowHeight();
+	// Les clics y vont à l'éditeur (caméra, sélection, gizmos), pas à l'interface.
+	viewport.GrowWidth().GrowHeight().AppSurface();
 	m_runViewport = m_runRoot.Append(viewport);
 	Spawn2DLayer(m_runViewport, true);
 
@@ -1494,7 +1495,8 @@ void EditorUi::BuildViewportPage(ui::Widget page) {
 
 	// La vue elle-même, avec les superpositions (axes, projection, badge).
 	ui::WidgetBuilder viewport = ui::Viewport3D(Rt().SceneRoot(), Rt().ActiveCamera());
-	viewport.GrowWidth().GrowHeight();
+	// Les clics y vont à l'éditeur (caméra, sélection, gizmos), pas à l'interface.
+	viewport.GrowWidth().GrowHeight().AppSurface();
 	// Glisser une vignette de modèle du navigateur dans la vue : import.
 	viewport.DropTarget(String("asset"));
 	viewport.OnDrop([this](int64_t index) {

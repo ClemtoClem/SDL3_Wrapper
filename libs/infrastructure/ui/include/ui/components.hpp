@@ -463,6 +463,12 @@ struct ResizeHandle {
 	float maxSize = 0.f; ///< taille maximale du frère redimensionné (0 : aucune)
 };
 
+/// Surface de l'application (vue 3D d'un éditeur, écran d'un jeu…) : un
+/// évènement pointeur qui l'atteint sans croiser d'abord un widget plein
+/// (bouton, panneau posé dessus…) n'est PAS consommé par l'interface — ses
+/// liaisons et son dépôt marchent, puis l'application le reçoit aussi.
+struct AppSurface {};
+
 /// Glisser déplace (ou redimensionne) le plus proche ancêtre positionné
 /// (absolute/fixed) — barre de titre et coin d'un panneau flottant.
 struct MoveHandle {

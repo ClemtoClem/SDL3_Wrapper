@@ -621,19 +621,20 @@ void Application::UpdateWidgets() {
 			m_lastFrameHash = hash;
 			m_lastHashedFrame = frame;
 		}
-		if (m_hudVisible)
-			SetLabel(m_hudLabel,
-					 String::Format("Fenêtre %.0f img/s · émulation %d img/s · image %ld%s", m_report.frames.RecentFps(),
+		if (m_hudVisible) {
+			SetLabel(m_hudLabel, String::Format("Fenêtre %.0f img/s · émulation %d img/s · image %ld%s", m_report.frames.RecentFps(),
 									m_session->CoreFps(), frame, m_session->HasAudio() ? "" : " · muet"));
+		}
+		
 		String title = m_report.romTitle.IsEmpty() ? m_session->DisplayName() : m_report.romTitle;
 		SetLabel(m_romTitle, title);
 		SetLabel(m_romDetails, String::Format("%s · %s\nImage %ld · %d img/s\nÉtat : %s",
-											  RomSystemName(m_session->System()),
-											  m_report.romPublisher.IsEmpty() ? "éditeur inconnu"
-																			  : m_report.romPublisher.CStr(),
-											  frame, m_session->CoreFps(), m_session->StatePath().CStr()));
-		if (const String full = String::Format("EmulOS — %s", title.Replace('\n', ' ').CStr());
-			m_frame.TitleBar().title.Text() != full)
+			RomSystemName(m_session->System()),
+			m_report.romPublisher.IsEmpty() ? "éditeur inconnu" : m_report.romPublisher.CStr(),
+			frame, m_session->CoreFps(), m_session->StatePath().CStr()));
+		
+		const String full = String("EmulOS — ") + title.Replace('\n', ' ');
+		if (m_frame.TitleBar().title.Text() != full)
 			m_frame.SetTitle(full);
 	} else {
 		SetLabel(m_romTitle, "Session");

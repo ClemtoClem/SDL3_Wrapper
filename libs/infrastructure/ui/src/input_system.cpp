@@ -83,12 +83,13 @@ public:
 	/// Le pointeur est « sur l'interface » si un widget de la chaîne visée est
 	/// visible (fond, bordure, image, texte…) ou interactif : un conteneur de
 	/// mise en page transparent (page, HUD plein écran) laisse passer les
-	/// évènements vers l'application.
+	/// évènements vers l'application ; une surface de l'application
+	/// (AppSurface) aussi, sauf si un widget plein posé dessus est visé.
 	bool Over(ecs::Entity hit) const {
 		for (Option<ecs::Entity> cur = hit.Valid() ? Some(hit) : Option<ecs::Entity>(NONE); cur.IsSome();
 			 cur = ecs::ParentOf(world, cur.Unwrap())) {
 			const ecs::Entity e = cur.Unwrap();
-			if (e == ctx.root)
+			if (e == ctx.root || world.HasComponent<AppSurface>(e))
 				return false;
 			if (IsSolid(e))
 				return true;
