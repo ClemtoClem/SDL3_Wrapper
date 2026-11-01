@@ -31,6 +31,7 @@
  * `Warnings()`, seule une feuille illisible fait échouer `Load`.
  */
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "style.hpp"
@@ -123,6 +124,21 @@ public:
 	/// Ajoute le contenu d'un autre texte CSS à la fin de la feuille.
 	void Append(StringView css, const String &baseDir = String());
 
+	/// Sélecteur d'une règle : (rang de la règle, rang du sélecteur).
+	struct SelectorRef {
+		uint32_t rule = 0, selector = 0;
+	};
+	/// Sélecteurs rangés par la clé la plus sélective de leur SUJET : id,
+	/// sinon première classe, sinon type, sinon « universels ». Un élément
+	/// ne teste ainsi que les sélecteurs qui peuvent le viser (au lieu de
+	/// toutes les règles de la feuille). Reconstruit après une modification.
+	struct SelectorIndex {
+		std::unordered_map<String, std::vector<SelectorRef>> byId, byClass, byType;
+		std::vector<SelectorRef> universal;
+		uint64_t revision = ~0ull;
+	};
+	[[nodiscard]] const SelectorIndex &Index() const;
+
 private:
 	struct ParseState;
 	void ParseInto(StringView css, const String &baseDir, ParseState &state);
@@ -132,6 +148,7 @@ private:
 	std::vector<String> m_warnings;
 	String m_name;
 	uint64_t m_revision = 0;
+	mutable SelectorIndex m_index;
 };
 
 using StyleSheetPtr = std::shared_ptr<const StyleSheet>;

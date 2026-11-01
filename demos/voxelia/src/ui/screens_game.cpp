@@ -1,6 +1,6 @@
 // Écrans de la partie : pause, inventaire, fabrication, discussion, terminal,
 // informations du monde, commerce, rangement, dialogue.
-#include "common.hpp"
+#include <voxelia/ui/common.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -101,6 +101,11 @@ public:
 		kit.MenuButton(card, MaterialIcons::SAVE, "Enregistrer", "F6", [this] {
 			if (Session *live = Live(shell))
 				live->Save(true);
+		});
+		card.Append(kit.Divider());
+		kit.MenuButton(card, MaterialIcons::VIEW_IN_AR, "Ouvrir le studio", "F10", [this] {
+			shell.UiSound("ui_click");
+			shell.OpenStudio();
 		});
 		card.Append(kit.Divider());
 		card.Append(kit.DangerButton("Enregistrer et quitter le monde", [this] { AskQuit(); }).GrowWidth());

@@ -39,6 +39,7 @@ bool Spi::loadFirmware() {
             firmware[0x2A] = static_cast<uint8_t>(crc >> 0);
             firmware[0x2B] = static_cast<uint8_t>(crc >> 8);
         }
+        repairTouchCalibration();
         return (firmSize > 0x20000);
     }
     firmSize = 0x20000;
@@ -88,6 +89,34 @@ bool Spi::loadFirmware() {
         firmware[addr + 0x73] = static_cast<uint8_t>(crc >> 8);
     }
     return false;
+}
+
+// Étalonnage de l'écran tactile des réglages utilisateur (0x58-0x63) : un
+// firmware dont les points sont confondus (dump vierge, tout à zéro) rend le
+// tactile inutilisable — setTouch ne convertit plus rien et le jeu, qui lit
+// les mêmes octets, divise par zéro. On y met alors l'étalonnage du firmware
+// généré (CAN 0..0xFF0 ↔ 0..255 px), CRC de chaque copie recalculé.
+bool Spi::repairTouchCalibration() {
+    if (!firmware || firmSize < 0x200)
+        return false;
+    bool repaired = false;
+    for (size_t base = firmSize - 0x200; base < firmSize; base += 0x100) {
+        uint8_t *settings = &firmware[base];
+        const uint16_t adcX1 = U8TO16(settings, 0x58), adcY1 = U8TO16(settings, 0x5A);
+        const uint16_t adcX2 = U8TO16(settings, 0x5E), adcY2 = U8TO16(settings, 0x60);
+        if (adcX1 != adcX2 && adcY1 != adcY2 && settings[0x5C] != settings[0x62] && settings[0x5D] != settings[0x63])
+            continue;
+        static constexpr uint8_t DEFAULT_CALIBRATION[12] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                                            0xF0, 0x0F, 0xF0, 0x0B, 0xFF, 0xBF};
+        memcpy(&settings[0x58], DEFAULT_CALIBRATION, sizeof DEFAULT_CALIBRATION);
+        const uint16_t crc = crc16(0xFFFF, settings, 0x70);
+        settings[0x72]     = static_cast<uint8_t>(crc >> 0);
+        settings[0x73]     = static_cast<uint8_t>(crc >> 8);
+        repaired           = true;
+    }
+    if (repaired)
+        LOG("Firmware : étalonnage tactile absent, étalonnage par défaut appliqué\n");
+    return repaired;
 }
 
 void Spi::directBoot() {

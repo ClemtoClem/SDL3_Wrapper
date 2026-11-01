@@ -280,3 +280,9 @@ xvfb-run -a ./build/bin/emulator_demo --rom=assets/roms/j.nds --save-dir=/tmp/da
     --frames=300 --open=config --screenshot=290:captures/config.png --report=rapport.json --report-format=json
 make build/bin/emulator_demo_smoke_test && ./build/bin/emulator_demo_smoke_test
 ```
+
+## 2026-11-01 — Écran tactile NDS inerte
+
+Symptôme : les clics sur l'écran du bas n'avaient aucun effet, par exemple « TOUCH TO START » de Super Mario 64 DS. Le chemin hôte était sain : un clic injecté arrive dans `GameView::HandleMouse`, qui appelle `SetTouch`, puis `pressScreen`. Mais `Spi::setTouch` laissait `touchX=0, touchY=0xFFF`. En cause, `assets/bios-firmware/nintendo-ds/firmware.bin` : son étalonnage tactile (réglages utilisateur, octets 0x58-0x63, aux deux copies) est entièrement à zéro. Les points sont confondus, la conversion est sautée, et le jeu, qui lit les mêmes octets, ne peut rien en tirer.
+
+Correctif : `Spi::repairTouchCalibration()`, appelé au chargement d'un firmware. Si l'étalonnage d'une copie est dégénéré, celui du firmware généré y est écrit (CAN 0..0xFF0 ↔ 0..255 px) et le CRC de la copie est recalculé. Vérifié de bout en bout, avec des clics injectés (shim `LD_PRELOAD` sur `SDL_PollEvent`) : l'écran titre passe à « TOUCH THE PICTURE! ».

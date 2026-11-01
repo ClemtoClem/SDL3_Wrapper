@@ -164,6 +164,7 @@
 #include <any>
 #include <cassert>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -282,6 +283,71 @@ struct EntityLocation {
 	size_t archetypeRow;
 };
 
+// ---------------------------------------------------------------------------
+// Identifiants denses des types de composants
+// ---------------------------------------------------------------------------
+//
+// `std::type_index` coûte cher sur le chemin chaud : son égalité compare les
+// NOMS des types (strcmp avec GCC) et son hachage hache tout le nom. Chaque
+// type reçoit donc, à sa première rencontre, un entier dense (0, 1, 2…) ;
+// les archétypes indexent leurs colonnes par cet entier (accès direct).
+
+namespace detail {
+/// Identifiant dense de `type` (attribué à la première demande ; fil-sûr).
+[[nodiscard]] uint32_t TypeIdFor(std::type_index type);
+} // namespace detail
+
+/// Identifiant dense du type `T` (calculé une fois par type).
+template <typename T> [[nodiscard]] inline uint32_t TypeIdOf() {
+	static const uint32_t id = detail::TypeIdFor(typeid(T));
+	return id;
+}
+
+/// Entité → emplacement, indexé par `Entity::id` (au lieu d'une table de
+/// hachage) ; interface d'une `unordered_map` réduite à ce qu'utilise le
+/// registre (`find` / `end` / `[]` / `erase` / `size`).
+class EntityLocationTable {
+public:
+	struct Slot {
+		uint32_t generation = 0;
+		bool used = false;
+		EntityLocation second{}; ///< nommé comme la valeur d'une paire de map
+	};
+
+	[[nodiscard]] Slot *find(const Entity &e) noexcept {
+		if (e.id >= m_slots.size())
+			return nullptr;
+		Slot &s = m_slots[e.id];
+		return s.used && s.generation == e.generation ? &s : nullptr;
+	}
+	[[nodiscard]] const Slot *find(const Entity &e) const noexcept {
+		return const_cast<EntityLocationTable *>(this)->find(e);
+	}
+	[[nodiscard]] static constexpr Slot *end() noexcept { return nullptr; }
+	EntityLocation &operator[](const Entity &e) {
+		if (e.id >= m_slots.size())
+			m_slots.resize(size_t(e.id) + 1);
+		Slot &s = m_slots[e.id];
+		if (!s.used) {
+			s.used = true;
+			++m_count;
+		}
+		s.generation = e.generation;
+		return s.second;
+	}
+	void erase(Slot *slot) noexcept {
+		if (slot && slot->used) {
+			slot->used = false;
+			--m_count;
+		}
+	}
+	[[nodiscard]] size_t size() const noexcept { return m_count; }
+
+private:
+	std::vector<Slot> m_slots;
+	size_t m_count = 0;
+};
+
 class Archetype {
 public:
 	size_t id;
@@ -294,7 +360,13 @@ public:
 	size_t Len() const { return entities.size(); }
 	bool IsEmpty() const { return entities.empty(); }
 
-	bool Contains(std::type_index tid) const { return std::find(types.begin(), types.end(), tid) != types.end(); }
+	bool Contains(std::type_index tid) const { return Has(detail::TypeIdFor(tid)); }
+	/// Le type d'identifiant dense `typeId` fait partie de la signature.
+	[[nodiscard]] bool Has(uint32_t typeId) const noexcept { return typeId < m_present.size() && m_present[typeId]; }
+	/// Colonne du type `typeId` (nullptr s'il n'en a pas).
+	[[nodiscard]] IAnyVec *Column(uint32_t typeId) const noexcept { return typeId < m_columns.size() ? m_columns[typeId] : nullptr; }
+	/// Recalcule l'index dense (après la création des colonnes).
+	void Index();
 
 	size_t PushEntity(Entity e);
 
@@ -317,6 +389,10 @@ public:
 	}
 
 	void DropRow(size_t row);
+
+private:
+	std::vector<uint8_t> m_present;
+	std::vector<IAnyVec *> m_columns;
 };
 
 // ---------------------------------------------------------------------------
@@ -328,11 +404,11 @@ struct All {
 };
 
 template <typename T> struct With {
-	static bool Matches(const Archetype &arch) { return arch.Contains(typeid(T)); }
+	static bool Matches(const Archetype &arch) { return arch.Has(TypeIdOf<T>()); }
 };
 
 template <typename T> struct Without {
-	static bool Matches(const Archetype &arch) { return !arch.Contains(typeid(T)); }
+	static bool Matches(const Archetype &arch) { return !arch.Has(TypeIdOf<T>()); }
 };
 
 /// Filtre composé AND : TOUS les filtres doivent être satisfaits.
@@ -414,7 +490,7 @@ class ArchetypeRegistry {
 	using VecConstructor = std::unique_ptr<IAnyVec> (*)();
 
 	EntityAllocator allocator;
-	std::unordered_map<Entity, EntityLocation> entityLocations;
+	EntityLocationTable entityLocations;
 	std::vector<std::unique_ptr<Archetype>> archetypes;
 	std::unordered_map<std::vector<std::type_index>, size_t, ArchetypeSignatureHash> archetypeIndex;
 	std::unordered_map<std::type_index, VecConstructor> componentConstructors;
@@ -431,7 +507,12 @@ class ArchetypeRegistry {
 	// vecteurs stockés ici restent à adresse stable tant qu'aucune clé n'est
 	// erase()-ée (garantie std::unordered_map) — jamais fait ici, seulement
 	// alimenté en insertion.
-	std::unordered_map<std::type_index, std::vector<size_t>> typeToArchetypes;
+	// Indexé par l'identifiant dense du type (TypeIdOf) ; une deque garde les
+	// listes à adresse stable quand un nouveau type apparaît.
+	std::deque<std::vector<size_t>> typeToArchetypes;
+	[[nodiscard]] const std::vector<size_t> *ArchetypesWith(uint32_t typeId) const noexcept {
+		return typeId < typeToArchetypes.size() ? &typeToArchetypes[typeId] : nullptr;
+	}
 
 	template <typename T> static std::unique_ptr<IAnyVec> CreateAnyVec() { return std::make_unique<AnyVecImpl<T>>(); }
 
@@ -472,7 +553,7 @@ public:
 		size_t row = arch.PushEntity(entity);
 
 		// Remplacement de .at() par .find()->second
-		(..., static_cast<AnyVecImpl<std::decay_t<Ts>> *>(arch.components.find(typeid(std::decay_t<Ts>))->second.get())
+		(..., static_cast<AnyVecImpl<std::decay_t<Ts>> *>(arch.Column(TypeIdOf<std::decay_t<Ts>>()))
 				  ->data.push_back(std::forward<Ts>(comps)));
 
 		entityLocations[entity] = {archId, row};
@@ -494,18 +575,18 @@ public:
 		if (it == entityLocations.end())
 			return;
 
-		RegisterComponent<T>();
 		EntityLocation loc = it->second;
 		size_t oldArchId = loc.archetypeId;
 		Archetype &oldArch = *archetypes[oldArchId];
-		std::type_index tid = typeid(T);
+		const uint32_t typeId = TypeIdOf<T>();
 
 		// Mise à jour sur place si le composant existe déjà
-		if (oldArch.Contains(tid)) {
-			static_cast<AnyVecImpl<T> *>(oldArch.components[tid].get())->data[loc.archetypeRow] =
-				std::move(component);
+		if (oldArch.Has(typeId)) {
+			static_cast<AnyVecImpl<T> *>(oldArch.Column(typeId))->data[loc.archetypeRow] = std::move(component);
 			return;
 		}
+		RegisterComponent<T>();
+		std::type_index tid = typeid(T);
 
 		// Migration vers la nouvelle signature
 		std::vector<std::type_index> newTypes = oldArch.types;
@@ -515,8 +596,7 @@ public:
 		MigrateEntity(entity, loc, oldArchId, newArchId);
 
 		// Pousse la valeur dans le nouveau vecteur
-		static_cast<AnyVecImpl<T> *>(archetypes[newArchId]->components[tid].get())
-			->data.push_back(std::move(component));
+		static_cast<AnyVecImpl<T> *>(archetypes[newArchId]->Column(typeId))->data.push_back(std::move(component));
 	}
 
 	template <typename T> bool RemoveComponent(Entity entity) {
@@ -527,10 +607,9 @@ public:
 		EntityLocation loc = it->second;
 		size_t oldArchId = loc.archetypeId;
 		Archetype &oldArch = *archetypes[oldArchId];
-		std::type_index tid = typeid(T);
-
-		if (!oldArch.Contains(tid))
+		if (!oldArch.Has(TypeIdOf<T>()))
 			return false;
+		std::type_index tid = typeid(T);
 
 		// Nouvelle signature sans T
 		std::vector<std::type_index> newTypes;
@@ -569,12 +648,10 @@ public:
 
 		EntityLocation loc = it->second;
 		Archetype &arch = *archetypes[loc.archetypeId];
-		std::type_index tid = typeid(T);
-
-		if (!arch.Contains(tid))
+		IAnyVec *column = arch.Column(TypeIdOf<T>());
+		if (!column)
 			return NONE;
-		return Some(MakeRefMut(
-			static_cast<AnyVecImpl<T> *>(arch.components.find(tid)->second.get())->data[loc.archetypeRow]));
+		return Some(MakeRefMut(static_cast<AnyVecImpl<T> *>(column)->data[loc.archetypeRow]));
 	}
 
 	template <typename T> Option<Ref<T>> GetComponent(Entity entity) const {
@@ -584,19 +661,17 @@ public:
 
 		EntityLocation loc = it->second;
 		const Archetype &arch = *archetypes[loc.archetypeId];
-		std::type_index tid = typeid(T);
-
-		if (!arch.Contains(tid))
+		const IAnyVec *column = arch.Column(TypeIdOf<T>());
+		if (!column)
 			return NONE;
-		return Some(MakeRef(
-			static_cast<const AnyVecImpl<T> *>(arch.components.find(tid)->second.get())->data[loc.archetypeRow]));
+		return Some(MakeRef(static_cast<const AnyVecImpl<T> *>(column)->data[loc.archetypeRow]));
 	}
 
 	template <typename T> bool HasComponent(Entity entity) const {
 		auto it = entityLocations.find(entity);
 		if (it == entityLocations.end())
 			return false;
-		return archetypes[it->second.archetypeId]->Contains(typeid(T));
+		return archetypes[it->second.archetypeId]->Has(TypeIdOf<T>());
 	}
 
 	// --- Requêtes ---
@@ -618,8 +693,8 @@ public:
 			[&] {
 				if constexpr (!IsFilterType<Comps>::value) {
 					anyRealType = true;
-					auto it = typeToArchetypes.find(typeid(Comps));
-					const std::vector<size_t> &list = (it != typeToArchetypes.end()) ? it->second : K_EMPTY_CANDIDATES;
+					const std::vector<size_t> *found = ArchetypesWith(TypeIdOf<Comps>());
+					const std::vector<size_t> &list = found ? *found : K_EMPTY_CANDIDATES;
 					if (!bestList || list.size() < bestList->size())
 						bestList = &list;
 				}
@@ -636,7 +711,7 @@ public:
 						if (!Comps::Matches(arch))
 							ok = false;
 					} else {
-						if (!arch.Contains(typeid(Comps)))
+						if (!arch.Has(TypeIdOf<Comps>()))
 							ok = false;
 					}
 				}(),
@@ -651,7 +726,7 @@ public:
 					return std::tuple<>{};
 				} else {
 					return std::make_tuple(
-						static_cast<AnyVecImpl<Comps> *>(arch.components.find(typeid(Comps))->second.get()));
+						static_cast<AnyVecImpl<Comps> *>(arch.Column(TypeIdOf<Comps>())));
 				}
 			}()...);
 
@@ -683,8 +758,8 @@ public:
 			[&] {
 				if constexpr (!IsFilterType<Comps>::value) {
 					anyRealType = true;
-					auto it = typeToArchetypes.find(typeid(Comps));
-					const std::vector<size_t> &list = (it != typeToArchetypes.end()) ? it->second : K_EMPTY_CANDIDATES;
+					const std::vector<size_t> *found = ArchetypesWith(TypeIdOf<Comps>());
+					const std::vector<size_t> &list = found ? *found : K_EMPTY_CANDIDATES;
 					if (!bestList || list.size() < bestList->size())
 						bestList = &list;
 				}
@@ -701,7 +776,7 @@ public:
 						if (!Comps::Matches(arch))
 							ok = false;
 					} else {
-						if (!arch.Contains(typeid(Comps)))
+						if (!arch.Has(TypeIdOf<Comps>()))
 							ok = false;
 					}
 				}(),
@@ -714,7 +789,7 @@ public:
 					return std::tuple<>{};
 				} else {
 					return std::make_tuple(
-						static_cast<const AnyVecImpl<Comps> *>(arch.components.find(typeid(Comps))->second.get()));
+						static_cast<const AnyVecImpl<Comps> *>(arch.Column(TypeIdOf<Comps>())));
 				}
 			}()...);
 
@@ -783,10 +858,10 @@ public:
 	// changements structurels effectués pendant qu'on itère dessus ensuite).
 	template <typename T> [[nodiscard]] std::vector<Entity> EntitiesWith() const {
 		std::vector<Entity> out;
-		auto it = typeToArchetypes.find(typeid(T));
-		if (it == typeToArchetypes.end())
+		const std::vector<size_t> *found = ArchetypesWith(TypeIdOf<T>());
+		if (!found)
 			return out;
-		for (size_t archId : it->second) {
+		for (size_t archId : *found) {
 			const auto &ents = archetypes[archId]->entities;
 			out.insert(out.end(), ents.begin(), ents.end());
 		}

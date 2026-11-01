@@ -13,7 +13,7 @@ public = ["include"]      # propagé aux modules dépendants
 private = ["src"]
 
 [dependencies]
-modules = []
+modules = ["core"]
 pkg_config = []
 system = []
 

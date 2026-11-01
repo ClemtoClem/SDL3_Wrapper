@@ -13,7 +13,7 @@ public = ["include"]      # propagé aux modules dépendants
 private = ["src"]
 
 [dependencies]
-modules = ["core", "math", "sdl3", "ecs", "dataio", "resources"]
+modules = ["core", "diagnostics", "math", "sdl3", "ecs", "dataio", "resources"]
 pkg_config = ["shaderc"]
 system = ["spirv-cross-msl", "spirv-cross-glsl", "spirv-cross-core", "spirv-cross-util"]
 

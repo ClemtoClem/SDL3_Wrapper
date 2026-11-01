@@ -186,3 +186,74 @@ TEST(Profiler, ProfileScopeMacroUsesTheGlobalProfiler) {
 	{ DIAG_PROFILE_SCOPE("macro.scope"); }
 	CHECK_EQ(Profiler::Global().Timing("macro.scope").count, 1u);
 }
+
+// ── Capture (trace) ──────────────────────────────────────────────────────────
+
+#include <diagnostics/trace.hpp>
+
+namespace {
+/// Travail CPU mesurable (non optimisé hors du programme).
+volatile double g_sink = 0.0;
+void Burn(int milliseconds) {
+	const uint64_t until = trace::NowNs() + uint64_t(milliseconds) * 1000000ull;
+	double x = 1.0;
+	while (trace::NowNs() < until)
+		for (int i = 0; i < 1000; ++i)
+			x = x * 1.0000001 + 0.5;
+	g_sink = x;
+}
+
+std::string ReadAll(const std::string &path) {
+	std::ifstream in(path);
+	return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+} // namespace
+
+TEST(Trace, ZonesFramesValuesThreadsAndSamplesAreWritten) {
+	CHECK(!trace::Active());
+	{
+		DIAG_ZONE("hors.capture"); // aucun effet hors capture
+	}
+	trace::Options options;
+	options.samplingHz = 2000;
+	options.processHz = 200;
+	CHECK(trace::Start(options));
+	CHECK(!trace::Start(options)); // déjà en cours
+	trace::SetThreadName("principal");
+	{
+		DIAG_ZONE("test.outer");
+		{
+			DIAG_ZONE("test.inner");
+			Burn(40);
+		}
+		DIAG_VALUE("test.value", 42);
+		DIAG_FRAME();
+	}
+	std::thread worker([] {
+		trace::SetThreadName("ouvrier");
+		DIAG_ZONE(trace::Intern("test.dynamique"));
+		Burn(30);
+	});
+	worker.join();
+	trace::AsyncBegin("test.async", 7);
+	trace::AsyncEnd("test.async", 7);
+	DIAG_FRAME();
+	CHECK(trace::Stop());
+	CHECK(!trace::Stop());
+	const std::string path = (std::filesystem::temp_directory_path() / "diag_trace_test.vcap").string();
+	CHECK(trace::Save(String(path.c_str())).IsOk());
+	const std::string text = ReadAll(path);
+	std::filesystem::remove(path);
+	for (const char *needle : {"\"diagnostics-capture\"", "\"test.outer\"", "\"test.inner\"", "\"test.dynamique\"", "\"test.value\"",
+							   "\"test.async\"", "\"principal\"", "\"ouvrier\"", "\"modules\"", "\"tasks\"", "\"process\""})
+		CHECK(text.find(needle) != std::string::npos);
+	// Au moins un échantillon de pile (70 ms de calcul à 2 kHz).
+	const size_t samples = text.find("\"samples\": [\n[");
+	CHECK(samples != std::string::npos);
+	{
+		DIAG_ZONE("apres.capture"); // de nouveau sans effet
+	}
+	CHECK(trace::Save(String(path.c_str())).IsOk()); // la capture reste lisible
+	CHECK(ReadAll(path).find("apres.capture") == std::string::npos);
+	std::filesystem::remove(path);
+}

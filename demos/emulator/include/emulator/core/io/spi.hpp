@@ -46,6 +46,13 @@ class Spi {
      * @return true si le firmware chargé dépasse 0x20000 octets, false sinon.
      */
     bool loadFirmware();
+
+    /**
+     * @brief Remplace un étalonnage tactile dégénéré (points confondus) des
+     *        réglages utilisateur par celui du firmware généré, CRC compris.
+     * @return true si une copie des réglages a été réparée
+     */
+    bool repairTouchCalibration();
     
     /**
      * @brief Effectue un "direct boot" en copiant une zone du firmware dans la mémoire de la console.

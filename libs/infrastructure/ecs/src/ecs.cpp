@@ -1,7 +1,36 @@
 // Définitions de ecs/ecs.hpp
 #include <ecs/ecs.hpp>
 
+#include <mutex>
+
 namespace ecs {
+
+namespace detail {
+
+uint32_t TypeIdFor(std::type_index type) {
+	static std::mutex mutex;
+	static std::unordered_map<std::type_index, uint32_t> ids;
+	std::lock_guard<std::mutex> lock(mutex);
+	const auto [it, inserted] = ids.emplace(type, uint32_t(ids.size()));
+	return it->second;
+}
+
+} // namespace detail
+
+void Archetype::Index() {
+	m_present.clear();
+	m_columns.clear();
+	for (const std::type_index &tid : types) {
+		const uint32_t typeId = detail::TypeIdFor(tid);
+		if (typeId >= m_present.size()) {
+			m_present.resize(size_t(typeId) + 1, 0);
+			m_columns.resize(size_t(typeId) + 1, nullptr);
+		}
+		m_present[typeId] = 1;
+		auto column = components.find(tid);
+		m_columns[typeId] = column != components.end() ? column->second.get() : nullptr;
+	}
+}
 
 // ── EntityAllocator ──────────────────────────────────────────────────────────
 
@@ -84,11 +113,16 @@ size_t ArchetypeRegistry::GetOrCreateArchetype(std::vector<std::type_index> type
 		if (ctor != componentConstructors.end())
 			arch->components[tid] = ctor->second();
 	}
+	arch->Index();
 
 	archetypeIndex[types] = newId;
 	archetypes.push_back(std::move(arch));
-	for (const auto &tid : types)
-		typeToArchetypes[tid].push_back(newId);
+	for (const auto &tid : types) {
+		const uint32_t typeId = detail::TypeIdFor(tid);
+		if (typeId >= typeToArchetypes.size())
+			typeToArchetypes.resize(size_t(typeId) + 1);
+		typeToArchetypes[typeId].push_back(newId);
+	}
 	return newId;
 }
 

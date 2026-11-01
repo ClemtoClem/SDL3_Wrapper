@@ -93,6 +93,10 @@ struct Rect {
 	sdl3::FRect content{}; ///< boîte de contenu (bordure, padding et barres de défilement exclus)
 	sdl3::FRect clip{};	   ///< zone de dessin autorisée (boîte ∩ clips des ancêtres)
 	bool visible = false;  ///< placé et non entièrement rogné cette passe
+	/// Taille du texte (sans repli) à la dernière passe ; x < 0 : inconnue ou
+	/// texte replié. Un nouveau texte de même taille ne change pas la mise
+	/// en page (cf. LayoutSystem : changement de texte local).
+	sdl3::FPoint text{-1.f, -1.f};
 };
 
 /// État de défilement d'un conteneur à `overflow: auto|scroll` (ou d'un texte

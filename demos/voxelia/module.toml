@@ -12,7 +12,7 @@ dirs = ["src"]
 public = ["include"]
 
 [dependencies]
-modules = ["core", "math", "events", "dataio", "ecs", "resources", "script", "voxel", "render3d", "ui", "audio", "sdl3"]
+modules = ["core", "diagnostics", "math", "events", "dataio", "ecs", "editor", "resources", "script", "voxel", "render3d", "ui", "audio", "sdl3"]
 
 [tests]
 dirs = ["tests"]

@@ -675,13 +675,156 @@ temporaire reste dans la sauvegarde du monde.
   `WindowManager::Present`, fil principal seul : sans risque réel), étrangère
   au catalogue.
 
-## Reste à faire (étapes 8+ du prompt)
+## Interface à la sandbox et étape 8 — World Inspector, console (2026-11-01)
 
-World Inspector complet (édition des valeurs) et console (étape 8, en grande
-partie faits au socle), Mod Manager et rechargement global (étape 9),
-scénarios nommés `--scenario=` (étape 10) ; peinture sur modèle 3D, poignées
-de Bézier glissées, animations glTF importées, `.glb`, sélection au clic
-(`PickMeshFace`), gizmo, arborescence de structures, navigateur de
+### Module partagé `editor` (libs/infrastructure/editor)
+
+Le cadre d'éditeur de la sandbox (palette dérivée du thème, feuille
+`.editor-*` / `.dock-*`, `DockPanel`, boutons d'icône, champ de recherche,
+poignées de redimensionnement) vit désormais dans un module commun. La
+sandbox s'en sert (`kit::DockPanel` en hérite, `kit::Palette` / `EditorCss`
+/ `IconButton` / `SearchField` / `ResizeHandle` y renvoient). Le module
+ajoute ce qu'il faut pour éditer en 3D :
+
+- `OrbitNavigator` : orbite autour d'un point (celui sous le curseur),
+  panoramique qui garde ce point sous le curseur, zoom vers le curseur,
+  cadrage d'une boîte, vues normalisées (face, dessus, iso…), vol, `LookFrom` ;
+- `TransformGizmo` : déplacer (axes, plans, écran), tourner (anneaux),
+  échelle (axes, uniforme) à taille constante à l'écran. Un glissé rend la
+  transformation TOTALE depuis le début du geste, avec des accroches (pas,
+  15°, ¼). `Strokes` donne le tracé en pixels ;
+- `CommandPalette` (recherche floue, récents d'abord) et `CommandPaletteView`
+  (modale ↑/↓/Entrée/Échap), idée reprise d'IngeTrazo.
+
+Les 11 tests passent sans fenêtre, sanitizers compris. Ils pilotent la
+navigation et le gizmo en pixels.
+
+### Studio
+
+Même architecture que la sandbox :
+- `ui::WindowFrame` (`WindowFrameOptions`) : barre de titre et barre d'état
+  personnalisées, fenêtre `WINDOW_FLAGS` sans décoration ;
+- menus Fichier / Édition / Affichage / Simulation / Outils / Aide ;
+- docks : Outliner | Éléments à gauche, Vue 3D au centre, catalogues |
+  Console en bas, Inspecteur | éditeurs à droite.
+
+- Vue 3D :
+  - c'est une surface de l'application (`ui::AppSurface`) ;
+  - barre d'outils : simulation, poursuite, gizmo et accroche, cadrage, vues ;
+  - repère d'axes et gizmo dessinés sur un calque.
+  - Souris :
+    - clic gauche : sélectionne l'entité la plus proche (`RaycastEntities`), sinon le bloc (`RaycastBlocks`), ou saisit le gizmo ;
+    - double-clic : cadre la sélection ;
+    - milieu : orbite autour du point visé, Maj pour le panoramique ;
+    - molette : zoom vers le curseur ;
+    - droit maintenu : vol, comme avant.
+  - Raccourcis : W/E/R pour le mode du gizmo, F pour cadrer.
+  - Le gizmo déplace et oriente l'entité (cap, tangage) et en règle l'échelle visuelle.
+- « Éléments » : le navigateur du contenu, façon MCreator.
+  - Par genre (blocs, modèles, structures, textures, entités, biomes, générateurs, dimensions) : un nombre, l'ouverture du catalogue et un bouton +.
+  - Le bouton + ouvre l'assistant `studio.element.new <genre> <id> [mod]`.
+- Palette de commandes (F1, Ctrl+Maj+P) : toutes les commandes enregistrées.
+- Commandes et raccourcis génériques :
+  - `studio.undo` / `redo` / `save` / `apply` (Ctrl+Z, Y, S, Maj+R) agissent sur le document de la page active du dock de droite ;
+  - `studio.view`, `studio.gizmo`, `studio.palette` ;
+  - `studio.tab left|right|catalog` : `left n` avec n ≥ 1 vise toujours les catalogues, pour ne pas casser les scénarios.
+
+### Étape 8
+
+- World Inspector (§10) :
+  - `InspectorRow::field` marque une valeur modifiable. Elle s'affiche en champ ; Entrée lance `studio.inspect.set <champ> <valeur>`, donc la modification passe par la console et le rapport.
+  - Le texte affiché se relit tel quel (`ParseNumbers` lit « 1.5, 64, -3 », « 45° », « 8 / 10 »).
+  - `ApplyEntityEdit` :
+    - position (sans interpolation, vitesse remise à zéro), vitesse, cap, tangage ;
+    - PV et PV max, faim, saturation, endurance, air, expérience ;
+    - gravité (signe = sens), masse, frottement, rebond, vitesse max, vol, noclip ;
+    - échelle, visibilité ;
+    - cible d'IA forcée ou retirée, effet (`effect poison 5 2`).
+  - Blocs :
+    - `InspectBlock` donne l'identité, l'état, les états possibles, la bascule, l'action et le contenu du rangement ;
+    - `ApplyBlockEdit` gère `state` (`SetBlockState`), `use` (clic droit, comme en jeu) et `toggle` ;
+    - boutons Utiliser / Basculer ;
+    - `studio.inspect.block x y z` sélectionne un bloc.
+  - Outliner : filtre par genre (liste déroulante), « vivants », distance maximale (curseur).
+- Console (§12) :
+  - filtres du journal (erreurs, avertissements, résultats, saisies) ;
+  - marque-pages : un clic marque une ligne, qui reste visible malgré les filtres et suit sa ligne quand le journal déborde ;
+  - complétion par Tab (préfixe commun, candidats listés) ;
+  - `ConsoleModel::Commands()` alimente la palette.
+- Tests : `StudioInspector_ParseNumbersAcceptsDisplayedFormats`, `…_EditsEntitiesOnTheFly`, `…_InspectsAndUsesBlocks`, `StudioConsole_FiltersAndBookmarks`, sur une vraie partie.
+
+### Non fait
+
+- Rechargements `reload all | texture | script` : étape 9.
+- Écran de rangement du jeu ouvert depuis l'inspecteur : le contenu est listé, pas éditable.
+- Inspecteur dans une fenêtre séparée.
+- Classes de script portées par une entité.
+- La sandbox utilise le cadre commun, mais garde sa navigation et son gizmo (dans `Runtime`). Le module `editor` est prêt pour qu'elle les adopte.
+
+## Fenêtre de jeu encadrée, studio depuis les menus (2026-11-01)
+
+La fenêtre de jeu a désormais, comme celle du studio, un `ui::WindowFrame`
+(`WindowFrameOptions`).
+- **Cadre** :
+  - `WindowSpec::flags = WindowFrame::WINDOW_FLAGS` (fenêtre sans décoration) ;
+  - barre de titre personnalisée : déplacer, agrandir, fermer, ce qui quitte le jeu ;
+  - barre d'état : monde, dimension, img/s, « F10 : Voxelia Studio » ; au menu, la version.
+- **Zone de jeu** : les couches du `Shell` (vue 3D, HUD, écrans, notifications) se superposent dans la pile `#game-area`, contenu du cadre ; sans fenêtre, elles restent sous la racine.
+- **Plein écran** : les deux barres sont masquées.
+- **Studio depuis les menus** :
+  - « Ouvrir le studio » dans le menu principal et le menu pause ;
+  - `Shell::OpenStudio()` déclenche `onOpenStudio`, branché par l'application ;
+  - le studio s'ouvre, ou revient au premier plan s'il est déjà ouvert ;
+  - F10 garde son effet de bascule.
+- **Vérification** : un clic injecté sur chacun des deux boutons ouvre le studio (rapport : `studio.open`, `windows.studio`), avec captures du menu, du jeu et de la pause.
+
+## Performances : le jeu et le studio (2026-11-01)
+
+Mesures en hors écran, sur Intel Iris Xe (GPU intégré partagé avec le bureau : ±15 % d'une exécution à l'autre). Le rapport de fin de partie donne maintenant, par fenêtre, styles et mise en page (avec le nombre de widgets restylés et de passes par image), vues 3D et dessin.
+
+| cas | avant | après |
+|---|---|---|
+| debug, monde plat + studio | ~5 img/s | 108 img/s |
+| release, monde plat + studio | 92 img/s | 210 img/s |
+| release, overworld, jeu seul | 131 img/s | 150 img/s |
+| release, overworld + studio | 81 img/s | 95–120 img/s |
+| debug, overworld + studio | ~4 img/s | 87 img/s |
+| chargement d'un monde (debug) | ~1000 images | ~120 images |
+
+### Corrections, par module
+
+- **ecs** : identifiant DENSE par type de composant, et colonnes des archétypes indexées par lui. `std::type_index` comparait les noms de types (`strcmp`, 20 % du temps) et les hachait (8 %) à chaque `GetComponent`. La table entité → emplacement est indexée par `Entity::id`, et `typeToArchetypes` par l'identifiant dense.
+- **ui, styles** :
+  - index des sélecteurs par clé du sujet (id, classe, type, universel) : un élément ne teste plus toutes les règles ;
+  - les données de l'élément sont calculées une seule fois, avec son rang transmis par le parent. Avant, `DataOf` cherchait ce rang parmi les frères POUR CHAQUE sélecteur, ce qui était quadratique sur une longue liste.
+- **ui, mise en page** :
+  - cache des mesures de texte d'une passe à l'autre ;
+  - changement de texte LOCAL : un texte dont la taille mesurée ne change pas ne relance plus une passe complète (`MarkTextDirty`, `Rect::text`) ;
+  - les sous-arbres entièrement rognés ne sont pas dessinés.
+- **ui, fenêtres et vues** :
+  - `WindowSpec::maxFps` : fenêtre secondaire dessinée et présentée au plus N fois par seconde ;
+  - `Viewport3DState::maxFps` : idem pour une vue 3D.
+- **render3d** (rendu hors écran) : le pipeline n'est plus re-lié ni recherché quand il ne change pas, et la matrice des normales d'une simple translation n'est plus inversée.
+- **voxel** :
+  - `BlockCursor` : lecture de blocs en série, une recherche de chunk par changement de chunk et non par bloc ; boîtes de collision de la physique ;
+  - `Game::StreamChunks(budget)`.
+- **voxelia** :
+  - chargement des chunks à budget de TEMPS (~20 ms par image) au lieu de 8 chunks par image ;
+  - fils de maillage selon la machine (cœurs logiques / 2 − 1, de 2 à 6) ;
+  - barre d'état du studio à 4 Hz ;
+  - studio à 60 images/s (fenêtre et vue 3D) ; le jeu garde toute la cadence.
+
+### Ce qui limite encore
+
+- La présentation (attente du GPU intégré, 2,5 à 5 ms).
+- Le rendu du monde DEUX fois (jeu et studio).
+- En debug, le code non optimisé. Pour mesurer les performances, utiliser `cpp-maker run -m voxelia --mode release`.
+
+## Reste à faire (étapes 9+ du prompt)
+
+Mod Manager et rechargement global (étape 9), scénarios nommés `--scenario=`
+(étape 10) ; peinture sur modèle 3D, poignées de Bézier glissées, animations
+glTF importées, `.glb`, arborescence de structures, navigateur de
 ressources, vérification `--seed`.
 
 `script_bindings` (et donc `sandbox`), cassé à HEAD et dans l'index, a été

@@ -1258,26 +1258,7 @@ math::FVector3 EditorUi::SpawnPointInFrontOfCamera(float lift) const {
 
 ui::Widget EditorUi::ResizeHandle(ui::Widget parent, ui::Orientation orient, ui::Widget target, bool before, float minSize,
 		float maxSize) {
-	const bool horizontal = orient == ui::Orientation::Horizontal;
-	ui::WidgetBuilder handle = ui::Row();
-	handle.Padding(0.f);
-	if (horizontal)
-		handle.Width(5.f).GrowHeight();
-	else
-		handle.GrowWidth().Height(5.f);
-	handle.Background(kit::PaletteOf(m_ctx).base);
-	ui::ResizeHandle h;
-	h.axis = orient;
-	h.after = !before;
-	(before ? h.minBefore : h.minAfter) = minSize;
-	h.maxSize = maxSize;
-	handle.With(h);
-	if (before)
-		return parent.Append(handle);
-	// La poignée PRÉCÈDE le panneau qu'elle redimensionne (ancré à droite / en bas).
-	const std::vector<ui::Widget> children = parent.Children();
-	const auto at = std::find(children.begin(), children.end(), target);
-	return parent.Insert(size_t(at - children.begin()), handle);
+	return editor::ResizeHandle(m_ctx.Theme(), parent, orient, target, before, minSize, maxSize);
 }
 
 void EditorUi::PlaceObject(const String &objectName) {

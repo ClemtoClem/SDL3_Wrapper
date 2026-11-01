@@ -1,6 +1,8 @@
 // Définitions de voxelia/studio/console.hpp
 #include <voxelia/studio/console.hpp>
 
+#include <algorithm>
+
 namespace voxelia::studio {
 
 namespace {
@@ -84,8 +86,41 @@ void ConsoleModel::Update(float dt) {
 
 void ConsoleModel::Print(String text, String kind) {
 	m_lines.push_back({std::move(text), std::move(kind)});
-	while (m_lines.size() > MAX_LINES)
+	while (m_lines.size() > MAX_LINES) {
 		m_lines.pop_front();
+		// Les marque-pages suivent leurs lignes ; celui de la ligne oubliée part avec elle.
+		std::erase(m_bookmarks, size_t(0));
+		for (size_t &b : m_bookmarks)
+			--b;
+	}
+}
+
+std::vector<std::pair<String, String>> ConsoleModel::Commands() const {
+	std::vector<std::pair<String, String>> out;
+	for (const auto &[name, entry] : m_commands)
+		out.emplace_back(name, entry.help);
+	return out;
+}
+
+std::vector<size_t> ConsoleModel::Filtered(const std::vector<String> &kinds) const {
+	std::vector<size_t> out;
+	for (size_t i = 0; i < m_lines.size(); ++i)
+		if (kinds.empty() || std::find(kinds.begin(), kinds.end(), m_lines[i].kind) != kinds.end() || IsBookmarked(i))
+			out.push_back(i);
+	return out;
+}
+
+void ConsoleModel::Bookmark(size_t index) {
+	if (index >= m_lines.size())
+		return;
+	if (IsBookmarked(index))
+		std::erase(m_bookmarks, index);
+	else
+		m_bookmarks.insert(std::upper_bound(m_bookmarks.begin(), m_bookmarks.end(), index), index);
+}
+
+bool ConsoleModel::IsBookmarked(size_t index) const {
+	return std::binary_search(m_bookmarks.begin(), m_bookmarks.end(), index);
 }
 
 CommandResult ConsoleModel::Submit(const String &line) {

@@ -1,0 +1,24 @@
+[module]
+name = "profiler"
+type = "executable"
+description = "Profileur de programmes C++ instrumentés (diagnostics::trace), inspiré de Google Orbit : capture, chronologie des fils, échantillonnage des piles, statistiques, diagnostic CPU / mémoire / cache / GPU / fils"
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]
+
+[dependencies]
+modules = ["core", "diagnostics", "dataio", "math", "ecs", "sdl3", "render3d", "ui", "editor"]
+pkg_config = []
+system = []
+
+[flags]
+defines = []
+public_defines = []
+cflags = []
+cxxflags = []
+
+[tests]
+dirs = ["tests"]

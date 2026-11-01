@@ -311,3 +311,129 @@ TEST(StudioReport_FeaturesFramesAndJson) {
 	CHECK(!report.Passed());
 	CHECK(report.ToText().Find("[error  ] capture.studio") != String::NPOS);
 }
+
+// ── Étape 8 : World Inspector modifiable, console filtrée ───────────────────
+
+TEST(StudioInspector_ParseNumbersAcceptsDisplayedFormats) {
+	auto same = [](const std::vector<float> &v, std::initializer_list<float> want) {
+		if (v.size() != want.size())
+			return false;
+		size_t i = 0;
+		for (float w : want)
+			if (std::fabs(v[i++] - w) > 1e-4f)
+				return false;
+		return true;
+	};
+	CHECK(same(ParseNumbers(String("1.50, 64.00, -3.25")), {1.5f, 64.f, -3.25f}));
+	CHECK(same(ParseNumbers(String("(1 2 3)")), {1.f, 2.f, 3.f}));
+	CHECK(same(ParseNumbers(String("45.0°")), {45.f}));
+	CHECK(same(ParseNumbers(String("8.0 / 10.0")), {8.f, 10.f}));
+	CHECK(same(ParseNumbers(String("chunk -2,0,-1")), {-2.f, 0.f, -1.f}));
+	CHECK(ParseNumbers(String("oui")).empty());
+}
+
+TEST(StudioInspector_EditsEntitiesOnTheFly) {
+	const char *saves = "build/tests/tmp/voxelia/studio_edit";
+	std::filesystem::remove_all(saves);
+	voxel::Game game;
+	(void)game.LoadMods(StudioOptions(saves));
+	REQUIRE(game.OpenWorld("edit", Some(uint32_t(7))).IsOk());
+	const ecs::Entity player = game.JoinPlayer("Éditrice");
+	for (int i = 0; i < 30; ++i)
+		game.Tick(1.f / 60.f);
+	ecs::ArchetypeRegistry &reg = game.Registry();
+	const math::FVector3 feet = reg.GetComponent<voxel::Transform>(player).Unwrap()->position;
+
+	// Les lignes modifiables portent leur champ.
+	bool positionEditable = false;
+	for (const InspectorSection &s : InspectEntity(game, player))
+		for (const InspectorRow &r : s.rows)
+			if (r.label == "Position")
+				positionEditable = r.field == "position";
+	CHECK(positionEditable);
+
+	// Le texte affiché se relit tel quel.
+	CHECK(ApplyEntityEdit(game, player, String("position"), String::Format("%.2f, %.2f, %.2f", double(feet.x + 2.f), double(feet.y), double(feet.z))).IsOk());
+	{
+		auto t = reg.GetComponent<voxel::Transform>(player);
+		CHECK(std::fabs(t.Unwrap()->position.x - (feet.x + 2.f)) < 1e-3f);
+		CHECK(std::fabs(t.Unwrap()->previous.x - t.Unwrap()->position.x) < 1e-6f); // pas d'interpolation depuis l'ancienne place
+	}
+	CHECK(ApplyEntityEdit(game, player, String("yaw"), String("90°")).IsOk());
+	CHECK(std::fabs(reg.GetComponent<voxel::Transform>(player).Unwrap()->yaw - 1.5707963f) < 1e-4f);
+	CHECK(ApplyEntityEdit(game, player, String("health"), String("4 / 20")).IsOk());
+	CHECK(std::fabs(reg.GetComponent<voxel::Health>(player).Unwrap()->current - 4.f) < 1e-4f);
+	CHECK(ApplyEntityEdit(game, player, String("hunger"), String("30")).IsOk()); // borné à 20
+	CHECK(std::fabs(reg.GetComponent<voxel::Survival>(player).Unwrap()->hunger - 20.f) < 1e-4f);
+	CHECK(ApplyEntityEdit(game, player, String("noclip"), String("oui")).IsOk());
+	CHECK(reg.GetComponent<voxel::PhysicsBody>(player).Unwrap()->noclip);
+	CHECK(ApplyEntityEdit(game, player, String("effect"), String("poison 5 2")).IsOk());
+	CHECK(reg.GetComponent<voxel::StatusEffects>(player).IsSome());
+	// Refus : valeur, champ, composant.
+	CHECK(ApplyEntityEdit(game, player, String("position"), String("1, 2")).IsError());
+	CHECK(ApplyEntityEdit(game, player, String("noclip"), String("peut-être")).IsError());
+	CHECK(ApplyEntityEdit(game, player, String("couleur"), String("rouge")).IsError());
+
+	// IA : cible forcée puis retirée.
+	const ecs::Entity pig = game.SpawnEntity("core:pig", {feet.x + 3.f, feet.y, feet.z});
+	REQUIRE(pig.Valid());
+	CHECK(ApplyEntityEdit(game, pig, String("target"), String("10 64 10")).IsOk());
+	for (const voxel::BehaviorState &s : reg.GetComponent<voxel::Behaviors>(pig).Unwrap()->list)
+		CHECK(s.hasTarget && std::fabs(s.target.y - 64.f) < 1e-4f);
+	CHECK(ApplyEntityEdit(game, pig, String("target"), String("none")).IsOk());
+	CHECK(ApplyEntityEdit(game, pig, String("hunger"), String("5")).IsError()); // pas de Survival
+}
+
+TEST(StudioInspector_InspectsAndUsesBlocks) {
+	const char *saves = "build/tests/tmp/voxelia/studio_blocks_inspect";
+	std::filesystem::remove_all(saves);
+	voxel::Game game;
+	(void)game.LoadMods(StudioOptions(saves));
+	REQUIRE(game.OpenWorld("blocks", Some(uint32_t(11))).IsOk());
+	const ecs::Entity player = game.JoinPlayer("Joueur");
+	for (int i = 0; i < 30; ++i)
+		game.Tick(1.f / 60.f);
+	const math::FVector3 feet = game.Registry().GetComponent<voxel::Transform>(player).Unwrap()->position;
+	const voxel::BlockPos trap{int(std::floor(feet.x)) + 3, int(std::floor(feet.y)) + 1, int(std::floor(feet.z))};
+	const voxel::BlockPos chest{trap.x + 2, trap.y, trap.z};
+	REQUIRE(game.GetWorld().SetBlock(trap, String("core:oak_trapdoor")));
+	REQUIRE(game.GetWorld().SetBlock(chest, String("core:chest")));
+
+	auto has = [](const std::vector<InspectorSection> &sections, const char *title) {
+		for (const InspectorSection &s : sections)
+			if (s.title == title)
+				return true;
+		return false;
+	};
+	std::vector<InspectorSection> sections = InspectBlock(game, trap);
+	CHECK(has(sections, "Bloc"));
+	CHECK(has(sections, "Interaction"));
+	CHECK(ApplyBlockEdit(game, trap, String("toggle"), String()).IsOk());
+	CHECK(game.GetWorld().BlockAt(trap).id == "core:oak_trapdoor_open");
+	CHECK(has(InspectBlock(game, chest), "Rangement"));
+	CHECK(ApplyBlockEdit(game, chest, String("state"), String("allumé")).IsError()); // sans états
+	CHECK(ApplyBlockEdit(game, chest, String("explose"), String()).IsError());
+}
+
+TEST(StudioConsole_FiltersAndBookmarks) {
+	ConsoleModel console = MakeConsole();
+	(void)console.Submit("ok");
+	(void)console.Submit("fail");
+	(void)console.Submit("warn");
+	const std::vector<size_t> all = console.Filtered({});
+	CHECK_EQ(all.size(), console.Lines().size());
+	const std::vector<size_t> errors = console.Filtered({String("error")});
+	REQUIRE(errors.size() == size_t(1));
+	CHECK(console.Lines()[errors[0]].text.Find("raté") != String::NPOS);
+	// Un marque-page reste visible quel que soit le filtre.
+	console.Bookmark(0);
+	CHECK(console.IsBookmarked(0));
+	CHECK_EQ(console.Filtered({String("error")}).size(), size_t(2));
+	console.Bookmark(0);
+	CHECK(!console.IsBookmarked(0));
+	// Commandes listées (palette).
+	bool found = false;
+	for (const auto &[name, help] : console.Commands())
+		found = found || (name == "warn" && help == "avertit");
+	CHECK(found);
+}

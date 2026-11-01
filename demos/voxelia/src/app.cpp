@@ -1,6 +1,7 @@
 // Définitions de app.hpp — options, mode sans fenêtre, boucle de la fenêtre.
 #include <voxelia/app.hpp>
 
+#include <diagnostics/trace.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -19,6 +20,7 @@
 #include <voxelia/session.hpp>
 #include <voxelia/shell.hpp>
 #include <voxelia/studio/studio.hpp>
+#include <ui/window_frame.hpp>
 #include <ui/window_manager.hpp>
 
 namespace voxelia {
@@ -32,7 +34,21 @@ struct FrameStats {
 	std::vector<double> frames;
 	double wait = 0.0, update = 0.0, draw = 0.0, present = 0.0;
 	double pending = 0.0; ///< chunks à mailler (somme sur les images)
+	double studioUpdate = 0.0; ///< Studio::Update (outliner, inspecteur, éditeurs)
+	/// Interface de chaque fenêtre (sommes) : jeu, studio.
+	ui::FrameTimings gameUi{}, studioUi{};
+	size_t studioFrames = 0;
 };
+
+void Accumulate(ui::FrameTimings &sum, const ui::FrameTimings &t) {
+	sum.styleMs += t.styleMs;
+	sum.layoutMs += t.layoutMs;
+	sum.viewport3dMs += t.viewport3dMs;
+	sum.shaderEffectMs += t.shaderEffectMs;
+	sum.drawMs += t.drawMs;
+	sum.stylesResolved += t.stylesResolved;
+	sum.layoutPasses += t.layoutPasses;
+}
 
 } // namespace
 
@@ -58,7 +74,7 @@ const char *Usage() {
 		   "                         !home, !look LACET TANGAGE, !view first|third, !notify TON TEXTE, !confirm, !set CLÉ VALEUR…\n"
 		   "  --headless             sans fenêtre : simulation, commandes, rapport\n"
 		   "  --threads=on|off       simulation et maillage sur leurs fils (on, défaut) ou sur le fil principal\n"
-		   "  --mesh-threads=N       fils de rendu pour le maillage des chunks (défaut : 2)\n"
+		   "  --mesh-threads=N       fils de rendu pour le maillage des chunks (défaut : cœurs logiques / 2 − 1, de 2 à 6)\n"
 		   "  --viewport=MODE        vue 3D → interface : direct (défaut, sans copie), pipelined, readback\n"
 		   "  --width=W --height=H   taille de la fenêtre\n"
 		   "\n"
@@ -173,7 +189,15 @@ int App::Run() {
 		std::printf("%s", Usage());
 		return 0;
 	}
-	return m_options.headless ? RunHeadless() : RunWindowed();
+	// Capture de performances (demos/profiler) : DIAG_TRACE=fichier.vcap,
+	// DIAG_TRACE_CONTROL=1|wait (SIGUSR2 démarre / arrête).
+	diagnostics::trace::SetThreadName("main");
+	(void)diagnostics::trace::StartFromEnvironment();
+	const int code = m_options.headless ? RunHeadless() : RunWindowed();
+	// Capture lancée par DIAG_TRACE (le diagnostic du studio est exporté par
+	// le Shell, à la fermeture de la partie).
+	diagnostics::trace::FinishFromEnvironment();
+	return code;
 }
 
 // ── Sans fenêtre ─────────────────────────────────────────────────────────────
@@ -293,6 +317,8 @@ int App::RunWindowed() {
 	gameSpec.role = "game";
 	gameSpec.primary = true;
 	gameSpec.followDisplayScale = false; // le jeu a son échelle d'interface (réglages)
+	// Barre de titre et barre d'état personnalisées (Shell : ui::WindowFrame).
+	gameSpec.flags = ui::WindowFrame::WINDOW_FLAGS;
 	auto gameWindow = windows.Create(gameSpec);
 	if (!gameWindow) {
 		std::printf("fenêtre : %s\n", gameWindow.Error().CStr());
@@ -355,7 +381,12 @@ int App::RunWindowed() {
 		spec.width = 1360;
 		spec.height = 820;
 		spec.role = "studio";
+		// Barre de titre et barre d'état personnalisées (ui::WindowFrame).
+		spec.flags = ui::WindowFrame::WINDOW_FLAGS;
 		spec.vsync = false; // la fenêtre de jeu attend le balayage pour les deux
+		// Éditeur à côté du jeu : 60 images par seconde lui suffisent ; la
+		// fenêtre de jeu garde toute la cadence de l'écran (144 Hz…).
+		spec.maxFps = 60.f;
 		if (m_options.studioDisplay.IsSome())
 			spec.display = m_options.studioDisplay;
 		else
@@ -380,7 +411,9 @@ int App::RunWindowed() {
 		};
 		return true;
 	};
-	bool toggleStudio = false, quitAll = false;
+	bool toggleStudio = false, raiseStudio = false, quitAll = false;
+	// Bouton « Ouvrir le studio » des menus : ouvre, ou ramène devant.
+	shell.onOpenStudio = [&] { raiseStudio = true; };
 	windows.AddGlobalShortcut({SDLK_Q, SDL_KMOD_CTRL, "quit", [&](ui::WindowContext &) { quitAll = true; }});
 	windows.AddGlobalShortcut({SDLK_F10, SDL_KMOD_NONE, "studio", [&](ui::WindowContext &) { toggleStudio = true; }});
 	if (m_options.studio)
@@ -404,8 +437,13 @@ int App::RunWindowed() {
 	auto ms = [frequency](uint64_t from, uint64_t to) { return double(to - from) * 1000.0 / frequency; };
 	while (shell.Running()) {
 		const uint64_t now = sdl3::GetPerformanceCounter();
-		shell.EndSimulation();
+		{
+			// Attente du pas de simulation lancé à l'image précédente.
+			DIAG_ZONE("frame.wait_simulation");
+			shell.EndSimulation();
+		}
 		const uint64_t joined = sdl3::GetPerformanceCounter();
+		DIAG_ZONE("frame");
 		const float dt = std::min(0.1f, float(double(now - previous) / frequency));
 		const double frameMs = ms(previous, now);
 		previous = now;
@@ -419,6 +457,8 @@ int App::RunWindowed() {
 			stats.frames.push_back(frameMs);
 			stats.pending += double(session->Renderer().PendingChunks());
 		}
+		{
+		DIAG_ZONE("frame.events");
 		while (auto event = sdl3::PollEvent()) {
 			sdl3::Event &ev = event.Value();
 			if (studioApp && windows.Target(ev) == windows.Find(studioId)) {
@@ -436,12 +476,20 @@ int App::RunWindowed() {
 				continue; // HandleCloseRequests : la principale arrête l'application
 			shell.HandleEvent(ev);
 		}
+		}
 		if (toggleStudio) {
 			toggleStudio = false;
 			if (studioApp)
 				(void)windows.Close(studioId);
 			else
 				(void)openStudio();
+		}
+		if (raiseStudio) {
+			raiseStudio = false;
+			if (!studioApp)
+				(void)openStudio();
+			else if (ui::WindowContext *studioWindow = windows.Find(studioId); studioWindow && studioWindow->Window())
+				studioWindow->Window()->Raise();
 		}
 		windows.HandleCloseRequests();
 		if (quitAll || windows.QuitRequested())
@@ -464,11 +512,17 @@ int App::RunWindowed() {
 					shell.GameCommand(command);
 			}
 		const uint64_t t0 = sdl3::GetPerformanceCounter();
-		shell.Update(dt, frame);
+		{
+			DIAG_ZONE("frame.update");
+			shell.Update(dt, frame);
+		}
 		// Le studio lit et modifie la partie ICI : le pas de simulation de
 		// l'image précédente est terminé, le suivant n'est pas lancé.
-		if (studioApp)
+		const uint64_t studioStart = sdl3::GetPerformanceCounter();
+		if (studioApp) {
+			DIAG_ZONE("frame.studio");
 			studioApp->Update(dt);
+		}
 		const uint64_t t1 = sdl3::GetPerformanceCounter();
 		windows.Update(dt);
 		for (const auto &[at, path] : m_options.desktopShots)
@@ -487,7 +541,10 @@ int App::RunWindowed() {
 					report.Error(String("capture du studio ") + path + String(" : studio fermé"));
 				}
 			}
-		windows.Draw({0.f, 0.f, 0.f, 1.f});
+		{
+			DIAG_ZONE("frame.draw");
+			windows.Draw({0.f, 0.f, 0.f, 1.f});
+		}
 		for (const String &error : windows.CaptureErrors())
 			report.Error(error);
 		const uint64_t t2 = sdl3::GetPerformanceCounter();
@@ -509,6 +566,12 @@ int App::RunWindowed() {
 			stats.update += ms(t0, t1);
 			stats.draw += ms(t1, t2);
 			stats.present += ms(built, sdl3::GetPerformanceCounter());
+			Accumulate(stats.gameUi, gameContext.Gui().Timings());
+			if (studioApp) {
+				stats.studioUpdate += ms(studioStart, t1);
+				Accumulate(stats.studioUi, studioApp->Window().Gui().Timings());
+				++stats.studioFrames;
+			}
 		}
 		// Limite d'images (réglages graphiques).
 		if (const int limit = shell.Prefs().fpsLimit; limit > 0) {
@@ -517,10 +580,23 @@ int App::RunWindowed() {
 			if (spent < target)
 				std::this_thread::sleep_for(std::chrono::duration<double>(target - spent));
 		}
+		// Pistes de la capture : cadence et travail en attente.
+		if (diagnostics::trace::Active()) {
+			DIAG_VALUE("frame.ms", frameMs);
+			if (session && session->Ready()) {
+				DIAG_VALUE("voxel.chunks_pending", session->Renderer().PendingChunks());
+				DIAG_VALUE("voxel.chunk_meshes", session->Renderer().ChunkMeshCount());
+				DIAG_VALUE("voxel.entities", session->Game().Registry().EntityCount());
+			}
+		}
+		DIAG_FRAME();
+		diagnostics::trace::PollControl();
 		if (m_options.frames > 0 && frame >= m_options.frames)
 			break;
 	}
 	shell.EndSimulation();
+	// Quitter : le diagnostic en cours est arrêté proprement et exporté.
+	shell.FinishDiagnostic();
 	std::printf("%ld image(s), %.1f img/s en moyenne\n", frame, totalSeconds > 0.0 ? double(frame) / totalSeconds : 0.0);
 	if (!stats.frames.empty()) {
 		const double n = double(stats.frames.size());
@@ -537,6 +613,18 @@ int App::RunWindowed() {
 		std::printf("  fil principal : attente de la simulation %.2f ms, jeu et scène %.2f ms, interface et rendu %.2f ms, "
 					"présentation %.2f ms\n",
 					stats.wait / n, stats.update / n, stats.draw / n, stats.present / n);
+		auto ui = [](const char *name, const ui::FrameTimings &t, double count) {
+			std::printf("  interface %s : styles %.2f ms (%.0f widgets/image), mise en page %.2f ms (%.2f passes/image), vue 3D %.2f ms, "
+						"effets %.2f ms, dessin %.2f ms\n",
+						name, t.styleMs / count, double(t.stylesResolved) / count, t.layoutMs / count, double(t.layoutPasses) / count,
+						t.viewport3dMs / count, t.shaderEffectMs / count, t.drawMs / count);
+		};
+		ui("du jeu", stats.gameUi, n);
+		if (stats.studioFrames > 0) {
+			const double s = double(stats.studioFrames);
+			ui("du studio", stats.studioUi, s);
+			std::printf("  studio : mise à jour %.2f ms (outliner, inspecteur, éditeurs)\n", stats.studioUpdate / s);
+		}
 		if (Session *game = shell.Game(); game && game->Ready())
 			std::printf("  simulation %.2f ms par pas, maillage %.2f ms par chunk\n", double(game->TickMilliseconds()),
 						double(game->Renderer().MeshMilliseconds()));

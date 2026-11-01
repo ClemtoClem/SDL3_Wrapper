@@ -91,6 +91,12 @@ struct WindowSpec {
 	bool followDisplayScale = true;
 	/// Sans fenêtre SDL : interface sans rendu (tests, mode sans écran).
 	bool headless = false;
+	/// Images dessinées et présentées par seconde au plus (0 : à chaque
+	/// image). Une fenêtre secondaire (éditeur à côté du jeu) n'a pas à
+	/// suivre la cadence de l'écran : entre deux images, rien n'est redessiné
+	/// ni présenté (le compositeur garde la dernière). Les captures demandées
+	/// passent toujours.
+	float maxFps = 0.f;
 };
 
 class WindowManager;
@@ -164,6 +170,9 @@ private:
 	bool m_sharesGpu = false;
 	bool m_keyboardCapture = false;
 	bool m_closeRequested = false;
+	uint64_t m_lastDrawNs = 0; ///< cf. WindowSpec::maxFps
+	const char *m_traceZone = "ui.window"; ///< zone de capture du dessin (« ui.window.<rôle> »)
+	bool m_drawn = false;	   ///< dessinée à cette image (à présenter)
 };
 
 /// Raccourci valable dans toutes les fenêtres.

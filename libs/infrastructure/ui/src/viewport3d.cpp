@@ -160,8 +160,14 @@ void RenderViewports(ecs::ArchetypeRegistry &world, Context &ctx) {
 		const uint32_t w = uint32_t(math::Max(0.f, box.w)), h = uint32_t(math::Max(0.f, box.h));
 		if (w == 0 || h == 0)
 			continue;
-		if (!v.continuous && !v.needsRender && v.displayTexture.IsSome() && v.textureWidth == w && v.textureHeight == h)
+		const bool sameSize = v.displayTexture.IsSome() && v.textureWidth == w && v.textureHeight == h;
+		if (!v.continuous && !v.needsRender && sameSize)
 			continue;
+		const uint64_t now = SDL_GetTicksNS();
+		if (v.continuous && !v.needsRender && sameSize && v.maxFps > 0.f &&
+			double(now - v.lastRenderNs) < 1.0e9 / double(v.maxFps))
+			continue; // cadence plafonnée : l'image précédente reste affichée
+		v.lastRenderNs = now;
 		bool rendered = false;
 		if (v.transfer == ViewportTransfer::DIRECT && !v.directFailed)
 			rendered = RenderDirect(canvas, v, ctx, w, h);

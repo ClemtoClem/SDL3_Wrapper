@@ -89,18 +89,20 @@ void CollectBlockBoxes(const World &world, const Box &region, std::vector<Box> &
 	const int x0 = int(std::floor(region.min.x)) - 1, x1 = int(std::floor(region.max.x)) + 1;
 	const int y0 = int(std::floor(region.min.y)) - 1, y1 = int(std::floor(region.max.y)) + 1;
 	const int z0 = int(std::floor(region.min.z)) - 1, z1 = int(std::floor(region.max.z)) + 1;
+	BlockCursor cursor(world);
 	for (int y = y0; y <= y1; ++y)
 		for (int z = z0; z <= z1; ++z)
 			for (int x = x0; x <= x1; ++x) {
 				const BlockPos p{x, y, z};
 				const math::FVector3 o = p.ToVector();
-				if (!world.IsLoaded(p)) {
+				const BlockCursor::Cell cell = cursor.Read(p);
+				if (!cell.loaded) {
 					const Box full{o, o + math::FVector3{1.f, 1.f, 1.f}};
 					if (full.Intersects(region))
 						out.push_back(full);
 					continue;
 				}
-				const BlockDef &def = content.Block(world.GetBlock(p));
+				const BlockDef &def = content.Block(cell.id);
 				if (!def.solid || def.collision == CollisionKind::NONE)
 					continue;
 				if (def.collision == CollisionKind::FULL_CUBE) {
@@ -109,7 +111,7 @@ void CollectBlockBoxes(const World &world, const Box &region, std::vector<Box> &
 						out.push_back(full);
 					continue;
 				}
-				const uint8_t param = world.GetParam(p);
+				const uint8_t param = cell.param;
 				for (const Box &local : def.collisionBoxes) {
 					const Box b = RotateBlockBox(local, param).Offset(o);
 					if (b.Intersects(region))

@@ -1,5 +1,5 @@
 // Écrans système : confirmation, chargement, erreur.
-#include "common.hpp"
+#include <voxelia/ui/common.hpp>
 
 #include <chrono>
 

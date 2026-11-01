@@ -254,4 +254,39 @@ private:
 	uint64_t m_generatedCount = 0;
 };
 
+/// Lecture de blocs en série (boîtes de collision, rayons, voisinages) : le
+/// chunk n'est recherché qu'au CHANGEMENT de chunk, pas à chaque bloc — la
+/// table des chunks (hachage de la position) coûtait trois recherches par
+/// bloc (IsLoaded, GetBlock, GetParam). Ne garde qu'un pointeur : à ne pas
+/// conserver au-delà d'une modification de l'ensemble des chunks chargés.
+class BlockCursor {
+public:
+	explicit BlockCursor(const World &world) noexcept : m_world(world) {}
+
+	struct Cell {
+		bool loaded = false;
+		BlockId id = AIR;
+		uint8_t param = 0;
+	};
+
+	[[nodiscard]] Cell Read(const BlockPos &p) {
+		const ChunkPos c = ChunkOf(p);
+		if (!m_valid || !(c == m_pos)) {
+			m_pos = c;
+			m_chunk = m_world.GetChunk(c);
+			m_valid = true;
+		}
+		if (!m_chunk)
+			return {};
+		const BlockPos l = LocalOf(p);
+		return {true, m_chunk->Get(l.x, l.y, l.z), m_chunk->Param(l.x, l.y, l.z)};
+	}
+
+private:
+	const World &m_world;
+	const Chunk *m_chunk = nullptr;
+	ChunkPos m_pos{};
+	bool m_valid = false;
+};
+
 } // namespace voxel

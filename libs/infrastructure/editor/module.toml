@@ -1,0 +1,19 @@
+[module]
+name = "editor"
+layer = "infrastructure"
+version = "0.1.0"
+description = "Briques communes des éditeurs 3D (sandbox, Voxelia Studio) : thème et docks à onglets, navigation orbitale, gizmo de transformation, palette de commandes"
+type = "static"
+
+[sources]
+dirs = ["src"]
+
+[include]
+public = ["include"]
+private = ["src"]
+
+[dependencies]
+modules = ["core", "math", "sdl3", "ecs", "render3d", "ui"]
+
+[tests]
+dirs = ["tests"]

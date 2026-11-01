@@ -1,6 +1,8 @@
 // Définitions de render3d/offscreen.hpp
 #include <render3d/offscreen.hpp>
 
+#include <diagnostics/trace.hpp>
+
 #include <algorithm>
 
 namespace render3d {
@@ -117,6 +119,7 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 	// rendu hors écran — donc d'un widget Viewport3D, c'est-à-dire du cas le
 	// plus courant — totalement invisible au profilage.
 
+	DIAG_ZONE("render3d.offscreen");
 	auto cmd = m_device.AcquireCommandBuffer();
 
 	// Tous les uploads AVANT le render pass — même règle que End() (canvas.hpp
@@ -154,6 +157,7 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 		// hasEnvironment=false, SANS la branche m_instancedDrawList/
 		// m_skinnedDrawList (scope cut M21, voir le plan : offscreen ne
 		// marche que sur les Shape simples collectées via OnDraw() ci-dessus).
+		Option<PipelineKey> boundKey = NONE;
 		for (auto &draw : offscreenDrawList) {
 			if (!draw.mesh->HasGpuBuffers())
 				continue;
@@ -180,23 +184,35 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 			key.colorFormat = target.ColorFormat();
 			key.depthFormat = target.DepthFormat();
 
-			auto pipeline = GetOrCreatePipeline(key);
-			if (!pipeline)
-				continue;
-			pass.BindPipeline(pipeline.Value());
+			// Même pipeline que le dessin précédent (cas courant : tous les
+			// chunks d'un monde voxel) : ni recherche ni re-liaison.
+			if (!boundKey.IsSome() || !(boundKey.Value() == key)) {
+				auto pipeline = GetOrCreatePipeline(key);
+				if (!pipeline) {
+					boundKey = NONE;
+					continue;
+				}
+				pass.BindPipeline(pipeline.Value());
+				boundKey = Some(key);
+				cmd.PushVertexUniformData(0, viewProjection);
+			}
 
 			sdl3::GpuBufferBinding vertexBinding{draw.mesh->VertexBuffer()->Get(), 0};
 			pass.BindVertexBuffer(0, vertexBinding);
 			sdl3::GpuBufferBinding indexBinding{draw.mesh->IndexBuffer()->Get(), 0};
 			pass.BindIndexBuffer(indexBinding, sdl3::gpu_index_element_size::BITS32);
 
-			cmd.PushVertexUniformData(0, viewProjection);
-
 			struct PerObjectUBO {
 				math::FMatrix4 model;
 				math::FMatrix4 normalMatrix;
 			};
-			PerObjectUBO perObject{draw.transform, draw.transform.Inverse().Transpose()};
+			// Matrice des normales : l'inverse transposée — l'identité pour une
+			// simple translation (les chunks), sans inversion 4×4.
+			const float *m = draw.transform.m;
+			const bool translationOnly = m[0] == 1.f && m[1] == 0.f && m[2] == 0.f && m[3] == 0.f && m[4] == 0.f && m[5] == 1.f &&
+										 m[6] == 0.f && m[7] == 0.f && m[8] == 0.f && m[9] == 0.f && m[10] == 1.f && m[11] == 0.f &&
+										 m[15] == 1.f;
+			PerObjectUBO perObject{draw.transform, translationOnly ? math::FMatrix4::Identity() : draw.transform.Inverse().Transpose()};
 			cmd.PushVertexUniformData(1, perObject);
 
 			if (draw.material.lit) {

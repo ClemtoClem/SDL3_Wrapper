@@ -1,5 +1,5 @@
 // Écrans des réglages : six onglets, saisie d'une touche, choix du skin.
-#include "common.hpp"
+#include <voxelia/ui/common.hpp>
 
 #include <algorithm>
 #include <cmath>

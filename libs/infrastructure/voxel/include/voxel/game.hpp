@@ -115,6 +115,11 @@ public:
 	[[nodiscard]] AssetManager &Assets() noexcept { return *m_assets; }
 	[[nodiscard]] ScriptHost &Scripts() noexcept { return *m_scripts; }
 	[[nodiscard]] const GameOptions &Options() const noexcept { return m_options; }
+	/// Charge (ou génère) jusqu'à `budget` chunks manquants autour des
+	/// joueurs, les plus proches d'abord ; rend le nombre chargé (0 : la zone
+	/// est complète). Même travail que le système « world.stream », appelable
+	/// hors du pas de simulation (écran de chargement, budget en temps).
+	size_t StreamChunks(size_t budget);
 	void SetCreative(bool creative) noexcept { m_options.creative = creative; }
 	/// Distance de chargement (chunks) : réglages graphiques.
 	void SetViewRadius(int radius, int vertical) noexcept {

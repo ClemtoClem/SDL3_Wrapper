@@ -17,6 +17,7 @@
 #include <render3d/canvas.hpp>
 #include <sdl3/sdl3.hpp>
 #include <ui/ui.hpp>
+#include <ui/window_frame.hpp>
 
 #include "app.hpp"
 #include "catalog.hpp"
@@ -148,6 +149,26 @@ public:
 	void StepSimulation(int steps = 1) noexcept { m_simulationSteps += steps > 0 ? steps : 0; }
 	/// Capture d'écran (dossier data/voxelia/screenshots).
 	void Screenshot(const String &path = String());
+	// ── Diagnostic de performances (diagnostics::trace, demos/profiler) ─────
+	/// Démarre une capture (zones, échantillons de pile, fils, mémoire) ;
+	/// faux, avec la raison, si une capture est déjà en cours.
+	bool StartDiagnostic(String &error);
+	/// Arrête la capture et l'exporte : rend le fichier .vcap écrit, rangé
+	/// dans le dossier des captures du profiler (data/profiler/settings.json,
+	/// « capturesDirectory » ; data/profiler/captures par défaut).
+	Result<String, String> StopDiagnostic();
+	[[nodiscard]] bool DiagnosticRunning() const noexcept { return m_diagnosticStart != 0; }
+	/// Secondes écoulées depuis le démarrage (0 hors capture).
+	[[nodiscard]] double DiagnosticSeconds() const;
+	/// Fin de l'application : capture en cours arrêtée proprement et exportée.
+	void FinishDiagnostic();
+
+	/// Ouvre Voxelia Studio (ou le ramène devant s'il est déjà ouvert) ;
+	/// l'application branche `onOpenStudio` (fenêtre du studio, comme F10).
+	void OpenStudio();
+	std::function<void()> onOpenStudio{};
+	/// Cadre de la fenêtre de jeu (barre de titre et barre d'état personnalisées).
+	[[nodiscard]] ui::WindowFrame &Frame() noexcept { return m_frame; }
 
 	/// Monde dont la vignette doit être prise à la prochaine image (quitter une partie).
 	String pendingThumbnail;
@@ -190,6 +211,12 @@ private:
 	std::unique_ptr<Session> m_session;
 	std::vector<Layer> m_stack;
 	std::deque<Toast> m_toasts;
+	ui::WindowFrame m_frame;
+	/// Zone de jeu : le contenu du cadre (ou la racine sans fenêtre), où se
+	/// superposent vue 3D, HUD, écrans et notifications.
+	ui::Widget m_area;
+	float m_statusTimer = 0.f;
+	uint64_t m_diagnosticStart = 0; ///< ns (trace::NowNs) ; 0 : aucune capture du jeu
 	ui::Widget m_viewport, m_hudLayer, m_screenLayer, m_toastLayer;
 	std::vector<String> m_log;
 	String m_loadingWorld;

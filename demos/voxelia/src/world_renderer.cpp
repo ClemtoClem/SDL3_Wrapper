@@ -1,6 +1,7 @@
 // Définitions de world_renderer.hpp
 #include <voxelia/world_renderer.hpp>
 
+#include <diagnostics/trace.hpp>
 #include <algorithm>
 #include <cmath>
 #include <unordered_set>
@@ -296,6 +297,7 @@ void WorldRenderer::QueueMeshing(const std::vector<ChunkPos> &batch) {
 				worker = i;
 		ChunkMesher *mesher = m_jobMeshers[worker].get();
 		m_renderThreads[worker]->Post([this, mesher, snapshot, p, options = m_mesher->options, serial = m_meshSerial]() {
+			DIAG_ZONE("voxel.mesh_chunk");
 			// Fil de rendu : ne lit que l'instantané (et le contenu, immuable).
 			const uint64_t start = sdl3::GetPerformanceCounter();
 			mesher->options = options;
@@ -348,6 +350,7 @@ void WorldRenderer::ApplyMeshes() {
 }
 
 void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Option<BlockHit> &target) {
+	DIAG_ZONE("voxel.render_update");
 	m_lastCamera = camera.position;
 	if (!m_game.HasWorld() || !m_mesher)
 		return;

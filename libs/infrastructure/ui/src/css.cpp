@@ -304,6 +304,30 @@ void StyleSheet::Append(StringView css, const String &baseDir) {
 	ParseInto(css, baseDir, state);
 }
 
+const StyleSheet::SelectorIndex &StyleSheet::Index() const {
+	if (m_index.revision == m_revision)
+		return m_index;
+	m_index = SelectorIndex{};
+	for (uint32_t r = 0; r < uint32_t(m_rules.size()); ++r)
+		for (uint32_t i = 0; i < uint32_t(m_rules[r].selectors.size()); ++i) {
+			const Selector &sel = m_rules[r].selectors[i];
+			if (sel.parts.empty())
+				continue;
+			const CompoundSelector &subject = sel.Subject();
+			const SelectorRef ref{r, i};
+			if (!subject.id.IsEmpty())
+				m_index.byId[subject.id].push_back(ref);
+			else if (!subject.classes.empty())
+				m_index.byClass[subject.classes.front()].push_back(ref);
+			else if (!subject.type.IsEmpty())
+				m_index.byType[subject.type].push_back(ref);
+			else
+				m_index.universal.push_back(ref);
+		}
+	m_index.revision = m_revision;
+	return m_index;
+}
+
 void StyleSheet::AddRule(std::vector<Selector> selectors, StyleProps props) {
 	StyleRule rule;
 	rule.selectors = std::move(selectors);

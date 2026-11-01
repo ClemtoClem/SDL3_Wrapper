@@ -28,6 +28,7 @@
 #include <vector>
 
 #include <core/core.hpp>
+#include <editor/dock.hpp>
 #include <ui/ui.hpp>
 
 #include <sandbox/document/project.hpp>
@@ -55,50 +56,21 @@ struct UiContext {
 namespace kit {
 
 // ============================================================================
-// Couleurs fixes de l'interface (indépendantes du thème : ce sont des CODES,
-// pas de la décoration — l'axe X est rouge dans tous les éditeurs du monde).
+// Couleurs et cadre de l'éditeur : module partagé `editor` (theme.hpp) — la
+// sandbox et Voxelia Studio ont le même cadre, les mêmes docks.
 // ============================================================================
 
-inline constexpr sdl3::FColor AXIS_X{0.90f, 0.33f, 0.30f, 1.f};
-inline constexpr sdl3::FColor AXIS_Y{0.45f, 0.78f, 0.32f, 1.f};
-inline constexpr sdl3::FColor AXIS_Z{0.30f, 0.52f, 0.95f, 1.f};
-
-[[nodiscard]] sdl3::FColor Rgb(int r, int g, int b, int a = 255) noexcept;
-
-[[nodiscard]] inline sdl3::FColor FromColor(const sdl3::Color &c) noexcept { return Rgb(c.r, c.g, c.b, c.a); }
-
-[[nodiscard]] sdl3::Color ToColor(const sdl3::FColor &c) noexcept;
-
-// ============================================================================
-// Palette du cadre de l'éditeur, DÉRIVÉE du thème
-// ============================================================================
-
-/// Couleurs du « chrome » de l'éditeur (fond de fenêtre, bandeaux, barres
-/// d'outils, sélection…) : aucune n'est codée en dur, toutes découlent du
-/// thème actif — changer de thème repeint donc TOUTE l'application, pas
-/// seulement les widgets que la fabrique colore d'elle-même.
-struct Palette {
-	sdl3::FColor base;		///< fond de l'application, gouttières, poignées de redimensionnement
-	sdl3::FColor header;	///< bandeaux de docks, barre de menus, barre d'état
-	sdl3::FColor toolbar;	///< barres d'outils, fond de l'arborescence des ressources
-	sdl3::FColor well;		///< cadre des vignettes, fond des aperçus
-	sdl3::FColor selection; ///< élément sélectionné, bouton d'outil actif
-	sdl3::FColor separator; ///< filets verticaux et horizontaux
-	sdl3::FColor ok, warning, error;
-	bool light = false; ///< fond clair : textes et icônes foncés
-};
-
-/// Luminance relative (Rec. 709) — tranche clair/sombre.
-[[nodiscard]] float Luminance(const sdl3::FColor &c) noexcept;
-
-/// `a` vers `b` d'une fraction `t`, rendue opaque (le chrome ne doit pas
-/// laisser voir ce qu'il y a derrière la fenêtre).
-[[nodiscard]] sdl3::FColor Mix(const sdl3::FColor &a, const sdl3::FColor &b, float t) noexcept;
-
-[[nodiscard]] Palette PaletteOf(const ui::Palette &theme);
-
-/// Feuille de style de l'éditeur, dérivée de la palette (cf. Palette).
-[[nodiscard]] String EditorCss(const ui::Palette &theme);
+using editor::AXIS_X;
+using editor::AXIS_Y;
+using editor::AXIS_Z;
+using editor::EditorCss;
+using editor::FromColor;
+using editor::Luminance;
+using editor::Mix;
+using editor::Palette;
+using editor::PaletteOf;
+using editor::Rgb;
+using editor::ToColor;
 
 [[nodiscard]] inline Palette PaletteOf(const UiContext &ctx) { return PaletteOf(ctx.Theme()); }
 
@@ -291,56 +263,10 @@ private:
  * pour un × par onglet, un menu ≡ ou des boutons dans le bandeau, qui sont
  * justement ce qui fait un panneau d'éditeur (cf. les maquettes).
  */
-class DockPanel {
+/// Panneau à onglets du module `editor`, construit depuis le contexte.
+class DockPanel : public editor::DockPanel {
 public:
-	explicit DockPanel(UiContext &ctx) : m_ctx(ctx) {}
-
-	/// Construit le cadre sous `parent`. `size` pose les dimensions (le
-	/// panneau ne décide pas de sa place dans la mise en page).
-	ui::Widget Build(ui::Widget parent, const std::function<void(ui::WidgetBuilder &)> &size);
-
-	/// Ajoute une page ; rend le conteneur où placer son contenu. `scroll` :
-	/// contenu défilable (listes, inspecteur) ; sinon la page remplit la zone
-	/// (vue 3D, éditeur de code, qui gèrent leur défilement eux-mêmes).
-	ui::Widget AddPage(const String &title, bool scroll, bool closable = false, float pad = 6.f);
-
-	/// Retire une page (et son contenu).
-	void RemovePage(int index);
-
-	void SetActive(int index);
-
-	void SetTitle(int index, const String &title);
-
-	[[nodiscard]] int Active() const noexcept { return m_active; }
-	[[nodiscard]] int Count() const noexcept { return int(m_pages.size()); }
-	[[nodiscard]] ui::Widget Page(int index) const;
-	[[nodiscard]] ui::Widget Frame() const noexcept { return m_frame; }
-	/// Zone du bandeau, à droite des onglets, pour les boutons du panneau.
-	[[nodiscard]] ui::Widget HeaderExtra() const noexcept { return m_extra; }
-
-	/// Appelé quand une page devient active (clic d'onglet ou programme).
-	std::function<void(int)> onActivate;
-	/// Appelé au clic sur le × d'un onglet fermable (la fermeture elle-même
-	/// revient à l'appelant : un document modifié peut vouloir la refuser).
-	std::function<void(int)> onClose;
-	/// Appelé au clic sur ≡, avec le coin bas-gauche du bouton.
-	std::function<void(float, float)> onMenu;
-
-	static constexpr float HEADER_HEIGHT = 30.f;
-
-private:
-	struct PageInfo {
-		String title;
-		ui::Widget content;
-		bool closable = false;
-	};
-
-	void RebuildTabs();
-
-	UiContext &m_ctx;
-	ui::Widget m_frame, m_header, m_tabs, m_extra, m_menuButton, m_body;
-	std::vector<PageInfo> m_pages;
-	int m_active = -1;
+	explicit DockPanel(UiContext &ctx) : editor::DockPanel(ctx.gui) {}
 };
 
 } // namespace kit

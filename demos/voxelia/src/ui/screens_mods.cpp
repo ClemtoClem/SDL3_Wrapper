@@ -1,6 +1,6 @@
 // Écrans des mods : navigateur, fiche, mods d'un monde, configuration,
 // organisation, confirmation des changements.
-#include "common.hpp"
+#include <voxelia/ui/common.hpp>
 
 #include <algorithm>
 

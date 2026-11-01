@@ -1,6 +1,8 @@
 // Définitions de ui/ui.hpp
 #include <ui/ui.hpp>
 
+#include <diagnostics/trace.hpp>
+
 #include <SDL3_ttf/SDL_ttf.h>
 
 namespace ui {
@@ -202,9 +204,17 @@ void Ui::Layout() {
 		mark = now;
 		return ms;
 	};
-	StyleSystem::Run(*m_world, *m_ctx);
+	m_ctx->timings.stylesResolved = 0;
+	m_ctx->timings.layoutPasses = 0;
+	{
+		DIAG_ZONE("ui.styles");
+		StyleSystem::Run(*m_world, *m_ctx);
+	}
 	m_ctx->timings.styleMs = elapsed();
-	(void)LayoutSystem::Run(*m_world, *m_ctx);
+	{
+		DIAG_ZONE("ui.layout");
+		(void)LayoutSystem::Run(*m_world, *m_ctx);
+	}
 	// Une mise en page peut changer des états (défilement borné…) : styles
 	// et géométrie convergent en une seconde passe au besoin.
 	if (m_ctx->styleDirtyAll || !m_ctx->styleDirty.empty()) {
@@ -218,13 +228,19 @@ void Ui::Render() {
 	Layout();
 	const double rate = double(SDL_GetPerformanceFrequency());
 	uint64_t mark = SDL_GetPerformanceCounter();
-	for (Extension &ext : m_ctx->extensions)
-		if (ext.prepare)
-			ext.prepare(*m_world, *m_ctx);
+	{
+		DIAG_ZONE("ui.viewport3d");
+		for (Extension &ext : m_ctx->extensions)
+			if (ext.prepare)
+				ext.prepare(*m_world, *m_ctx);
+	}
 	const uint64_t afterPrepare = SDL_GetPerformanceCounter();
 	m_ctx->timings.viewport3dMs = double(afterPrepare - mark) * 1000.0 / rate;
 	mark = afterPrepare;
-	RenderSystem::Run(*m_world, *m_ctx);
+	{
+		DIAG_ZONE("ui.draw");
+		RenderSystem::Run(*m_world, *m_ctx);
+	}
 	m_ctx->timings.drawMs = double(SDL_GetPerformanceCounter() - mark) * 1000.0 / rate;
 }
 

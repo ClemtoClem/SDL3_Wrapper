@@ -68,6 +68,11 @@ void MarkStyleDirty(ecs::ArchetypeRegistry &world, ecs::Entity e) {
 	}
 }
 
+void MarkTextDirty(ecs::ArchetypeRegistry &world, ecs::Entity e) {
+	if (Context *ctx = ContextOf(world))
+		ctx->textDirty.push_back(e);
+}
+
 void MarkLayoutDirty(ecs::ArchetypeRegistry &world) {
 	if (Context *ctx = ContextOf(world))
 		ctx->MarkLayoutDirty();

@@ -20,6 +20,8 @@
 #include <functional>
 #include <vector>
 
+#include <diagnostics/trace.hpp>
+
 #include "ecs.hpp"
 #include "events.hpp"
 
@@ -53,7 +55,9 @@ public:
 	/// Ajoute (ou remplace, même nom) un système.
 	void Add(Stage stage, String name, SystemFn fn, int order = 0, std::function<bool(const ArchetypeRegistry &)> runIf = {}) {
 		Remove(name);
-		m_systems.push_back(System{stage, std::move(name), std::move(fn), order, m_nextSerial++, std::move(runIf)});
+		// Nom durable pour les captures de performances (une zone par système).
+		const char *zone = diagnostics::trace::Intern(name.View());
+		m_systems.push_back(System{stage, std::move(name), std::move(fn), order, m_nextSerial++, std::move(runIf), zone});
 		m_sorted = false;
 	}
 	bool Remove(const String &name) {
@@ -115,6 +119,7 @@ private:
 		int order;
 		uint64_t serial;
 		std::function<bool(const ArchetypeRegistry &)> runIf;
+		const char *zone = nullptr; ///< nom de la zone de capture (diagnostics::trace)
 		bool enabled = true;
 		double lastMicros = 0.0, totalMicros = 0.0;
 		uint64_t runs = 0;
@@ -140,7 +145,10 @@ private:
 			if (s.stage != stage || !s.enabled || (s.runIf && !s.runIf(world)))
 				continue;
 			const auto start = std::chrono::steady_clock::now();
-			s.fn(ctx);
+			{
+				DIAG_ZONE(s.zone);
+				s.fn(ctx);
+			}
 			s.lastMicros = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count();
 			s.totalMicros += s.lastMicros;
 			++s.runs;

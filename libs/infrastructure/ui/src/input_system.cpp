@@ -2073,12 +2073,14 @@ void SetSelection(ecs::ArchetypeRegistry &world, ecs::Entity e, int index, bool 
 }
 
 void SetTextValue(ecs::ArchetypeRegistry &world, ecs::Entity e, String text, bool notify) {
+	bool added = false;
 	if (auto tc = world.GetComponent<TextContent>(e); tc.IsSome()) {
 		if (tc.Unwrap()->value == text)
 			return;
 		tc.Unwrap()->value = text;
 	} else {
 		world.AddComponent(e, TextContent{text});
+		added = true;
 	}
 	if (auto ed = world.GetComponent<TextEditor>(e); ed.IsSome()) {
 		ed.Unwrap()->cursor = std::min(ed.Unwrap()->cursor, text.size());
@@ -2087,7 +2089,12 @@ void SetTextValue(ecs::ArchetypeRegistry &world, ecs::Entity e, String text, boo
 			if (auto sc = world.GetComponent<Scroll>(e); sc.IsSome())
 				sc.Unwrap()->offset.y = 1.0e9f; // borné à la prochaine mise en page
 	}
-	MarkLayoutDirty(world);
+	// Nouveau contenu texte : la structure de la mesure change, passe
+	// complète ; sinon, la mise en page décide (taille inchangée : rien).
+	if (added)
+		MarkLayoutDirty(world);
+	else
+		MarkTextDirty(world, e);
 	if (notify) {
 		WidgetEvent ev;
 		ev.trigger = Trigger::Of(InputSource::TextChange);

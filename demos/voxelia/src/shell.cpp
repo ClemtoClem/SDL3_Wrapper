@@ -9,6 +9,7 @@
 
 #include <SDL3_image/SDL_image.h>
 #include <audio/clip.hpp>
+#include <diagnostics/trace.hpp>
 #include <sdl3/image.hpp>
 #include <ui/viewport3d.hpp>
 #include <voxel/game.hpp>
@@ -95,6 +96,7 @@ Shell::Shell(Options options, sdl3::Window &window, sdl3::Renderer &renderer, re
 	  m_worlds(m_options.saves), m_mods(m_options.mods, m_options.repository) {}
 
 Shell::~Shell() {
+	FinishDiagnostic(); // filet : toute sortie exporte la capture en cours
 	m_stack.clear();
 	if (m_session)
 		m_session->Save(false);
@@ -129,18 +131,32 @@ Result<bool, String> Shell::Initialize() {
 	return Ok(true);
 }
 
-// Couches plein écran, de bas en haut dans l'ordre de l'arbre (la racine de
-// l'interface les superpose) : vue 3D, HUD, écrans, notifications. Les popups
-// de la bibliothèque passent au-dessus de toutes.
+// Cadre de la fenêtre (ui::WindowFrame : barre de titre personnalisée —
+// déplacer, agrandir, fermer —, barre d'état et poignée), puis, dans sa zone
+// de contenu, les couches plein cadre de bas en haut dans l'ordre de l'arbre
+// (la zone les superpose) : vue 3D, HUD, écrans, notifications. Les popups
+// de la bibliothèque passent au-dessus de toutes. Sans fenêtre (mode sans
+// écran), les couches restent sous la racine.
 void Shell::BuildLayers() {
-	m_viewport = m_gui.Mount(ui::Viewport3D(m_backdrop->renderer->Root(), m_backdrop->camera).Id("viewport"));
+	if (!m_options.headless) {
+		ui::WindowFrameOptions frame;
+		frame.title = "Voxelia";
+		frame.appIcon = Some(ui::MaterialIcons::HEXAGON);
+		frame.status = "Menu principal";
+		frame.onClose = [this] { Quit(); };
+		m_frame.Build(m_gui, m_window, std::move(frame));
+		m_area = m_frame.Content().Append(ui::Stack().Id("game-area").Padding(0.f).Grow());
+	} else {
+		m_area = m_gui.Root();
+	}
+	m_viewport = m_area.Append(ui::Viewport3D(m_backdrop->renderer->Root(), m_backdrop->camera).Id("viewport").Fill());
 	if (auto vp = m_viewport.Get<ui::Viewport3DState>(); vp.IsSome())
 		vp.Unwrap()->transfer = m_options.viewport == "readback"	? ui::ViewportTransfer::READBACK
 								: m_options.viewport == "pipelined" ? ui::ViewportTransfer::PIPELINED
 																	: ui::ViewportTransfer::DIRECT;
 	MakeHudLayer();
-	m_screenLayer = m_gui.Mount(ui::Stack().Id("screen-layer").Padding(0.f).PointerThrough());
-	m_toastLayer = m_gui.Mount(ui::Column()
+	m_screenLayer = m_area.Append(ui::Stack().Id("screen-layer").Padding(0.f).Fill().PointerThrough());
+	m_toastLayer = m_area.Append(ui::Column()
 								   .Id("toast-layer")
 								   .Absolute()
 								   .Anchor(ui::Anchor::TopRight)
@@ -151,8 +167,8 @@ void Shell::BuildLayers() {
 }
 
 void Shell::MakeHudLayer() {
-	// Juste au-dessus de la vue 3D (premier enfant de la racine).
-	m_hudLayer = m_gui.Root().Insert(1, ui::Stack().Id("hud-layer").Padding(0.f).PointerThrough());
+	// Juste au-dessus de la vue 3D (premier enfant de la zone de jeu).
+	m_hudLayer = m_area.Insert(1, ui::Stack().Id("hud-layer").Padding(0.f).Fill().PointerThrough());
 }
 
 ui::Widget Shell::MakeLayerRoot(bool overlay) {
@@ -352,6 +368,13 @@ void Shell::ApplySettings(bool rebuild) {
 	m_kit->Apply();
 	(void)m_renderer.SetVSync(m_settings.vsync ? sdl3::Renderer::VSync::EVERY_REFRESH : sdl3::Renderer::VSync::DISABLED);
 	m_window.SetFullscreen(m_settings.displayMode == 1);
+	// Plein écran : ni barre de titre ni barre d'état, le jeu prend tout.
+	if (m_frame.Root().Valid()) {
+		const bool bars = m_settings.displayMode != 1;
+		for (ui::Widget bar : {m_frame.TitleBar().root, m_frame.StatusBar().root})
+			if (bar.Valid() && bar.IsVisible() != bars)
+				bar.SetVisible(bars);
+	}
 	if (m_settings.displayMode == 0 && !m_options.headless && (m_window.GetWidth() != m_settings.width || m_window.GetHeight() != m_settings.height))
 		m_window.SetSize(m_settings.width, m_settings.height);
 	const float master = m_settings.masterVolume;
@@ -513,6 +536,90 @@ void Shell::Update(float dt, long frame) {
 		if (m_stack[i].root.Valid())
 			m_stack[i].screen->Update(dt);
 	UpdateToasts(dt);
+	if (m_frame.Root().Valid()) {
+		m_frame.Update();
+		if (m_frame.CloseRequested()) {
+			m_frame.ClearCloseRequest();
+			Quit();
+		}
+		m_statusTimer -= dt;
+		if (m_statusTimer <= 0.f) { // deux fois par seconde suffit
+			m_statusTimer = 0.5f;
+			String status;
+			if (m_session && m_session->Ready())
+				status = String::Format("%s · %s · %.0f img/s%s · F10 : Voxelia Studio", m_session->Folder().CStr(),
+										m_session->Game().CurrentDimension().CStr(), double(m_session->Fps()),
+										m_simulationHold ? " · simulation suspendue (studio)" : "");
+			else if (!m_loadingWorld.IsEmpty() || m_session)
+				status = String("Chargement du monde…");
+			else
+				status = String::Format("Menu principal · Voxelia %s · F10 : Voxelia Studio", Version().CStr());
+			if (DiagnosticRunning())
+				status += String::Format(" · ● diagnostic %.0f s", DiagnosticSeconds());
+			m_frame.SetStatus(status);
+		}
+	}
+}
+
+// ── Diagnostic de performances ──────────────────────────────────────────────
+
+bool Shell::StartDiagnostic(String &error) {
+	if (DiagnosticRunning()) {
+		error = String("un diagnostic est déjà en cours");
+		return false;
+	}
+	if (!diagnostics::trace::Start()) {
+		error = String("une capture est déjà en cours (lancée par DIAG_TRACE ou le profiler)");
+		return false;
+	}
+	m_diagnosticStart = diagnostics::trace::NowNs();
+	Log(String("[diagnostic] capture démarrée"));
+	return true;
+}
+
+double Shell::DiagnosticSeconds() const {
+	return DiagnosticRunning() ? double(diagnostics::trace::NowNs() - m_diagnosticStart) / 1e9 : 0.0;
+}
+
+Result<String, String> Shell::StopDiagnostic() {
+	if (!DiagnosticRunning())
+		return Err(String("aucun diagnostic en cours"));
+	m_diagnosticStart = 0;
+	(void)diagnostics::trace::Stop();
+	// Dossier des captures : celui du profiler (ses réglages s'ils existent).
+	String directory("data/profiler/captures");
+	if (Result<voxel::json::NodePtr, String> settings = voxel::json::ReadFile(String("data/profiler/settings.json")); settings.IsOk())
+		directory = voxel::json::Str(settings.Value(), "capturesDirectory", directory);
+	std::error_code ec;
+	std::filesystem::create_directories(directory.CStr(), ec);
+	const std::time_t now = std::time(nullptr);
+	std::tm local{};
+	localtime_r(&now, &local);
+	char stamp[32];
+	std::strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", &local);
+	String path = String::Format("%s/voxelia-%s.vcap", directory.CStr(), stamp);
+	for (int i = 2; std::filesystem::exists(path.CStr()); ++i)
+		path = String::Format("%s/voxelia-%s-%d.vcap", directory.CStr(), stamp, i);
+	if (Result<bool, String> saved = diagnostics::trace::Save(path); saved.IsError()) {
+		Log(String("[erreur] diagnostic : ") + saved.Error());
+		return Err(saved.Error());
+	}
+	Log(String("[diagnostic] capture exportée : ") + path);
+	return Ok(path);
+}
+
+void Shell::FinishDiagnostic() {
+	if (!DiagnosticRunning())
+		return;
+	const Result<String, String> r = StopDiagnostic();
+	std::printf("diagnostic : %s\n", r.IsOk() ? (String("capture exportée dans ") + r.Value()).CStr() : r.Error().CStr());
+}
+
+void Shell::OpenStudio() {
+	if (onOpenStudio)
+		onOpenStudio();
+	else
+		Notify(Tone::WARNING, "Voxelia Studio", String("indisponible dans ce mode"));
 }
 
 void Shell::BeginSimulation() {

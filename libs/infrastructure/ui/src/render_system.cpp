@@ -529,6 +529,14 @@ public:
 			const PaintEntry &entry = ctx.paintOrder[i];
 			if (!world.IsAlive(entry.entity))
 				continue;
+			// Entièrement rogné (ligne d'une liste défilée hors de vue) : le
+			// rognage des descendants est inclus dans le sien, tout le
+			// sous-arbre est invisible (les popups et éléments fixes ont leurs
+			// propres entrées, hors de cette plage).
+			if (!ctx.capturing && (entry.clip.w <= 0.f || entry.clip.h <= 0.f)) {
+				i = std::max(entry.subtreeEnd, i + 1) - 1;
+				continue;
+			}
 			if (!ctx.capturing && ReplacedByExtension(entry)) {
 				i = std::max(entry.subtreeEnd, i + 1) - 1; // sous-arbre déjà dessiné
 				continue;

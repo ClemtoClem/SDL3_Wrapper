@@ -100,6 +100,15 @@ public:
 	/// Nombre de résultats par statut (rapport).
 	[[nodiscard]] size_t Count(CommandStatus status) const noexcept { return m_counts[size_t(status)]; }
 	void Print(String text, String kind = String("info"));
+	/// Commandes enregistrées : (nom, aide), dans l'ordre alphabétique.
+	[[nodiscard]] std::vector<std::pair<String, String>> Commands() const;
+	/// Lignes affichées selon leurs genres (« error », « warning »…) ; vide :
+	/// toutes. Les marque-pages (`Bookmark`) restent toujours visibles.
+	[[nodiscard]] std::vector<size_t> Filtered(const std::vector<String> &kinds) const;
+	/// Marque / démarque la ligne `index` (marque-page de la console).
+	void Bookmark(size_t index);
+	[[nodiscard]] bool IsBookmarked(size_t index) const;
+	[[nodiscard]] const std::vector<size_t> &Bookmarks() const noexcept { return m_bookmarks; }
 
 private:
 	void Apply(CommandResult result);
@@ -112,6 +121,7 @@ private:
 	Fallback m_fallback;
 	std::vector<String> m_words;
 	std::deque<ConsoleLine> m_lines;
+	std::vector<size_t> m_bookmarks;
 	std::vector<String> m_history;
 	size_t m_historyCursor = 0;
 	CommandResult m_confirm{};

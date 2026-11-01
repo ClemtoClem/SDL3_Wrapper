@@ -76,6 +76,12 @@ struct Viewport3DState {
 	/// si la taille change (scène statique).
 	bool continuous = true;
 	bool needsRender = true;
+	/// Vue continue : images 3D par seconde au plus (0 : à chaque image).
+	/// Une vue secondaire (éditeur à côté du jeu) n'a pas besoin de suivre la
+	/// cadence de l'écran : à 144 Hz, la limiter à 60 rend 60 fois au lieu de
+	/// 144 par seconde ; l'image précédente reste affichée entre deux rendus.
+	float maxFps = 0.f;
+	uint64_t lastRenderNs = 0;
 	Option<ViewportLighting> lighting = NONE;
 };
 

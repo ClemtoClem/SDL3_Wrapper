@@ -1,5 +1,5 @@
 // Écrans des menus : accueil et gestion des mondes.
-#include "common.hpp"
+#include <voxelia/ui/common.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -76,6 +76,10 @@ public:
 		kit.MenuButton(col, MaterialIcons::SETTINGS, "Paramètres", "Graphismes, commandes, audio, accessibilité", [this] {
 			shell.UiSound("ui_click");
 			shell.Push(MakeSettings(shell));
+		});
+		kit.MenuButton(col, MaterialIcons::VIEW_IN_AR, "Ouvrir le studio", "Studio d'édition de mods · F10", [this] {
+			shell.UiSound("ui_click");
+			shell.OpenStudio();
 		});
 		col.Append(kit.Spacer().GrowHeight());
 		col.Append(kit.Button("Quitter le jeu", [this] { shell.Quit(); }));

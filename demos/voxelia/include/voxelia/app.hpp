@@ -13,6 +13,8 @@
  *
  * Ligne de commande : voir Usage().
  */
+#include <algorithm>
+#include <thread>
 #include <memory>
 #include <vector>
 
@@ -39,9 +41,12 @@ struct Options {
 	/// faux (--threads=off) : tout sur le fil principal, l'un après l'autre.
 	bool threaded = true;
 	/// Fils de rendu qui maillent les chunks (--mesh-threads=N, avec --threads=on).
-	/// Deux : le meilleur compromis mesuré sur 4 cœurs (un troisième dispute
-	/// le processeur au fil principal et au pilote GPU).
-	int meshThreads = 2;
+	/// Par défaut : la moitié des cœurs logiques moins un (les cœurs logiques
+	/// d'un même cœur physique se partagent ses unités), entre 2 et 6 — deux
+	/// restent le meilleur compromis mesuré sur 4 cœurs ; à 6 fils sur 4
+	/// cœurs physiques, un chunk prend 2,5 fois plus longtemps et le fil
+	/// principal perd des images.
+	int meshThreads = std::clamp(int(std::thread::hardware_concurrency()) / 2 - 1, 2, 6);
 	/// Passage de la vue 3D à l'interface (--viewport=direct|pipelined|readback).
 	String viewport = "direct";
 	long frames = 0;                                  ///< 0 : jusqu'à la fermeture

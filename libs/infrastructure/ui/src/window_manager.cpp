@@ -1,6 +1,8 @@
 // Définitions de ui/window_manager.hpp
 #include <ui/window_manager.hpp>
 
+#include <diagnostics/trace.hpp>
+
 #include <algorithm>
 #include <filesystem>
 
@@ -167,6 +169,8 @@ Result<WindowContext *, String> WindowManager::Create(WindowSpec spec) {
 	const WindowId id = m_nextId++;
 	std::unique_ptr<WindowContext> ctx(new WindowContext(id, std::move(spec)));
 	const WindowSpec &s = ctx->m_spec;
+	ctx->m_traceZone = diagnostics::trace::Intern(
+		(String("ui.window.") + (s.role.IsEmpty() ? String::Format("%u", unsigned(ctx->Id())) : s.role)).View());
 	const sdl3::FPoint size{float(std::max(1, s.width)), float(std::max(1, s.height))};
 
 	if (s.headless) {
@@ -444,19 +448,30 @@ void WindowManager::Render(sdl3::FColor clear, const std::function<void(WindowCo
 void WindowManager::Draw(sdl3::FColor clear, const std::function<void(WindowContext &)> &draw) {
 	m_captureErrors.clear();
 	const bool wantDesktop = !m_desktopCaptures.empty();
+	const uint64_t now = SDL_GetTicksNS();
 	for (const auto &w : m_windows) {
+		w->m_drawn = false;
 		if (!w->m_renderer) {
 			w->m_gui->Layout();
 			continue;
 		}
+		const bool wantWindow = std::any_of(m_captures.begin(), m_captures.end(),
+											[&](const PendingCapture &c) { return c.id == w->Id(); });
+		// Cadence plafonnée (fenêtre secondaire) : image sautée, sauf capture.
+		if (w->m_spec.maxFps > 0.f && !wantWindow && !wantDesktop && w->m_lastDrawNs != 0 &&
+			double(now - w->m_lastDrawNs) < 1.0e9 / double(w->m_spec.maxFps)) {
+			w->m_gui->ResetTimings();
+			continue;
+		}
+		w->m_lastDrawNs = now;
+		w->m_drawn = true;
+		DIAG_ZONE(w->m_traceZone);
 		sdl3::Renderer &renderer = *w->m_renderer;
 		(void)renderer.SetDrawColor(clear);
 		renderer.Clear();
 		if (draw)
 			draw(*w);
 		w->m_gui->Render();
-		const bool wantWindow = std::any_of(m_captures.begin(), m_captures.end(),
-											[&](const PendingCapture &c) { return c.id == w->Id(); });
 		if (!wantWindow && !wantDesktop)
 			continue;
 		// ReadPixels lit en pixels de sortie : échelle de rendu neutralisée.
@@ -485,8 +500,12 @@ void WindowManager::Draw(sdl3::FColor clear, const std::function<void(WindowCont
 }
 
 void WindowManager::Present() {
+	// Présentation : soumission au GPU et, synchronisation verticale ou file
+	// pleine, attente du GPU — une « gpu.present » longue signale un
+	// programme limité par le GPU.
+	DIAG_ZONE("gpu.present");
 	for (const auto &w : m_windows)
-		if (w->m_renderer)
+		if (w->m_renderer && w->m_drawn)
 			w->m_renderer->Present();
 }
 

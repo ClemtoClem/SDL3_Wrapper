@@ -127,27 +127,67 @@ struct Pass {
 		return text;
 	}
 
+	/// Clé du cache des mesures : texte, police, taille, interligne,
+	/// tabulations et largeur de repli (FNV-1a 64 bits).
+	static uint64_t TextKey(const String &text, const ComputedStyle &cs, StringView family, float wrapW) {
+		uint64_t h = 1469598103934665603ull;
+		auto mix = [&h](const void *data, size_t size) {
+			const auto *b = static_cast<const unsigned char *>(data);
+			for (size_t i = 0; i < size; ++i) {
+				h ^= b[i];
+				h *= 1099511628211ull;
+			}
+		};
+		mix(text.CStr(), text.Length());
+		mix(family.GetData(), family.GetSize());
+		const float numbers[] = {cs.fontSize, wrapW, cs.lineHeight, float(cs.tabSize), float(int(cs.fontWeight)), float(int(cs.fontStyle))};
+		mix(numbers, sizeof numbers);
+		return h;
+	}
+
 	/// Taille de contenu d'un texte, `maxW` < 0 : sans contrainte.
 	sdl3::FPoint TextSize(ecs::Entity e, const ComputedStyle &cs, float maxW) {
 		const String text = DisplayText(e);
-		const LineMeasure measure = Measurer(e, cs);
-		if (cs.textOverflow == TextOverflow::Wrap && maxW > 0.f && !world.HasComponent<TextEditor>(e)) {
-			const std::vector<WrappedLine> lines = WrapTextToWidth(text, maxW, measure, cs.tabSize);
-			const float lh = cs.LineHeightFor(measure(String("Ag")).y);
-			float w = 0.f;
-			for (const WrappedLine &l : lines)
-				w = std::max(w, l.width);
-			return {w, lh * float(std::max<size_t>(1, lines.size()))};
+		const bool wraps = cs.textOverflow == TextOverflow::Wrap && maxW > 0.f && !world.HasComponent<TextEditor>(e);
+		StringView family = cs.fontFamily.View();
+		auto ed = world.GetComponent<TextEditor>(e);
+		if (ed.IsSome() && ed.Unwrap()->monospace)
+			family = "monospace";
+		// Mesure du bloc (sans les ajouts propres aux éditeurs) : mise en cache
+		// d'une passe à l'autre — une passe complète ne re-mesure pas des
+		// milliers de libellés inchangés.
+		const uint64_t key = TextKey(text, cs, family, wraps ? maxW : -1.f);
+		sdl3::FPoint size;
+		if (auto hit = ctx.textCache.find(key); hit != ctx.textCache.end()) {
+			size = hit->second;
+		} else {
+			const LineMeasure measure = Measurer(e, cs);
+			if (wraps) {
+				const std::vector<WrappedLine> lines = WrapTextToWidth(text, maxW, measure, cs.tabSize);
+				const float lh = cs.LineHeightFor(measure(String("Ag")).y);
+				float w = 0.f;
+				for (const WrappedLine &l : lines)
+					w = std::max(w, l.width);
+				size = {w, lh * float(std::max<size_t>(1, lines.size()))};
+			} else {
+				TextMetrics m = MeasureTextBlock(text.IsEmpty() ? String(" ") : text, cs.fontSize, measure, cs.tabSize);
+				if (text.IsEmpty())
+					m.width = 0.f;
+				const float lh = cs.LineHeightFor(m.lineHeight);
+				size = {m.width, lh * float(m.lineCount)};
+			}
+			if (ctx.textCache.size() >= Context::TEXT_CACHE_LIMIT)
+				ctx.textCache.clear();
+			ctx.textCache.emplace(key, size);
 		}
-		TextMetrics m = MeasureTextBlock(text.IsEmpty() ? String(" ") : text, cs.fontSize, measure, cs.tabSize);
-		if (text.IsEmpty())
-			m.width = 0.f;
-		const float lh = cs.LineHeightFor(m.lineHeight);
-		sdl3::FPoint size{m.width, lh * float(m.lineCount)};
-		if (auto ed = world.GetComponent<TextEditor>(e); ed.IsSome()) {
+		if (wraps)
+			return size;
+		if (ed.IsSome()) {
 			size.x += 2.f; // curseur en fin de ligne
 			if (ed.Unwrap()->lineNumbers) {
-				const size_t lines = std::max<size_t>(1, m.lineCount);
+				size_t lines = 1;
+				for (size_t i = 0; i < text.Length(); ++i)
+					lines += text[i] == '\n' ? 1 : 0;
 				size_t digits = 1;
 				for (size_t n = lines; n >= 10; n /= 10)
 					++digits;
@@ -452,6 +492,8 @@ struct Pass {
 			const bool wrap = cs.textOverflow == TextOverflow::Wrap;
 			const sdl3::FPoint t = TextSize(e, cs, wrap ? content.w : -1.f);
 			textExtent = t;
+			if (auto r = world.GetComponent<Rect>(e); r.IsSome())
+				r.Unwrap()->text = wrap ? sdl3::FPoint{-1.f, -1.f} : t;
 			if (auto mq = world.GetComponent<Marquee>(e); mq.IsSome())
 				mq.Unwrap()->overflow = std::max(0.f, t.x - content.w);
 			if (editor || cs.textOverflow == TextOverflow::Scroll || wrap) {
@@ -1049,6 +1091,33 @@ struct Pass {
 
 	/// Composants d'état que la passe écrit (créés avant, pour qu'aucune
 	/// migration d'archétype n'invalide les références pendant la passe).
+	/// Le nouveau texte de `e` a-t-il la taille de l'ancien (mise en page
+	/// inchangée) ? Si oui, met à jour ce qui en dépend localement.
+	bool TextChangeIsLocal(ecs::Entity e) {
+		if (!world.IsAlive(e))
+			return true; // détruit depuis : sa disparition a marqué la mise en page
+		auto r = world.GetComponent<Rect>(e);
+		if (r.IsNone() || r.Unwrap()->text.x < 0.f)
+			return false; // jamais placé, ou texte replié (dépend de la largeur)
+		if (!world.HasComponent<ComputedStyle>(e) || !FlowChildren(e).empty())
+			return false;
+		const ComputedStyle &cs = Style(e);
+		if (cs.textOverflow == TextOverflow::Wrap)
+			return false;
+		const sdl3::FPoint t = TextSize(e, cs, -1.f);
+		if (t.x != r.Unwrap()->text.x || t.y != r.Unwrap()->text.y)
+			return false;
+		const sdl3::FRect content = r.Unwrap()->content;
+		if (auto mq = world.GetComponent<Marquee>(e); mq.IsSome())
+			mq.Unwrap()->overflow = std::max(0.f, t.x - content.w);
+		if (world.HasComponent<TextEditor>(e) || cs.textOverflow == TextOverflow::Scroll)
+			if (auto sc = world.GetComponent<Scroll>(e); sc.IsSome()) {
+				sc.Unwrap()->content = {t.x, t.y};
+				sc.Unwrap()->Clamp();
+			}
+		return true;
+	}
+
 	void EnsureComponents(ecs::Entity e) {
 		if (!world.IsAlive(e))
 			return;
@@ -1080,10 +1149,27 @@ struct Pass {
 } // namespace
 
 bool LayoutSystem::Run(ecs::ArchetypeRegistry &world, Context &ctx, bool force) {
-	if (!force && !ctx.layoutDirty)
-		return false;
+	if (!force && !ctx.layoutDirty) {
+		if (ctx.textDirty.empty())
+			return false;
+		// Seuls des textes ont changé : la mise en page ne dépend d'un texte
+		// que par sa taille mesurée ; inchangée, rien ne bouge (on ne remet à
+		// jour que l'étendue défilable du texte lui-même).
+		Pass pass(world, ctx);
+		std::vector<ecs::Entity> dirty;
+		dirty.swap(ctx.textDirty);
+		for (ecs::Entity e : dirty)
+			if (!pass.TextChangeIsLocal(e)) {
+				ctx.layoutDirty = true;
+				break;
+			}
+		if (!ctx.layoutDirty)
+			return false;
+	}
+	ctx.textDirty.clear();
 	if (!world.IsAlive(ctx.root))
 		return false;
+	++ctx.timings.layoutPasses;
 	// Une passe peut en demander une autre (barres de défilement apparues) :
 	// au plus trois pour converger.
 	for (int iteration = 0; iteration < 3; ++iteration) {

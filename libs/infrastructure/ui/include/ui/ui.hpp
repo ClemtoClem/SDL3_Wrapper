@@ -150,6 +150,8 @@ public:
 	}
 
 	[[nodiscard]] const FrameTimings &Timings() const noexcept { return m_ctx->timings; }
+	/// Image sautée (fenêtre à cadence plafonnée) : rien à compter.
+	void ResetTimings() noexcept { m_ctx->timings = FrameTimings{}; }
 
 private:
 	void Setup(Theme theme);

@@ -3,7 +3,7 @@
 #include <voxelia/screens.hpp>
 #include <voxelia/session.hpp>
 
-#include <SDL3/SDL.h>
+#include <sdl3/sdl3.hpp>
 #include <voxel/game.hpp>
 #include <voxel/json.hpp>
 

@@ -672,13 +672,18 @@ float Game::DayFraction() const noexcept {
 
 // ── Systèmes ─────────────────────────────────────────────────────────────────
 
+size_t Game::StreamChunks(size_t budget) {
+	if (!m_world)
+		return 0;
+	std::vector<BlockPos> anchors;
+	m_registry.Query<Transform, Player>([&](ecs::Entity, Transform &t, Player &) { anchors.push_back(BlockPos::FromWorld(t.position)); });
+	if (anchors.empty())
+		return 0;
+	return m_world->UpdateLoadedArea(anchors, m_options.viewRadius, m_options.verticalRadius, budget);
+}
+
 void Game::InstallSystems() {
-	m_schedule.Add(ecs::Stage::PRE_UPDATE, "world.stream", [this](ecs::SystemContext &) {
-		std::vector<BlockPos> anchors;
-		m_registry.Query<Transform, Player>([&](ecs::Entity, Transform &t, Player &) { anchors.push_back(BlockPos::FromWorld(t.position)); });
-		if (!anchors.empty())
-			(void)m_world->UpdateLoadedArea(anchors, m_options.viewRadius, m_options.verticalRadius, m_options.chunkBudget);
-	});
+	m_schedule.Add(ecs::Stage::PRE_UPDATE, "world.stream", [this](ecs::SystemContext &) { (void)StreamChunks(m_options.chunkBudget); });
 	m_schedule.Add(ecs::Stage::FIXED_UPDATE, "ai", [this](ecs::SystemContext &c) {
 		StepBehaviors(m_registry, *m_world, c.dt, m_metadata.seed,
 					  [this](ecs::Entity e, BehaviorState &s, float dt) { return m_scripts->RunBehavior(e, s, dt); });

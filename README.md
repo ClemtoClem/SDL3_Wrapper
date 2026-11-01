@@ -5,6 +5,8 @@ applications et des jeux : rendu 2D/3D, UI retenue sur ECS, audio, physique,
 réseau, scripts, formats de données, archives. Projet modulaire construit et
 testé exclusivement avec **cpp-maker** (≥ 0.6, source : `cpp-maker-v0.6.cpp`).
 
+**Licence:** GNU Affero General Public License v3.0
+
 ## Démarrage
 
 ```sh

@@ -35,6 +35,7 @@ modules = [
     "libs/infrastructure/modeling",
     "libs/infrastructure/render3d",
     "libs/infrastructure/ui",
+    "libs/infrastructure/editor",
     "libs/infrastructure/script",
     "libs/infrastructure/script_bindings",
     "libs/infrastructure/physics",
@@ -64,6 +65,7 @@ modules = [
     "examples/ui_showcase",
     "examples/ui_viewport3d_demo",
     "tests/integration",
+    "demos/profiler",
 ]
 
 [paths]

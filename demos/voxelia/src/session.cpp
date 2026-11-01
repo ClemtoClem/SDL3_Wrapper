@@ -1,6 +1,7 @@
 // Définitions de session.hpp — la partie en cours et son HUD.
 #include <voxelia/session.hpp>
 
+#include <diagnostics/trace.hpp>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -163,7 +164,12 @@ bool Session::Prepare(float &progress, String &status) {
 		return false;
 	}
 	default: {
-		// Chunks autour du joueur : générés puis maillés.
+		// Chunks autour du joueur : générés (budget en TEMPS, pas en nombre :
+		// ~20 ms par image, l'écran de chargement reste fluide) puis maillés.
+		const uint64_t start = sdl3::GetPerformanceCounter();
+		const double budget = double(sdl3::GetPerformanceFrequency()) * 0.020;
+		while (m_game->StreamChunks(8) > 0 && double(sdl3::GetPerformanceCounter() - start) < budget) {
+		}
 		m_game->Tick(0.f);
 		m_camera = CameraFor();
 		m_world->Update(m_camera, 1.f, NONE);
@@ -1301,6 +1307,7 @@ void Session::BeginSimulation() {
 		// s'y exécute (sinon l'interpréteur la renverrait au fil principal,
 		// qui attend ce pas — interblocage).
 		m_game->Scripts().Vm().SetMainThread();
+		DIAG_ZONE("voxel.tick");
 		RunTick(dt);
 	});
 }

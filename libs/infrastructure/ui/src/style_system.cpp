@@ -83,6 +83,12 @@ public:
 	Context &ctx;
 	bool propagateAll = true;
 	size_t resolved = 0;
+	/// Rang de l'enfant que la boucle du parent va résoudre (évite de le
+	/// rechercher parmi ses frères : quadratique sur une longue liste).
+	struct SiblingHint {
+		ecs::Entity entity{};
+		int index = 0, count = 1;
+	} siblingHint;
 	std::unordered_set<ecs::Entity> dirty;
 
 	/// Feuilles des ancêtres de `e` (exclu), de la racine vers le parent.
@@ -133,21 +139,63 @@ public:
 			state = state | ws.Unwrap()->flags;
 
 		// ── Règles qui s'appliquent ─────────────────────────────────────────
+		// Données de l'élément calculées UNE fois (son rang parmi ses frères
+		// vient de la boucle du parent), puis seuls les sélecteurs indexés
+		// sous son id, ses classes, son type ou « universels » sont testés.
+		ElementData base = DataOf(e, ecs::Entity{});
+		base.state = state;
+		siblingHint = SiblingHint{}; // consommé : jamais réutilisé plus tard
+		const Element *element = nullptr;
+		Option<RefMut<Element>> elementRef = world.GetComponent<Element>(e);
+		if (elementRef.IsSome())
+			element = elementRef.Unwrap().Get();
 		std::vector<Match> shared, privates, module;
-		for (const Scope &scope : scopes)
-			for (const StyleRule &rule : scope.sheet->Rules())
-				for (const Selector &sel : rule.selectors) {
-					if (!MatchSubject(e, sel, scope.owner, state))
-						continue;
-					const Match m{&rule.props, scope.depth, sel.specificity, scope.sheetIndex, rule.order};
-					if (scope.depth < 0)
-						module.push_back(m);
-					else if (sel.IsPrivate())
-						privates.push_back(m);
-					else
-						shared.push_back(m);
-					break; // une règle compte une fois, même si plusieurs sélecteurs correspondent
-				}
+		std::vector<StyleSheet::SelectorRef> candidates;
+		for (const Scope &scope : scopes) {
+			const StyleSheet::SelectorIndex &index = scope.sheet->Index();
+			candidates.assign(index.universal.begin(), index.universal.end());
+			auto add = [&](const std::unordered_map<String, std::vector<StyleSheet::SelectorRef>> &map, const String &key) {
+				if (key.IsEmpty())
+					return;
+				if (auto it = map.find(key); it != map.end())
+					candidates.insert(candidates.end(), it->second.begin(), it->second.end());
+			};
+			if (element) {
+				add(index.byId, element->id);
+				add(index.byType, element->type);
+				for (const String &c : element->classes)
+					add(index.byClass, c);
+			}
+			if (candidates.empty())
+				continue;
+			// Ordre des règles puis des sélecteurs : une règle compte une fois,
+			// par son PREMIER sélecteur qui correspond (comme un parcours complet).
+			std::sort(candidates.begin(), candidates.end(), [](const StyleSheet::SelectorRef &a, const StyleSheet::SelectorRef &b) {
+				return a.rule != b.rule ? a.rule < b.rule : a.selector < b.selector;
+			});
+			ElementData data = base;
+			data.isScopeOwner = e == scope.owner;
+			const std::vector<StyleRule> &rules = scope.sheet->Rules();
+			uint32_t matchedRule = ~0u;
+			for (const StyleSheet::SelectorRef &c : candidates) {
+				if (c.rule == matchedRule)
+					continue;
+				const StyleRule &rule = rules[c.rule];
+				const Selector &sel = rule.selectors[c.selector];
+				if (!MatchCompound(sel.Subject(), data))
+					continue;
+				if (sel.parts.size() > 1 && !MatchesSelector(world, e, sel, scope.owner))
+					continue;
+				matchedRule = c.rule;
+				const Match m{&rule.props, scope.depth, sel.specificity, scope.sheetIndex, rule.order};
+				if (scope.depth < 0)
+					module.push_back(m);
+				else if (sel.IsPrivate())
+					privates.push_back(m);
+				else
+					shared.push_back(m);
+			}
+		}
 		std::sort(module.begin(), module.end());
 		std::sort(shared.begin(), shared.end());
 		std::sort(privates.begin(), privates.end());
@@ -260,11 +308,14 @@ public:
 		// Copie : un rappel de style ne modifie jamais l'arbre, mais la liste
 		// d'enfants vit dans un composant que AddComponent peut déplacer.
 		const std::vector<ecs::Entity> children = ChildList(world, e);
-		for (ecs::Entity child : children) {
-			if (recurse || dirty.count(child))
+		for (size_t i = 0; i < children.size(); ++i) {
+			const ecs::Entity child = children[i];
+			if (recurse || dirty.count(child)) {
+				siblingHint = {child, int(i), int(children.size())};
 				Resolve(child, childInherited, cs.scale, cs.effectiveOpacity, disabled, scopes, force);
-			else
+			} else {
 				ResolveDirtyBelow(child);
+			}
 		}
 		scopes.resize(scopeMark);
 	}
@@ -297,18 +348,6 @@ public:
 		Resolve(e, inherited, scale, opacity, disabled, scopes, false);
 	}
 
-	bool MatchSubject(ecs::Entity e, const Selector &sel, ecs::Entity owner, State state) const {
-		// Fast path : le sujet d'abord, avec l'état déjà calculé.
-		const CompoundSelector &subject = sel.Subject();
-		ElementData data = DataOf(e, owner);
-		data.state = state;
-		if (!MatchCompound(subject, data))
-			return false;
-		if (sel.parts.size() == 1)
-			return true;
-		return MatchesSelector(world, e, sel, owner);
-	}
-
 	ElementData DataOf(ecs::Entity e, ecs::Entity owner) const {
 		ElementData d;
 		if (auto el = world.GetComponent<Element>(e); el.IsSome()) {
@@ -318,7 +357,10 @@ public:
 		}
 		d.isRoot = e == ctx.root;
 		d.isScopeOwner = e == owner;
-		if (auto parent = ecs::ParentOf(world, e); parent.IsSome()) {
+		if (siblingHint.entity == e) { // rang connu de la boucle du parent
+			d.index = siblingHint.index;
+			d.siblingCount = siblingHint.count;
+		} else if (auto parent = ecs::ParentOf(world, e); parent.IsSome()) {
 			const std::vector<ecs::Entity> &siblings = ChildList(world, parent.Unwrap());
 			d.siblingCount = int(siblings.size());
 			for (size_t i = 0; i < siblings.size(); ++i)
@@ -399,6 +441,11 @@ void StyleSystem::Run(ecs::ArchetypeRegistry &world, Context &ctx) {
 	if (!ctx.styleDirtyAll && ctx.styleDirty.empty())
 		return;
 	Resolver r(world, ctx);
+	struct Count {
+		Resolver &r;
+		Context &ctx;
+		~Count() { ctx.timings.stylesResolved += r.resolved; }
+	} count{r, ctx};
 	r.propagateAll = HasContextualSelectors(ctx);
 	if (ctx.styleDirtyAll) {
 		ctx.styleDirtyAll = false;

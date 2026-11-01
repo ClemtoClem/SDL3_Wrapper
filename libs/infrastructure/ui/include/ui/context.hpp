@@ -31,6 +31,11 @@ struct FrameTimings {
 	double viewport3dMs = 0.0;
 	double shaderEffectMs = 0.0;
 	double drawMs = 0.0;
+	/// Widgets restylés / passes de mise en page complètes de la dernière
+	/// image (diagnostic : un nombre élevé à chaque image trahit un widget
+	/// modifié en continu).
+	size_t stylesResolved = 0;
+	size_t layoutPasses = 0;
 	[[nodiscard]] double TotalMs() const noexcept { return styleMs + layoutMs + viewport3dMs + shaderEffectMs + drawMs; }
 };
 
@@ -159,6 +164,14 @@ public:
 	// ── Mise en page ────────────────────────────────────────────────────────
 	bool layoutDirty = true;
 	uint64_t layoutPass = 0;
+	/// Widgets dont seul le TEXTE a changé depuis la passe : si sa taille
+	/// mesurée ne bouge pas, aucune passe complète n'est nécessaire.
+	std::vector<ecs::Entity> textDirty;
+	/// Mesures de texte (texte × police × largeur), entre les passes ; vidé
+	/// quand les polices ou les styles changent (MarkAllDirty), et au-delà
+	/// de TEXT_CACHE_LIMIT entrées.
+	std::unordered_map<uint64_t, sdl3::FPoint> textCache;
+	static constexpr size_t TEXT_CACHE_LIMIT = 32768;
 	std::vector<PaintEntry> paintOrder;
 	float rootFontSize = 14.f;
 
@@ -196,6 +209,7 @@ public:
 	void MarkAllDirty() noexcept {
 		styleDirtyAll = true;
 		layoutDirty = true;
+		textCache.clear();
 	}
 	void MarkLayoutDirty() noexcept { layoutDirty = true; }
 	/// Charge (si besoin) les polices @font-face d'une feuille.
@@ -215,6 +229,9 @@ struct ContextHandle {
 /// Signale un changement de style / de mise en page (sans contexte : sans effet).
 void MarkStyleDirty(ecs::ArchetypeRegistry &world, ecs::Entity e);
 void MarkLayoutDirty(ecs::ArchetypeRegistry &world);
+/// Le texte de `e` a changé (et rien d'autre) : passe complète seulement si
+/// sa taille mesurée change.
+void MarkTextDirty(ecs::ArchetypeRegistry &world, ecs::Entity e);
 
 /// Règle par défaut de transmission des touches quand un champ a le focus :
 /// F1–F24 et les raccourcis Ctrl/Alt/Cmd qui ne sont pas de l'édition.
