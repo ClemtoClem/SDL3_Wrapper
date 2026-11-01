@@ -1,145 +1,143 @@
 # SDL3_Wrapper
 
 Wrapper C++23 de SDL3 et ensemble de bibliothèques pour construire des
-applications et des jeux : rendu 2D/3D, UI retenue sur ECS, audio, physique,
-réseau, scripts, formats de données, archives. Projet modulaire construit et
-testé exclusivement avec **cpp-maker** (≥ 0.6, source : `cpp-maker-v0.6.cpp`).
+applications et des jeux 2D/3D, accompagnés de quatre applications complètes
+qui les mettent en œuvre.
 
-**Licence:** GNU Affero General Public License v3.0
+**Licence :** GNU Affero General Public License v3.0 (voir `LICENSE`).
 
-## Démarrage
+## Présentation
+
+SDL3_Wrapper part d'un **wrapper C++ de SDL3** (`sdl3::`) : des classes RAII,
+sans exception ni pointeur C dans les signatures. Il ajoute au-dessus une
+pile de modules indépendants qui couvre ce qu'une application interactive
+demande :
+
+- **Rendu** : 2D par `SDL_Renderer` ; 3D sur l'API GPU de SDL3, avec PBR,
+  ombres, éclairage par image (IBL), animation et rendu hors écran.
+- **Interface** : déclarative, construite sur un **ECS**, avec feuilles CSS,
+  évènements façon JavaScript, plus de 50 widgets, graphiques, graphes de
+  nœuds, vues 3D intégrées et plusieurs fenêtres.
+- **Données** : JSON, XML, YAML, TOML, INI, CSV, CSS, HTML, glTF ; export
+  OBJ, STL et PLY ; archives zip, 7z, tar, ISO et RAR avec compression et
+  chiffrement ; base SQL embarquée.
+- **Simulation et contenu** : physique de corps rigides, génération
+  procédurale, modélisation 3D à la SketchUp, moteur de jeu voxel piloté
+  par des mods.
+- **Scripts** : un langage interprété embarqué, « Script », relié aux
+  modules du dépôt.
+- **Son** : moteur audio et traitement du signal.
+- **Réseau** : réseau local et Wi-Fi ad hoc.
+- **Outils** : journalisation, assertions, capture de performances et
+  profileur.
+
+Les **applications** montrent la bibliothèque à l'œuvre et servent de banc
+d'essai :
+
+- un émulateur Nintendo DS / GBA / GBC ;
+- un éditeur de jeux 2D/3D (sandbox) ;
+- un jeu voxel avec son éditeur intégré (voxelia et Voxelia Studio) ;
+- un profileur inspiré de Google Orbit.
+
+**Technologies** : C++23, SDL3 ≥ 3.4 avec SDL3_ttf, SDL3_image, SDL3_mixer et
+SDL3_net ; shaderc et SPIRV-Cross pour les shaders ; Vulkan (ou Metal) par
+SDL_GPU. Le projet se construit avec
+[cpp-maker](https://github.com/ClemtoClem/cpp-maker), sous Linux.
 
 ```sh
-./cpp-maker build                  # tout le workspace (debug)
-./cpp-maker test                   # compile et lance les tests de chaque module
-./cpp-maker test -m physics        # un module (et ses dépendances)
-./cpp-maker run ui_showcase        # lancer un exemple ou une démo
-./cpp-maker run sandbox -- --help  # arguments après --
-./cpp-maker modules                # modules, couches, dépendances
-./cpp-maker graph --dot | dot -Tsvg > graph.svg
-./cpp-maker doctor                 # environnement + dépendances implicites (#include)
+cpp-maker build                      # tout le dépôt (debug)
+cpp-maker test                       # tous les tests
+cpp-maker run release -m voxelia     # lancer une application
 ```
 
-Recompiler l'outil lui-même :
-`g++ -std=c++23 -O2 -pthread -Wall -Wextra cpp-maker-v0.6.cpp -o cpp-maker`.
+## Architecture
 
-Dépendances système : SDL3, SDL3_ttf, SDL3_image, SDL3_mixer, SDL3_net
-(pkg-config), shaderc et SPIRV-Cross (render3d), `glslc` ou
-`glslangValidator` + `spirv-cross` pour les shaders.
+Le dépôt est un workspace cpp-maker de **47 modules**, répartis en trois
+couches. Un module ne dépend que de sa couche ou d'une couche inférieure, et
+cpp-maker vérifie cette règle.
 
-## Architecture en couches
-
-Trois couches, de la plus basse à la plus haute. **Un module ne dépend que de
-sa couche ou d'une couche inférieure** : la règle est déclarée dans
-`cpp-maker.toml` (`[layers]`) et chaque `module.toml` (`layer = "…"`), et
-cpp-maker refuse de construire un projet qui la viole. La couche Foundation
-interdit en plus toute dépendance (même transitive) aux paquets SDL.
-
-```
-application     scene · emulator · sandbox · examples/* · integration
-                    │
-infrastructure  sdl3 → platform, ecs, dataio, archive, resources, generators,
-                       render3d → ui, audio, script → script_bindings,
-                       physics, net, sql
-                    │
-foundation      core · math · jobs · events · diagnostics      (sans SDL)
-```
-
-### Niveau A — Foundation (`libs/foundation/`)
-
-| Module | Rôle |
-|---|---|
-| `core` | `String`/`StringView`, `Option`/`Result` (aucune exception), `Ref`, UUID, `Wrapper` RAII |
-| `math` | Vecteurs, matrices, quaternions, AABB, plans, rayons, frustums, `Transform2D/3D`, `Corners`/`Sides` |
-| `jobs` | Vivier de fils et `ParallelFor` bloquant (bibliothèque standard) |
-| `events` | `Signal<Args...>` à connexions RAII, `EventBus` typé (immédiat ou différé, file thread-safe) |
-| `diagnostics` | `Logger` à niveaux/catégories et sinks, `DIAG_ASSERT`/`DIAG_VERIFY`, `Profiler`/`ScopedTimer` |
-
-### Niveau B — Infrastructure et moteurs (`libs/infrastructure/`)
-
-| Module | Rôle | Dépend de |
+| Couche | Modules | Rôle |
 |---|---|---|
-| `sdl3` | Wrappers C++ de SDL3, SDL_ttf, SDL_image, SDL_mixer, SDL_net | core, math |
-| `platform` | `Application` (cycle de vie), `FixedStepClock`, `InputState`, événements SDL → bus, SDL_Log → diagnostics | sdl3, events, diagnostics |
-| `ecs` | Entités, composants (archétypes), requêtes | core |
-| `dataio` | JSON, XML, YAML, TOML, INI, CSV, CSS, HTML, glTF sur un arbre `dataio::Node` commun | core, sdl3 |
-| `archive` | ZIP, 7z, RAR, TAR, ISO, gzip/bzip2/xz/zstd/LZMA/PPMd, AES | core, sdl3 |
-| `resources` | Ressources, cache, chargement asynchrone, catalogue d'assets | sdl3, dataio |
-| `generators` | Bruit, cartes de hauteur, terrains, labyrinthes, donjons, WFC, L-systèmes, Markov | math, ecs |
-| `render3d` | Rendu SDL_GPU : graphe de scène, PBR, ombres, IBL, animation, portails | resources, ecs, dataio |
-| `audio` | Clips audio (ressources), DSP | resources, sdl3 |
-| `ui` | UI déclarative sur ECS : builders, styles CSS, évènements façon JS, widgets, flexbox, thèmes, node-graph, graphiques, viewport 3D | ecs, render3d, dataio |
-| `script` | Langage de script : lexer, parseur, interpréteur, bibliothèque standard | math, sdl3, dataio |
-| `script_bindings` | Liaisons du langage vers `ecs::`, `ui::`, `generators::` | script, ecs, ui, generators |
-| `physics` | Corps rigides sur l'ECS : formes, phases large/étroite, solveur, articulations | math, ecs, jobs |
-| `net` | Réseau au-dessus de SDL_net : découverte locale, chat ad hoc | sdl3, archive |
-| `sql` | Base embarquée : parseur SQL, B+arbre, stockage binaire/JSON/CSV | sdl3, dataio |
+| **foundation** (`libs/foundation`) | `core`, `math`, `jobs`, `events`, `diagnostics` | Types de base, mathématiques, fils, évènements, diagnostics ; aucune dépendance à SDL |
+| **infrastructure** (`libs/infrastructure`) | `sdl3`, `platform`, `ecs`, `dataio`, `archive`, `resources`, `generators`, `audio`, `modeling`, `render3d`, `ui`, `editor`, `script`, `script_bindings`, `physics`, `voxel`, `net`, `sql` | Wrapper SDL3 et moteurs |
+| **application** | `libs/application/scene`, `demos/*`, `examples/*`, `tests/integration` | Graphe de scène, applications, exemples, tests d'intégration |
 
-### Niveau C — Application
+Les ressources en lecture seule sont dans `assets/`. Les données écrites par
+les applications (réglages, sauvegardes, projets, captures de performances)
+vont dans `data/`. Les applications se lancent depuis la racine du dépôt.
+Le détail est dans [architecture](docs/architecture.md).
 
-| Module | Rôle |
-|---|---|
-| `libs/application/scene` | Graphe de scène : nœuds, propriétés, scènes empaquetées, registre de types |
-| `demos/emulator` | Émulateur NDS / GBA / GBC (cœur dérivé de NooDS) avec coquille « EmulOS » |
-| `demos/sandbox` | Éditeur de jeu 2D/3D (projets, scènes, scripts, physique, assets) |
-| `demos/voxelia` | Jeux 3D dans un environnement voxel cubique généré procéduralement |
-| `examples/<nom>` | 18 exemples, un exécutable chacun (`./cpp-maker run <nom>`) |
-| `tests/integration` | Tests qui composent plusieurs modules (ex. cache de ressources + fabriques render3d/audio) |
+## Documentation
 
-## Conventions
+### Général
 
-- **Inclusions** : toujours `<module/fichier.hpp>` entre modules ; les
-  guillemets ne servent qu'à l'intérieur d'un même dossier.
-- **Espaces de noms** = noms de modules (`dataio::`, `archive::`, `script::`,
-  `render3d::`…).
-- **Aucune exception** : `Option<T>` / `Result<T, E>`. Seuls les tests en
-  ignorent la règle quand c'est inévitable.
-- **Testabilité** : la logique doit se tester sans fenêtre ni GPU. Les
-  modules Foundation n'ont pas accès à SDL ; `platform` sépare la logique pure
-  (`FixedStepClock`, `InputState`, `TranslateEvent`) de la boucle SDL.
+- [Compilation](docs/compilation.md) : prérequis, installation de cpp-maker, compilation, modes, tests, sanitizers, nettoyage, résolution des problèmes.
+- [Architecture et conventions](docs/architecture.md) : organisation du dépôt, couches, graphe des dépendances, règles de code, données à l'exécution.
 
-## Tests
+### Modules — couche foundation
 
-Chaque module a un dossier `tests/` compilé en un exécutable
-(`build/<toolchain>/<mode>/tests/<module>-tests`). Le gabarit `test.hpp`
-accepte deux styles :
+- [core](docs/libs_foundation_core.md) : `String`/`StringView`, `Option`/`Result` (sans exception), `Ref`, enveloppes RAII, `Uuid`, Unicode.
+- [math](docs/libs_foundation_math.md) : vecteurs, matrices, quaternions, volumes, rayons, frustums, transformations, polygones et triangulation.
+- [jobs](docs/libs_foundation_jobs.md) : vivier de fils et `ParallelFor`.
+- [events](docs/libs_foundation_events.md) : signaux typés et bus d'évènements immédiat ou différé.
+- [diagnostics](docs/libs_foundation_diagnostics.md) : journal, assertions, chronométrage, capture de performances `.vcap`.
 
-```cpp
-TEST(Nom)          { CHECK(x); CHECK_EQ(a, b); REQUIRE(ptr); }
-TEST(Suite, Nom)   { EXPECT_TRUE(x); EXPECT_EQ(a, b); ASSERT_TRUE(ptr); }
-```
+### Modules — couche infrastructure
 
-`REQUIRE`/`ASSERT_*` arrêtent le test ; `SKIP("raison")` l'ignore (les tests
-qui ont besoin d'une fenêtre ou d'un backend SDL_GPU le font quand il n'y en a
-pas). Les tests s'exécutent depuis la racine du projet : les chemins de
-données sont relatifs à la racine (`assets/…`, `demos/sandbox/tests/data/…`).
-En mode `asan`, `tests/lsan_suppressions.txt` est appliqué automatiquement
-(`[tests.env]`).
+- [sdl3](docs/libs_infrastructure_sdl3.md) : wrapper C++ de SDL3, SDL3_ttf, SDL3_image, SDL3_mixer et SDL3_net.
+- [platform](docs/libs_infrastructure_platform.md) : cycle de vie d'une application, pas fixe, état des entrées.
+- [ecs](docs/libs_infrastructure_ecs.md) : ECS à archétypes, ordonnanceur de systèmes, évènements, relations.
+- [dataio](docs/libs_infrastructure_dataio.md) : JSON, XML, YAML, TOML, INI, CSV, CSS, HTML sur un arbre commun ; glTF ; export de maillages.
+- [archive](docs/libs_infrastructure_archive.md) : zip, 7z, tar, ISO, RAR, gzip, xz, bzip2, zstd, AES, système de fichiers virtuel.
+- [resources](docs/libs_infrastructure_resources.md) : ressources, cache, chargement asynchrone, catalogue d'assets à identifiants stables.
+- [generators](docs/libs_infrastructure_generators.md) : bruits, cartes de hauteur, terrains, labyrinthes, donjons, WFC, L-systèmes, Markov.
+- [audio](docs/libs_infrastructure_audio.md) : sons partagés, moteur audio (voix, canaux, fondus, spatialisation), DSP.
+- [modeling](docs/libs_infrastructure_modeling.md) : maillage éditable et outils de modélisation à la SketchUp.
+- [render3d](docs/libs_infrastructure_render3d.md) : rendu 3D sur SDL_GPU : scène, matériaux, lumières, ombres, IBL, animation, hors écran.
+- [ui](docs/libs_infrastructure_ui.md) : interface déclarative sur l'ECS : builders, CSS, évènements, widgets, plusieurs fenêtres.
+- [editor](docs/libs_infrastructure_editor.md) : briques des éditeurs 3D : docks, navigation orbitale, gizmo, palette de commandes.
+- [script](docs/libs_infrastructure_script.md) : langage de script interprété embarqué.
+- [script_bindings](docs/libs_infrastructure_script_bindings.md) : les modules du dépôt vus depuis Script.
+- [physics](docs/libs_infrastructure_physics.md) : corps rigides 3D sur l'ECS, articulations, portails.
+- [voxel](docs/libs_infrastructure_voxel.md) : moteur de jeu voxel piloté par les données (mods, monde, entités, sauvegardes).
+- [net](docs/libs_infrastructure_net.md) : découverte, chat et fichiers sur un réseau local ; Wi-Fi ad hoc.
+- [sql](docs/libs_infrastructure_sql.md) : base de données embarquée, SQL, B+arbre, stockage binaire.
 
-Les shaders (`assets/shaders/src`) sont recompilés par cpp-maker avant le
-build quand une source change (`[generate.shaders]`).
+### Modules — couche application
 
-## Correspondance avec l'ancien projet (`../SDL3_Wrapper`)
+- [scene](docs/libs_application_scene.md) : hiérarchie de nœuds générique, scènes empaquetées, registre de types.
 
-| Ancien | Nouveau |
-|---|---|
-| `lib/include/data/{node,document,json,…}` | `dataio` (`dataio::`) |
-| `lib/include/data/archive/*` | `archive` (`archive::`) |
-| `lib/include/data/script/*` | `script` + `script_bindings` (`script::`) |
-| `lib/*/jobs, net, physics, render3d, sql` | modules homonymes |
-| `lib/scene` | `libs/application/scene` |
-| `examples/emulator_demo` | `demos/emulator` (`emulator::`) |
-| `examples/sandbox` | `demos/sandbox` (`sandbox::`) |
-| `examples/*.cpp` | `examples/<nom>/src/main.cpp` |
-| `tests/*_smoke_test.cpp` | `tests/` du module concerné |
-| `saves/emulator_demo`, `saves/sandbox` | `saves/emulator`, `saves/sandbox` |
-| `docs/*.md` | `docs/history/` (notes de conception d'origine, chemins d'époque) |
-| `Makefile` | `cpp-maker.toml` + `module.toml` |
+### Applications
 
-Changements d'API notables pendant la migration : `math` ne dépend plus de
-SDL (`FVector2` n'hérite plus de `sdl3::FPoint`, conversions implicites dans
-les deux sens côté sdl3 ; `math::Sqrt/Abs/Clamp…` remplacent `sdl3::…` pour le
-code sans SDL), `sdl3::Corners`/`Sides` sont des alias de `math::`,
-`jobs::JobSystem` repose sur `std::thread`, `generators` utilise
-`std::uint32_t` au lieu de `Uint32`, et les liaisons `script_ecs/ui/generator`
-s'incluent désormais par `<script_bindings/…>`.
+- [Démos](docs/demos.md) : présentation des quatre applications.
+  - [emulator](docs/demo_emulator.md) : émulateur Nintendo DS, GBA et GBC « EmulOS ».
+  - [sandbox](docs/demo_sandbox.md) : éditeur de jeux 2D/3D.
+  - [voxelia](docs/demo_voxelia.md) : jeu voxel et Voxelia Studio.
+  - [profiler](docs/demo_profiler.md) : profileur de programmes instrumentés, inspiré de Google Orbit.
+- [Exemples](docs/examples.md) : les 18 exemples, classés par module.
+  - [platform_app](docs/example_platform_app.md) : application minimale sur `platform::Application`.
+  - [renderer](docs/example_renderer.md) : rendu 2D avec `sdl3::Renderer`.
+  - [ui_minimal](docs/example_ui_minimal.md) : exemple minimal du module ui.
+  - [ui_showcase](docs/example_ui_showcase.md) : vitrine de tous les widgets.
+  - [ui_aero_basics](docs/example_ui_aero_basics.md) : thème Frutiger Aero, widgets de base.
+  - [ui_aero_lists](docs/example_ui_aero_lists.md) : thème Frutiger Aero, listes, arbres, tableaux.
+  - [ui_aero_windows](docs/example_ui_aero_windows.md) : thème Frutiger Aero, bureau et fenêtres internes.
+  - [ui_node_graph_demo](docs/example_ui_node_graph_demo.md) : éditeur de graphes de nœuds.
+  - [ui_plot_demo](docs/example_ui_plot_demo.md) : galerie des graphiques.
+  - [ui_shader_effects_demo](docs/example_ui_shader_effects_demo.md) : effets de shader sur des widgets.
+  - [ui_viewport3d_demo](docs/example_ui_viewport3d_demo.md) : scène 3D dans des widgets.
+  - [render3d_cube](docs/example_render3d_cube.md) : premier rendu render3d.
+  - [render3d_showcase](docs/example_render3d_showcase.md) : vitrine render3d.
+  - [render3d_shadows_ibl_showcase](docs/example_render3d_shadows_ibl_showcase.md) : ombres et éclairage par image.
+  - [audio_signal_generator](docs/example_audio_signal_generator.md) : générateur de signaux.
+  - [audio_spectrum_analyzer](docs/example_audio_spectrum_analyzer.md) : analyseur de spectre.
+  - [audio_patchbay](docs/example_audio_patchbay.md) : routage audio par graphe de nœuds.
+  - [adhoc_chat_demo](docs/example_adhoc_chat_demo.md) : chat et fichiers en réseau local ou Wi-Fi ad hoc.
+
+### Documentation complémentaire
+
+- [Guide du langage Script](docs/script_language.md) : syntaxe, bibliothèque standard, intégration C++.
+- [Extension VS Code](docs/tools_script_vscode.md) : coloration, diagnostics et navigation pour les fichiers `.script`.
+- [Tests d'intégration et suppressions](docs/tests_integration.md) : tests qui composent plusieurs modules, fichiers de suppression des sanitizers.
+
+Les captures d'écran de la documentation sont dans [`captures/`](captures/).
