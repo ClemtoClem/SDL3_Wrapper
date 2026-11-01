@@ -36,6 +36,29 @@ class OffscreenTarget;
 /// le verront terminé (file GPU ordonnée), sans que le CPU l'attende.
 enum class OffscreenSync : uint8_t { WAIT, SUBMIT };
 
+/// Grille de voxels où les matériaux `voxelReflections` lancent leurs rayons
+/// réfléchis (shader_chunks::VOXEL_REFLECTION_FUNC) — autour de la caméra,
+/// tenue à jour par l'appelant (moteur voxel). Les textures restent à lui.
+struct VoxelReflections {
+	/// 3D, R16G16B16A16_UINT : x bloc (0 : traversé), y ciel (0..255), z r | g << 8,
+	/// w b (lumière des sources, 0..255 pour 0..4). Cellule (x, y, z) du monde
+	/// au texel (x, y, z) & (taille − 1) : la grille glisse sans tout renvoyer.
+	Ref<sdl3::GpuTexture> grid;
+	/// 2D, R32G32B32A32_FLOAT : par bloc, 8 lignes — rectangle d'atlas (u0, v0,
+	/// u1, v1) de chaque face (est, ouest, dessus, dessous, sud, nord), teinte
+	/// (rgb ; a : masque des faces teintées par le biome), teinte du biome
+	/// (rgb ; a : 1 pour un bloc lumineux) ; `blocksPerRow` blocs par bande.
+	Ref<sdl3::GpuTexture> blocks;
+	/// 2D, R8_UNORM : réflectivité (1 : miroir), même disposition que l'atlas.
+	Ref<sdl3::GpuTexture> reflectivity;
+	math::FVector3 origin{0.f, 0.f, 0.f}; ///< coin minimal de la grille (monde)
+	math::FVector3 size{0.f, 0.f, 0.f};   ///< cellules, puissances de deux
+	int maxBounces = 4;                   ///< réflexions successives d'un rayon, au plus
+	float maxDistance = 96.f;             ///< cellules parcourues par un rayon
+	int blocksPerRow = 512;
+	math::FVector3 skyColor{0.6f, 0.75f, 1.f}; ///< linéaire : rayon qui ne touche rien
+};
+
 // Compositeur 3D construit directement sur sdl3::Gpu* : un GpuDevice, un
 // GpuCommandBuffer par frame, un cache de GpuGraphicsPipeline par
 // combinaison de shader/états réellement rencontrée (PipelineKey). Le dessin
@@ -76,6 +99,7 @@ class Canvas {
 
 	float m_exposure = 1.f;
 	float m_baseLight = 0.f;
+	Option<VoxelReflections> m_voxelReflections = NONE;
 	std::unordered_map<PipelineKey, sdl3::GpuGraphicsPipeline> m_pipelineCache;
 
 	sdl3::Color m_backgroundColor = sdl3::Color::BLACK();
@@ -235,6 +259,20 @@ private:
 	/// mipmaps ni de wrap : coordonnées toujours dans [0,1]).
 	[[nodiscard]] bool EnsureIblSamplers();
 	[[nodiscard]] SDL_GPUSampler *SamplerFor(const Material &material);
+	/// Champs ajoutés en fin de LightUBO quand la grille des réflexions est
+	/// active (shader_chunks : uVoxelOrigin, uVoxelSize, uVoxelSky).
+	struct VoxelReflectionGpu {
+		float origin[4];
+		float size[4];
+		float sky[4];
+	};
+	[[nodiscard]] VoxelReflectionGpu VoxelReflectionUbo() const noexcept;
+	/// LightUBO (avec ou sans ombres) suivi des champs des réflexions, d'un seul bloc.
+	template <typename Light> struct WithVoxelReflections {
+		Light light;
+		VoxelReflectionGpu reflections;
+	};
+	template <typename Light> WithVoxelReflections(Light, VoxelReflectionGpu) -> WithVoxelReflections<Light>;
 
 	[[nodiscard]] Option<Ref<sdl3::GpuGraphicsPipeline>> GetOrCreatePipeline(const PipelineKey &key);
 
@@ -293,6 +331,10 @@ public:
 	/// Lumière uniforme, sans occlusion, ajoutée à ces mêmes matériaux
 	/// (linéaire ; 0 par défaut : l'obscurité reste possible).
 	void SetBaseLight(float light) noexcept { m_baseLight = light; }
+	/// Grille des réflexions (NONE : aucune, les matériaux `voxelReflections`
+	/// sont alors dessinés sans) — à donner avant End().
+	void SetVoxelReflections(Option<VoxelReflections> reflections) noexcept { m_voxelReflections = std::move(reflections); }
+	[[nodiscard]] bool HasVoxelReflections() const noexcept { return m_voxelReflections.IsSome(); }
 	void SetLighting(const DirectionalLight &directional, const AmbientLight &ambient) noexcept;
 
 	/// Lumières ponctuelles/spot actives pour les prochaines frames — scène

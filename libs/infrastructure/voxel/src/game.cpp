@@ -70,7 +70,7 @@ void Game::PlaySound(const String &sound, const math::FVector3 &position, float 
 		if (def->paths.size() > 1)
 			variant = int(HashPosition(salt, int(position.x), int(position.z), int(m_schedule.Frame()), 7) % def->paths.size());
 	}
-	ecs::EventsOf<SoundEvent>(m_registry).Send(SoundEvent{sound, position, v, pitch, positional, variant});
+	ecs::EventsOf<SoundEvent>(m_registry).Send(SoundEvent{sound, position, v, pitch, positional, variant, String()});
 }
 
 void Game::PlayAmbient(const String &sound, float volume, const AmbientOptions &options) {
@@ -211,6 +211,12 @@ Result<std::vector<String>, String> Game::ReloadDefinition(const NodePtr &defini
 	if (loaded.IsError())
 		return Err(loaded.Error());
 	m_content.Finalize();
+	// Modèle articulé : le rig en cache est relu au prochain usage.
+	if (m_content.FindModel(loaded.Value()) && m_assets)
+		m_assets->ForgetRig(loaded.Value());
+	// Texture : catalogue et image relus (l'atlas, lui, est à reconstruire par l'affichage).
+	if (m_content.FindTexture(loaded.Value()) && m_assets)
+		(void)m_assets->ReloadTexture(loaded.Value());
 	std::vector<String> blocks;
 	if (const BlockDef *block = m_content.FindBlock(loaded.Value())) {
 		blocks.push_back(block->id);
@@ -320,9 +326,9 @@ void Game::CreateWorld(const String &dimension) {
 	m_world->SetGenerator(terrain);
 	m_fluids = std::make_unique<FluidSimulation>(*m_world);
 	// Un bloc emporté par le liquide (herbe haute, fleur…) laisse son butin.
-	m_fluids->onWashedAway = [this](const BlockPos &p, const BlockDef &def) {
-		if (!def.drops.IsEmpty() && def.dropChance >= 1.f)
-			(void)DropItem(ItemStack{def.drops, def.dropCount, 0, nullptr}, p.Center());
+	m_fluids->onWashedAway = [this](const BlockPos &p, const BlockDef &washed) {
+		if (!washed.drops.IsEmpty() && washed.dropChance >= 1.f)
+			(void)DropItem(ItemStack{washed.drops, washed.dropCount, 0, nullptr}, p.Center());
 	};
 	(void)m_world->onChunkLoaded.Connect([this](const ChunkPos &p) {
 		if (m_scripts->HasHandlers("chunk_generated"))
@@ -1987,6 +1993,21 @@ int Game::ArmorPoints(ecs::Entity e) {
 			if (const ItemDef *item = m_content.FindItem(piece.item))
 				points += json::Int(item->raw, "armor.points", 0);
 	return std::min(20, points);
+}
+
+ItemStack *Game::OffhandItem(ecs::Entity actor) {
+	auto eq = m_registry.GetComponent<Equipment>(actor);
+	return eq.IsSome() ? &eq.Unwrap()->offhand : nullptr;
+}
+
+bool Game::SwapHands(ecs::Entity actor) {
+	ItemStack *held = HeldItem(actor), *offhand = OffhandItem(actor);
+	if (!held || !offhand || (held->IsEmpty() && offhand->IsEmpty()))
+		return false;
+	std::swap(*held, *offhand);
+	if (auto t = m_registry.GetComponent<Transform>(actor); t.IsSome())
+		PlaySound(m_content.ConfigStr("sounds.equip"), t.Unwrap()->position, 0.5f);
+	return true;
 }
 
 bool Game::EquipHeld(ecs::Entity player) {

@@ -14,12 +14,18 @@
  *    le fil principal pose les maillages revenus dans la scène.
  *  - Entités : une forme par entité visible (cube, nodebox, croix, modèle,
  *    bloc en miniature), maillages partagés par forme, placés à la position
- *    interpolée entre deux pas de physique.
+ *    interpolée entre deux pas de physique. Le joueur en est une comme une
+ *    autre (vu aussi à la première personne : caméra devant son visage) ;
+ *    les objets tenus suivent les mains des modèles articulés.
  *  - Contour du bloc visé, ciel et éclairage selon l'heure du jeu et la
  *    dimension (ciel en cubemap, de jour et de nuit ; heure figée, lumière
  *    ambiante, nuages).
+ *  - Réflexions : les textures qui réfléchissent (TextureDef::reflectivity)
+ *    lancent leurs rayons dans une grille de voxels autour de la caméra
+ *    (ReflectionVolume, render3d::VoxelReflections).
  *  - Changement de dimension : chunks et entités repartent de zéro.
  */
+#include <array>
 #include <map>
 #include <memory>
 #include <set>
@@ -33,6 +39,7 @@
 #include <voxel/meshing.hpp>
 #include <voxel/rig.hpp>
 
+#include "reflections.hpp"
 #include "worker.hpp"
 
 namespace voxelia {
@@ -47,6 +54,10 @@ struct WorldRenderSettings {
 	float entityDistance = 64.f;
 	float brightness = 0.5f;
 	int particles = 2;
+	/// Réflexions des textures qui réfléchissent (rayons lancés dans la
+	/// grille de voxels) et réflexions successives d'un rayon, au plus (1..16).
+	bool reflections = true;
+	int reflectionBounces = 4;
 };
 
 class WorldRenderer {
@@ -93,8 +104,40 @@ public:
 	/// refaits (ils précalculent le rendu de chaque bloc), chunks et entités
 	/// remaillés au fil des images.
 	Result<bool, String> ReloadContent(bool rebuildAtlas);
+	/// Maillage d'un bloc isolé (forme et apparence de `block`, centré en x/z,
+	/// base à 0), tel que le mailleur des chunks le dessine — aperçu des
+	/// éditeurs ; à afficher avec BlockMaterial(). nullptr si vide.
+	[[nodiscard]] std::shared_ptr<render3d::Mesh> BlockPreviewMesh(const voxel::BlockDef &block) const;
+	/// Matériau de l'atlas des blocs (textures au plus proche).
+	[[nodiscard]] const render3d::Material &BlockMaterial() const noexcept { return m_entity; }
+	/// Une structure maillée comme un petit monde (faces cachées retirées,
+	/// occlusion, lumière de ses lampes), coin minimal à l'origine — aperçu
+	/// de l'éditeur de structures : une forme par matériau.
+	struct MeshPart {
+		std::shared_ptr<render3d::Mesh> mesh;
+		render3d::Material material;
+	};
+	[[nodiscard]] std::vector<MeshPart> StructureMeshes(const voxel::Schematic &structure) const;
+	/// Fantôme d'une structure (aperçu d'un collage) : translucide, coin
+	/// minimal en `corner` ; nullptr : retiré.
+	void SetGhost(std::shared_ptr<const voxel::Schematic> structure, const voxel::BlockPos &corner);
+	[[nodiscard]] bool HasGhost() const noexcept { return m_ghost != nullptr; }
+	/// Atlas des blocs : paramètres de TextureAtlas::Build et bilan du dernier.
+	struct AtlasStats {
+		int tileSize = 16, maxTileSize = 256; ///< résolution de base / maximale d'une tuile (px)
+		int width = 0, height = 0;
+		size_t tiles = 0;
+		float occupancy = 0.f;    ///< 0..1
+		float milliseconds = 0.f; ///< Build + envoi au GPU
+	};
+	[[nodiscard]] const AtlasStats &AtlasInfo() const noexcept { return m_atlasStats; }
+	/// Reconstruit l'atlas avec ces résolutions (puissances de deux, 2..2048 ;
+	/// la maximale ≥ la base), puis remaille tout (ReloadContent).
+	Result<AtlasStats, String> RebuildAtlas(int tileSize, int maxTileSize);
 	/// Rechargements faits (rapport, tests).
 	[[nodiscard]] size_t ContentReloads() const noexcept { return m_contentReloads; }
+	/// Grille des rayons réfléchis (rapport, tests).
+	[[nodiscard]] const ReflectionVolume &Reflections() const noexcept { return m_reflections; }
 	/// Éclats d'un bloc cassé (petits cubes texturés qui retombent).
 	void SpawnBreakParticles(voxel::BlockId block, const voxel::BlockPos &pos, int count);
 
@@ -117,6 +160,9 @@ private:
 		std::string meshKey;
 		float walkPhase = 0.f;
 		render3d::Shape *shadow = nullptr; ///< disque sous l'entité
+		/// Objets tenus (main droite, main gauche) : enfants des bras du rig.
+		std::array<render3d::Shape *, 2> held{nullptr, nullptr};
+		std::array<std::string, 2> heldKey;
 	};
 	/// Skin chargé sur le GPU (une texture et son matériau par image).
 	struct Skin {
@@ -129,6 +175,9 @@ private:
 	void UpdateRig(ecs::Entity e, EntityView &view, const voxel::Transform &t, const voxel::Visual &visual, const math::FVector3 &at,
 				   float dt);
 	void DropView(EntityView &view);
+	/// Objet de `stack` dans la main `hand` (0 droite, 1 gauche) du rig, à
+	/// son point d'attache ; retiré si la main est vide.
+	void UpdateHeld(EntityView &view, int hand, const voxel::ItemStack *stack, const voxel::RigAnchor &anchor);
 
 	/// Maillage revenu du fil de rendu (formes vides : nullptr).
 	struct MeshResult {
@@ -205,6 +254,13 @@ private:
 	double m_lastTime = -1.0;
 	size_t m_pending = 0, m_triangles = 0;
 	size_t m_contentReloads = 0;
+	ReflectionVolume m_reflections;
+	AtlasStats m_atlasStats;
+	/// Build de l'atlas (paramètres de m_atlasStats) et texture GPU ; bilan tenu à jour.
+	Result<bool, String> BuildAtlas();
+	render3d::Object3D *m_ghostRoot = nullptr;
+	std::shared_ptr<const voxel::Schematic> m_ghost;
+	math::FVector3 m_skyLinear{0.6f, 0.75f, 1.f}; ///< couleur du ciel (linéaire) : rayon réfléchi perdu
 
 	// Fil de rendu : maillage des chunks sur des instantanés.
 	/// Copies figées des chunks (révision copiée → copie), partagées par les

@@ -184,6 +184,16 @@ public:
 		armor.Size(46.f * sc, 4.f * 48.f * sc).OnClick([this] { ClickArmor(); });
 		r.Append(armor);
 		m_armorPoints = eq.Append(kit.Muted(String(), Text::CAPTION));
+		// Main gauche : n'importe quel objet (torche, bouclier, nourriture…).
+		WidgetBuilder hands = kit.Row(8.f);
+		hands.AlignItems(ui::Align::Center);
+		ui::Widget hr = eq.Append(hands);
+		WidgetBuilder offhand = ui::Canvas([this](ui::Painter &painter, const sdl3::FRect &rect) {
+			if (painter.Renderer())
+				DrawOffhand(*painter.Renderer(), rect);
+		});
+		hr.Append(offhand.Size(46.f * sc, 46.f * sc).Id("inventory-offhand").OnClick([this] { ClickOffhand(); }));
+		hr.Append(kit.Muted("Main gauche", Text::CAPTION));
 		// Grille.
 		WidgetBuilder center = kit.Column(8.f);
 		ui::Widget c = b.Append(center);
@@ -223,6 +233,7 @@ public:
 		actions.GrowWidth();
 		m_actions = d.Append(actions);
 		m_actions.Append(kit.Button("Utiliser / équiper", [this] { UseSelected(); }).GrowWidth());
+		m_actions.Append(kit.Button("Tenir en main gauche", [this] { HoldInOffhand(); }).GrowWidth());
 		m_actions.Append(kit.Button("Jeter un", [this] { DropSelected(false); }).GrowWidth());
 		m_actions.Append(kit.DangerButton("Jeter la pile", [this] { DropSelected(true); }).GrowWidth());
 		d.Append(kit.Button("Fabrication…", [this] {
@@ -331,6 +342,36 @@ private:
 			else
 				kit.Pixel().Draw(ren, names[i], cell.x + cell.w * 0.5f - 4.f, cell.y + cell.h * 0.5f - 6.f, 1.5f, kit.Colors().textDim, 0.f);
 		}
+	}
+	void DrawOffhand(sdl3::Renderer &ren, sdl3::FRect r) {
+		Session *s = Live(shell);
+		if (!s)
+			return;
+		const sdl3::FRect cell{r.x + 1.f, r.y + 1.f, r.w - 2.f, r.h - 2.f};
+		DrawSlot(ren, cell, false, false, false);
+		if (const ItemStack *held = s->Game().OffhandItem(s->Player()); held && !held->IsEmpty())
+			s->DrawItem(ren, *held, cell);
+		else
+			kit.Pixel().Draw(ren, "G", cell.x + cell.w * 0.5f - 4.f, cell.y + cell.h * 0.5f - 6.f, 1.5f, kit.Colors().textDim, 0.f);
+	}
+	/// Clic sur la main gauche : la pile tenue à la souris et la sienne s'échangent.
+	void ClickOffhand() {
+		Session *s = Live(shell);
+		ItemStack *offhand = s ? s->Game().OffhandItem(s->Player()) : nullptr;
+		if (!offhand)
+			return;
+		std::swap(*offhand, m_held);
+		shell.UiSound("ui_click");
+	}
+	/// L'objet sélectionné passe en main gauche (l'ancien prend sa place).
+	void HoldInOffhand() {
+		Session *s = Live(shell);
+		Inventory *inv = s ? s->Inventory() : nullptr;
+		ItemStack *offhand = s ? s->Game().OffhandItem(s->Player()) : nullptr;
+		if (!inv || !offhand || m_selected < 0 || m_selected >= inv->Size())
+			return;
+		std::swap(inv->Slot(m_selected), *offhand);
+		shell.UiSound("ui_click");
 	}
 	std::vector<const ItemDef *> CatalogItems() {
 		std::vector<const ItemDef *> out;

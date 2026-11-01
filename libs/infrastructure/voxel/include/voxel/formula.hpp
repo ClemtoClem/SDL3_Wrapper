@@ -53,4 +53,17 @@ private:
 	size_t m_stack = 1;
 };
 
+/// Morceau d'une formule (coloration d'un éditeur), sans la compiler.
+struct FormulaToken {
+	enum class Kind : uint8_t { NUMBER, VARIABLE, FUNCTION, CONSTANT, KEYWORD, OPERATOR, PAREN, UNKNOWN };
+	Kind kind = Kind::UNKNOWN;
+	size_t begin = 0, end = 0; ///< octets [begin, end[ du texte
+};
+/// Découpe `text` : nombres, variables (parmi `variables`), fonctions,
+/// constantes (pi, e, tau), mots-clés (and, or, not), opérateurs,
+/// parenthèses et virgules ; un nom inconnu ou un caractère étranger : UNKNOWN.
+[[nodiscard]] std::vector<FormulaToken> TokenizeFormula(const String &text, const std::vector<String> &variables);
+/// Fonctions reconnues par Formula (aide-mémoire).
+[[nodiscard]] std::vector<String> FormulaFunctions();
+
 } // namespace voxel

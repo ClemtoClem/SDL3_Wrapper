@@ -99,14 +99,492 @@ détache seulement.
   → rc=0, stderr 0 octet, rapport « succès », 17 fonctionnalités visitées,
   device GPU partagé, 2 fenêtres sur la capture du bureau.
 
-## Reste à faire (étapes 2+ du prompt)
+## Étape 2 — éditeur de blocs et rechargement à chaud (2026-10-31)
 
-Sélection au clic dans la vue (`PickMeshFace`), gizmo, éditeur de blocs et
-hot-reload (`reload` répond Warning), atelier de textures, formes/animation,
-structures (`Schematic`/`Formula`), biomes, dimensions, navigateur de
-ressources, Mod Manager, undo par instantanés, édition des valeurs dans
-l'inspecteur (seuls Soigner/Tuer existent), vérification `--seed`,
-scénarios nommés `--scenario=`.
+### Moteur (libs/infrastructure/voxel)
+
+- `ContentRegistry::LoadContext::definition` + `BlockDef::source`,
+  `sourceFile`, `baseDir` : la définition TELLE QU'ÉCRITE (`states` compris,
+  la même pour tous les états) et son fichier — `raw` n'est que l'état
+  fusionné.
+- `ContentRegistry::ForgetLoadWarnings(owner)` : un rechargement ne répète
+  pas les avertissements de l'ancienne version.
+- `Chunk::InvalidateContent`, `World::ContentChanged` : portée max des
+  lumières relue (elle était figée à la construction du monde), sources de
+  lumière de chaque chunk relues, chunks à remailler.
+- `Game::ReloadDefinition(def, ctx)` : `Load` (un id connu est remplacé, son
+  **id numérique conservé** : les chunks restent valides, rien à régénérer),
+  `Finalize`, `ContentChanged` ; rend les ids des blocs, états compris.
+
+### Fils — l'ordre est imposé
+
+Les fils « voxel-render-N » LISENT le `ContentRegistry` pendant le maillage
+(et `Load` peut réallouer `m_blocks`). `Session::ReloadDefinitions(lot)` :
+`EndSimulation` → `WorldRenderer::Quiesce` (attend les fils de maillage) →
+`TextureReferences` (avant) → `Game::ReloadDefinition` × N →
+`AtlasMissing(blocs, avant)` → `WorldRenderer::ReloadContent(atlas)` :
+mailleurs refaits (ils précalculent le rendu de chaque bloc), chunks et
+entités remaillés au fil des images, maillages en vol jetés (`m_meshSerial`).
+
+### Studio
+
+- `BlockDocument` (modèle, sans fenêtre) : formulaire et JSON sur le même
+  document, chemins pointés, annulation par instantanés (geste =
+  `BeginEdit`/`EndEdit`, 64 étapes), validation À BLANC sur une COPIE du
+  registre (diagnostics filtrés sur le bloc et ses états, champ fautif
+  extrait du message), états fusionnés et leurs différences avec l'état par
+  défaut, enregistrement dans le fichier du mod (définition remplacée dans
+  le tableau ; l'en-tête de commentaires `//` est gardé, les commentaires
+  INTERNES sont perdus — limite de l'écriture JSON).
+- `BlockEditor` (panneau) : dock gauche « Outliner | Blocs » (catalogue
+  filtrable), dock droit « Inspecteur | Bloc » ; portée « bloc commun » ou
+  un état (`states.<nom>.<champ>`, champs hérités marqués « · ») ;
+  formulaire (identité, textures, physique, lumière complète, interaction,
+  capteur, conteneur), onglet JSON, onglet États ; diagnostics 0,3 s après
+  la dernière modification ; un curseur glissé = une étape d'annulation
+  (geste clos après 0,4 s) ; Appliquer à chaud (Ctrl+Maj+R), Enregistrer,
+  Poser (4 blocs devant la caméra ; l'état de la portée), ↶/↷ (Ctrl+Z/Y).
+- Console : `studio.block.{open,new,set,scope,apply,save,place,undo,redo}`,
+  `reload` (le bloc ouvert), `reload block <id>` (depuis le disque),
+  `reload mod <nom>` (un lot ; Warning voulu : biomes et dimensions ne
+  régénèrent pas le terrain), `reload dimension|biome` (Warning : étape 7).
+
+### Piège payé
+
+Premier essai : `reload mod` rechargeait bloc par bloc ET `AtlasMissing`
+signalait toute texture absente de l'atlas — or des faces n'y sont jamais
+(expressions, modèles) : l'atlas (textures jusqu'à 2048 px) était refait
+pour CHAQUE bloc, plus de 10 min en debug. Désormais : un lot = une attente
+des fils, un atlas, des mailleurs ; et l'atlas n'est refait que pour une
+texture NOUVELLEMENT référencée. Mesuré (debug) : un bloc 69 ms, le mod
+`elevators` entier (100 définitions, 314 blocs) 350 ms.
+
+### Vérification
+
+- `demos/voxelia/tests/test_studio_blocks.cpp` (7) : document depuis un
+  ÉTAT (bloc entier ouvert), formulaire ⇄ JSON (JSON invalide refusé sans
+  perte), annulation (glissé = 1 étape, geste sans effet = 0, 64 max),
+  validation à blanc (angles inversés, couleur, bascule vers un bloc
+  inconnu, état par défaut inconnu = Error ; contenu vivant intact), états
+  fusionnés (`off` diffère par `light.enabled`, `path`), enregistrement
+  (remplacement, ajout, en-tête gardé), rechargement à chaud dans un monde
+  vivant (même id numérique, chunk invalidé, sources de lumière −1 puis
+  rétablies, définition invalide refusée sans dégât).
+- Scénario réel (offscreen) : ouvrir le néon, portée « on », angle invalide
+  (diagnostic affiché) puis corrigé, couleur/portée, appliquer, poser,
+  annuler/rétablir, `reload block`, `reload mod elevators` → rc=0, stderr
+  vide, 16 fonctionnalités, néon posé visible dans la vue.
+
+## Étape 3 — atelier de formes et animation (2026-10-31)
+
+Le format « Blockbench » du moteur, ce sont les **rigs** des entités (modèle
+`format: "rig"`, cf. voxel/rig.hpp : parties à pivot, boîtes à UV façon
+skin, mouvements `walk` / `idle`). L'atelier édite CE format — pas un format
+parallèle que le jeu ne lirait pas.
+
+### Moteur (libs/infrastructure/voxel)
+
+- **Animations à images clés** dans les rigs : `"animations": {nom: {length,
+  loop, tracks: [{part, channel: rotation|position, keys: [{t, v, interp:
+  linear|step|smooth}]}]}}` → `RigClip` / `RigTrack` / `RigKey`,
+  `SampleRigTrack` (smooth = Hermite à tangentes nulles), `RigClipTime`
+  (boucle / borne). Erreurs : partie inconnue, canal inconnu, durée ≤ 0.
+- `PoseRig(rig, partie, RigPoseInput)` : repos + walk/idle sinusoïdaux +
+  regard + clip `idle` (permanent) + clip `walk` (durée = un pas, poids =
+  intensité de marche), ou un clip IMPOSÉ (éditeur). `WorldRenderer::UpdateRig`
+  l'utilise : **les entités du jeu jouent les clips**, décalages de position
+  compris.
+- `RigRotation(degrés)` : LA convention (x, puis y, puis z — q = Rz·Ry·Rx),
+  auparavant écrite en dur dans le rendu.
+- `RigBoxUv(boîte)` : le dépliage d'une boîte — vérifié par test identique,
+  face par face (miroir compris), aux UV que produit `BuildRigPart`.
+- `AssetManager::ForgetRig(id)` ; `Game::ReloadDefinition` l'appelle pour un
+  modèle ; `ModelDef::source/sourceFile/baseDir` comme pour les blocs.
+- `Session::ReloadDefinitions` refait l'affichage dès qu'UNE définition est
+  rechargée (avant : seulement si des blocs l'étaient — un modèle seul
+  n'était pas remaillé).
+
+### Studio
+
+- `DefinitionDocument` : base extraite de `BlockDocument` (JSON, chemins,
+  annulation par instantanés, enregistrement) ; `BlockDocument` et
+  `RigDocument` en dérivent. `Mutate` = une opération structurelle = une étape.
+- `RigDocument` : hiérarchie (ajout, suppression — enfants au grand-parent,
+  pistes retirées —, renommage propagé aux `parent` et aux pistes,
+  reparentage SANS cycle, duplication ; ordre « parent d'abord » maintenu,
+  affichage en ordre d'arbre), pivot, rotation de repos, boîtes (ajout,
+  édition, suppression, MIROIR x = 0), dépliage (`RigBoxUv`), validation
+  (`RigFromJson`, noms en double, tailles nulles, face hors texture — calques
+  `only64` contrôlés contre la hauteur doublée —, clés hors du clip), clips
+  et clés (même temps à 1 ms près = remplacée ; dernière clé ôtée = piste
+  ôtée), courbes échantillonnées par le moteur, **export OBJ** (posé au repos
+  ou par un clip, UV v vers le haut).
+- `ModelEditor` (panneau « Modèle », catalogue « Modèles ») : aperçu 3D
+  animé (scène render3d PROPRE, construite par BuildRigPart / PoseRig /
+  RigRotation, skin réel, orbite), onglets Parties (arbre, renommer, parent,
+  enfant, dupliquer, supprimer, pivot, rotation + quaternion affiché),
+  Boîtes / UV (champs, miroir, vue du dépliage colorée par face), Animation
+  (clips, lecture, tête de lecture, clé de la partie au temps courant,
+  interpolation, liste des clés, graphe des courbes x/y/z), JSON ;
+  Appliquer à chaud, Enregistrer, Exporter .obj, annuler/rétablir ; un
+  curseur glissé = une étape.
+- Console : `studio.model.{open,new,part,part.add,part.remove,part.rename,
+  part.parent,part.pivot,part.rotation,box.add,box.mirror,clip.add,key,play,
+  time,export,apply,save,undo,redo}`.
+
+### Pièges payés
+
+- **Aperçu sans tronc ni bras** : BuildRigPart recevait la taille DÉCLARÉE
+  du skin (64×32) alors que l'image chargée faisait 64×64 : les UV, divisées
+  par 32, tombaient dans les calques transparents du skin 64×64. Le jeu passe
+  la taille RÉELLE de l'image (ce qui active aussi uv64 / only64) : l'aperçu
+  aussi. Diagnostiqué en écrivant positions et bornes de la scène (justes) —
+  la faute était donc dans la texture, pas dans la géométrie.
+- Lumière par défaut d'une `Viewport3D` : soleil vertical, ambiante 40/255 —
+  côtés presque noirs ; l'atelier règle soleil oblique et ambiante franche.
+- Calques `only64` signalés à tort « hors texture » sur `core:biped` : ils
+  ne servent qu'aux skins deux fois plus hauts.
+
+### Vérification
+
+- voxel `test_rig.cpp` (6) : analyse des clips et erreurs, interpolations,
+  temps bouclé / borné, pose combinée (idle sinus + clip, walk pondéré,
+  clip imposé, partie hors bornes), convention de rotation, `RigBoxUv` =
+  UV du maillage (avec et sans miroir), rig rechargé relu (l'ancien reste
+  valide pour qui le tient).
+- voxelia `test_studio_rig.cpp` (8) : vrai `core:biped` ouvert et sans
+  diagnostic, invariants de hiérarchie (cycle refusé, parent avant enfant,
+  enfants au grand-parent), renommage dans parents et pistes, boîtes /
+  miroir / UV / hors texture, clés et courbes (valeurs exactes), annulation
+  (glissé = 1 étape), export OBJ (comptes v / vt / f, hauteur au repos puis
+  posée par un clip de position), rechargement dans une partie (le moteur
+  joue le nouveau clip idle).
+- Scénario réel (offscreen) : ouvrir `core:biped`, clip idle à 3 clés
+  douces, chapeau (2 boîtes + miroir), lecture, export OBJ (120 triangles),
+  appliquer à chaud (40 ms), annuler / rétablir → rc=0, stderr vide,
+  biped complet et texturé dans l'aperçu.
+
+## Étape 3 bis — nodebox, glTF, Bézier, mélange (2026-10-31)
+
+### Bézier à poignées (moteur : voxel/rig)
+
+- `RigInterp::BEZIER` ; `RigKey::in` / `out` (`RigHandle` : décalage de
+  temps, décalage de valeur). JSON : `"interp": "bezier", "in": {"t", "v"},
+  "out": {"t", "v"}` ; `out` d'une clé sert au segment suivant, `in` au
+  segment qui arrive ; absentes = un tiers de l'intervalle, pente nulle
+  (≡ smooth). `RigSegmentBezier` borne les temps des poignées au segment :
+  la courbe reste une FONCTION du temps ; évaluation par dichotomie sur x(s)
+  puis valeur au même s. La courbe peut dépasser ses clés (testé).
+- Atelier : interpolation `bezier`, poignées de la clé sélectionnée (entrée
+  / sortie, t et valeur), « Poignées auto », « Lisser la piste » (tangentes
+  de Catmull-Rom, extrémités à plat) ; le graphe montre les points de
+  contrôle en nuage. Remplacer la valeur d'une clé garde ses poignées.
+  Limite : poignées éditées par champs, pas glissées dans le graphe
+  (`ui::Plot` n'a pas de points saisissables).
+
+### Mélange de clips (moteur)
+
+- `"layers": [{"clip", "weight", "speed", "mode": "mix"|"add"}]` →
+  `RigModel::layers`, jouées en permanence par-dessus idle / walk par
+  `PoseRig` (donc par le JEU) : `add` ajoute la piste pondérée, `mix` amène
+  la pose vers celle du clip (repos + piste), sur les seuls canaux animés.
+  `RigPoseInput::layers` : couches imposées (éditeur) ; un clip imposé les
+  ignore. Erreurs : clip inconnu, mode inconnu.
+- Atelier : section « Mélange » (clip, poids, vitesse, mode, retrait) et
+  « Aperçu du mélange » (la pose du jeu au temps courant).
+
+### glTF
+
+- **dataio : écrivain** `dataio/documents/gltf_writer.hpp` (n'existait
+  pas) : `SaveScene(chemin, SceneDescription)` → `.gltf` + `.bin` ; maillages
+  (POSITION avec min/max, NORMAL, TEXCOORD_0, indices u32), matériaux
+  texturés (échantillonneur au plus proche, alphaMode MASK), hiérarchie de
+  nœuds (TRS), animations (translation / rotation / échelle, LINEAR / STEP) ;
+  `ValidateScene` refuse indices hors bornes, tailles incohérentes, parent
+  après l'enfant, temps décroissants, CUBICSPLINE. Testé par ALLER-RETOUR
+  avec le lecteur du dépôt.
+- **voxel : lecteur de modèles** `LoadGltfMesh(chemin, nœud)` — scène
+  entière (transformations monde, normales par l'inverse-transposée) ou un
+  nœud dans son repère ; un groupe par primitive texturé par l'image du
+  matériau. Format `gltf` pour les modèles (`ModelDef`, formes de blocs
+  `"type": "gltf"`, modèles d'entités) ; parties de rig maillées :
+  `"model": "fichier.gltf", "node": "Nom"` (relatif au mod, blocs → pixels,
+  posé au pivot) — `RigFromJson(def, baseDir)`.
+- **Atelier** : « Exporter glTF » (un nœud par partie, maillages, chaque
+  clip échantillonné à 30 i/s par `PoseRig` — Bézier, paliers, positions
+  compris —, skin copié à côté) ; « Importer glTF » (chaque nœud → une
+  partie : pivot, rotation de repos, parent, maillage par model + node ;
+  skin du glTF repris si le modèle n'en a pas). Limites : le lecteur glTF ne
+  lit pas les animations (import de géométrie et de hiérarchie seulement),
+  ni `.glb` ni base64 ; l'échelle des nœuds est ignorée à l'import.
+- `RigEulerFromQuaternion` (inverse de RigRotation, avec blocage de cardan).
+
+### Nodebox des blocs
+
+- `BlockDocument` : boîtes en PIXELS 0..16 (JSON moteur −0,5..0,5), lues
+  sous les trois formes (`"nodebox": [...]`, `{fixed}`, `"shape"`), par
+  portée (un état hérite des boîtes du bloc commun), ajout / édition /
+  suppression / miroir (axe) / quart de tour, le bloc devient
+  `"type": "nodebox"` ; `Loaded()` : le BlockDef que le moteur chargera.
+- `WorldRenderer::BlockPreviewMesh` / `BlockMaterial` : le bloc maillé par
+  le MAILLEUR DES CHUNKS (ChunkMesher::BuildShape, atlas de la partie).
+- Éditeur de blocs : onglet « Forme » (aperçu 3D, boîtes au glissé = une
+  étape, miroirs x / z, tourner, cube plein) ; console
+  `studio.block.box.{add,mirror,rotate,remove}`.
+
+### Pièges payés
+
+- `dataio::gltf::Primitive::Find` rend l'ACCESSEUR d'un attribut, pas sa
+  position dans `attributes` — indexer `attributes` avec plantait (assertion
+  du vecteur) ; le test de l'écrivain passait par coïncidence (accesseur n°
+  = position n°).
+- Angles depuis un quaternion : `asin` près de ±90° perd ~0,02° (89,98°
+  au lieu de 90°) — `atan2(−m20, √(m21² + m22²))` ; et cas du blocage de
+  cardan traité à part.
+- Export glTF puis réimport sans tronc ni bras : les UV étaient faites pour
+  la taille DÉCLARÉE (64×32) et l'image copiée faisait 64×64 — même piège
+  que l'aperçu, ailleurs : l'export reçoit la taille réelle du skin.
+- `studio.block.set graphics.texture "core:x"` : la console ôte les
+  guillemets ; un mot nu qui n'est pas du JSON est désormais un texte.
+
+### Vérification
+
+- voxel `test_rig.cpp` (+3) : poignées (dépassement, bornage, lecture JSON),
+  couches (mix, add, canal non animé intact, imposées, erreurs), glTF
+  (scène / nœud / absent / partie maillée / modèle chargé par l'AssetManager).
+- dataio `test_gltf.cpp` (+2) : aller-retour de l'écrivain, refus.
+- voxelia : rig (+3 : poignées et lissage, couches, export puis import glTF
+  avec géométrie identique, skin 64×64), blocs (+2 : nodebox, nodebox par
+  état chargées par le moteur).
+- Scénarios réels : table nodebox (5 boîtes, 60 triangles) appliquée et
+  posée ; biped animé, lissé, poignée relevée, deux couches, export glTF
+  (2 animations), réimport complet et texturé → rc=0, stderr vide.
+
+## Étape 4 — éditeur de structures (2026-10-31)
+
+Le moteur avait déjà presque tout (`Schematic` : capture, collage, rotation,
+miroir, enveloppe, remplacement, comptes, quatre formats ; `Formula` et
+`Plot` ; `Game` : remplissage, remplacement, presse-papiers, fichiers,
+surlignages) : l'étape est surtout la mise en interface.
+
+### Moteur
+
+- `voxel::TokenizeFormula(text, variables)` : morceaux d'une formule
+  (nombre, variable, fonction, constante, mot-clé, opérateur, parenthèse,
+  inconnu) avec leur place — coloration de l'éditeur, sans compiler ;
+  `FormulaFunctions()` pour l'aide-mémoire. Les opérateurs de deux
+  caractères sont partagés avec l'analyseur.
+- `WorldRenderer::StructureMeshes(schematic)` : une structure maillée comme un
+  petit monde (mailleur des chunks, `BuildStructure`) ;
+  `WorldRenderer::SetGhost(schematic, coin)` : fantôme translucide bleuté,
+  vu des deux côtés, refait au rechargement du contenu.
+
+### Studio
+
+- `StructureDocument` (sans fenêtre) : la structure, ses annulations par
+  instantanés (64 au plus, et au plus 4 M cellules en tout, la dernière
+  toujours gardée), rotation, miroirs, enveloppe (plate selon un axe),
+  remplacement (une étape seulement s'il change quelque chose), cellules,
+  ancre, comptes triés ; `CheckFormula` (toutes les expressions du genre,
+  erreur préfixée de l'expression fautive : « y : position 6 : … ») et
+  `Plot` ; lecture avec résolution des noms (alias « structures.aliases »,
+  puis « mod:nom » → un mod chargé ; restés inconnus : rendus) ; écriture
+  dans le format de l'extension.
+- `StructureEditor` : onglet « Structures » à gauche (bibliothèque d'échange,
+  structures du monde, presse-papiers, relus toutes les 2 s), onglet
+  « Structure » à droite — aperçu 3D en orbite, transformations, comptes
+  (un clic : « remplacer ce bloc »), enregistrement / presse-papiers ;
+  sous-onglet Formule (genre, éditeur coloré, x / y / z paramétriques, bloc,
+  échelle, convention z vers le haut, enveloppe, boîte, plages, « Vérifier »,
+  « Tracer », aide-mémoire) ; sous-onglet Monde (coins A / B surlignés en
+  bleu, capture, remplissage all / hollow / walls / outline / keep, collage
+  au bloc visé avec rotation et air posé / fusionné / seulement dans l'air,
+  fantôme + boîte surlignée en jaune, annulation du dernier collage — la
+  région écrasée est capturée avant).
+- Commandes `studio.structure.*` : new, open (nom, `world:`, `clipboard:`,
+  chemin), save, clipboard, rotate, mirror, hollow, replace, set, anchor,
+  undo, redo, formula (kind, block, scale, zup, hollow, bounds, range,
+  samples, x, y, z, expr), check, plot, corner, capture, fill,
+  replace_region, paste, paste.options, paste.undo, ghost, info.
+
+### Vérification
+
+- voxelia : `StudioStructures_*` (5) — transformations et annulation,
+  budget mémoire des annulations, formules (position de l'erreur,
+  expression fautive nommée, boule pleine / creuse, hélice, refus au-delà
+  des limites sans toucher le document), quatre formats aller-retour et
+  noms Minetest résolus / signalés, capture-collage-restauration dans une
+  partie ; voxel : `Formula_TokensForTheEditor`.
+- Scénario studio hors écran : boîte de briques remplie (hollow) entre deux
+  coins, capturée, tournée, enregistrée dans la bibliothèque ; boule d'or
+  tracée (123 blocs), fantôme affiché puis collée ; formule fautive →
+  « position 9 : « ) » attendu » ; boule enregistrée en .we dans le monde ;
+  « maison » rouverte (aperçu, comptes) — rc=0, stderr vide.
+
+### Non fait
+
+Arborescence de structures (entités, références à d'autres structures,
+cycles) : `Schematic` ne porte que des blocs et des rangements ; glisser une
+structure dans la vue (le collage se fait au bloc visé ou aux coordonnées).
+
+## Étape 5 — atelier de textures (2026-10-31)
+
+### Moteur
+
+- `voxel::SaveImageFile(image, path, jpgQuality)` : PNG, ou JPG selon
+  l'extension (`sdl3::ImgSavePng` / `ImgSaveJpg`), dossiers créés.
+- `AssetManager::ReloadTexture(id)` : entrée du catalogue mise à jour, image
+  résidente déchargée (relue au prochain `Texture(id)`) ;
+  `Game::ReloadDefinition` l'appelle pour une définition de texture.
+- `TextureAtlas::Tiles()` (tuiles rangées, sans les alias des textures à
+  variantes, triées) et `Occupancy()` ; `voxel::VariantIndex(p, n)` : la
+  variante que le mailleur tire en `p` (le mailleur l'utilise lui-même).
+- `WorldRenderer::RebuildAtlas(tuile, max)` (puissances de deux 2..2048) et
+  `AtlasInfo()` : taille, tuiles, occupation, temps ; `Initialize` et
+  `ReloadContent` passent par le même `BuildAtlas`.
+
+### Studio
+
+- `TextureDocument` (sans fenêtre) : source jusqu'à 2048 px, rendu jusqu'à
+  256 px par `TextureAtlas::Resample` / `Glow` (exactement l'atlas) ;
+  calques (visibilité, opacité, normal / multiply / screen / overlay, nom,
+  groupe, ordre, duplication, fusion vers le bas) ; pinceau (taille — carré
+  jusqu'à 2 px, disque ensuite, 3 px en croix comme Aseprite —, opacité,
+  mode, symétrie H / V / HV, couleur et couleur secondaire) ; sélection
+  rectangulaire qui borne toute peinture ; crayon et gomme par traits
+  continus (Bresenham), ligne, rectangle et ellipse (contour ou plein),
+  remplissage 4-connexe (tolérance par composante + seuil alpha : une zone
+  transparente se remplit quelle que soit sa couleur), pipette (composée ou
+  calque) et palette des 24 couleurs récentes, déplacement du calque ou de
+  la sélection, flou 3 × 3 et netteté pondérés par l'alpha, motifs (bruit de
+  valeur à octaves, dégradé, briques, damier) ; annulation PAR TRAIT
+  (BeginStroke / EndStroke), 64 étapes et 256 Mo au plus ; export PNG / JPG
+  (source ou rendu), import, projet en calques (`layers.json` + un PNG par
+  calque).
+- `TextureEditor` : onglet « Textures » à gauche (catalogue filtrable du
+  contenu), onglet « Texture » à droite — outils, couleur (#rrggbbaa),
+  taille, mode, symétrie, plein ; palette cliquable ; toile à grille de
+  pixels (zoom molette, forme en cours de tracé, sélection) ; sous-onglets
+  Calques, Aperçu (rendu 8..256 px : chaîne des mipmaps jusqu'à 1 px agrandie
+  à la même taille, « éclairé par le ciel » — linéaire, ACES — à côté de la
+  « lueur »), Variantes (liste, ajout copie / bruit, suppression avec
+  confirmation, bloc témoin 6 × 6 où chaque case montre la variante que le
+  jeu tire à cette position), Atlas (tuile, max, « Reconstruire l'atlas »,
+  bilan, liste des tuiles avec leur taille), Fichier.
+- Enregistrer : l'image source est écrite dans le fichier de la texture (ou
+  `<mod>/textures/<nom>.png`), la texture relue, l'atlas reconstruit et tout
+  remaillé. Une texture procédurale ou composée devient un fichier pour la
+  partie, avec un avertissement : son JSON de mod n'est pas réécrit.
+- Variantes : le jeu ne les voit que s'il n'y a PAS de « nom.png » à côté des
+  « nom.N.png » ; ajouter une variante à une texture seule déplace donc
+  « nom.png » en « nom.1.png » (dit dans le message), puis écrit « nom.2.png »,
+  déclare la variante et la liste de la texture mère, et reconstruit l'atlas.
+- Commandes `studio.texture.*` : open, new, import, export, save,
+  project.save, project.open, undo, redo, tool, apply, brush (color,
+  secondary, size, opacity, blend, symmetry, filled), fill.options, filter
+  (blur, sharpen, clear), generate, layer (add, select, remove, duplicate,
+  merge, move, opacity, blend, visible, group), select, render, atlas,
+  variant.add, variant.remove, view, info. La souris sur la toile passe par
+  `Studio::HandleEvent` avant tout le reste.
+
+### Vérification
+
+- voxelia : `StudioTextures_*` (7) — modes de fusion, symétrie HV, disque du
+  pinceau, trait sans trou en une étape, sélection, gomme ; contour, ellipse
+  symétrique, remplissage (zone, tolérance), pipette et palette, déplacement
+  de la sélection, flou / netteté, motifs ; calques (multiply, opacité,
+  visibilité, ordre, groupe, duplication, fusion qui ne change pas l'image) ;
+  rendu identique à `Resample`, chaîne 16 → 1, lueur identique à `Glow`, un
+  pixel qui disparaît au niveau 2 px ; fichiers PNG / JPG / projet ;
+  texture d'un mod réécrite → `ReloadTexture` → atlas qui la prend ;
+  `VariantIndex`. voxel : `Atlas_TilesAndOccupancy`.
+- Scénario studio hors écran sur un mod temporaire : ligne, rectangle plein
+  en symétrie H, ellipse, calque « Ombre » en multiply rempli dans une
+  sélection (64 px = la sélection), pipette ; enregistré dans le mod, atlas
+  reconstruit, blocs posés montrant la peinture ; variante ajoutée
+  (peinture.png → peinture.1.png + peinture.2.png) ; atlas à 128 px max
+  (2048², 1540 tuiles, 56 %, 4 s en debug) ; JPG et projet exportés —
+  rc=0, stderr vide.
+
+### Non fait
+
+Peinture sur le modèle 3D (bonus : pipette dans la vue 3D, projection par
+face) ; renommage d'une variante (suppression + ajout) ; le JSON d'une
+texture procédurale ou composée n'est pas réécrit par l'enregistrement.
+
+## Étape 6 — éditeur d'entités (2026-10-31)
+
+### Moteur
+
+- **Bug corrigé** (jeu compris) : sans paramètre « speed », les comportements
+  intégrés prenaient pour base `MoveIntent::speed`, que `Steer` réécrit à
+  chaque pas — « wander » (× 0,5) la divisait par deux à chaque pas : toute
+  créature qui erre sans « speed » s'arrêtait presque aussitôt (cochons,
+  vaches… immobiles) ; « flee » (× 1,4) l'emballait. La base est désormais
+  `PhysicsBody::maxSpeed` (follow × 1, flee × 1,4, wander × 0,5). Test
+  `Behaviors_DefaultSpeedsComeFromTheBody`.
+- `EntityDef::source / sourceFile / baseDir` (comme les blocs et modèles) ;
+  `ContentRegistry::BuiltinBehaviors()` ; `ScriptHost::BehaviorIds()`
+  (comportements déclarés par `voxel.behavior`).
+
+### Studio
+
+- `EntityDocument` (DefinitionDocument) : comportements dans leur ordre
+  d'exécution (ajout, retrait, déplacement, paramètres — « "wander" » devient
+  un objet au premier paramètre), butin, skins ; `Validate` à blanc (copie du
+  contenu) : chargement, boîte de collision (0..16), PV, masse, vitesse,
+  rebond, modèle, skins, sons et jeux de sons, butin, comportements (intégrés,
+  définis, déclarés par script), apparition (chance 0..1, max, biomes, blocs) ;
+  `Components` : ce que SpawnFromDef donnera (Collider, PhysicsBody,
+  MoveIntent, EntityKind, Health, Visual + lumière, Properties,
+  SoundEmitter, Behaviors, Persistent).
+- `EntityEditor` : onglet « Entités » (catalogue par genre, filtre),
+  onglet « Entité » — formulaire (identité, physique, gameplay, apparence,
+  lumière, sons, apparition ; un champ absent montre la valeur du moteur),
+  IA (liste ordonnée, ▲▼✕, « clé valeur » par comportement), butin et skins,
+  composants, JSON ; diagnostics en direct ; « Appliquer à chaud »
+  (Session::ReloadDefinition, refusé s'il reste une erreur), « Enregistrer ».
+  Les entités déjà apparues gardent leurs composants (copiés à l'apparition,
+  leur pointeur de définition reste valide) ; l'aperçu est refait.
+- **Aperçu de comportement** : arène close devant la caméra du studio (sol de
+  pierre 13 × 13, murs et toit de verre, intérieur vidé — la région est
+  capturée avant), l'entité seule au centre, IA active ; le studio la
+  sélectionne (outliner + inspecteur en direct), centre la caméra et la suit ;
+  le panneau montre ses PV et sa position. « Arrêter » la retire SANS butin
+  (`ecs::DespawnRecursive`, pas `Kill`) et rend la région.
+- Commandes `studio.entity.*` : open, new, set, apply, save, undo, redo,
+  behavior.add / remove / move / param, drop.add / remove, preview,
+  preview.stop, check.
+
+### Vérification
+
+- voxelia : `StudioEntities_*` (3) — document du zombie (comportements et
+  paramètres, raccourci devenu objet, butin, skins, annulation) ; validation
+  (le zombie du mod est propre ; boîte, PV, modèle, chance, biome, son,
+  comportement et butin inconnus signalés ; contenu vivant intact ;
+  définition qui ne se charge pas) ; composants du cochon ; création,
+  enregistrement, rechargement à chaud (nouvelle apparition à la nouvelle
+  boîte et aux nouveaux PV, l'ancienne inchangée, pointeur valide) et IA qui
+  déplace la créature.
+- Scénario studio : cochon à 25 PV et errance plus rapide appliqués à chaud
+  (49 ms), aperçu dans l'arène suivi par la caméra, arrêt (pré rendu,
+  entité retirée), comportement inconnu signalé sur le zombie — rc=0,
+  stderr vide.
+
+### Non fait
+
+Animations `idle/walk/attack/death` éditées ici (elles sont dans l'atelier de
+modèles) ; arène dans une dimension temporaire (elle est bâtie dans le monde
+courant, puis rendue) ; paramètres d'IA par formulaire typé (saisie
+« clé valeur »).
+
+## Reste à faire (étapes 7+ du prompt)
+
+Éditeurs de biomes et de dimensions (étape 7), peinture sur modèle 3D,
+poignées de Bézier glissées dans le graphe, import des animations glTF,
+`.glb`, sélection au clic dans la vue (`PickMeshFace`), gizmo, arborescence
+de structures, navigateur de ressources, Mod Manager, édition des valeurs
+dans l'inspecteur, vérification `--seed`, scénarios nommés `--scenario=`.
 
 `script_bindings` (et donc `sandbox`), cassé à HEAD et dans l'index, a été
 réparé le 2026-10-31 :

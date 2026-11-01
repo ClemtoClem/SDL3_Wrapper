@@ -96,4 +96,62 @@ Result<sdl3::GpuTexture, String> CreateTextureFromPixels(sdl3::GpuDevice &device
 	return Ok(std::move(textureResult.Value()));
 }
 
+Result<sdl3::GpuTexture, String> CreateDataTexture(sdl3::GpuDevice &device, SDL_GPUTextureFormat format, uint32_t width,
+												 uint32_t height, uint32_t depth) {
+	if (width == 0 || height == 0 || depth == 0)
+		return Err(String("CreateDataTexture : taille nulle"));
+	sdl3::GpuTextureCreateInfo info{};
+	info.type = depth > 1 ? sdl3::gpu_texture_type::TEXTURE3_D : sdl3::gpu_texture_type::TEXTURE2_D;
+	info.format = format;
+	info.usage = sdl3::gpu_texture_usage::SAMPLER;
+	info.width = width;
+	info.height = height;
+	info.layer_count_or_depth = depth;
+	info.num_levels = 1;
+	info.sample_count = sdl3::gpu_sample_count::SAMPLE1;
+	auto texture = device.CreateTexture(info);
+	if (!texture)
+		return Err(String(texture.Error()));
+	return Ok(std::move(texture.Value()));
+}
+
+Result<bool, String> UploadTextureRegions(sdl3::GpuDevice &device, sdl3::GpuTexture &texture,
+										  std::span<const TextureRegionData> regions) {
+	size_t total = 0;
+	for (const TextureRegionData &r : regions)
+		total += r.bytes.size();
+	if (total == 0)
+		return Ok(true);
+	if (total > size_t(UINT32_MAX))
+		return Err(String("UploadTextureRegions : envoi trop gros"));
+	auto transferResult = device.CreateTransferBuffer(sdl3::gpu_transfer_buffer_usage::UPLOAD, uint32_t(total));
+	if (!transferResult)
+		return Err(String(transferResult.Error()));
+	sdl3::GpuTransferBuffer transfer = std::move(transferResult.Value());
+	{
+		auto mapped = transfer.Map(false);
+		if (!mapped)
+			return Err(String("UploadTextureRegions : tampon de transfert inaccessible"));
+		uint8_t *out = mapped.As<uint8_t>();
+		for (const TextureRegionData &r : regions) {
+			std::memcpy(out, r.bytes.data(), r.bytes.size());
+			out += r.bytes.size();
+		}
+	}
+	auto cmd = device.AcquireCommandBuffer();
+	{
+		sdl3::GpuCopyPass copyPass = cmd.BeginCopyPass();
+		uint32_t offset = 0;
+		for (const TextureRegionData &r : regions) {
+			sdl3::GpuTextureTransferInfo src{transfer.Get(), offset, r.w, r.h};
+			sdl3::GpuTextureRegion dst{texture.Get(), 0, 0, r.x, r.y, r.z, r.w, r.h, r.d};
+			copyPass.UploadToTexture(src, dst, false);
+			offset += uint32_t(r.bytes.size());
+		}
+	}
+	if (!cmd.Submit())
+		return Err(String(sdl3::GetError()));
+	return Ok(true);
+}
+
 } // namespace render3d

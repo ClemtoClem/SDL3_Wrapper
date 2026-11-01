@@ -69,7 +69,7 @@
    "texture": "core:oak_leaves",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -185,7 +185,7 @@
   "graphics": {
    "texture": "core:birch_leaves",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -301,7 +301,7 @@
   "graphics": {
    "texture": "core:spruce_leaves",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -418,7 +418,7 @@
    "texture": "core:jungle_leaves",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -534,7 +534,7 @@
   "graphics": {
    "texture": "core:acacia_leaves",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -651,7 +651,7 @@
    "texture": "core:dark_oak_leaves",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -746,7 +746,7 @@
   "graphics": {
    "texture": "core:leaves_pink_cherry",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -804,7 +804,7 @@
    "texture": "core:leaves_white_cherry",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -900,7 +900,7 @@
    "texture": "core:leaves_ebony",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -995,7 +995,7 @@
   "graphics": {
    "texture": "core:leaves_ethereal",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -1091,7 +1091,7 @@
    "texture": "core:leaves_eucalyptus",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -1186,7 +1186,7 @@
   "graphics": {
    "texture": "core:leaves_fir",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -1281,7 +1281,7 @@
   "graphics": {
    "texture": "core:leaves_hellbark",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -1376,7 +1376,7 @@
   "graphics": {
    "texture": "core:leaves_jacaranda",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -1471,7 +1471,7 @@
   "graphics": {
    "texture": "core:leaves_magic",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -1567,7 +1567,7 @@
    "texture": "core:leaves_mahogany",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -1663,7 +1663,7 @@
    "texture": "core:leaves_mangrove",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -1759,7 +1759,7 @@
    "texture": "core:leaves_palm",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -1855,7 +1855,7 @@
    "texture": "core:leaves_pine",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -1951,7 +1951,7 @@
    "texture": "core:leaves_redwood",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -2047,7 +2047,7 @@
    "texture": "core:leaves_sacred_oak",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -2142,7 +2142,7 @@
   "graphics": {
    "texture": "core:leaves_umbran",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -2238,7 +2238,7 @@
    "texture": "core:leaves_willow",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -2316,7 +2316,7 @@
   "graphics": {
    "texture": "core:leaves_dead",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -2373,7 +2373,7 @@
   "graphics": {
    "texture": "core:leaves_maple",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -2430,7 +2430,7 @@
   "graphics": {
    "texture": "core:leaves_orange_autumn",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -2487,7 +2487,7 @@
   "graphics": {
    "texture": "core:leaves_yellow_autumn",
    "material": "CUTOUT",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {
@@ -2545,7 +2545,7 @@
    "texture": "core:leaves_flowering",
    "material": "CUTOUT",
    "biomeTint": "foliage",
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:leaves",
   "gameplay": {

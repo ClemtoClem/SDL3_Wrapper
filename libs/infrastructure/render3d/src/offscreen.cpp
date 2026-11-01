@@ -174,6 +174,8 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 			}
 			key.hasShadows = false;     // scope cut M21 (voir le plan) : pas d'ombres offscreen
 			key.hasEnvironment = false; // idem, pas d'IBL offscreen
+			key.voxelReflections = draw.material.voxelReflections && draw.material.lit && draw.material.bakedLighting &&
+								   m_voxelReflections.IsSome();
 			key.topology = draw.topology;
 			key.colorFormat = target.ColorFormat();
 			key.depthFormat = target.DepthFormat();
@@ -253,7 +255,10 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 					materialUbo.objectLight[2] = ol.z;
 					materialUbo.objectLight[3] = ol.w;
 					cmd.PushFragmentUniformData(0, materialUbo);
-					cmd.PushFragmentUniformData(1, lightUbo);
+					if (key.voxelReflections)
+						cmd.PushFragmentUniformData(1, WithVoxelReflections{lightUbo, VoxelReflectionUbo()});
+					else
+						cmd.PushFragmentUniformData(1, lightUbo);
 
 					struct PointLightGpu {
 						float position[3], distanceVal;
@@ -311,11 +316,22 @@ Result<bool, StringView> Canvas::RenderObjectOffscreen(Object3D &root, const Cam
 					cmd.PushFragmentUniformData(1, lightUbo);
 				}
 
-				sdl3::GpuTextureSamplerBinding samplerBinding{};
-				samplerBinding.texture =
+				// Albedo, puis la grille des réflexions (pas d'ombres ni d'IBL ici).
+				std::array<sdl3::GpuTextureSamplerBinding, 4> samplerBindings{};
+				samplerBindings[0].texture =
 					draw.material.albedo.IsSome() ? draw.material.albedo.Value()->Get() : m_whiteTexture.Get();
-				samplerBinding.sampler = SamplerFor(draw.material);
-				pass.BindFragmentSamplers(0, {&samplerBinding, 1});
+				samplerBindings[0].sampler = SamplerFor(draw.material);
+				uint32_t samplerCount = 1;
+				if (key.voxelReflections) {
+					Material nearest;
+					nearest.nearestFilter = true;
+					SDL_GPUSampler *sampler = SamplerFor(nearest);
+					const VoxelReflections &v = m_voxelReflections.Value();
+					samplerBindings[samplerCount++] = {v.grid->Get(), sampler};
+					samplerBindings[samplerCount++] = {v.blocks->Get(), sampler};
+					samplerBindings[samplerCount++] = {v.reflectivity->Get(), sampler};
+				}
+				pass.BindFragmentSamplers(0, std::span<const sdl3::GpuTextureSamplerBinding>(samplerBindings.data(), samplerCount));
 			} else {
 				BindUnlitMaterial(cmd, pass, draw.material, key.hasTexture);
 			}

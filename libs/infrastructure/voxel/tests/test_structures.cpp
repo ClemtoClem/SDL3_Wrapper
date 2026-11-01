@@ -6,6 +6,7 @@
 #include "test.hpp"
 
 #include <cmath>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 
@@ -355,7 +356,7 @@ TEST(Game_StructuresLiveInTheWorldAndTheExchangeFolder) {
 	CHECK(game.DeleteStructureFile("coffre.mts", true).IsOk());
 	CHECK(game.StructureFiles(true).empty());
 	// Import d'un fichier Minetest : alias de la configuration.
-	Write(fs::path(game.StructuresDirectory(true).CStr()) / "mt.we", R"(5:return {{x=0,y=0,z=0,name="core:cobble"},{x=1,y=0,z=0,name="mod_absent:truc"}})");
+	Write(fs::path(game.StructuresDirectory(true).CStr()) / "mt.we", R"(5:return {{x=0,y=0,z=0,name="default:cobble"},{x=1,y=0,z=0,name="mod_absent:truc"}})");
 	std::vector<String> unknown;
 	Result<Schematic, String> mt = game.LoadStructureFile("mt.we", true, &unknown);
 	REQUIRE(mt.IsOk());
@@ -386,4 +387,34 @@ TEST(Game_StructuresLiveInTheWorldAndTheExchangeFolder) {
 	game.ClearHighlight("sel");
 	CHECK(game.Highlights().empty());
 	game.CloseWorld();
+}
+
+TEST(Formula_TokensForTheEditor) {
+	// Coloration de l'éditeur : chaque morceau garde sa place dans le texte.
+	const String text("2x^2 + sin(y) <= pi and q != 1.5e-3");
+	const std::vector<FormulaToken> tokens = TokenizeFormula(text, {"x", "y", "z"});
+	auto kindOf = [&](const char *piece) {
+		for (const FormulaToken &t : tokens)
+			if (text.Substr(t.begin, t.end - t.begin) == piece)
+				return int(t.kind);
+		return -1;
+	};
+	CHECK_EQ(kindOf("2"), int(FormulaToken::Kind::NUMBER));
+	CHECK_EQ(kindOf("x"), int(FormulaToken::Kind::VARIABLE));
+	CHECK_EQ(kindOf("^"), int(FormulaToken::Kind::OPERATOR));
+	CHECK_EQ(kindOf("sin"), int(FormulaToken::Kind::FUNCTION));
+	CHECK_EQ(kindOf("("), int(FormulaToken::Kind::PAREN));
+	CHECK_EQ(kindOf("<="), int(FormulaToken::Kind::OPERATOR)); // deux caractères, un seul morceau
+	CHECK_EQ(kindOf("pi"), int(FormulaToken::Kind::CONSTANT));
+	CHECK_EQ(kindOf("and"), int(FormulaToken::Kind::KEYWORD));
+	CHECK_EQ(kindOf("q"), int(FormulaToken::Kind::UNKNOWN)); // pas une variable de ce tracé
+	CHECK_EQ(kindOf("!="), int(FormulaToken::Kind::OPERATOR));
+	CHECK_EQ(kindOf("1.5e-3"), int(FormulaToken::Kind::NUMBER));
+	// Les variables dépendent du tracé : « t » est inconnu pour x, y, z.
+	CHECK_EQ(int(TokenizeFormula("t", {"x"}).front().kind), int(FormulaToken::Kind::UNKNOWN));
+	CHECK_EQ(int(TokenizeFormula("t", {"t"}).front().kind), int(FormulaToken::Kind::VARIABLE));
+	CHECK(TokenizeFormula("   ", {"x"}).empty());
+	const std::vector<String> functions = FormulaFunctions();
+	CHECK(std::find(functions.begin(), functions.end(), String("hypot")) != functions.end());
+	CHECK(std::find(functions.begin(), functions.end(), String("if")) != functions.end());
 }

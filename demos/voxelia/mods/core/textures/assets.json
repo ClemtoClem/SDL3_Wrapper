@@ -8,7 +8,7 @@
   {"type": "texture", "id": "grass_top", "path": "textures/blocks/grass_top.png", "biomeTint": "grass"},
   // Côté : terre + bordure d'herbe (calque gris coloré en vert tempéré).
   {"type": "texture", "id": "grass_side", "compose": "textures/blocks/dirt.png^(textures/blocks/grass_block_side_overlay.png^tint(125, 185, 85))"},
-  {"type": "texture", "id": "water", "path": "textures/blocks/water_still.png"},
+  {"type": "texture", "id": "water", "path": "textures/blocks/water_still.png", "reflectivity": 0.3},
   {"type": "texture", "id": "lava", "path": "textures/blocks/lava_still.png"},
   {"type": "texture", "id": "planks", "path": "textures/blocks/oak_planks.png"},
   {"type": "texture", "id": "cobble", "path": "textures/blocks/cobblestone.png"},
@@ -16,5 +16,15 @@
   {"type": "texture", "id": "chair", "path": "textures/blocks/spruce_planks.png"},
   {"type": "texture", "id": "lamp_glow", "compose": "textures/blocks/glowstone.png^lighting(1.1)"},
   // Composition : la bûche de chêne vue de dessus, éclaircie (planches de table de travail).
-  {"type": "texture", "id": "worktop", "compose": "textures/blocks/oak_planks.png^(textures/blocks/crafting_table_top.png^opacity(0.85))"}
+  {"type": "texture", "id": "worktop", "compose": "textures/blocks/oak_planks.png^(textures/blocks/crafting_table_top.png^opacity(0.85))"},
+  // Lumière réfléchie (« reflectivity » : 0 mat, 1 miroir parfait) : métaux
+  // polis, glace, verre ; le miroir ne montre que son reflet.
+  {"type": "texture", "id": "iron_block", "path": "textures/blocks/iron_block.png", "reflectivity": 0.45},
+  {"type": "texture", "id": "gold_block", "path": "textures/blocks/gold_block.png", "reflectivity": 0.55},
+  {"type": "texture", "id": "diamond_block", "path": "textures/blocks/diamond_block.png", "reflectivity": 0.35},
+  {"type": "texture", "id": "ice", "path": "textures/blocks/ice.png", "reflectivity": 0.3},
+  {"type": "texture", "id": "packed_ice", "path": "textures/blocks/packed_ice.png", "reflectivity": 0.25},
+  {"type": "texture", "id": "blue_ice", "path": "textures/blocks/blue_ice.png", "reflectivity": 0.3},
+  {"type": "texture", "id": "glass", "path": "textures/blocks/glass.png", "reflectivity": 0.15},
+  {"type": "texture", "id": "mirror", "procedural": {"color": [214, 220, 228], "noise": 0.02}, "reflectivity": 1}
 ]

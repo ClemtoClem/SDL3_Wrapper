@@ -174,11 +174,13 @@ struct ItemStack {
 	[[nodiscard]] bool IsEmpty() const noexcept { return count <= 0 || item.IsEmpty(); }
 };
 
-/// Équipement porté : armure (tête, torse, jambes, pieds).
+/// Équipement porté : armure (tête, torse, jambes, pieds) et objet tenu en
+/// main gauche (la main droite tient l'emplacement choisi de l'inventaire).
 enum class ArmorSlot : uint8_t { HEAD, CHEST, LEGS, FEET };
 inline constexpr int ARMOR_SLOTS = 4;
 struct Equipment {
 	std::array<ItemStack, ARMOR_SLOTS> armor;
+	ItemStack offhand;
 };
 
 /// Objet au sol, ramassable.

@@ -3,6 +3,7 @@
 #include <voxel/json.hpp>
 #include <voxel/save.hpp>
 
+#include <sdl3/stdinc.hpp>
 #include <sql/binary_storage.hpp>
 
 #include <chrono>
@@ -597,6 +598,11 @@ NodePtr EntityToJson(ecs::ArchetypeRegistry &registry, ecs::Entity e) {
 		for (int i = 0; i < ARMOR_SLOTS; ++i)
 			armor.Slot(i) = eq.Unwrap()->armor[size_t(i)];
 		n->Set("armor", armor.ToJson());
+		if (!eq.Unwrap()->offhand.IsEmpty()) {
+			Inventory offhand(1);
+			offhand.Slot(0) = eq.Unwrap()->offhand;
+			n->Set("offhand", offhand.ToJson());
+		}
 	}
 	if (auto visual = registry.GetComponent<Visual>(e); visual.IsSome() && registry.HasComponent<Player>(e))
 		n->Set("skin", json::MakeStr(visual.Unwrap()->skin));
@@ -618,7 +624,7 @@ ecs::Entity EntityFromJson(ecs::ArchetypeRegistry &registry, const ContentRegist
 		return ecs::Entity{};
 	}
 	if (auto t = registry.GetComponent<Transform>(e); t.IsSome()) {
-		t.Unwrap()->yaw = float(json::Num(n, "yaw", 0.0));
+		t.Unwrap()->yaw   = float(json::Num(n, "yaw", 0.0));
 		t.Unwrap()->pitch = float(json::Num(n, "pitch", 0.0));
 	}
 	if (auto v = registry.GetComponent<Velocity>(e); v.IsSome())
@@ -723,8 +729,15 @@ bool WorldSave::LoadPlayer(ecs::ArchetypeRegistry &registry, ecs::Entity player)
 	NodePtr n = read.Unwrap();
 	if (auto t = registry.GetComponent<Transform>(player); t.IsSome()) {
 		t.Unwrap()->position = t.Unwrap()->previous = json::Vec3(n, "position", t.Unwrap()->position);
-		t.Unwrap()->yaw = float(json::Num(n, "yaw", 0.0));
-		t.Unwrap()->pitch = float(json::Num(n, "pitch", 0.0));
+		t.Unwrap()->yaw = sdl3::NormalizeRad(
+			float(json::Num(n, "yaw", 0.0))
+		);
+
+		t.Unwrap()->pitch = SDL_clamp(
+			float(json::Num(n, "pitch", 0.0)),
+			-sdl3::PI_HALF_F,
+			sdl3::PI_HALF_F
+		);
 	}
 	if (auto h = registry.GetComponent<Health>(player); h.IsSome())
 		h.Unwrap()->current = float(json::Num(n, "health", h.Unwrap()->current));
@@ -763,6 +776,8 @@ bool WorldSave::LoadPlayer(ecs::ArchetypeRegistry &registry, ecs::Entity player)
 		for (int i = 0; i < ARMOR_SLOTS && i < armor.Size(); ++i)
 			eq.Unwrap()->armor[size_t(i)] = armor.Slot(i);
 	}
+	if (auto eq = registry.GetComponent<Equipment>(player); eq.IsSome() && json::Has(n, "offhand"))
+		eq.Unwrap()->offhand = Inventory::FromJson(json::At(n, "offhand"), 1).Slot(0);
 	if (auto visual = registry.GetComponent<Visual>(player); visual.IsSome())
 		if (const String skin = json::Str(n, "skin"); !skin.IsEmpty())
 			visual.Unwrap()->skin = skin;

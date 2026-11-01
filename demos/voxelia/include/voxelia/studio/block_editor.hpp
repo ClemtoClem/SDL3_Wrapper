@@ -16,6 +16,7 @@
 #include <functional>
 #include <vector>
 
+#include <render3d/object3d.hpp>
 #include <ui/ui.hpp>
 #include <voxel/game.hpp>
 
@@ -54,6 +55,13 @@ public:
 	CommandResult ReloadFromDisk(const String &blockId);
 	/// Recharge depuis le disque toutes les définitions de blocs d'un mod.
 	CommandResult ReloadMod(const String &mod);
+	/// Forme nodebox (pixels 0..16) dans la portée courante.
+	CommandResult ShapeAddBox(const BlockDocument::NodeBox &box);
+	CommandResult ShapeMirror(size_t index, int axis);
+	CommandResult ShapeRotate();
+	CommandResult ShapeRemove(size_t index);
+	/// Triangles de l'aperçu de forme (0 : rien à montrer).
+	[[nodiscard]] size_t ShapePreviewTriangles() const noexcept { return m_shapeTriangles; }
 
 	[[nodiscard]] bool HasDocument() const noexcept { return m_doc.IsSome(); }
 	[[nodiscard]] const BlockDocument *Document() const noexcept { return m_doc.IsSome() ? &m_doc.Value() : nullptr; }
@@ -88,6 +96,16 @@ private:
 	bool m_gesture = false;
 	size_t m_reloads = 0;
 	String m_catalogFilter;
+
+	void RebuildShape();
+	CommandResult ShapeDone(Result<bool, String> result, const char *feature);
+
+	// Aperçu de la forme (scène propre, maillée par le mailleur des chunks).
+	render3d::Object3D m_shapeRoot;
+	uint64_t m_shapeVersion = ~0ull;
+	size_t m_shapeTriangles = 0;
+	float m_shapeOrbit = 0.7f;
+	ui::Widget m_shapeView, m_shapeBoxes, m_tabs;
 
 	ui::Widget m_title, m_scopeRow, m_form, m_jsonEditor, m_jsonStatus, m_states, m_diagnosticList, m_catalogList;
 };

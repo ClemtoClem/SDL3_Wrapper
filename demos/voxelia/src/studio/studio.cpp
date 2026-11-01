@@ -94,7 +94,23 @@ Studio::Studio(Shell &shell, ui::WindowContext &window, StudioReport *report, St
 		// Le bloc visé : 4 blocs devant la caméra de l'éditeur.
 		return voxel::BlockPos::FromWorld(Add(m_camera.position, Scale(m_camera.Forward(), 4.f)));
 	});
+	m_models = std::make_unique<ModelEditor>(m_shell, m_report);
+	m_structures = std::make_unique<StructureEditor>(m_shell, m_report, [this] {
+		return voxel::BlockPos::FromWorld(Add(m_camera.position, Scale(m_camera.Forward(), 4.f)));
+	});
+	m_textures = std::make_unique<TextureEditor>(m_shell, m_report);
+	m_entities = std::make_unique<EntityEditor>(m_shell, m_report, [this] {
+		// Arène : 12 blocs devant la caméra (à plat), son sol 2 blocs plus bas.
+		const math::FVector3 f = m_camera.Forward();
+		const float flat = std::max(1e-3f, std::sqrt(f.x * f.x + f.z * f.z));
+		const math::FVector3 at = Add(m_camera.position, {f.x / flat * 12.f, -2.f, f.z / flat * 12.f});
+		return voxel::BlockPos::FromWorld(at);
+	});
 	RegisterCommands();
+	m_models->RegisterCommands(m_console);
+	m_structures->RegisterCommands(m_console);
+	m_textures->RegisterCommands(m_console);
+	m_entities->RegisterCommands(m_console);
 	Build();
 	m_console.Print("Voxelia Studio — « help » liste les commandes ; toute autre ligne est une commande du jeu.");
 	Visit("studio.open", FeatureStatus::Ok,
@@ -119,7 +135,8 @@ void Studio::Visit(const char *feature, FeatureStatus status, String detail) {
 
 void Studio::Build() {
 	ui::Ui &gui = m_window.Gui();
-	ui::Widget filter, blockCatalog, blockEditor, rightTabs;
+	ui::Widget filter, blockCatalog, blockEditor, modelCatalog, modelEditor, structureCatalog, structureEditor, textureCatalog, textureEditor,
+		entityCatalog, entityEditor, rightTabs;
 	gui.Mount(ui::Column().Id("studio").Fill().Children({
 		ui::Row().Class("studio-toolbar").Children({
 			ui::Label("Voxelia Studio").Class("studio-title"),
@@ -137,7 +154,7 @@ void Studio::Build() {
 			ui::Label("").Class("studio-status").Ref(m_status),
 		}),
 		ui::Splitter(
-			ui::TabView({String("Outliner"), String("Blocs")}).Class("studio-dock").Fill().Children({
+			ui::TabView({String("Outliner"), String("Blocs"), String("Modèles"), String("Structures"), String("Textures"), String("Entités")}).Class("studio-dock").Fill().Children({
 			ui::Column().Id("studio-outliner").Fill().Children({
 				ui::Label("World Outliner").Class("studio-dock-title"),
 				ui::Input("Filtrer (nom, id)…").Id("outliner-filter").Ref(filter).OnTextChange([this](const String &text) {
@@ -149,6 +166,10 @@ void Studio::Build() {
 				ui::ScrollView().Id("outliner-list").Grow().Ref(m_outlinerList),
 			}),
 			ui::Column().Id("studio-block-catalog").Fill().Ref(blockCatalog),
+			ui::Column().Id("studio-model-catalog").Fill().Ref(modelCatalog),
+			ui::Column().Id("studio-structure-catalog").Fill().Ref(structureCatalog),
+			ui::Column().Id("studio-texture-catalog").Fill().Ref(textureCatalog),
+			ui::Column().Id("studio-entity-catalog").Fill().Ref(entityCatalog),
 			}),
 			ui::Splitter(
 				ui::Splitter(ui::Viewport3D(m_emptyScene).Id("studio-viewport").Fill().Ref(m_viewport),
@@ -166,7 +187,7 @@ void Studio::Build() {
 								 }),
 							 }),
 							 ui::Orientation::Vertical, 520.f, 160.f, 90.f),
-				ui::TabView({String("Inspecteur"), String("Bloc")}).Id("studio-right-tabs").Class("studio-dock").Fill().Ref(rightTabs).Children({
+				ui::TabView({String("Inspecteur"), String("Bloc"), String("Modèle"), String("Structure"), String("Texture"), String("Entité")}).Id("studio-right-tabs").Class("studio-dock").Fill().Ref(rightTabs).Children({
 				ui::Column().Id("studio-inspector").Fill().Children({
 					ui::Label("Inspecteur").Class("studio-dock-title"),
 					ui::Row().Gap(4.f).Children({
@@ -177,6 +198,10 @@ void Studio::Build() {
 					ui::ScrollView().Id("inspector").Grow().Ref(m_inspector),
 				}),
 				ui::Column().Id("studio-block-editor").Fill().Ref(blockEditor),
+				ui::Column().Id("studio-model-editor").Fill().Ref(modelEditor),
+				ui::Column().Id("studio-structure-editor").Fill().Ref(structureEditor),
+				ui::Column().Id("studio-texture-editor").Fill().Ref(textureEditor),
+				ui::Column().Id("studio-entity-editor").Fill().Ref(entityEditor),
 				}),
 				ui::Orientation::Horizontal, 680.f, 320.f, 220.f),
 			ui::Orientation::Horizontal, 260.f, 180.f, 500.f)
@@ -187,6 +212,24 @@ void Studio::Build() {
 	m_blocks->BuildCatalog(blockCatalog);
 	m_blocks->Build(blockEditor);
 	m_blocks->onDocumentOpened = [rightTabs]() mutable { rightTabs.SetSelected(1, true); };
+	m_models->BuildCatalog(modelCatalog);
+	m_models->Build(modelEditor);
+	m_models->onDocumentOpened = [rightTabs]() mutable { rightTabs.SetSelected(2, true); };
+	m_structures->BuildCatalog(structureCatalog);
+	m_structures->Build(structureEditor);
+	m_structures->onDocumentOpened = [rightTabs]() mutable { rightTabs.SetSelected(3, true); };
+	m_textures->BuildCatalog(textureCatalog);
+	m_textures->Build(textureEditor);
+	m_textures->onDocumentOpened = [rightTabs]() mutable { rightTabs.SetSelected(4, true); };
+	m_entities->BuildCatalog(entityCatalog);
+	m_entities->Build(entityEditor);
+	m_entities->onDocumentOpened = [rightTabs]() mutable { rightTabs.SetSelected(5, true); };
+	m_entities->onPreviewSpawned = [this](ecs::Entity e) {
+		// Inspection en direct (outliner / inspecteur) et caméra qui la suit.
+		Select(e);
+		FocusOn(e);
+		m_follow = true;
+	};
 	if (auto vp = m_viewport.Get<ui::Viewport3DState>(); vp.IsSome())
 		vp.Unwrap()->transfer = m_transfer == "readback"	? ui::ViewportTransfer::READBACK
 								: m_transfer == "pipelined" ? ui::ViewportTransfer::PIPELINED
@@ -231,7 +274,7 @@ void Studio::RegisterCommands() {
 		Visit("camera.follow");
 		return CommandResult::Ok(String(m_follow ? "poursuite" : "caméra libre"));
 	});
-	m_console.Register("studio.camera", "studio.camera player | <x> <y> <z> — place la caméra", [this](const auto &args) {
+	m_console.Register("studio.camera", "studio.camera player | <x> <y> <z> [<vers x> <y> <z>] — place la caméra", [this](const auto &args) {
 		voxel::Game *game = Game();
 		if (args.size() == 2 && args[1] == "player") {
 			if (!game)
@@ -240,13 +283,19 @@ void Studio::RegisterCommands() {
 			FocusOn(m_shell.Game()->Player());
 			return CommandResult::Ok();
 		}
-		if (args.size() != 4)
-			return CommandResult::Error(String("usage : studio.camera player | <x> <y> <z>"));
-		const Option<float> x = ParseFloat(args[1]), y = ParseFloat(args[2]), z = ParseFloat(args[3]);
-		if (x.IsNone() || y.IsNone() || z.IsNone())
-			return CommandResult::Error(String("coordonnées invalides"));
+		if (args.size() != 4 && args.size() != 7)
+			return CommandResult::Error(String("usage : studio.camera player | <x> <y> <z> [<vers x> <y> <z>]"));
+		std::vector<float> v;
+		for (size_t i = 1; i < args.size(); ++i) {
+			const Option<float> f = ParseFloat(args[i]);
+			if (f.IsNone())
+				return CommandResult::Error(String("coordonnées invalides"));
+			v.push_back(f.Value());
+		}
 		m_follow = false;
-		m_camera.position = {x.Value(), y.Value(), z.Value()};
+		m_camera.position = {v[0], v[1], v[2]};
+		if (v.size() == 6)
+			m_camera.LookAt({v[3], v[4], v[5]});
 		m_cameraPlaced = true;
 		Visit("camera.move");
 		return CommandResult::Ok();
@@ -337,6 +386,29 @@ void Studio::RegisterCommands() {
 	m_console.Register("studio.block.apply", "studio.block.apply — rechargement à chaud (Ctrl+Maj+R)", [this](const auto &) { return m_blocks->Apply(); });
 	m_console.Register("studio.block.save", "studio.block.save — enregistre dans le mod", [this](const auto &) { return m_blocks->Save(); });
 	m_console.Register("studio.block.place", "studio.block.place — pose devant la caméra", [this](const auto &) { return m_blocks->Place(); });
+	m_console.Register("studio.block.box.add", "studio.block.box.add x1 y1 z1 x2 y2 z2 — boîte nodebox (pixels 0 à 16)", [this](const auto &args) {
+		if (args.size() != 7)
+			return CommandResult::Error(String("usage : studio.block.box.add x1 y1 z1 x2 y2 z2"));
+		BlockDocument::NodeBox box{};
+		for (size_t k = 0; k < 6; ++k) {
+			const Option<float> v = ParseFloat(args[k + 1]);
+			if (v.IsNone())
+				return CommandResult::Error(String("coordonnée invalide : ") + args[k + 1]);
+			box[k] = v.Value();
+		}
+		return m_blocks->ShapeAddBox(box);
+	});
+	m_console.Register("studio.block.box.mirror", "studio.block.box.mirror <index> x|y|z — copie miroir", [this](const auto &args) {
+		const Option<float> i = args.size() > 2 ? ParseFloat(args[1]) : Option<float>(NONE);
+		if (i.IsNone() || (args[2] != "x" && args[2] != "y" && args[2] != "z"))
+			return CommandResult::Error(String("usage : studio.block.box.mirror <index> x|y|z"));
+		return m_blocks->ShapeMirror(size_t(i.Value()), args[2] == "x" ? 0 : args[2] == "y" ? 1 : 2);
+	});
+	m_console.Register("studio.block.box.rotate", "studio.block.box.rotate — quart de tour (verticale)", [this](const auto &) { return m_blocks->ShapeRotate(); });
+	m_console.Register("studio.block.box.remove", "studio.block.box.remove <index>", [this](const auto &args) {
+		const Option<float> i = args.size() > 1 ? ParseFloat(args[1]) : Option<float>(NONE);
+		return i.IsSome() ? m_blocks->ShapeRemove(size_t(i.Value())) : CommandResult::Error(String("usage : studio.block.box.remove <index>"));
+	});
 	m_console.Register("studio.block.undo", "studio.block.undo — annule (Ctrl+Z)", [this](const auto &) { return m_blocks->Undo(); });
 	m_console.Register("studio.block.redo", "studio.block.redo — rétablit (Ctrl+Y)", [this](const auto &) { return m_blocks->Redo(); });
 	m_console.SetFallback([this](const String &line) {
@@ -385,6 +457,8 @@ void Studio::FocusOn(ecs::Entity entity) {
 }
 
 void Studio::HandleEvent(const sdl3::Event &ev, bool consumed) {
+	if (m_textures->HandleEvent(ev)) // peinture sur la toile de l'atelier de textures
+		return;
 	const uint32_t type = ev.raw.type;
 	const sdl3::FRect box = m_viewport.Bounds();
 	auto inside = [&](float x, float y) { return x >= box.x && y >= box.y && x < box.x + box.w && y < box.y + box.h; };
@@ -547,6 +621,10 @@ void Studio::Update(float dt) {
 	}
 	RefreshInspector();
 	m_blocks->Update(dt);
+	m_models->Update(dt);
+	m_structures->Update(dt);
+	m_textures->Update(dt);
+	m_entities->Update(dt);
 	RefreshConsole();
 	RefreshToolbar();
 }

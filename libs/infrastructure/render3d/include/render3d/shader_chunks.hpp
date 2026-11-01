@@ -212,6 +212,11 @@ layout(set = 3, binding = 1) uniform LightUBO {
 	vec4 uAmbientColor;
 	vec3 uCameraPos;
 	float uBaseLight;  // BAKED : lumière uniforme sans occlusion (Canvas::SetBaseLight)
+#ifdef VOXEL_REFLECTIONS
+	vec4 uVoxelOrigin; // xyz : coin minimal de la grille (monde), w : rebonds au plus
+	vec4 uVoxelSize;   // xyz : taille (cellules, puissances de deux), w : cellules parcourues par un rayon
+	vec4 uVoxelSky;    // rgb : ciel (linéaire) d'un rayon qui ne touche rien, w : blocs par ligne de la table
+#endif
 };
 )";
 
@@ -242,6 +247,11 @@ layout(set = 3, binding = 1) uniform LightUBO {
 	float uPointShadowLightIndex;
 	float uPointShadowBias;
 	float uPointShadowPadding;
+#ifdef VOXEL_REFLECTIONS
+	vec4 uVoxelOrigin; // xyz : coin minimal de la grille (monde), w : rebonds au plus
+	vec4 uVoxelSize;   // xyz : taille (cellules, puissances de deux), w : cellules parcourues par un rayon
+	vec4 uVoxelSky;    // rgb : ciel (linéaire) d'un rayon qui ne touche rien, w : blocs par ligne de la table
+#endif
 };
 )";
 
@@ -615,6 +625,151 @@ vec3 ReceivedLight(vec3 N, float shadow) {
 }
 )";
 
+// ── Réflexions par lancer de rayons dans une grille de voxels (BAKED +
+// VOXEL_REFLECTIONS, voir Canvas::SetVoxelReflections). Le rayon primaire
+// est la rastérisation elle-même (la surface la plus proche, éclairée par
+// ReceivedLight) ; si sa texture réfléchit (uReflectivity, même disposition
+// que l'atlas), un rayon secondaire part dans la direction réfléchie
+// R = I − 2 (I·N) N et parcourt la grille cellule par cellule (DDA
+// d'Amanatides et Woo) jusqu'au premier bloc dont la texture est opaque à
+// cet endroit. Le point touché est éclairé comme une face du monde (lumière
+// des sources et part de ciel de la cellule devant la face, ambiante,
+// soleil, lumières ponctuelles) ; s'il réfléchit à son tour, le rayon
+// repart — au plus uVoxelOrigin.w réflexions, tant qu'il n'est pas éteint.
+inline constexpr const char *SAMPLER_VOXEL_REFLECTIONS = R"(
+// x : bloc (0 : traversé), y : ciel 0..255, z : r | g << 8, w : b (lumière des sources, 0..255 pour 0..4).
+layout(set = 2, binding = VOXEL_BINDING_GRID) uniform usampler3D uVoxelGrid;
+// Par bloc, 8 lignes : les rectangles d'atlas des faces (est, ouest, dessus,
+// dessous, sud, nord), la teinte (rgb ; a : masque des faces teintées par le
+// biome), la teinte du biome (rgb ; a : 1 pour un bloc lumineux).
+layout(set = 2, binding = VOXEL_BINDING_BLOCKS) uniform sampler2D uVoxelBlocks;
+layout(set = 2, binding = VOXEL_BINDING_REFLECTIVITY) uniform sampler2D uReflectivity;
+)";
+
+inline constexpr const char *VOXEL_REFLECTION_FUNC = R"(
+uvec4 VoxelAt(ivec3 cell) {
+	ivec3 size = ivec3(uVoxelSize.xyz);
+	ivec3 rel = cell - ivec3(floor(uVoxelOrigin.xyz));
+	if (any(lessThan(rel, ivec3(0))) || any(greaterThanEqual(rel, size)))
+		return uvec4(0u, 255u, 0u, 0u); // hors de la grille : vide, ciel ouvert
+	return texelFetch(uVoxelGrid, cell & (size - 1), 0); // grille torique
+}
+
+vec4 VoxelBlockRow(uint block, int row) {
+	int perRow = max(int(uVoxelSky.w), 1);
+	return texelFetch(uVoxelBlocks, ivec2(int(block) % perRow, (int(block) / perRow) * 8 + row), 0);
+}
+
+// Coordonnées de texture d'un point `local` (0..1) d'une face.
+vec2 VoxelFaceUv(int face, vec3 local) {
+	if (face <= 1)
+		return vec2(face == 0 ? 1.0 - local.z : local.z, 1.0 - local.y);
+	if (face <= 3)
+		return vec2(local.x, face == 2 ? local.z : 1.0 - local.z);
+	return vec2(face == 4 ? local.x : 1.0 - local.x, 1.0 - local.y);
+}
+
+struct VoxelHit {
+	vec3 position;
+	vec3 normal;
+	uint block;
+	int face;
+	vec2 uv;
+	uvec4 front; // cellule devant la face : sa lumière
+};
+
+bool MarchVoxels(vec3 origin, vec3 dir, out VoxelHit hit) {
+	ivec3 cell = ivec3(floor(origin));
+	ivec3 stepDir = ivec3(dir.x >= 0.0 ? 1 : -1, dir.y >= 0.0 ? 1 : -1, dir.z >= 0.0 ? 1 : -1);
+	vec3 tDelta = 1.0 / max(abs(dir), vec3(1e-6));
+	vec3 frac = origin - vec3(cell);
+	vec3 tMax = vec3(stepDir.x > 0 ? 1.0 - frac.x : frac.x, stepDir.y > 0 ? 1.0 - frac.y : frac.y,
+					 stepDir.z > 0 ? 1.0 - frac.z : frac.z) * tDelta;
+	int steps = int(uVoxelSize.w);
+	for (int i = 0; i < 1024; ++i) {
+		if (i >= steps)
+			break;
+		ivec3 previous = cell;
+		int axis;
+		float t;
+		if (tMax.x < tMax.y && tMax.x < tMax.z) {
+			axis = 0; t = tMax.x; cell.x += stepDir.x; tMax.x += tDelta.x;
+		} else if (tMax.y < tMax.z) {
+			axis = 1; t = tMax.y; cell.y += stepDir.y; tMax.y += tDelta.y;
+		} else {
+			axis = 2; t = tMax.z; cell.z += stepDir.z; tMax.z += tDelta.z;
+		}
+		uvec4 v = VoxelAt(cell);
+		if (v.x == 0u)
+			continue;
+		vec3 n = vec3(0.0);
+		n[axis] = -float(stepDir[axis]);
+		int face = axis * 2 + (n[axis] > 0.0 ? 0 : 1);
+		vec3 p = origin + dir * t;
+		vec4 rect = VoxelBlockRow(v.x, face);
+		vec2 uv = mix(rect.xy, rect.zw, VoxelFaceUv(face, clamp(p - vec3(cell), 0.0, 1.0)));
+		if (textureLod(uAlbedo, uv, 0.0).a < 0.5)
+			continue; // découpe (feuillage, grille) : le rayon passe
+		hit.position = p;
+		hit.normal = n;
+		hit.block = v.x;
+		hit.face = face;
+		hit.uv = uv;
+		hit.front = VoxelAt(previous);
+		return true;
+	}
+	return false;
+}
+
+// Lumière reçue par une face touchée (même modèle que ReceivedLight).
+vec3 VoxelHitLight(vec3 position, vec3 n, uvec4 front) {
+	float sky = float(front.y) / 255.0;
+	vec3 sources = vec3(float(front.z & 255u), float(front.z >> 8u), float(front.w)) * (4.0 / 255.0);
+	vec3 sun = uLightColor.rgb * max(dot(n, normalize(-uLightDir)), 0.0);
+	vec3 received = sources + sky * (uAmbientColor.rgb + sun) + vec3(max(uBaseLight, 0.0));
+#if NUM_POINT_LIGHTS > 0
+	for (int i = 0; i < NUM_POINT_LIGHTS; ++i) {
+		vec3 toLight = uPointLights[i].position - position;
+		float dist = length(toLight);
+		float atten = PunctualAttenuation(dist, uPointLights[i].distanceVal, uPointLights[i].decay);
+		received += uPointLights[i].color * atten * max(dot(n, toLight / max(dist, 0.0001)), 0.0);
+	}
+#endif
+	return received;
+}
+
+vec3 VoxelSky(vec3 dir) {
+	return uVoxelSky.rgb * mix(0.75, 1.0, clamp(dir.y * 0.5 + 0.5, 0.0, 1.0));
+}
+
+// Couleur (linéaire) vue dans la direction réfléchie `dir` depuis `origin`.
+vec3 TraceReflection(vec3 origin, vec3 dir) {
+	vec3 result = vec3(0.0);
+	vec3 throughput = vec3(1.0);
+	int bounces = max(int(uVoxelOrigin.w), 1);
+	for (int b = 0; b < 16; ++b) {
+		VoxelHit hit;
+		if (!MarchVoxels(origin, dir, hit))
+			return result + throughput * VoxelSky(dir);
+		vec4 tint = VoxelBlockRow(hit.block, 6), biome = VoxelBlockRow(hit.block, 7);
+		bool biomeFace = ((int(tint.a + 0.5) >> hit.face) & 1) != 0;
+		vec3 albedo = textureLod(uAlbedo, hit.uv, 0.0).rgb * (biomeFace ? biome.rgb : tint.rgb);
+		// Bloc lumineux : pleine luminosité, comme dans le monde.
+		vec3 received = VoxelHitLight(hit.position, hit.normal, hit.front);
+		vec3 lit = SrgbToLinear(albedo) * (biome.a > 0.5 ? max(received, vec3(1.0)) : received);
+		// Dernière réflexion permise : la surface touchée n'est plus qu'éclairée.
+		float k = b + 1 < bounces ? textureLod(uReflectivity, hit.uv, 0.0).r : 0.0;
+		result += throughput * lit * (1.0 - k);
+		throughput *= k;
+		if (max(throughput.r, max(throughput.g, throughput.b)) < 0.01)
+			break;
+		dir = reflect(dir, hit.normal); // R = I − 2 (I·N) N
+		origin = hit.position + hit.normal * 0.01;
+	}
+	return result;
+}
+)";
+
 inline constexpr const char *FRAGMENT_MAIN_BAKED = R"(
 void main() {
 	vec3 N = normalize(inNormal);
@@ -625,6 +780,14 @@ void main() {
 		discard;
 	float shadow = ComputeShadowFactor(inWorldPos);
 	vec3 color = SrgbToLinear(albedo.rgb) * ReceivedLight(N, shadow);
+#ifdef VOXEL_REFLECTIONS
+	// 1 : miroir parfait (seul le reflet), 0 : surface mate.
+	float reflectivity = uUseTexture > 0.5 ? texture(uReflectivity, inUV).r : 0.0;
+	if (reflectivity > 0.003) {
+		vec3 I = normalize(inWorldPos - uCameraPos);
+		color = mix(color, TraceReflection(inWorldPos + N * 0.01, reflect(I, N)), reflectivity);
+	}
+#endif
 	color = ToneMapAces(color * uExposure);
 	outFragColor = vec4(LinearToSrgb(color), albedo.a);
 }

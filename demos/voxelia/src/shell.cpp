@@ -682,9 +682,11 @@ void Shell::AppCommand(const String &line) {
 			focused.SetText(rest(1));
 	} else if (cmd == "!look" && m_session && m_session->Ready()) {
 		if (auto t = m_session->Game().Registry().GetComponent<voxel::Transform>(m_session->Player()); t.IsSome()) {
-			t.Unwrap()->yaw = float(std::atof(arg.CStr())) * 3.14159265f / 180.f;
-			t.Unwrap()->pitch = float(std::atof(arg2.CStr())) * 3.14159265f / 180.f;
+			t.Unwrap()->yaw = sdl3::DegToRad(float(std::atof(arg.CStr())));
+			t.Unwrap()->pitch = sdl3::DegToRad(float(std::atof(arg2.CStr())));
 		}
+	} else if (cmd == "!view" && m_session) { // !view first|third
+		m_session->SetThirdPerson(arg == "third");
 	} else if (cmd == "!set") { // !set réglage valeur
 		dataio::NodePtr json = m_settings.ToJson();
 		if (voxel::json::Has(json, arg.CStr())) {

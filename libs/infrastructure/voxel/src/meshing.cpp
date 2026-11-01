@@ -203,9 +203,65 @@ void TextureAtlas::Build(AssetManager &assets, const ContentRegistry &content, i
 			if (auto glow = m_rects.find(GlowId(String(list.front().c_str())).CStr()); glow != m_rects.end())
 				m_rects[GlowId(String(id.c_str())).CStr()] = glow->second;
 		}
+	// Réflectivité : chaque tuile prend celle de sa texture (une variante,
+	// celle de sa texture mère si elle n'en déclare pas ; la « lueur », celle
+	// de l'originale).
+	m_reflectivity.clear();
+	std::unordered_map<std::string, float> reflect;
+	for (const auto &[id, rect] : m_rects) {
+		String source(id.c_str());
+		if (source.StartsWith("glow|"))
+			source = source.Substring(5);
+		float k = 0.f;
+		if (const TextureDef *def = content.FindTexture(source))
+			k = def->reflectivity;
+		if (k <= 0.f)
+			for (const auto &[parent, list] : m_variants)
+				if (std::find(list.begin(), list.end(), std::string(source.CStr())) != list.end())
+					if (const TextureDef *def = content.FindTexture(String(parent.c_str())))
+						k = std::max(k, def->reflectivity);
+		if (k > 0.f)
+			reflect[id] = k;
+	}
+	if (!reflect.empty()) {
+		m_reflectivity.assign(size_t(width) * size_t(height), 0);
+		for (const auto &[id, k] : reflect) {
+			const Rect &r = m_rects[id];
+			const int x0 = int(r.u0 * float(width)), y0 = int(r.v0 * float(height));
+			const int x1 = int(std::ceil(r.u1 * float(width))), y1 = int(std::ceil(r.v1 * float(height)));
+			const uint8_t value = uint8_t(std::lround(k * 255.f));
+			for (int y = std::max(0, y0); y < std::min(height, y1); ++y)
+				std::fill_n(&m_reflectivity[size_t(y) * size_t(width) + size_t(std::max(0, x0))], size_t(std::min(width, x1) - std::max(0, x0)),
+							value);
+		}
+	}
 	// Mipmaps : jusqu'à la tuile de base réduite à un pixel.
 	for (int size = m_tile; size > 1; size /= 2)
 		m_mipmaps.push_back(Halve(m_mipmaps.empty() ? m_image : m_mipmaps.back()));
+}
+
+size_t VariantIndex(const BlockPos &p, size_t count) noexcept {
+	return count <= 1 ? 0 : size_t(HashPosition(0x5eedu, p.x, p.y, p.z, 11) % count);
+}
+
+std::vector<std::pair<String, TextureAtlas::Rect>> TextureAtlas::Tiles() const {
+	std::vector<std::pair<String, Rect>> out;
+	for (const auto &[id, rect] : m_rects)
+		if (!m_variants.contains(id) && !(String(id.c_str()).StartsWith("glow|") && m_variants.contains(id.substr(5))))
+			out.push_back({String(id.c_str()), rect});
+	std::sort(out.begin(), out.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+	return out;
+}
+
+float TextureAtlas::Occupancy() const {
+	if (m_image.width <= 0 || m_image.height <= 0)
+		return 0.f;
+	// Les rectangles sont rentrés d'un demi-texel de chaque côté : un texel de plus.
+	const double du = 1.0 / double(m_image.width), dv = 1.0 / double(m_image.height);
+	double area = 0.0;
+	for (const auto &[id, r] : Tiles())
+		area += (double(r.u1 - r.u0) + du) * (double(r.v1 - r.v0) + dv);
+	return float(std::min(area, 1.0));
 }
 
 TextureAtlas::Rect TextureAtlas::Lookup(const String &id) const {
@@ -420,6 +476,34 @@ ChunkMesher::ChunkMesher(const ContentRegistry &content, const TextureAtlas &atl
 		if (r.biomeTint)
 			for (int k = 0; k < 3; ++k)
 				r.tinted[size_t(k)] = uint8_t(int(r.tint[size_t(k)]) * int(defaults[size_t(r.biomeTint - 1)][size_t(k)]) / 255);
+}
+
+std::vector<float> ChunkMesher::RayBlockTable(int perRow, const BiomeDef *biome, int &rows) const {
+	perRow = std::max(1, perRow);
+	const int count = std::max(1, int(m_blocks.size()));
+	rows = ((count + perRow - 1) / perRow) * 8;
+	std::vector<float> out(size_t(perRow) * size_t(rows) * 4, 0.f);
+	const auto colors = BiomeColors(biome);
+	for (size_t i = 0; i < m_blocks.size(); ++i) {
+		const BlockRender &r = m_blocks[i];
+		const size_t x = i % size_t(perRow), band = (i / size_t(perRow)) * 8;
+		auto row = [&](int k) { return &out[((band + size_t(k)) * size_t(perRow) + x) * 4]; };
+		for (int f = 0; f < FACE_COUNT; ++f) {
+			float *rect = row(f);
+			const TextureAtlas::Rect &t = r.faces[size_t(f)];
+			rect[0] = t.u0, rect[1] = t.v0, rect[2] = t.u1, rect[3] = t.v1;
+		}
+		float *tint = row(6);
+		for (int k = 0; k < 3; ++k)
+			tint[k] = float(r.tint[size_t(k)]) / 255.f;
+		tint[3] = float(r.biomeTint ? r.tintFaces : 0);
+		float *biomed = row(7);
+		for (int k = 0; k < 3; ++k)
+			biomed[k] = r.biomeTint ? float(r.tint[size_t(k)]) * float(colors[size_t(r.biomeTint - 1)][size_t(k)]) / (255.f * 255.f)
+									: tint[k];
+		biomed[3] = r.emissive ? 1.f : 0.f;
+	}
+	return out;
 }
 
 std::array<std::array<uint8_t, 3>, 3> ChunkMesher::BiomeColors(const BiomeDef *biome) const {
@@ -715,10 +799,10 @@ ChunkMesh ChunkMesher::Build(const World &world, const ChunkPos &cp) const {
 				const BlockRender *chosen = &base;
 				if (base.varied) { // variante de texture tirée d'après la position
 					tintedRender = base;
-					const uint64_t pick = HashPosition(0x5eedu, origin.x + x, origin.y + y, origin.z + z, 11);
+					const BlockPos at{origin.x + x, origin.y + y, origin.z + z};
 					for (int f = 0; f < FACE_COUNT; ++f)
 						if (const auto &list = base.variants[size_t(f)]; !list.empty())
-							tintedRender.faces[size_t(f)] = list[size_t(pick % list.size())];
+							tintedRender.faces[size_t(f)] = list[VariantIndex(at, list.size())];
 					chosen = &tintedRender;
 				}
 				if (base.biomeTint) {

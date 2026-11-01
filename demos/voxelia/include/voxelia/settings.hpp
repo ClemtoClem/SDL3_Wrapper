@@ -46,6 +46,11 @@ struct Settings {
 	float mouseSensitivity = 1.f;
 	bool invertY = false;
 	float fov = 72.f;
+	/// Caméra du joueur : décalage (blocs) depuis le point devant le visage de
+	/// son modèle (vers l'avant, le haut, la droite du regard) et inclinaison
+	/// (degrés, + vers le haut) ; tout à 0 : devant les yeux du skin.
+	float cameraForward = 0.f, cameraUp = 0.f, cameraSide = 0.f;
+	float cameraTilt = 0.f;
 	bool viewBobbing = true;
 	bool allowDualBinding = false; ///< une même touche pour deux actions
 	bool toggleSprint = false, toggleSneak = false;
@@ -68,6 +73,11 @@ struct Settings {
 	int particles = 2;            ///< 0 aucune, 1 réduites, 2 toutes
 	float vegetationDensity = 1.f;
 	int entityDistance = 64;      ///< blocs
+	bool reflections = true;      ///< reflets des textures qui réfléchissent (« reflectivity »)
+	/// Réflexions successives d'un rayon que rien n'atténue (miroir face à
+	/// un miroir…), au plus : REFLECTION_BOUNCES_MIN..MAX.
+	int reflectionBounces = 4;
+	static constexpr int REFLECTION_BOUNCES_MIN = 1, REFLECTION_BOUNCES_MAX = 16;
 
 	// ── Son ─────────────────────────────────────────────────────────────────
 	float masterVolume = 0.9f, musicVolume = 0.5f, effectsVolume = 1.f, ambienceVolume = 0.7f, uiVolume = 0.7f,

@@ -147,6 +147,14 @@ private:
 		kit.SliderRow(c, "Champ de vision", "", 50.f, 110.f, m_draft.fov, 1.f, [](float v) { return String::Format("%d°", int(v)); },
 					  Set(&Settings::fov));
 		kit.ToggleRow(c, "Balancement de la vue", "La caméra suit le pas du personnage.", m_draft.viewBobbing, Set(&Settings::viewBobbing));
+		kit.SectionTitle(c, "Caméra du joueur", Some(MaterialIcons::VIDEOCAM));
+		auto blocks = [](float v) { return String::Format("%+.2f bloc", double(v)); };
+		kit.SliderRow(c, "Position : avant / arrière", "0 : juste devant le visage du skin (mains et pieds visibles en regardant vers le bas).",
+					  -1.f, 1.f, m_draft.cameraForward, 0.02f, blocks, Set(&Settings::cameraForward));
+		kit.SliderRow(c, "Position : haut / bas", "", -1.f, 1.f, m_draft.cameraUp, 0.02f, blocks, Set(&Settings::cameraUp));
+		kit.SliderRow(c, "Position : gauche / droite", "", -1.f, 1.f, m_draft.cameraSide, 0.02f, blocks, Set(&Settings::cameraSide));
+		kit.SliderRow(c, "Inclinaison", "Angle ajouté au regard (+ : vers le haut).", -30.f, 30.f, m_draft.cameraTilt, 1.f,
+					  [](float v) { return String::Format("%+d°", int(std::lround(v))); }, Set(&Settings::cameraTilt));
 		kit.SectionTitle(c, "Comportement des touches", Some(MaterialIcons::KEYBOARD));
 		kit.ToggleRow(c, "Course en bascule", "Un appui active la course, un second l'arrête.", m_draft.toggleSprint, Set(&Settings::toggleSprint));
 		kit.ToggleRow(c, "Accroupi en bascule", "", m_draft.toggleSneak, Set(&Settings::toggleSneak));
@@ -253,6 +261,11 @@ private:
 		kit.SliderRow(c, "Luminosité", "Lumière ambiante (surtout la nuit et sous terre).", 0.f, 1.f, m_draft.brightness, 0.05f, Percent,
 					  Set(&Settings::brightness));
 		kit.ToggleRow(c, "Filtrage lissé des textures", "Désactivé : pixels nets, style voxel.", m_draft.smoothTextures, Set(&Settings::smoothTextures));
+		kit.ToggleRow(c, "Réflexions", "Les textures qui réfléchissent (métal, verre poli, miroirs…) montrent leurs reflets.",
+					  m_draft.reflections, Set(&Settings::reflections));
+		kit.SliderRow(c, "Réflexions successives", "Rebonds d'un rayon que rien n'atténue (miroir face à un miroir).",
+					  float(Settings::REFLECTION_BOUNCES_MIN), float(Settings::REFLECTION_BOUNCES_MAX), float(m_draft.reflectionBounces), 1.f,
+					  [](float v) { return String::Format("%d", int(v)); }, SetInt(&Settings::reflectionBounces));
 		kit.SectionTitle(c, "Effets", Some(MaterialIcons::BOLT));
 		kit.ComboRow(c, "Particules", "Éclats des blocs cassés.", {"Aucune", "Réduites", "Toutes"}, m_draft.particles, SetChoice(&Settings::particles));
 		kit.ToggleRow(c, "Nuages", "Couche de nuages dérivant avec le vent.", m_draft.clouds, Set(&Settings::clouds));
@@ -362,11 +375,14 @@ private:
 		case 1:
 			m_draft.bindings = d.bindings, m_draft.mouseSensitivity = d.mouseSensitivity, m_draft.invertY = d.invertY, m_draft.fov = d.fov;
 			m_draft.viewBobbing = d.viewBobbing, m_draft.toggleSprint = d.toggleSprint, m_draft.toggleSneak = d.toggleSneak;
+			m_draft.cameraForward = d.cameraForward, m_draft.cameraUp = d.cameraUp, m_draft.cameraSide = d.cameraSide;
+			m_draft.cameraTilt = d.cameraTilt;
 			m_draft.allowDualBinding = d.allowDualBinding;
 			break;
 		case 2:
 			m_draft.displayMode = d.displayMode, m_draft.vsync = d.vsync, m_draft.fpsLimit = d.fpsLimit, m_draft.viewDistance = d.viewDistance;
 			m_draft.shadows = d.shadows, m_draft.dynamicLights = d.dynamicLights, m_draft.brightness = d.brightness;
+			m_draft.reflections = d.reflections, m_draft.reflectionBounces = d.reflectionBounces;
 			m_draft.ambientOcclusion = d.ambientOcclusion, m_draft.clouds = d.clouds, m_draft.vignette = d.vignette;
 			m_draft.screenEffects = d.screenEffects, m_draft.particles = d.particles, m_draft.vegetationDensity = d.vegetationDensity;
 			m_draft.entityDistance = d.entityDistance, m_draft.chunkUpdates = d.chunkUpdates, m_draft.smoothTextures = d.smoothTextures;

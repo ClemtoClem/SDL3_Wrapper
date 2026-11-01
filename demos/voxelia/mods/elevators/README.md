@@ -22,7 +22,7 @@ partie s'applique aussitôt.
 ## Construire un ascenseur
 
 Commande d'exemple : `/elevator build [modern|industrial|backrooms|glass] [étages]
-[5|7|9] [4|5] [wide|multi]` (alias `/ascenseur demo …`) bâtit à côté de vous un
+[5|7|9] [4|5] [wide|multi]` (alias `/elevator demo …`) bâtit à côté de vous un
 ascenseur complet : gaine de la taille donnée (7 par défaut), cabine de 4 de
 haut (2 blocs libres) ou de 5 (3 blocs libres ; aussi `h4` / `h5`, sinon le
 réglage `cabin_height`), `wide` : portes doubles 2 × 2, `multi` : une seconde

@@ -53,6 +53,10 @@ struct Material {
 	/// Lumière reçue ajoutée à celle des sommets (rgb, linéaire) et facteur
 	/// de la part ambiante (a) — un objet mobile éclairé là où il se trouve.
 	math::FVector4 objectLight{0.f, 0.f, 0.f, 1.f};
+	/// Réflexions par lancer de rayons dans la grille de voxels du Canvas
+	/// (Canvas::SetVoxelReflections ; matériaux `bakedLighting` dont la
+	/// texture est celle de l'atlas). Sans grille active : sans effet.
+	bool voxelReflections = false;
 
 	[[nodiscard]] static Material Default() noexcept { return {}; }
 
@@ -101,6 +105,10 @@ struct PipelineKey {
 	// sommet complètement différent (SkinnedVertex3D, voir vertex.hpp), donc
 	// un pipeline distinct (jamais combiné à `instanced`, voir le plan).
 	bool skinned = false;
+	// Vrai pour un matériau `voxelReflections` dessiné pendant qu'une grille
+	// de voxels est active (Canvas::SetVoxelReflections) : 3 échantillonneurs
+	// et des champs de LightUBO en plus.
+	bool voxelReflections = false;
 	bool depthTest = true;
 	bool blend = false;
 	sdl3::GpuTextureFormat colorFormat{};
@@ -111,7 +119,7 @@ struct PipelineKey {
 			   hasTexture == o.hasTexture && pointLightCount == o.pointLightCount &&
 			   spotLightCount == o.spotLightCount && hasShadows == o.hasShadows &&
 			   hasEnvironment == o.hasEnvironment && topology == o.topology && instanced == o.instanced &&
-			   skinned == o.skinned && depthTest == o.depthTest && blend == o.blend && colorFormat == o.colorFormat &&
+			   skinned == o.skinned && voxelReflections == o.voxelReflections && depthTest == o.depthTest && blend == o.blend && colorFormat == o.colorFormat &&
 			   depthFormat == o.depthFormat;
 	}
 };
@@ -132,6 +140,7 @@ template <> struct std::hash<render3d::PipelineKey> {
 		mix(std::hash<int>()(int(k.topology)));
 		mix(std::hash<bool>()(k.instanced));
 		mix(std::hash<bool>()(k.skinned));
+		mix(std::hash<bool>()(k.voxelReflections));
 		mix(std::hash<bool>()(k.depthTest));
 		mix(std::hash<bool>()(k.blend));
 		mix(std::hash<int>()(int(k.colorFormat)));

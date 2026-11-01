@@ -9,12 +9,15 @@
  *   barre d'outils : pause / pas à pas de la simulation, suivre, caméra au
  *                    joueur, état (img/s, chunks en attente, ms simulation,
  *                    ms maillage, fils) ;
- *   gauche  : World Outliner (filtre, groupes par catégorie, 5 Hz) ;
+ *   gauche  : World Outliner (filtre, groupes par catégorie, 5 Hz), blocs,
+ *             modèles, structures, textures, entités (catalogues) ;
  *   centre  : vue 3D DIRECT (même device GPU que la fenêtre de jeu : aucune
  *             copie) — clic droit maintenu + ZQSD/WASD, E/A montée/descente,
  *             molette avance/recule ; double-clic d'une entité : caméra
  *             dessus ; « Suivre » : poursuite, cap pris sur la vitesse ;
- *   droite  : inspecteur de l'entité sélectionnée (rafraîchi à chaque image) ;
+ *   droite  : inspecteur de l'entité sélectionnée (rafraîchi à chaque image),
+ *             éditeurs de bloc, de modèle, de structure, de texture et
+ *             d'entité (aperçu de comportement : sélectionnée et suivie) ;
  *   bas     : console à code d'état (ConsoleModel).
  *
  * Fils : Update et HandleEvent ne s'appellent que lorsque le fil principal a
@@ -29,9 +32,13 @@
 #include <ui/window_manager.hpp>
 
 #include "block_editor.hpp"
+#include "entity_editor.hpp"
+#include "model_editor.hpp"
 #include "console.hpp"
 #include "outliner.hpp"
 #include "report.hpp"
+#include "structure_editor.hpp"
+#include "texture_editor.hpp"
 
 namespace voxelia {
 
@@ -71,6 +78,10 @@ public:
 	[[nodiscard]] const std::vector<OutlinerEntry> &Entries() const noexcept { return m_entries; }
 	[[nodiscard]] const EditorCamera &Camera() const noexcept { return m_camera; }
 	[[nodiscard]] BlockEditor &Blocks() noexcept { return *m_blocks; }
+	[[nodiscard]] ModelEditor &Models() noexcept { return *m_models; }
+	[[nodiscard]] StructureEditor &Structures() noexcept { return *m_structures; }
+	[[nodiscard]] TextureEditor &Textures() noexcept { return *m_textures; }
+	[[nodiscard]] EntityEditor &Entities() noexcept { return *m_entities; }
 
 private:
 	void Build();
@@ -92,6 +103,10 @@ private:
 	String m_transfer;
 	ConsoleModel m_console;
 	std::unique_ptr<BlockEditor> m_blocks;
+	std::unique_ptr<ModelEditor> m_models;
+	std::unique_ptr<StructureEditor> m_structures;
+	std::unique_ptr<TextureEditor> m_textures;
+	std::unique_ptr<EntityEditor> m_entities;
 
 	// Widgets
 	ui::Widget m_viewport, m_outlinerList, m_outlinerCount, m_inspector, m_consoleLog, m_consoleInput, m_consoleBar;

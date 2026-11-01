@@ -39,6 +39,9 @@ struct Image {
 [[nodiscard]] Image GenerateTexture(const NodePtr &procedural, uint32_t seed);
 /// Image lue d'un fichier (PNG, BMP…), convertie en RGBA.
 [[nodiscard]] Result<Image, String> LoadImageFile(const String &path);
+/// Écrit `image` en PNG, ou en JPG si le nom finit par .jpg / .jpeg
+/// (`jpgQuality` 0..100) ; dossiers créés au besoin.
+Result<bool, String> SaveImageFile(const Image &image, const String &path, int jpgQuality = 92);
 
 /// Chargement d'une image désignée par son nom dans une composition.
 using ImageLoader = std::function<Result<Image, String>(const String &name)>;
@@ -110,6 +113,12 @@ struct ModelMesh {
 };
 
 [[nodiscard]] Result<ModelMesh, String> ParseObj(const String &text);
+/// Maillage d'un document glTF 2.0 (`.gltf` + tampons `.bin`). Sans `node` :
+/// toute la scène, chaque nœud placé par sa transformation monde ; avec
+/// `node` : le seul maillage de ce nœud, dans SON repère (une partie de rig
+/// est placée par son pivot). Un groupe par primitive, texturé par l'image de
+/// son matériau (chemin résolu).
+[[nodiscard]] Result<ModelMesh, String> LoadGltfMesh(const String &path, const String &node = String());
 [[nodiscard]] Result<ModelMesh, String> ParseB3D(const std::vector<uint8_t> &bytes);
 [[nodiscard]] Result<ModelMesh, String> ModelFromJson(const NodePtr &data);
 
@@ -142,6 +151,12 @@ public:
 	/// Modèle articulé (ModelDef "rig", ou maillage .obj d'une partie) ;
 	/// nullptr si inconnu ou en échec (l'erreur est notée dans Missing()).
 	[[nodiscard]] std::shared_ptr<const RigModel> Rig(const String &id);
+	/// Oublie le rig `id` (définition rechargée) : relu au prochain Rig(id).
+	/// Les rigs déjà distribués restent valides (partagés) jusqu'à leur abandon.
+	void ForgetRig(const String &id);
+	/// Relit la texture `id` (définition ou fichier changés) : catalogue mis à
+	/// jour, image rechargée au prochain Texture(id). Faux si elle est inconnue.
+	bool ReloadTexture(const String &id);
 	/// Modèle par id de ModelDef OU par chemin de fichier.
 	[[nodiscard]] std::shared_ptr<ModelResource> Model(const String &idOrPath);
 	/// Identifiant de catalogue d'un son (pour le moteur audio) ; `variant` :

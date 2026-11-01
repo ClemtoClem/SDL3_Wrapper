@@ -47,6 +47,7 @@ class ShaderBuilder {
 	bool m_skinned = false;     // SkinnedMesh (M17) — voir Canvas::DrawSkinnedMesh
 	bool m_doubleSided = false;
 	bool m_wireframe = false;
+	bool m_voxelReflections = false; // BAKED seulement — voir Canvas::SetVoxelReflections
 
 public:
 	ShaderBuilder() = default;
@@ -79,6 +80,11 @@ public:
 	/// avec .Instanced(), voir le plan : un maillage skinné n'est jamais
 	/// aussi instancié dans ce port).
 	ShaderBuilder &Skinned(bool value = true) noexcept;
+	/// Réflexions par lancer de rayons dans une grille de voxels (éclairage
+	/// BAKED seulement) : 3 échantillonneurs après les autres (grille, table
+	/// des blocs, réflectivité) et des champs en fin de LightUBO — voir
+	/// shader_chunks::VOXEL_REFLECTION_FUNC.
+	ShaderBuilder &VoxelReflections(bool value = true) noexcept;
 	ShaderBuilder &DoubleSided(bool value = true) noexcept;
 	ShaderBuilder &Wireframe(bool value = true) noexcept;
 
@@ -95,6 +101,9 @@ public:
 	[[nodiscard]] bool HasEnvironment() const noexcept { return m_environment; }
 	[[nodiscard]] bool IsInstanced() const noexcept { return m_instanced; }
 	[[nodiscard]] bool IsSkinned() const noexcept { return m_skinned; }
+	[[nodiscard]] bool HasVoxelReflections() const noexcept {
+		return m_voxelReflections && m_lightingModel == LightingModel::BAKED;
+	}
 	[[nodiscard]] bool IsDoubleSided() const noexcept { return m_doubleSided; }
 	[[nodiscard]] bool IsWireframe() const noexcept { return m_wireframe; }
 
@@ -106,7 +115,8 @@ public:
 	/// Nombre d'échantillonneurs fragment attendus — uAlbedo toujours
 	/// présent (binding=0), +4 (directionnel + 2 spots + point/cubemap) si
 	/// HasShadows() (voir shader_chunks::SAMPLER_SHADOW_MAPS), +3 (irradiance
-	/// + préfiltré + BRDF LUT) si HasEnvironment().
+	/// + préfiltré + BRDF LUT) si HasEnvironment(), +3 (grille, blocs,
+	/// réflectivité) si HasVoxelReflections().
 	[[nodiscard]] uint32_t FragmentSamplerCount() const noexcept;
 
 	[[nodiscard]] Result<ShaderProgram, String> Build(sdl3::GpuDevice &device) const;

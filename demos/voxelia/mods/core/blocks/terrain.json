@@ -56,7 +56,7 @@
 		"graphics": {
 			"texture": "core:water",
 			"material": "TRANSPARENT",
-			"backface_culling": false,
+			"backfaceCulling": false,
 			"tint": [255, 255, 255, 175]
 		},
 		"physics": {
@@ -147,7 +147,7 @@
 		"graphics": {
 			"texture": "core:ice",
 			"material": "TRANSLUCENT",
-			"backface_culling": false
+			"backfaceCulling": false
 		},
 		"physics": {
 			"solid": true,

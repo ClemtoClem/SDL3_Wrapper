@@ -99,12 +99,13 @@ public:
 	[[nodiscard]] std::vector<String> &History() noexcept { return m_history; }
 	[[nodiscard]] float Fps() const noexcept { return m_fps; }
 	[[nodiscard]] bool ThirdPerson() const noexcept { return m_thirdPerson; }
+	void SetThirdPerson(bool on) noexcept { m_thirdPerson = on; }
+	
 	/// Gravité inversée (le joueur marche au plafond) : vue et commandes retournées.
-	[[nodiscard]] bool Inverted() const {
-		if (!m_game)
-			return false;
+	[[nodiscard]] bool IsGravityInverted() const {
+		if (!m_game) return false;
 		auto body = m_game->Registry().GetComponent<voxel::PhysicsBody>(m_player);
-		return body.IsSome() && body.Unwrap()->gravityDirection < 0.f;
+		return body.IsSome() && (body.Unwrap()->gravityDirection < 0.f);
 	}
 
 	// ── Actions ─────────────────────────────────────────────────────────────
@@ -138,6 +139,9 @@ private:
 	void ResetBreaking();
 	void PickBlock();
 	render3d::Camera CameraFor();
+	/// Point juste devant le visage du modèle du joueur (yeux du rig, tête
+	/// tournée par le regard), pieds en `feet` ; NONE sans modèle articulé.
+	[[nodiscard]] Option<math::FVector3> FaceAnchor(const math::FVector3 &feet, const voxel::Transform &t);
 	void DrawHud(sdl3::Renderer &ren, sdl3::FRect r);
 	void DrawBars(sdl3::Renderer &ren, float x, float y, float width);
 	void EnsureIcons(sdl3::Renderer &ren);

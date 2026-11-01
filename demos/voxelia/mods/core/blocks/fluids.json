@@ -16,7 +16,7 @@
     255,
     190
    ],
-   "backface_culling": false
+   "backfaceCulling": false
   },
   "sounds": "core:water",
   "gameplay": {

@@ -260,6 +260,10 @@ public:
 	[[nodiscard]] Option<BlockHit> TargetBlock(ecs::Entity actor);
 	[[nodiscard]] Option<EntityHit> TargetEntity(ecs::Entity actor);
 	[[nodiscard]] ItemStack *HeldItem(ecs::Entity actor);
+	/// Objet tenu en main gauche (Equipment::offhand) ; nullptr sans équipement.
+	[[nodiscard]] ItemStack *OffhandItem(ecs::Entity actor);
+	/// Échange les objets des deux mains (faux sans inventaire ni équipement).
+	bool SwapHands(ecs::Entity actor);
 
 	// ── Blocs interactifs ───────────────────────────────────────────────────
 	//

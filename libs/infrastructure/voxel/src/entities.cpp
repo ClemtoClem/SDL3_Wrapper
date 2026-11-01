@@ -92,8 +92,9 @@ ecs::Entity SpawnPlayer(ecs::ArchetypeRegistry &registry, const String &name, co
 	PhysicsBody body;
 	body.jumpSpeed = 8.4f;
 	body.maxSpeed = 4.3f;
+	// Visible comme toute entité : à la première personne, la caméra se place
+	// devant son visage (le corps, les mains et les pieds restent visibles).
 	Visual visual;
-	visual.visible = false; // vue à la première personne
 	const ecs::Entity e = registry.SpawnBundle(t, Velocity{}, collider, body, MoveIntent{}, EntityKind{PLAYER_KIND, "player", nullptr},
 											   MakeHealth(20.f), visual, MakePlayer(name), InventoryComponent{Inventory{36}}, Survival{},
 											   StatusEffects{}, Equipment{},
@@ -208,13 +209,13 @@ void StepBehaviors(ecs::ArchetypeRegistry &registry, const World &world, float d
 				const PlayerInfo *p = nearest(t.position, Param(s, "range", 8.f));
 				const String item = ContentRegistry::Qualify(json::Str(s.params, "item"), "core");
 				if (p && (json::Str(s.params, "item").IsEmpty() || p->held == item)) {
-					Steer(intent, t, p->position, Param(s, "speed", intent.speed));
+					Steer(intent, t, p->position, Param(s, "speed", body.maxSpeed));
 					steered = true;
 				}
 			} else if (id == "flee") {
 				if (const PlayerInfo *p = nearest(t.position, Param(s, "range", 6.f))) {
 					const math::FVector3 away = t.position * 2.f - p->position;
-					Steer(intent, t, away, Param(s, "speed", intent.speed * 1.4f));
+					Steer(intent, t, away, Param(s, "speed", body.maxSpeed * 1.4f));
 					steered = true;
 				}
 			} else if (id == "wander" && !steered) {
@@ -231,7 +232,9 @@ void StepBehaviors(ecs::ArchetypeRegistry &registry, const World &world, float d
 					s.timer = Param(s, "pause", 3.f) * (0.5f + RandomAt(seed, int(e.id), int(counter), 9, 13));
 				}
 				if (s.hasTarget) {
-					Steer(intent, t, s.target, Param(s, "speed", intent.speed * 0.5f));
+					// Vitesses par défaut tirées du corps : intent.speed est réécrit par
+					// Steer, s'en servir de base la divisait par deux à chaque pas.
+					Steer(intent, t, s.target, Param(s, "speed", body.maxSpeed * 0.5f));
 					if ((t.position - s.target).Length() < 0.6f)
 						s.hasTarget = false;
 					// Bloqué contre un obstacle d'un bloc : sauter.

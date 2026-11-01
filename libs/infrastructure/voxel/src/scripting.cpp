@@ -6,6 +6,7 @@
 
 #include <cmath>
 
+#include <sdl3/stdinc.hpp>
 #include <ecs/relations.hpp>
 
 namespace voxel {
@@ -142,6 +143,13 @@ bool ScriptHost::Emit(const String &event, std::vector<Value> args) {
 			allowed = false;
 	}
 	return allowed;
+}
+
+std::vector<String> ScriptHost::BehaviorIds() const {
+	std::vector<String> out;
+	for (const auto &[id, owned] : m_behaviors)
+		out.push_back(String(id.c_str()));
+	return out;
 }
 
 bool ScriptHost::RunBehavior(ecs::Entity entity, BehaviorState &state, float dt) {
@@ -715,7 +723,7 @@ void ScriptHost::InstallEntityApi() {
 		TRY(e, entityArg(args, "entity.look"));
 		TRY(yaw, sd::ArgNumber(args, 1, "entity.look"));
 		if (auto t = reg.GetComponent<Transform>(e); t.IsSome())
-			t.Unwrap()->yaw = float(yaw);
+			t.Unwrap()->yaw = sdl3::NormalizeRad(float(yaw));
 		return Ok(Value::Nil());
 	});
 	vm.RegisterNamespacedNative("entity", "health", 1, 1, [&reg, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
@@ -855,6 +863,37 @@ void ScriptHost::InstallEntityApi() {
 		TRY(e, entityArg(args, "entity.held"));
 		const ItemStack *held = m_game.HeldItem(e);
 		return Ok(held && !held->IsEmpty() ? Value::Str(held->item) : Value::Nil());
+	});
+	vm.RegisterNamespacedNative("entity", "offhand", 1, 1, [this, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.offhand"));
+		const ItemStack *held = m_game.OffhandItem(e);
+		return Ok(held && !held->IsEmpty() ? Value::Str(held->item) : Value::Nil());
+	});
+	// entity.set_offhand(e, "core:torch" [, nombre]) ; nil ou "" : main vide.
+	vm.RegisterNamespacedNative("entity", "set_offhand", 2, 3, [this, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.set_offhand"));
+		ItemStack *offhand = m_game.OffhandItem(e);
+		if (!offhand)
+			return Ok(Value::Boolean(false));
+		const String item = args[1].IsNil() ? String() : args[1].ToDisplayString();
+		int count = 1;
+		if (args.size() >= 3) {
+			TRY(n, sd::ArgNumber(args, 2, "entity.set_offhand"));
+			count = std::max(1, int(n));
+		}
+		if (item.IsEmpty()) {
+			*offhand = ItemStack{};
+			return Ok(Value::Boolean(true));
+		}
+		const String id = Qualified(item, m_currentMod);
+		if (!m_game.Content().FindItem(id))
+			return Err(Error("entity.set_offhand", String::Format("objet inconnu : %s", id.CStr())));
+		*offhand = ItemStack{id, count, 0, nullptr};
+		return Ok(Value::Boolean(true));
+	});
+	vm.RegisterNamespacedNative("entity", "swap_hands", 1, 1, [this, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
+		TRY(e, entityArg(args, "entity.swap_hands"));
+		return Ok(Value::Boolean(m_game.SwapHands(e)));
 	});
 	vm.RegisterNamespacedNative("entity", "nearest_player", 2, 2, [this, &reg, entityArg](script::Interpreter &, std::vector<Value> &args) -> NativeResult {
 		TRY(e, entityArg(args, "entity.nearest_player"));

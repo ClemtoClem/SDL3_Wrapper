@@ -41,55 +41,7 @@ String FieldOf(const String &message) {
 	return field.Contains(".") || field == "light" || field == "optics" || field == "sensor" ? field : String();
 }
 
-/// En-tête de commentaires d'un fichier de définitions (gardé à l'écriture).
-String LeadingComments(const String &path) {
-	std::ifstream file(path.CStr());
-	String out;
-	std::string line;
-	while (std::getline(file, line)) {
-		size_t i = line.find_first_not_of(" \t");
-		if (i == std::string::npos || line.compare(i, 2, "//") != 0)
-			break;
-		out += String(line.c_str()) + String("\n");
-	}
-	return out;
-}
-
-bool SameNode(const NodePtr &a, const NodePtr &b) {
-	if (!a || !b)
-		return a == b;
-	return json::Encode(a) == json::Encode(b);
-}
-
 } // namespace
-
-void SetJsonPath(const NodePtr &root, const char *path, NodePtr value) {
-	if (!root || !root->IsObject())
-		return;
-	const String full(path);
-	NodePtr node = root;
-	size_t start = 0;
-	while (true) {
-		const size_t dot = full.Find(".", start);
-		const String key = full.Substring(start, dot == String::NPOS ? full.GetSize() : dot);
-		if (dot == String::NPOS) {
-			if (value)
-				node->Set(key, std::move(value));
-			else if (node->Has(key))
-				node->Remove(key);
-			return;
-		}
-		NodePtr next = node->Has(key) ? node->Get(key) : nullptr;
-		if (!next || !next->IsObject()) {
-			if (!value)
-				return; // rien à retirer
-			next = Node::MakeObject();
-			node->Set(key, next);
-		}
-		node = next;
-		start = dot + 1;
-	}
-}
 
 // ── Création ─────────────────────────────────────────────────────────────────
 
@@ -125,94 +77,6 @@ BlockDocument BlockDocument::New(const String &id, const String &mod, const Stri
 	SetJsonPath(doc.m_json, "gameplay.hardness", json::MakeNum(1.0));
 	doc.m_dirty = true;
 	return doc;
-}
-
-voxel::ContentRegistry::LoadContext BlockDocument::Context() const {
-	voxel::ContentRegistry::LoadContext ctx;
-	ctx.mod = m_mod;
-	ctx.baseDir = m_baseDir;
-	ctx.source = m_file;
-	return ctx;
-}
-
-// ── Lecture / écriture ───────────────────────────────────────────────────────
-
-String BlockDocument::Text() const { return m_json ? json::Encode(m_json) : String("{}"); }
-
-Result<bool, String> BlockDocument::SetJson(const String &text) {
-	Result<NodePtr, String> parsed = json::Parse(text);
-	if (parsed.IsError())
-		return Err(parsed.Error());
-	if (!parsed.Value() || !parsed.Value()->IsObject())
-		return Err(String("la définition d'un bloc est un objet JSON { … }"));
-	const NodePtr before = m_json ? m_json->Clone() : nullptr;
-	m_json = parsed.Value();
-	if (m_editDepth == 0)
-		Commit(before);
-	return Ok(true);
-}
-
-NodePtr BlockDocument::Field(const char *path) const { return json::At(m_json, path); }
-
-String BlockDocument::FieldText(const char *path, const String &fallback) const { return json::Str(m_json, path, fallback); }
-
-double BlockDocument::FieldNumber(const char *path, double fallback) const { return json::Num(m_json, path, fallback); }
-
-bool BlockDocument::FieldBool(const char *path, bool fallback) const { return json::Bool(m_json, path, fallback); }
-
-void BlockDocument::SetField(const char *path, NodePtr value) {
-	if (!m_json)
-		m_json = Node::MakeObject();
-	const NodePtr before = m_editDepth == 0 ? m_json->Clone() : nullptr;
-	SetJsonPath(m_json, path, std::move(value));
-	if (m_editDepth == 0)
-		Commit(before);
-}
-
-// ── Annulation ───────────────────────────────────────────────────────────────
-
-void BlockDocument::Commit(const NodePtr &before) {
-	if (SameNode(before, m_json))
-		return;
-	m_undo.push_back(before);
-	if (m_undo.size() > MAX_UNDO)
-		m_undo.erase(m_undo.begin());
-	m_redo.clear();
-	m_dirty = true;
-}
-
-void BlockDocument::BeginEdit() {
-	if (m_editDepth++ == 0)
-		m_editStart = m_json ? m_json->Clone() : nullptr;
-}
-
-void BlockDocument::EndEdit() {
-	if (m_editDepth == 0)
-		return;
-	if (--m_editDepth == 0) {
-		Commit(m_editStart);
-		m_editStart = nullptr;
-	}
-}
-
-bool BlockDocument::Undo() {
-	if (m_undo.empty() || m_editDepth > 0)
-		return false;
-	m_redo.push_back(m_json);
-	m_json = m_undo.back();
-	m_undo.pop_back();
-	m_dirty = true;
-	return true;
-}
-
-bool BlockDocument::Redo() {
-	if (m_redo.empty() || m_editDepth > 0)
-		return false;
-	m_undo.push_back(m_json);
-	m_json = m_redo.back();
-	m_redo.pop_back();
-	m_dirty = true;
-	return true;
 }
 
 // ── Contenu ──────────────────────────────────────────────────────────────────
@@ -283,59 +147,137 @@ std::vector<MergedState> BlockDocument::MergedStates(const voxel::ContentRegistr
 	return out;
 }
 
-Result<bool, String> BlockDocument::Save() {
-	if (m_file.IsEmpty())
-		return Err(String("aucun fichier associé au bloc"));
-	const String header = LeadingComments(m_file);
-	NodePtr root;
-	if (std::filesystem::exists(m_file.CStr())) {
-		Result<NodePtr, String> read = json::ReadFile(m_file);
-		if (read.IsError())
-			return Err(read.Error());
-		root = read.Value();
+// ── Forme nodebox ────────────────────────────────────────────────────────────
+
+namespace {
+
+String ScopePath(const String &state, const char *field) {
+	return state.IsEmpty() ? String(field) : String("states.") + state + String(".") + String(field);
+}
+
+/// Liste de boîtes d'un nœud « nodebox » (tableau, ou {"fixed" | "boxes"}).
+NodePtr BoxList(const NodePtr &nodebox) {
+	if (!nodebox)
+		return nullptr;
+	if (nodebox->IsArray())
+		return nodebox;
+	if (NodePtr fixed = json::At(nodebox, "fixed"); fixed && fixed->IsArray())
+		return fixed;
+	if (NodePtr boxes = json::At(nodebox, "boxes"); boxes && boxes->IsArray())
+		return boxes;
+	return nullptr;
+}
+
+} // namespace
+
+std::vector<BlockDocument::NodeBox> BlockDocument::NodeBoxes(const String &state) const {
+	NodePtr list = BoxList(Field(ScopePath(state, "nodebox").CStr()));
+	if (!list)
+		list = BoxList(Field(ScopePath(state, "shape").CStr()));
+	if (!list && !state.IsEmpty())
+		return NodeBoxes(String()); // l'état hérite des boîtes du bloc commun
+	std::vector<NodeBox> out;
+	for (size_t i = 0; list && i < list->GetSize(); ++i) {
+		NodePtr row = list->At(i);
+		if (!row || !row->IsArray() || row->GetSize() < 6)
+			continue;
+		NodeBox b{};
+		for (size_t k = 0; k < 6; ++k)
+			b[k] = (float(json::Num(row->At(k), "", 0.0)) + 0.5f) * 16.f;
+		out.push_back(b);
 	}
-	auto sameId = [&](const NodePtr &def) {
-		return def && def->IsObject() && voxel::ContentRegistry::Qualify(json::Str(def, "id"), m_mod) == m_id;
-	};
-	if (!root) {
-		root = Node::MakeArray();
-		root->Push(m_json->Clone());
-	} else if (root->IsArray()) {
-		bool replaced = false;
-		NodePtr rebuilt = Node::MakeArray();
-		for (size_t i = 0; i < root->GetSize(); ++i) {
-			NodePtr def = root->At(i);
-			if (!replaced && sameId(def)) {
-				rebuilt->Push(m_json->Clone());
-				replaced = true;
-			} else {
-				rebuilt->Push(def);
-			}
+	return out;
+}
+
+Result<bool, String> BlockDocument::SetNodeBoxes(const std::vector<NodeBox> &boxes, const String &state) {
+	for (size_t i = 0; i < boxes.size(); ++i) {
+		const NodeBox &b = boxes[i];
+		for (size_t k = 0; k < 6; ++k)
+			if (!(b[k] >= -8.f && b[k] <= 24.f)) // jusqu'à un demi-bloc de débord (comme Minetest)
+				return Err(String::Format("boîte %zu : coordonnée %.2f px hors de [−8, 24]", i, double(b[k])));
+		if (b[0] == b[3] || b[1] == b[4] || b[2] == b[5])
+			return Err(String::Format("boîte %zu : épaisseur nulle", i));
+	}
+	if (!state.IsEmpty() && !Field((String("states.") + state).CStr()))
+		return Err(String("état inconnu : ") + state);
+	Mutate([&](const NodePtr &root) {
+		NodePtr list = Node::MakeArray();
+		for (const NodeBox &b : boxes) {
+			NodePtr row = Node::MakeArray();
+			for (size_t k = 0; k < 6; ++k)
+				row->Push(json::MakeNum(double(b[k]) / 16.0 - 0.5));
+			list->Push(row);
 		}
-		if (!replaced)
-			rebuilt->Push(m_json->Clone());
-		root = rebuilt;
-	} else if (sameId(root)) {
-		root = m_json->Clone();
-	} else {
-		NodePtr both = Node::MakeArray();
-		both->Push(root);
-		both->Push(m_json->Clone());
-		root = both;
-	}
-	std::error_code ec;
-	const std::filesystem::path parent = std::filesystem::path(m_file.CStr()).parent_path();
-	if (!parent.empty())
-		std::filesystem::create_directories(parent, ec);
-	std::ofstream file(m_file.CStr(), std::ios::binary | std::ios::trunc);
-	if (!file)
-		return Err(String::Format("%s : écriture impossible", m_file.CStr()));
-	const String text = header + json::Encode(root);
-	file.write(text.CStr(), std::streamsize(text.GetSize()));
-	if (!file)
-		return Err(String::Format("%s : écriture incomplète", m_file.CStr()));
-	m_dirty = false;
+		SetJsonPath(root, ScopePath(state, "nodebox").CStr(), list);
+		if (Field(ScopePath(state, "shape").CStr()) && BoxList(Field(ScopePath(state, "shape").CStr())))
+			SetJsonPath(root, ScopePath(state, "shape").CStr(), nullptr); // une seule source de boîtes
+		// Le bloc devient une nodebox (le type se lit sur la définition entière).
+		const String type = json::Str(root, "type", "block").ToLower();
+		if (type == "block" || type == "cube")
+			root->Set("type", json::MakeStr(String("nodebox")));
+	});
 	return Ok(true);
+}
+
+Result<bool, String> BlockDocument::AddNodeBox(const NodeBox &box, const String &state) {
+	std::vector<NodeBox> boxes = NodeBoxes(state);
+	boxes.push_back(box);
+	return SetNodeBoxes(boxes, state);
+}
+
+Result<bool, String> BlockDocument::SetNodeBox(size_t index, const NodeBox &box, const String &state) {
+	std::vector<NodeBox> boxes = NodeBoxes(state);
+	if (index >= boxes.size())
+		return Err(String::Format("boîte %zu inconnue", index));
+	boxes[index] = box;
+	return SetNodeBoxes(boxes, state);
+}
+
+Result<bool, String> BlockDocument::RemoveNodeBox(size_t index, const String &state) {
+	std::vector<NodeBox> boxes = NodeBoxes(state);
+	if (index >= boxes.size())
+		return Err(String::Format("boîte %zu inconnue", index));
+	if (boxes.size() == 1)
+		return Err(String("une nodebox garde au moins une boîte"));
+	boxes.erase(boxes.begin() + std::ptrdiff_t(index));
+	return SetNodeBoxes(boxes, state);
+}
+
+Result<bool, String> BlockDocument::MirrorNodeBox(size_t index, int axis, const String &state) {
+	std::vector<NodeBox> boxes = NodeBoxes(state);
+	if (index >= boxes.size() || axis < 0 || axis > 2)
+		return Err(String::Format("boîte %zu ou axe %d inconnu", index, axis));
+	NodeBox b = boxes[index];
+	const float lo = 16.f - b[size_t(axis) + 3], hi = 16.f - b[size_t(axis)]; // symétrie par le centre du bloc
+	b[size_t(axis)] = lo;
+	b[size_t(axis) + 3] = hi;
+	boxes.push_back(b);
+	return SetNodeBoxes(boxes, state);
+}
+
+Result<bool, String> BlockDocument::RotateNodeBoxes(const String &state) {
+	std::vector<NodeBox> boxes = NodeBoxes(state);
+	if (boxes.empty())
+		return Err(String("aucune boîte à tourner"));
+	for (NodeBox &b : boxes) {
+		// Quart de tour autour de y par le centre : (x, z) → (16 − z, x).
+		const NodeBox r{16.f - b[5], b[1], b[0], 16.f - b[2], b[4], b[3]};
+		b = r;
+	}
+	return SetNodeBoxes(boxes, state);
+}
+
+Option<voxel::BlockDef> BlockDocument::Loaded(const voxel::ContentRegistry &live, const String &state) const {
+	voxel::ContentRegistry scratch = live;
+	Result<String, String> loaded = scratch.Load(m_json, Context());
+	if (loaded.IsError())
+		return NONE;
+	const voxel::BlockDef *block = scratch.FindBlock(loaded.Value());
+	if (block && !state.IsEmpty())
+		block = scratch.BlockState(*block, state);
+	if (!block)
+		return NONE;
+	return Some(*block);
 }
 
 } // namespace voxelia::studio

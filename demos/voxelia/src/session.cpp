@@ -8,6 +8,7 @@
 #include <SDL3/SDL.h>
 #include <audio/clip.hpp>
 #include <ecs/events.hpp>
+#include <sdl3/stdinc.hpp>
 #include <sdl3/image.hpp>
 #include <voxel/json.hpp>
 #include <voxel/rig.hpp>
@@ -198,6 +199,8 @@ void Session::ApplySettings() {
 		r.entityDistance = float(s.entityDistance);
 		r.brightness = s.brightness;
 		r.particles = s.particles;
+		r.reflections = s.reflections;
+		r.reflectionBounces = s.reflectionBounces;
 		m_world->Configure(r);
 		m_world->rebuildBudget = size_t(std::max(2, s.chunkUpdates));
 	}
@@ -686,8 +689,7 @@ void Session::UpdateHudLabels() {
 												  int(m_world->PendingChunks()), int(m_world->TriangleCount() / 1000)));
 		k.SetText(m_debugLines[2], String::Format("%d entité(s), %d ressource(s), %d voix, graine %u", int(m_game->Registry().EntityCount()),
 												  int(m_game->Assets().ResidentCount()), int(m_audio->VoiceCount()), m_game->Metadata().seed));
-		k.SetText(m_debugLines[3], String::Format("lacet %.0f°, tangage %.0f°, lumière %s", double(t.Unwrap()->yaw * 57.3f),
-												  double(t.Unwrap()->pitch * 57.3f), night ? "nuit" : "jour"));
+		k.SetText(m_debugLines[3], String::Format("lacet %.0f°, tangage %.0f°, lumière %s", sdl3::RadToDeg(t.Unwrap()->yaw), sdl3::RadToDeg(t.Unwrap()->pitch), night ? "nuit" : "jour"));
 		k.SetText(m_debugLines[4], String::Format("%d mod(s) — %d définition(s) — %s : pas %.1f ms, maillage %.1f ms/chunk (%d en cours)",
 												  int(m_game->Mods().mods.size()), int(m_game->Content().DefinitionCount()),
 												  m_updateThread->Threaded() ? "fils" : "fil unique", double(m_tickMs),
@@ -833,10 +835,24 @@ void Session::HandleEvent(sdl3::Event &e, bool captureAllowed) {
 		if (auto t = m_game->Registry().GetComponent<Transform>(m_player); t.IsSome()) {
 			// La tête en bas (gravité inversée), la vue est retournée : la
 			// souris garde son sens à l'écran.
-			const float flip = Inverted() ? -1.f : 1.f;
+			const float flip = IsGravityInverted() ? -1.f : 1.f;
 			const float k = 0.0025f * s.mouseSensitivity;
-			t.Unwrap()->yaw -= float(e.MouseMotion().xrel) * k * flip;
-			t.Unwrap()->pitch = std::clamp(t.Unwrap()->pitch - float(e.MouseMotion().yrel) * k * flip * (s.invertY ? -1.f : 1.f), -1.55f, 1.55f);
+
+			Transform &tr = *t.Unwrap();
+
+			tr.yaw = sdl3::NormalizeRad(
+				tr.yaw - float(e.MouseMotion().xrel) * k * flip
+			);
+
+			const float pitchDelta =
+				float(e.MouseMotion().yrel) * k * flip *
+				(s.invertY ? -1.f : 1.f);
+
+			tr.pitch = SDL_clamp(
+				tr.pitch - pitchDelta,
+				-sdl3::PI_HALF_F,
+				sdl3::PI_HALF_F
+			);
 		}
 		return;
 	}
@@ -888,6 +904,8 @@ void Session::HandleEvent(sdl3::Event &e, bool captureAllowed) {
 			SelectSlot(i - 1);
 	if (s.Matches("drop", code))
 		DropSelected(SDL_GetModState() & SDL_KMOD_CTRL);
+	if (s.Matches("swapHands", code))
+		(void)m_game->SwapHands(m_player);
 	if (s.Matches("sprint", code) && s.toggleSprint)
 		m_sprintToggled = !m_sprintToggled;
 	if (s.Matches("sneak", code) && s.toggleSneak)
@@ -934,7 +952,7 @@ void Session::UpdateControls() {
 	const float yaw = t.Unwrap()->yaw;
 	const math::FVector3 forward{std::sin(yaw), 0.f, std::cos(yaw)}, right{-std::cos(yaw), 0.f, std::sin(yaw)};
 	const float f = float(Held(s, "forward")) - float(Held(s, "back"));
-	const float r = (float(Held(s, "right")) - float(Held(s, "left"))) * (Inverted() ? -1.f : 1.f);
+	const float r = (float(Held(s, "right")) - float(Held(s, "left"))) * (IsGravityInverted() ? -1.f : 1.f);
 	math::FVector3 wish = forward * f + right * r;
 	if (wish.Length() > 1.f)
 		wish = wish.Normalize();
@@ -1045,6 +1063,28 @@ void Session::DropSelected(bool all) {
 		*held = ItemStack{};
 }
 
+Option<math::FVector3> Session::FaceAnchor(const math::FVector3 &feet, const Transform &t) {
+	auto visual = m_game->Registry().GetComponent<Visual>(m_player);
+	if (visual.IsNone() || !visual.Unwrap()->rig.IsSet())
+		return NONE;
+	const std::shared_ptr<const RigModel> rig = m_game->Assets().Rig(visual.Unwrap()->rig.model);
+	if (!rig || !rig->eye.IsSet())
+		return NONE;
+	// Un pixel et demi devant la face (calque gonflé compris), tourné avec la tête.
+	constexpr float MARGIN = 1.5f;
+	RigPoseInput input;
+	input.lookPitch = t.pitch;
+	math::FVector3 p = RigPointInModel(*rig, size_t(rig->eye.part), rig->eye.at + math::FVector3{0.f, 0.f, MARGIN}, input);
+	// Échelle et orientation de l'entité, comme le rendu (WorldRenderer::UpdateRig).
+	float scale = visual.Unwrap()->scale * visual.Unwrap()->rig.scale;
+	if (rig->unitHeight)
+		if (auto c = m_game->Registry().GetComponent<Collider>(m_player); c.IsSome())
+			scale *= c.Unwrap()->size.y;
+	p = p * (rig->scale * scale);
+	const float yaw = t.yaw + visual.Unwrap()->rig.yaw * (3.14159265f / 180.f);
+	return Some(feet + math::FQuaternion::FromAxisAngle({0.f, 1.f, 0.f}, yaw).Rotate(p));
+}
+
 render3d::Camera Session::CameraFor() {
 	const Settings &s = m_shell.Prefs();
 	render3d::Camera camera;
@@ -1065,12 +1105,22 @@ render3d::Camera Session::CameraFor() {
 		eye += std::sin(m_bob * 2.f) * 0.04f;
 	// Gravité inversée : la tête en bas, les yeux près des « pieds » de la
 	// boîte, la vue retournée.
-	if (Inverted()) {
+	if (IsGravityInverted()) {
 		eye = 1.8f - eye;
 		camera.up = {0.f, -1.f, 0.f};
 	}
 	camera.position = feet + math::FVector3{0.f, eye, 0.f};
-	const math::FVector3 forward = t.Unwrap()->Forward();
+	// Devant le visage du modèle du joueur (il suit le regard) : son corps,
+	// ses mains et ses pieds sont visibles en regardant vers le bas.
+	if (!IsGravityInverted())
+		if (Option<math::FVector3> face = FaceAnchor(feet, *t.Unwrap()); face.IsSome())
+			camera.position = face.Unwrap() + math::FVector3{0.f, eye - EYE, 0.f};
+	Transform view = *t.Unwrap();
+	view.pitch = std::clamp(view.pitch + s.cameraTilt * 3.14159265f / 180.f, -1.55f, 1.55f);
+	const math::FVector3 forward = view.Forward();
+	// Décalage réglé : avant (regard), haut, droite (−x du modèle tourné).
+	const math::FVector3 right{-std::cos(view.yaw), 0.f, std::sin(view.yaw)};
+	camera.position = camera.position + t.Unwrap()->Forward() * s.cameraForward + math::FVector3{0.f, s.cameraUp, 0.f} + right * s.cameraSide;
 	if (m_thirdPerson) {
 		// Derrière le joueur, sans traverser les murs.
 		float distance = 4.f;
@@ -1223,9 +1273,6 @@ void Session::Update(float dt, bool paused, bool panelOpen) {
 		m_leftDown = m_rightDown = false;
 		ResetBreaking();
 	}
-	// Le joueur est visible en vue à la troisième personne.
-	if (auto v = m_game->Registry().GetComponent<Visual>(m_player); v.IsSome())
-		v.Unwrap()->visible = m_thirdPerson;
 	m_camera = CameraFor();
 	m_world->Update(m_camera, m_game->GetSchedule().FixedAlpha(), m_shell.Prefs().placeAssist ? target : Option<BlockHit>(NONE));
 	m_hurtFlash = std::max(0.f, m_hurtFlash - dt);
@@ -1287,17 +1334,19 @@ Session::ContentReload Session::ReloadDefinitions(const std::vector<Definition> 
 	EndSimulation();    // la simulation lit le contenu à chaque pas
 	m_world->Quiesce(); // les fils de maillage aussi
 	const std::set<std::string> before = m_world->TextureReferences();
+	size_t loadedCount = 0;
 	for (const Definition &d : definitions) {
 		Result<std::vector<String>, String> loaded = m_game->ReloadDefinition(d.node, d.context);
 		if (loaded.IsError()) {
 			out.errors.push_back(loaded.Error());
 			continue;
 		}
+		++loadedCount;
 		for (String &id : loaded.Value())
 			out.blocks.push_back(std::move(id));
 	}
-	if (out.blocks.empty())
-		return out;
+	if (loadedCount == 0)
+		return out; // rien n'a changé (blocs, modèles…) : l'affichage reste
 	out.atlasRebuilt = m_world->AtlasMissing(out.blocks, before);
 	if (Result<bool, String> r = m_world->ReloadContent(out.atlasRebuilt); r.IsError())
 		out.errors.push_back(r.Error());

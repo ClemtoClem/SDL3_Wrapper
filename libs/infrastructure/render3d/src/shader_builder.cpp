@@ -65,6 +65,11 @@ ShaderBuilder & ShaderBuilder::Skinned(bool value) noexcept {
 	return *this;
 }
 
+ShaderBuilder & ShaderBuilder::VoxelReflections(bool value) noexcept {
+	m_voxelReflections = value;
+	return *this;
+}
+
 ShaderBuilder & ShaderBuilder::DoubleSided(bool value) noexcept {
 	m_doubleSided = value;
 	return *this;
@@ -93,6 +98,8 @@ uint32_t ShaderBuilder::FragmentSamplerCount() const noexcept {
 		count += 4;
 	if (HasEnvironment())
 		count += 3;
+	if (HasVoxelReflections())
+		count += 3;
 	return count;
 }
 
@@ -112,6 +119,13 @@ Result<ShaderProgram, String> ShaderBuilder::Build(sdl3::GpuDevice &device) cons
 	const bool baked = m_lightingModel == LightingModel::BAKED;
 	if (baked)
 		defines += "#define BAKED_LIGHTING\n";
+	if (HasVoxelReflections()) {
+		// Après l'albedo, les ombres et l'IBL (voir Canvas::End, même ordre).
+		const uint32_t base = 1u + (HasShadows() ? 4u : 0u) + (HasEnvironment() ? 3u : 0u);
+		defines += String::Format("#define VOXEL_REFLECTIONS\n#define VOXEL_BINDING_GRID %u\n#define VOXEL_BINDING_BLOCKS %u\n"
+								  "#define VOXEL_BINDING_REFLECTIVITY %u\n",
+								  base, base + 1, base + 2);
+	}
 
 	String vertexSrc = defines;
 	vertexSrc += (IsSkinned() ? VERTEX_ATTRIBUTES_SKINNED : VERTEX_ATTRIBUTES);
@@ -151,6 +165,10 @@ Result<ShaderProgram, String> ShaderBuilder::Build(sdl3::GpuDevice &device) cons
 		fragmentSrc += (HasShadows() ? SHADOW_REAL_FUNC : SHADOW_STUB_FUNC);
 		if (baked) {
 			fragmentSrc += LIGHTING_FUNC_BAKED;
+			if (HasVoxelReflections()) {
+				fragmentSrc += SAMPLER_VOXEL_REFLECTIONS;
+				fragmentSrc += VOXEL_REFLECTION_FUNC;
+			}
 			fragmentSrc += FRAGMENT_MAIN_BAKED;
 		} else {
 			fragmentSrc += (m_lightingModel == LightingModel::PBR ? LIGHTING_FUNC_PBR : LIGHTING_FUNC_PHONG);

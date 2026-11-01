@@ -116,7 +116,7 @@ void Exec(Game &g, ecs::Entity p, const char *line) {
 
 /// Ascenseur d'exemple (3 étages) à côté du joueur, joueur placé dans la cabine.
 void DemoWithRider(Game &g, ecs::Entity p, const char *style = "modern") {
-	Exec(g, p, (std::string("/ascenseur demo ") + style + " 3").c_str());
+	Exec(g, p, (std::string("/elevator demo ") + style + " 3").c_str());
 	REQUIRE_EQ(Eval(g, "len(keys(EL.records))"), String("1"));
 	(void)g.Scripts().RunSource(String("let e = ") + E +
 								" let c = el_cabin_min(e, e.floor) entity.set_pos(entity.players()[0], c.x + 2.5, c.y + 1, c.z + 2.5)");

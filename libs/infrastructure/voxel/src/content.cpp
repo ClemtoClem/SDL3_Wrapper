@@ -169,7 +169,7 @@ Appearance Look(const NodePtr &graphics) {
 			look.faces[size_t(order[i])] = json::Str(textures->At(std::min<size_t>(size_t(i), textures->GetSize() - 1)), "");
 	}
 	look.material = Material(json::Str(graphics, "material", "OPAQUE"));
-	look.backfaceCulling = json::Bool(graphics, "backface_culling", json::Bool(graphics, "backfaceCulling", true));
+	look.backfaceCulling = json::Bool(graphics, "backfaceCulling", true);
 	look.tint = Color4(graphics, "tint", Color4(graphics, "color", look.tint));
 	look.lightEmission = std::clamp(json::Int(graphics, "light", json::Int(graphics, "lightEmission", 0)), 0, 15);
 	look.shader = json::Str(graphics, "shader");
@@ -226,7 +226,7 @@ ShapeDesc Shape(const NodePtr &def, const String &type, const String &baseDir) {
 			shape.boxes = NodeBoxes(nb);
 		else if (nb)
 			shape.boxes = NodeBoxes(json::Has(nb, "fixed") ? json::At(nb, "fixed") : json::At(nb, "boxes"));
-	} else if (kind == "obj" || kind == "b3d" || kind == "mesh" || kind == "model") {
+	} else if (kind == "obj" || kind == "b3d" || kind == "gltf" || kind == "mesh" || kind == "model") {
 		shape.kind = ShapeKind::MODEL;
 		String model = json::Str(def, "path", json::Str(def, "model", node && node->IsObject() ? json::Str(node, "path", json::Str(node, "model")) : String()));
 		// Un id de ModelDef (« mod:nom ») ou un fichier relatif au mod.
@@ -562,7 +562,7 @@ Result<String, String> ContentRegistry::Load(const NodePtr &definition, const Lo
 		return Err(String::Format("%s : définition « %s » sans « id »", ctx.source.CStr(), type.CStr()));
 	Result<String, String> loaded = Err(String());
 	if (type == "block" || type == "cube" || type == "nodebox" || type == "cross" || type == "plant" || type == "obj" ||
-		type == "b3d" || type == "mesh")
+		type == "b3d" || type == "gltf" || type == "mesh")
 		loaded = json::At(def, "states") ? LoadBlockStates(def, ctx, type) : LoadBlock(def, ctx, type);
 	else if (type == "item")
 		loaded = LoadItem(def, ctx, false);
@@ -878,6 +878,13 @@ Result<String, String> ContentRegistry::LoadItem(const NodePtr &def, const LoadC
 	return Ok(item.id);
 }
 
+std::vector<String> ContentRegistry::BuiltinBehaviors() {
+	std::vector<String> out;
+	for (const char *name : BUILTIN_BEHAVIORS)
+		out.push_back(String(name));
+	return out;
+}
+
 Result<String, String> ContentRegistry::LoadEntity(const NodePtr &def, const LoadContext &ctx, const String &kind) {
 	EntityDef e;
 	e.id = Qualify(json::Str(def, "id"), ctx.mod);
@@ -948,6 +955,9 @@ Result<String, String> ContentRegistry::LoadEntity(const NodePtr &def, const Loa
 				e.drops.push_back(stack);
 	e.onInteract = json::Str(def, "onInteract", json::Str(def, "interact"));
 	e.raw = def;
+	e.source = ctx.definition ? ctx.definition : def;
+	e.sourceFile = ctx.source;
+	e.baseDir = ctx.baseDir;
 	m_entities.Put(e);
 	return Ok(e.id);
 }
@@ -1164,6 +1174,7 @@ Result<String, String> ContentRegistry::LoadTexture(const NodePtr &def, const Lo
 	t.frames = std::max(1, json::Int(def, "frames", 1));
 	t.biomeTint = json::Str(def, "biomeTint");
 	t.frameTime = float(json::Num(def, "frameTime", 0.25));
+	t.reflectivity = std::clamp(float(json::Num(def, "reflectivity", 0.0)), 0.f, 1.f);
 	t.raw = def;
 	m_textures.Put(t);
 	return Ok(t.id);
@@ -1209,11 +1220,17 @@ Result<String, String> ContentRegistry::LoadModel(const NodePtr &def, const Load
 	if (format == "rig") // modèle articulé décrit en ligne (voir rig.hpp)
 		m.data = def;
 	if (format.IsEmpty())
-		format = path.EndsWith(".obj") ? String("obj") : path.EndsWith(".b3d") || path.EndsWith(".b3b") ? String("b3d") : String("json");
+		format = path.EndsWith(".obj")								 ? String("obj")
+				 : path.EndsWith(".b3d") || path.EndsWith(".b3b") ? String("b3d")
+				 : path.EndsWith(".gltf")							 ? String("gltf")
+																	 : String("json");
 	m.format = format;
 	if (m.path.IsEmpty() && !m.data)
 		return Err(String::Format("modèle %s : « path » ou « data » attendu", m.id.CStr()));
 	m.raw = def;
+	m.source = ctx.definition ? ctx.definition : def;
+	m.sourceFile = ctx.source;
+	m.baseDir = ctx.baseDir;
 	m_models.Put(m);
 	return Ok(m.id);
 }

@@ -55,7 +55,7 @@ const char *Usage() {
 		   "  --screenshot=N:FICHIER capture l'image N (répétable)\n"
 		   "  --exec=N:/commande     commande de jeu à l'image N (répétable) ;\n"
 		   "  --exec=N:!commande     commande de l'application : !screen NOM, !play DOSSIER, !back,\n"
-		   "                         !home, !look LACET TANGAGE, !notify TON TEXTE, !confirm, !set CLÉ VALEUR…\n"
+		   "                         !home, !look LACET TANGAGE, !view first|third, !notify TON TEXTE, !confirm, !set CLÉ VALEUR…\n"
 		   "  --headless             sans fenêtre : simulation, commandes, rapport\n"
 		   "  --threads=on|off       simulation et maillage sur leurs fils (on, défaut) ou sur le fil principal\n"
 		   "  --mesh-threads=N       fils de rendu pour le maillage des chunks (défaut : 2)\n"

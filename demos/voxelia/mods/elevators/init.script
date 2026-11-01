@@ -82,7 +82,7 @@ fn el_reload_settings() {
     if (num(str(el_setting("cabin_height", 4))) == 5) { ch = 5 }
     EL.settings = {
         speed: el_setting("speed", 3.0),
-        accel: el_setting("acceleration", 1.6),
+        accel: el_setting("velocity", 1.6),
         door_time: el_setting("door_time", 4.0),
         door_speed: el_setting("door_speed", 0.45),
         max_height: el_setting("max_height", 30),

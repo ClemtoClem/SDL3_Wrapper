@@ -157,6 +157,13 @@ public:
 	// =========================================================================
 
 	/// Construit depuis un entier, dans la base donnée (2-36).
+	/// Contenu complet d'un fichier (octets bruts) ; NONE s'il est illisible.
+	[[nodiscard]] static Option<String> ReadFile(const char *path);
+	[[nodiscard]] static Option<String> ReadFile(const String &path) { return ReadFile(path.CStr()); }
+	/// Écrit la chaîne dans `path` (remplacé) ; faux en cas d'échec.
+	[[nodiscard]] bool WriteFile(const char *path) const;
+	[[nodiscard]] bool WriteFile(const String &path) const { return WriteFile(path.CStr()); }
+
 	static String From(long long value, int base = 10);
 	static String From(int value, int base = 10) { return From(static_cast<long long>(value), base); }
 	static String From(long value, int base = 10) { return From(static_cast<long long>(value), base); }
@@ -354,6 +361,10 @@ public:
 	[[nodiscard]] bool StartsWith(const String &prefix, size_t offset = 0) const {
 		return View().Substr(offset).StartsWith(prefix.View());
 	}
+	/// `prefix` présent à la position `offset` (faux si `offset` dépasse).
+	[[nodiscard]] bool StartsWith(const char *prefix, size_t offset) const {
+		return offset <= m_size && View().Substr(offset).StartsWith(StringView(prefix));
+	}
 	[[nodiscard]] bool EndsWith(const String &suffix) const { return View().EndsWith(suffix.View()); }
 
 	/// Nombre d'occurrences non-chevauchantes de `needle`.
@@ -512,6 +523,15 @@ public:
 	void ReplaceInplace(const String &find, const String &rep) { *this = Replace(find.View(), rep.View()); }
 	void ReplaceInplace(char find, char rep);
 
+	/// Remplace les `count` octets à partir de `pos` par `by` (bornés à la
+	/// chaîne ; `pos` au-delà de la fin : `by` est ajouté).
+	[[nodiscard]] String Replace(size_t pos, size_t count, StringView by) const;
+	[[nodiscard]] String Replace(size_t pos, size_t count, const String &by) const { return Replace(pos, count, by.View()); }
+	[[nodiscard]] String Replace(size_t pos, size_t count, const char *by) const { return Replace(pos, count, StringView(by)); }
+	void ReplaceInplace(size_t pos, size_t count, StringView by) { *this = Replace(pos, count, by); }
+	void ReplaceInplace(size_t pos, size_t count, const String &by) { *this = Replace(pos, count, by.View()); }
+	void ReplaceInplace(size_t pos, size_t count, const char *by) { *this = Replace(pos, count, StringView(by)); }
+
 	/// Supprime `count` octets à partir de `index`.
 	[[nodiscard]] String Remove(size_t index, size_t count = NPOS) const;
 	// Compat Arduino (modifie en place)
@@ -529,6 +549,9 @@ public:
 		return r;
 	}
 	[[nodiscard]] String Insert(size_t pos, char c) const;
+
+	/// Préfixe chaque ligne par `prefix` (les lignes vides restent vides).
+	[[nodiscard]] String IndentLines(StringView prefix) const;
 
 	/// Répète la chaîne `n` fois.
 	[[nodiscard]] String Repeat(size_t n) const;

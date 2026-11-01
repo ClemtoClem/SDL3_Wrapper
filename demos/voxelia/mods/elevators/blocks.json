@@ -63,48 +63,48 @@
         }
     },
     {
-        "id": "modern_cabin_lamp",
-        "displayName": "Éclairage de cabine moderne",
-        "tags": [
-            "elevator",
-            "elevator_modern",
-            "elevator_cabin",
-            "cabin_ceiling"
-        ],
-        "sounds": "core:metal",
-        "graphics": {
-            "textures": {
-                "bottom": "elevators:elevator_modern_lamp",
-                "side": "elevators:elevator_modern_wall",
-                "top": "elevators:elevator_shaft"
-            }
-        },
-        "gameplay": {
-            "hardness": 3,
-            "tool": "pickaxe"
-        },
-        "light": {
-            "type": "spot",
-            "color": [
-                235,
-                244,
-                255
-            ],
-            "intensity": 2.2,
-            "range": 6,
-            "direction": [
-                0,
-                -1,
-                0
-            ],
-            "innerAngle": 60,
-            "outerAngle": 88,
-            "offset": [
-                0,
-                -0.5,
-                0
-            ]
+      "id": "modern_cabin_lamp",
+      "displayName": "Éclairage de cabine moderne",
+      "tags": [
+        "elevator",
+        "elevator_modern",
+        "elevator_cabin",
+        "cabin_ceiling"
+      ],
+      "sounds": "core:metal",
+      "graphics": {
+        "textures": {
+          "bottom": "elevators:elevator_modern_lamp",
+          "side": "elevators:elevator_modern_wall",
+          "top": "elevators:elevator_shaft"
         }
+      },
+      "gameplay": {
+        "hardness": 3,
+        "tool": "pickaxe"
+      },
+      "light": {
+        "type": "spot",
+        "color": [
+          235,
+          244,
+          255
+        ],
+        "intensity": 6,
+        "range": 6,
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "innerAngle": 60,
+        "outerAngle": 88,
+        "offset": [
+          0,
+          -0.5,
+          0
+        ]
+      }
     },
     {
         "id": "modern_cabin_panel",
@@ -1393,48 +1393,48 @@
         }
     },
     {
-        "id": "industrial_cabin_lamp",
-        "displayName": "Éclairage de cabine industriel",
-        "tags": [
-            "elevator",
-            "elevator_industrial",
-            "elevator_cabin",
-            "cabin_ceiling"
-        ],
-        "sounds": "core:metal",
-        "graphics": {
-            "textures": {
-                "bottom": "elevators:elevator_industrial_lamp",
-                "side": "elevators:elevator_industrial_wall",
-                "top": "elevators:elevator_shaft"
-            }
-        },
-        "gameplay": {
-            "hardness": 3,
-            "tool": "pickaxe"
-        },
-        "light": {
-            "type": "spot",
-            "color": [
-                255,
-                226,
-                180
-            ],
-            "intensity": 2.2,
-            "range": 6,
-            "direction": [
-                0,
-                -1,
-                0
-            ],
-            "innerAngle": 60,
-            "outerAngle": 88,
-            "offset": [
-                0,
-                -0.5,
-                0
-            ]
+      "id": "industrial_cabin_lamp",
+      "displayName": "Éclairage de cabine industriel",
+      "tags": [
+        "elevator",
+        "elevator_industrial",
+        "elevator_cabin",
+        "cabin_ceiling"
+      ],
+      "sounds": "core:metal",
+      "graphics": {
+        "textures": {
+          "bottom": "elevators:elevator_industrial_lamp",
+          "side": "elevators:elevator_industrial_wall",
+          "top": "elevators:elevator_shaft"
         }
+      },
+      "gameplay": {
+        "hardness": 3,
+        "tool": "pickaxe"
+      },
+      "light": {
+        "type": "spot",
+        "color": [
+          255,
+          226,
+          180
+        ],
+        "intensity": 6,
+        "range": 6,
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "innerAngle": 60,
+        "outerAngle": 88,
+        "offset": [
+          0,
+          -0.5,
+          0
+        ]
+      }
     },
     {
         "id": "industrial_cabin_panel",
@@ -2723,48 +2723,48 @@
         }
     },
     {
-        "id": "backrooms_cabin_lamp",
-        "displayName": "Éclairage de cabine des Backrooms",
-        "tags": [
-            "elevator",
-            "elevator_backrooms",
-            "elevator_cabin",
-            "cabin_ceiling"
-        ],
-        "sounds": "core:metal",
-        "graphics": {
-            "textures": {
-                "bottom": "elevators:elevator_backrooms_lamp",
-                "side": "elevators:elevator_backrooms_wall",
-                "top": "elevators:elevator_shaft"
-            }
-        },
-        "gameplay": {
-            "hardness": 3,
-            "tool": "pickaxe"
-        },
-        "light": {
-            "type": "spot",
-            "color": [
-                255,
-                232,
-                190
-            ],
-            "intensity": 2.2,
-            "range": 6,
-            "direction": [
-                0,
-                -1,
-                0
-            ],
-            "innerAngle": 60,
-            "outerAngle": 88,
-            "offset": [
-                0,
-                -0.5,
-                0
-            ]
+      "id": "backrooms_cabin_lamp",
+      "displayName": "Éclairage de cabine des Backrooms",
+      "tags": [
+        "elevator",
+        "elevator_backrooms",
+        "elevator_cabin",
+        "cabin_ceiling"
+      ],
+      "sounds": "core:metal",
+      "graphics": {
+        "textures": {
+          "bottom": "elevators:elevator_backrooms_lamp",
+          "side": "elevators:elevator_backrooms_wall",
+          "top": "elevators:elevator_shaft"
         }
+      },
+      "gameplay": {
+        "hardness": 3,
+        "tool": "pickaxe"
+      },
+      "light": {
+        "type": "spot",
+        "color": [
+          255,
+          232,
+          190
+        ],
+        "intensity": 6,
+        "range": 6,
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "innerAngle": 60,
+        "outerAngle": 88,
+        "offset": [
+          0,
+          -0.5,
+          0
+        ]
+      }
     },
     {
         "id": "backrooms_cabin_panel",

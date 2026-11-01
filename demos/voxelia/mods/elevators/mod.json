@@ -8,7 +8,7 @@
     ],
     "category": "machines",
     "tags": [
-        "ascenseur",
+        "elevator",
         "machines",
         "transport"
     ],
@@ -22,7 +22,7 @@
             "label": "Vitesse de croisière (blocs/s)"
         },
         {
-            "id": "acceleration",
+            "id": "velocity",
             "type": "float",
             "default": 1.6,
             "min": 0.2,

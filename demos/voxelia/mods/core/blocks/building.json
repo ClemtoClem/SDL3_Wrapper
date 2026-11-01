@@ -17,6 +17,20 @@
   }
  },
  {
+  "id": "mirror",
+  "displayName": "Miroir",
+  "tags": [
+   "glass"
+  ],
+  "graphics": {
+   "texture": "core:mirror"
+  },
+  "sounds": "core:glass",
+  "gameplay": {
+   "hardness": 0.5
+  }
+ },
+ {
   "id": "bricks",
   "displayName": "Briques",
   "tags": [

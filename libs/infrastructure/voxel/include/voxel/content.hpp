@@ -277,6 +277,9 @@ struct EntityDef {
 	std::vector<std::pair<String, int>> drops;
 	String onInteract;    ///< fonction de script (clic droit)
 	NodePtr raw;
+	/// Définition telle qu'écrite et son fichier (éditeur, rechargement).
+	NodePtr source;
+	String sourceFile, baseDir;
 };
 
 struct Ingredient {
@@ -407,6 +410,10 @@ struct TextureDef {
 	/// Variantes (« variants » : ids de textures) : chaque bloc posé en tire
 	/// une d'après sa position ; la texture elle-même est la première.
 	std::vector<String> variants;
+	/// Lumière réfléchie (« reflectivity », 0..1) : 0 mat, 1 miroir parfait
+	/// (seul le reflet est vu) — réflexions lancées dans la grille de voxels.
+	/// Ses variantes en héritent si elles n'en déclarent pas.
+	float reflectivity = 0.f;
 	NodePtr raw;
 };
 
@@ -416,6 +423,9 @@ struct ModelDef {
 	String path;
 	NodePtr data;  ///< modèle "json" en ligne (sommets/faces ou boîtes)
 	NodePtr raw;
+	/// Définition telle qu'écrite et son fichier (éditeur, rechargement).
+	NodePtr source;
+	String sourceFile, baseDir;
 };
 
 struct SoundDef {
@@ -510,6 +520,8 @@ public:
 	[[nodiscard]] std::vector<const SoundDef *> Sounds() const;
 	[[nodiscard]] std::vector<const ShaderDef *> Shaders() const;
 	[[nodiscard]] std::vector<const BehaviorDef *> Behaviors() const;
+	/// Comportements intégrés au moteur (noms courts : « wander », « follow »…).
+	[[nodiscard]] static std::vector<String> BuiltinBehaviors();
 	[[nodiscard]] std::vector<const DimensionDef *> Dimensions() const;
 	/// Dimension du monde ordinaire (configuration « world.dimension », par
 	/// défaut « core:overworld » ; vide si aucun mod ne la déclare).

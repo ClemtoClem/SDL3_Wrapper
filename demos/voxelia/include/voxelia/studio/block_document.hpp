@@ -5,21 +5,13 @@
  * vivant : on l'édite, on la valide à blanc, puis on l'applique à chaud
  * (Session::ReloadDefinition) ou on l'enregistre dans son fichier.
  *
- * Le formulaire et l'onglet JSON partagent CE document : le formulaire écrit
- * des chemins pointés (`SetField("light.range", …)`), l'onglet JSON remplace
- * le tout (`SetJson`) — et chacun relit l'autre.
- *
- * Annulation par INSTANTANÉS (comme le sandbox) : BeginEdit / EndEdit
- * encadrent un geste (un glissé de curseur = une étape), 64 étapes au plus,
- * la plus ancienne oubliée au-delà.
- *
- * Modèle sans fenêtre ; la validation lit une COPIE du registre (aucune
- * modification du contenu vivant).
+ * Édition, annulation et enregistrement : DefinitionDocument. La validation
+ * lit une COPIE du registre (aucune modification du contenu vivant).
  */
+#include <array>
 #include <vector>
 
-#include <dataio/node.hpp>
-#include <voxel/content.hpp>
+#include "definition_document.hpp"
 
 namespace voxelia::studio {
 
@@ -39,10 +31,8 @@ struct MergedState {
 	std::vector<String> differences; ///< chemins qui diffèrent de l'état par défaut
 };
 
-class BlockDocument {
+class BlockDocument : public DefinitionDocument {
 public:
-	static constexpr size_t MAX_UNDO = 64;
-
 	BlockDocument() = default;
 	/// Document d'un bloc existant (n'importe lequel de ses états) ; NONE si
 	/// le bloc est inconnu ou n'a pas de source.
@@ -50,59 +40,31 @@ public:
 	/// Nouveau bloc (cube de pierre) dans `mod`, enregistré dans `file`.
 	[[nodiscard]] static BlockDocument New(const String &id, const String &mod, const String &baseDir, const String &file);
 
-	[[nodiscard]] const String &Id() const noexcept { return m_id; }
-	[[nodiscard]] const String &Mod() const noexcept { return m_mod; }
-	[[nodiscard]] const String &SourceFile() const noexcept { return m_file; }
-	[[nodiscard]] const dataio::NodePtr &Json() const noexcept { return m_json; }
-	[[nodiscard]] voxel::ContentRegistry::LoadContext Context() const;
-	/// Modifié depuis le chargement / le dernier enregistrement.
-	[[nodiscard]] bool Dirty() const noexcept { return m_dirty; }
-
-	// ── Lecture / écriture ──────────────────────────────────────────────────
-	[[nodiscard]] String Text() const; ///< JSON indenté
-	/// Remplace tout le document (onglet JSON) ; refusé sans perte si le
-	/// texte est invalide ou n'est pas un objet. Une étape d'annulation.
-	Result<bool, String> SetJson(const String &text);
-	[[nodiscard]] dataio::NodePtr Field(const char *path) const;
-	[[nodiscard]] String FieldText(const char *path, const String &fallback = String()) const;
-	[[nodiscard]] double FieldNumber(const char *path, double fallback = 0.0) const;
-	[[nodiscard]] bool FieldBool(const char *path, bool fallback = false) const;
-	/// Écrit un champ (objets intermédiaires créés) ; nullptr : le retire.
-	/// Hors BeginEdit/EndEdit, une étape d'annulation à lui seul.
-	void SetField(const char *path, dataio::NodePtr value);
-
-	// ── Annulation ──────────────────────────────────────────────────────────
-	void BeginEdit();
-	/// Clôt le geste ; sans changement réel, aucune étape n'est ajoutée.
-	void EndEdit();
-	bool Undo();
-	bool Redo();
-	[[nodiscard]] size_t UndoDepth() const noexcept { return m_undo.size(); }
-	[[nodiscard]] size_t RedoDepth() const noexcept { return m_redo.size(); }
-
-	// ── Contenu ─────────────────────────────────────────────────────────────
 	/// Charge le document dans une COPIE de `live` puis la valide : erreurs
 	/// de chargement et avertissements qui concernent ce bloc ou ses états.
 	[[nodiscard]] std::vector<BlockDiagnostic> Validate(const voxel::ContentRegistry &live) const;
 	/// États tels que le moteur les fusionnera (vide si le document ne se charge pas).
 	[[nodiscard]] std::vector<MergedState> MergedStates(const voxel::ContentRegistry &live) const;
-	/// Écrit le document dans son fichier : la définition de même id y est
-	/// remplacée (fichier objet ou tableau), ajoutée sinon.
-	Result<bool, String> Save();
 
-private:
-	void Commit(const dataio::NodePtr &before);
-
-	String m_id, m_mod, m_baseDir, m_file;
-	dataio::NodePtr m_json;
-	std::vector<dataio::NodePtr> m_undo, m_redo;
-	dataio::NodePtr m_editStart; ///< instantané au BeginEdit (nullptr : hors geste)
-	int m_editDepth = 0;
-	bool m_dirty = false;
+	// ── Forme nodebox (atelier de formes) ───────────────────────────────────
+	/// Boîte en PIXELS du bloc : x1, y1, z1, x2, y2, z2 dans [0, 16] (le JSON
+	/// les écrit dans la convention du moteur, −0,5 … 0,5).
+	using NodeBox = std::array<float, 6>;
+	/// Boîtes de la portée (`state` vide : le bloc commun ; sinon un état,
+	/// qui hérite de celles du bloc commun s'il n'en a pas).
+	[[nodiscard]] std::vector<NodeBox> NodeBoxes(const String &state = String()) const;
+	/// Écrit les boîtes de la portée (« nodebox ») et fait du bloc une
+	/// nodebox. Refusé si une boîte est vide ou hors du bloc.
+	Result<bool, String> SetNodeBoxes(const std::vector<NodeBox> &boxes, const String &state = String());
+	Result<bool, String> AddNodeBox(const NodeBox &box, const String &state = String());
+	Result<bool, String> SetNodeBox(size_t index, const NodeBox &box, const String &state = String());
+	Result<bool, String> RemoveNodeBox(size_t index, const String &state = String());
+	/// Ajoute la copie symétrique (axe 0 : x, 1 : y, 2 : z) d'une boîte.
+	Result<bool, String> MirrorNodeBox(size_t index, int axis, const String &state = String());
+	/// Tourne toutes les boîtes d'un quart de tour autour de l'axe vertical.
+	Result<bool, String> RotateNodeBoxes(const String &state = String());
+	/// Le bloc (ou l'état) tel que le moteur le chargera ; NONE s'il ne se charge pas.
+	[[nodiscard]] Option<voxel::BlockDef> Loaded(const voxel::ContentRegistry &live, const String &state = String()) const;
 };
-
-/// Écrit `value` au chemin pointé de `root` (objets intermédiaires créés) ;
-/// nullptr retire la clé.
-void SetJsonPath(const dataio::NodePtr &root, const char *path, dataio::NodePtr value);
 
 } // namespace voxelia::studio

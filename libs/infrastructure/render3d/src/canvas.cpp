@@ -202,6 +202,26 @@ bool Canvas::EnsureSkyboxResources() {
 	return true;
 }
 
+Canvas::VoxelReflectionGpu Canvas::VoxelReflectionUbo() const noexcept {
+	VoxelReflectionGpu out{};
+	if (m_voxelReflections.IsNone())
+		return out;
+	const VoxelReflections &v = m_voxelReflections.Value();
+	out.origin[0] = v.origin.x;
+	out.origin[1] = v.origin.y;
+	out.origin[2] = v.origin.z;
+	out.origin[3] = float(std::clamp(v.maxBounces, 1, 16));
+	out.size[0] = v.size.x;
+	out.size[1] = v.size.y;
+	out.size[2] = v.size.z;
+	out.size[3] = std::clamp(v.maxDistance, 1.f, 1024.f);
+	out.sky[0] = v.skyColor.x;
+	out.sky[1] = v.skyColor.y;
+	out.sky[2] = v.skyColor.z;
+	out.sky[3] = float(std::max(v.blocksPerRow, 1));
+	return out;
+}
+
 SDL_GPUSampler *Canvas::SamplerFor(const Material &material) {
 	if (!material.nearestFilter)
 		return m_defaultSampler.Get();
@@ -283,6 +303,7 @@ Option<Ref<sdl3::GpuGraphicsPipeline>> Canvas::GetOrCreatePipeline(const Pipelin
 						.Environment(key.hasEnvironment)
 						.Instanced(key.instanced)
 						.Skinned(key.skinned)
+						.VoxelReflections(key.voxelReflections)
 						.Build(m_device);
 		if (!built)
 			return NONE;
@@ -993,6 +1014,8 @@ void Canvas::End() {
 			}
 			key.hasShadows = draw.material.lit && anyShadowCaster;
 			key.hasEnvironment = draw.material.pbr && draw.material.lit && anyEnvironment;
+			key.voxelReflections = draw.material.voxelReflections && draw.material.lit && draw.material.bakedLighting &&
+								   m_voxelReflections.IsSome();
 			key.topology = draw.topology;
 			key.colorFormat = m_colorFormat;
 			key.depthFormat = m_depthFormat;
@@ -1110,7 +1133,12 @@ void Canvas::End() {
 						shadowLightUbo.pointShadowEnabled = pointShadowLightIndex >= 0 ? 1.f : 0.f;
 						shadowLightUbo.pointShadowLightIndex = float(pointShadowLightIndex);
 						shadowLightUbo.pointShadowBias = 0.05f; // unités monde, pas NDC — voir shader_chunks::ComputePointShadowFactor
-						cmd.PushFragmentUniformData(1, shadowLightUbo);
+						if (key.voxelReflections)
+							cmd.PushFragmentUniformData(1, WithVoxelReflections{shadowLightUbo, VoxelReflectionUbo()});
+						else
+							cmd.PushFragmentUniformData(1, shadowLightUbo);
+					} else if (key.voxelReflections) {
+						cmd.PushFragmentUniformData(1, WithVoxelReflections{lightUbo, VoxelReflectionUbo()});
 					} else {
 						cmd.PushFragmentUniformData(1, lightUbo);
 					}
@@ -1173,13 +1201,14 @@ void Canvas::End() {
 					cmd.PushFragmentUniformData(1, lightUbo);
 				}
 
-				if (key.hasShadows || key.hasEnvironment) {
+				if (key.hasShadows || key.hasEnvironment || key.voxelReflections) {
 					// Bindings contigus à partir de 0 (albedo, puis ombres si
 					// key.hasShadows, puis IBL si key.hasEnvironment — voir
-					// shader_chunks::SAMPLER_IBL_WITH_SHADOWS/_NO_SHADOWS, l'ordre
-					// ici doit correspondre exactement) : SDL_GPU exige un seul
-					// appel couvrant toute la plage déclarée au pipeline.
-					std::array<sdl3::GpuTextureSamplerBinding, 8> samplerBindings{};
+					// shader_chunks::SAMPLER_IBL_WITH_SHADOWS/_NO_SHADOWS —, puis
+					// la grille des réflexions ; l'ordre ici doit correspondre
+					// exactement) : SDL_GPU exige un seul appel couvrant toute la
+					// plage déclarée au pipeline.
+					std::array<sdl3::GpuTextureSamplerBinding, 12> samplerBindings{};
 					uint32_t count = 0;
 					samplerBindings[count].texture =
 						draw.material.albedo.IsSome() ? draw.material.albedo.Value()->Get() : m_whiteTexture.Get();
@@ -1206,6 +1235,15 @@ void Canvas::End() {
 						samplerBindings[count] = {m_environmentBrdfLut.Value()->Get(),
 												  m_iblLutSampler.Value().Get()};
 						++count;
+					}
+					if (key.voxelReflections) {
+						Material nearest;
+						nearest.nearestFilter = true;
+						SDL_GPUSampler *sampler = SamplerFor(nearest);
+						const VoxelReflections &v = m_voxelReflections.Value();
+						samplerBindings[count++] = {v.grid->Get(), sampler};
+						samplerBindings[count++] = {v.blocks->Get(), sampler};
+						samplerBindings[count++] = {v.reflectivity->Get(), sampler};
 					}
 					pass.BindFragmentSamplers(0, std::span<const sdl3::GpuTextureSamplerBinding>(
 													samplerBindings.data(), count));

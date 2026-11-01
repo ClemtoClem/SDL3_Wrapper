@@ -300,6 +300,56 @@ void String::ReplaceInplace(char find, char rep) {
 			c = rep;
 }
 
+String String::Replace(size_t pos, size_t count, StringView by) const {
+	if (pos > m_size)
+		pos = m_size;
+	if (count > m_size - pos)
+		count = m_size - pos;
+	String r;
+	r.Reserve(m_size - count + by.GetSize());
+	r.Append(m_data, pos);
+	r.Append(by);
+	r.Append(m_data + pos + count, m_size - pos - count);
+	return r;
+}
+
+String String::IndentLines(StringView prefix) const {
+	String r;
+	bool lineStart = true;
+	for (size_t i = 0; i < m_size; ++i) {
+		const char c = m_data[i];
+		if (lineStart && c != '\n' && c != '\r')
+			r.Append(prefix);
+		r.Append(c);
+		lineStart = c == '\n';
+	}
+	return r;
+}
+
+Option<String> String::ReadFile(const char *path) {
+	std::FILE *file = path ? std::fopen(path, "rb") : nullptr;
+	if (!file)
+		return NONE;
+	String r;
+	char chunk[4096];
+	size_t n;
+	while ((n = std::fread(chunk, 1, sizeof chunk, file)) > 0)
+		r.Append(chunk, n);
+	const bool failed = std::ferror(file) != 0;
+	std::fclose(file);
+	if (failed)
+		return NONE;
+	return Some(std::move(r));
+}
+
+bool String::WriteFile(const char *path) const {
+	std::FILE *file = path ? std::fopen(path, "wb") : nullptr;
+	if (!file)
+		return false;
+	const bool written = std::fwrite(m_data, 1, m_size, file) == m_size;
+	return std::fclose(file) == 0 && written;
+}
+
 String String::Remove(size_t index, size_t count) const {
 	if (index >= m_size)
 		return *this;

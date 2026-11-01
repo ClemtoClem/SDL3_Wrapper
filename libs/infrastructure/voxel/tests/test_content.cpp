@@ -34,7 +34,7 @@ const char *GRASS = R"({
 const char *WATER = R"({
   "schemaVersion": 1, "id": "core:water", "type": "block", "size": {"x": 1, "y": 1, "z": 1 },
   "displayName": "Water", "tags": ["fluid"],
-  "graphics": { "texture": "core:water", "material": "TRANSPARENT", "backface_culling": false },
+  "graphics": { "texture": "core:water", "material": "TRANSPARENT", "backfaceCulling": false },
   "physics": { "solid": false, "collision": { "shape": "FULL_CUBE" }, "surface": { "slipperiness": 0.05 } },
   "gameplay": { "hardness": 100.0 }
 })";
@@ -53,7 +53,7 @@ const char *SAND = R"({
 const char *ICE = R"({
   "schemaVersion": 1, "id": "core:ice", "type": "block", "size": {"x": 1, "y": 1, "z": 1 },
   "displayName": "Ice", "tags": ["terrain", "cold"],
-  "graphics": { "texture": "core:ice", "material": "TRANSLUCENT", "backface_culling": false },
+  "graphics": { "texture": "core:ice", "material": "TRANSLUCENT", "backfaceCulling": false },
   "physics": { "solid": true, "collision": { "shape": "FULL_CUBE" }, "surface": { "slipperiness": 0.95, "walkable": true } },
   "gameplay": { "hardness": 0.5 }
 })";

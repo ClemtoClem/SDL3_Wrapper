@@ -2,9 +2,11 @@
 #include <voxelia/studio/block_editor.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <set>
 
+#include <render3d/shape.hpp>
 #include <voxel/json.hpp>
 #include <voxelia/session.hpp>
 #include <voxelia/shell.hpp>
@@ -57,34 +59,26 @@ const std::vector<FieldSpec> &Fields() {
 	return fields;
 }
 
+/// Éclairage de l'aperçu de forme : soleil oblique, ambiante franche.
+ui::ViewportLighting ShapeLighting() {
+	ui::ViewportLighting lighting;
+	lighting.sun.direction = math::FVector3{-0.45f, -1.f, -0.3f}.Normalize();
+	lighting.sun.intensity = 1.1f;
+	lighting.ambient.color = sdl3::Color{150, 150, 160};
+	return lighting;
+}
+
+void ClearChildren(render3d::Object3D &root) {
+	while (!root.Children().empty())
+		(void)root.RemoveChild(root.Children().front().get());
+}
+
 bool IsBlockDefinition(const NodePtr &def) {
 	if (!def || !def->IsObject())
 		return false;
 	const String type = json::Str(def, "type", "block").ToLower();
 	return type == "block" || type == "cube" || type == "nodebox" || type == "cross" || type == "plant" || type == "obj" ||
 		   type == "b3d" || type == "mesh";
-}
-
-/// JSON sur une ligne (champ du formulaire) : retours et indentation ôtés.
-String Compact(const String &text) {
-	String out;
-	bool quoted = false, newline = false;
-	for (size_t i = 0; i < text.GetSize(); ++i) {
-		const char c = text[i];
-		if (c == '"' && (i == 0 || text[i - 1] != '\\'))
-			quoted = !quoted;
-		if (!quoted && (c == '\n' || c == '\r')) {
-			newline = true;
-			continue;
-		}
-		if (!quoted && newline && (c == ' ' || c == '\t'))
-			continue;
-		if (newline && !out.IsEmpty() && out[out.GetSize() - 1] == ',')
-			out += ' ';
-		newline = false;
-		out += c;
-	}
-	return out;
 }
 
 /// Définitions d'un fichier de mod (objet ou tableau).
@@ -132,8 +126,26 @@ void BlockEditor::Build(ui::Widget parent) {
 		}),
 		ui::Row().Gap(4.f).Ref(m_scopeRow),
 		ui::Column().Id("block-diagnostics").Ref(m_diagnosticList),
-		ui::TabView({String("Formulaire"), String("JSON"), String("États")}).Grow().Children({
+		ui::TabView({String("Formulaire"), String("Forme"), String("JSON"), String("États")}).Grow().Ref(m_tabs).Children({
 			ui::ScrollView().Id("block-form").Grow().Ref(m_form),
+			ui::Column().Grow().Gap(4.f).Children({
+				ui::Viewport3D(m_shapeRoot, render3d::Camera{}, true, Some(ShapeLighting())).Id("block-shape-view").Height(200.f).Ref(m_shapeView),
+				ui::Row().Gap(4.f).Children({
+					ui::Button("+ Boîte").OnClick([this] { (void)ShapeAddBox({4.f, 0.f, 4.f, 12.f, 8.f, 12.f}); }),
+					ui::Button("Tourner 90°").Tooltip("Quart de tour autour de la verticale").OnClick([this] { (void)ShapeRotate(); }),
+					ui::Button("Cube plein").Tooltip("Revenir à un cube (retire la nodebox)").OnClick([this] {
+						if (!m_doc.IsSome())
+							return;
+						CloseGesture();
+						m_doc.Value().SetField(Path("nodebox").CStr(), nullptr);
+						if (m_scope.IsEmpty())
+							m_doc.Value().SetField("type", nullptr);
+						++m_version;
+						Visit("block.shape_cube");
+					}),
+				}),
+				ui::ScrollView().Id("block-shape-boxes").Grow().Ref(m_shapeBoxes),
+			}),
 			ui::Column().Grow().Gap(4.f).Children({
 				ui::CodeEditor(String()).Id("block-json").Grow().Ref(m_jsonEditor),
 				ui::Row().Gap(4.f).Children({
@@ -261,7 +273,7 @@ void BlockEditor::RebuildForm() {
 			});
 			break;
 		case FieldKind::Json:
-			editor = ui::Input(String("JSON"), value ? Compact(json::Encode(value)) : String()).Grow().OnSubmit([this, path](const String &text) {
+			editor = ui::Input(String("JSON"), value ? CompactJson(json::Encode(value)) : String()).Grow().OnSubmit([this, path](const String &text) {
 				if (text.Trim().IsEmpty()) {
 					Edit(path, nullptr, false);
 					return;
@@ -351,6 +363,111 @@ void BlockEditor::Update(float dt) {
 		if (m_validateDelay <= 0.f)
 			RefreshDiagnostics();
 	}
+	if (m_version != m_shapeVersion && !m_gesture)
+		RebuildShape();
+	m_shapeOrbit += dt * 0.4f;
+	if (auto vp = m_shapeView.Get<ui::Viewport3DState>(); vp.IsSome()) {
+		render3d::Camera camera;
+		camera.target = {0.f, 0.5f, 0.f};
+		camera.position = {std::sin(m_shapeOrbit) * 2.2f, 1.6f, std::cos(m_shapeOrbit) * 2.2f};
+		camera.farPlane = 50.f;
+		if (vp.Unwrap()->textureHeight > 0)
+			camera.aspect = float(vp.Unwrap()->textureWidth) / float(vp.Unwrap()->textureHeight);
+		vp.Unwrap()->camera = camera;
+	}
+}
+
+void BlockEditor::RebuildShape() {
+	m_shapeVersion = m_version;
+	ClearChildren(m_shapeRoot);
+	m_shapeTriangles = 0;
+	if (m_shapeBoxes.Valid())
+		m_shapeBoxes.Clear();
+	Session *session = m_shell.Game();
+	voxel::Game *game = Game();
+	if (!m_doc.IsSome() || !game || !session)
+		return;
+	// Le bloc (ou l'état de la portée) tel que le moteur le chargera, maillé
+	// par le mailleur des chunks avec l'atlas de la partie.
+	if (Option<voxel::BlockDef> block = m_doc.Value().Loaded(game->Content(), m_scope); block.IsSome())
+		if (std::shared_ptr<render3d::Mesh> mesh = session->Renderer().BlockPreviewMesh(block.Value())) {
+			m_shapeTriangles = mesh->Indices().size() / 3;
+			m_shapeRoot.Add(std::make_unique<render3d::Shape>(mesh, session->Renderer().BlockMaterial()));
+		}
+	const std::vector<BlockDocument::NodeBox> boxes = m_doc.Value().NodeBoxes(m_scope);
+	if (boxes.empty()) {
+		m_shapeBoxes.Append(ui::Label("Cube plein — « + Boîte » en fait une nodebox (pixels 0 à 16).").Class("studio-status"));
+		return;
+	}
+	m_shapeBoxes.Append(ui::Label(String::Format("%zu boîte(s), en pixels (0 à 16) : x1 y1 z1 — x2 y2 z2", boxes.size())).Class("studio-section"));
+	for (size_t i = 0; i < boxes.size(); ++i) {
+		std::vector<ui::AnyWidget> row{ui::Label(String::Format("%zu", i)).Class("studio-key")};
+		for (size_t k = 0; k < 6; ++k)
+			row.push_back(ui::NumberInput(-8.f, 24.f, boxes[i][k], 0.5f, 1).Grow().OnChange([this, i, k](float v) {
+				std::vector<BlockDocument::NodeBox> now = m_doc.Value().NodeBoxes(m_scope);
+				if (i >= now.size())
+					return;
+				now[i][k] = v;
+				if (!m_gesture) {
+					m_doc.Value().BeginEdit();
+					m_gesture = true;
+				}
+				m_gestureTimer = 0.4f;
+				if (m_doc.Value().SetNodeBox(i, now[i], m_scope).IsOk()) {
+					++m_version;
+					m_formVersion = m_version;
+					m_shapeVersion = ~0ull - 1; // aperçu refait après le geste
+					Visit("block.shape_edit");
+				}
+			}));
+		row.push_back(ui::Button("↔x").Tooltip("Copie miroir en x").OnClick([this, i] { (void)ShapeMirror(i, 0); }));
+		row.push_back(ui::Button("↔z").Tooltip("Copie miroir en z").OnClick([this, i] { (void)ShapeMirror(i, 2); }));
+		row.push_back(ui::Button("×").OnClick([this, i] { (void)ShapeRemove(i); }));
+		m_shapeBoxes.Append(ui::Row().Gap(2.f).Children(row));
+	}
+	Visit("block.shape_preview", FeatureStatus::Ok, String::Format("%zu boîte(s), %zu triangles", boxes.size(), m_shapeTriangles));
+}
+
+CommandResult BlockEditor::ShapeDone(Result<bool, String> result, const char *feature) {
+	if (result.IsError()) {
+		Visit(feature, FeatureStatus::Warning, result.Error());
+		return CommandResult::Error(result.Error());
+	}
+	CloseGesture();
+	++m_version;
+	m_validateDelay = 0.3f;
+	if (m_tabs.Valid())
+		m_tabs.SetSelected(1, true); // onglet « Forme »
+	Visit(feature);
+	return CommandResult::Ok(String::Format("%zu boîte(s)", m_doc.Value().NodeBoxes(m_scope).size()));
+}
+
+CommandResult BlockEditor::ShapeAddBox(const BlockDocument::NodeBox &box) {
+	if (!m_doc.IsSome())
+		return CommandResult::Error(String("aucun bloc ouvert"));
+	CloseGesture();
+	return ShapeDone(m_doc.Value().AddNodeBox(box, m_scope), "block.shape_add");
+}
+
+CommandResult BlockEditor::ShapeMirror(size_t index, int axis) {
+	if (!m_doc.IsSome())
+		return CommandResult::Error(String("aucun bloc ouvert"));
+	CloseGesture();
+	return ShapeDone(m_doc.Value().MirrorNodeBox(index, axis, m_scope), "block.shape_mirror");
+}
+
+CommandResult BlockEditor::ShapeRotate() {
+	if (!m_doc.IsSome())
+		return CommandResult::Error(String("aucun bloc ouvert"));
+	CloseGesture();
+	return ShapeDone(m_doc.Value().RotateNodeBoxes(m_scope), "block.shape_rotate");
+}
+
+CommandResult BlockEditor::ShapeRemove(size_t index) {
+	if (!m_doc.IsSome())
+		return CommandResult::Error(String("aucun bloc ouvert"));
+	CloseGesture();
+	return ShapeDone(m_doc.Value().RemoveNodeBox(index, m_scope), "block.shape_remove");
 }
 
 void BlockEditor::RefreshHeader() {
@@ -465,9 +582,11 @@ CommandResult BlockEditor::SetField(const String &path, const String &jsonValue)
 	NodePtr value;
 	if (jsonValue != "null") {
 		Result<NodePtr, String> parsed = json::Parse(jsonValue);
-		if (parsed.IsError())
+		// Un mot nu (« core:oak_planks » — la console ôte les guillemets) est un texte.
+		const bool structured = jsonValue.StartsWith("[") || jsonValue.StartsWith("{") || jsonValue.StartsWith("\"");
+		if (parsed.IsError() && structured)
 			return CommandResult::Error(String("valeur JSON invalide : ") + parsed.Error());
-		value = parsed.Value();
+		value = parsed.IsOk() ? parsed.Value() : json::MakeStr(jsonValue);
 	}
 	Edit(path.CStr(), value, false);
 	m_formVersion = ~0ull; // le formulaire relit la valeur écrite

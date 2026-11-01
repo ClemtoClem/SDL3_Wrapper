@@ -3,6 +3,7 @@
 // migrations. Écrit UNIQUEMENT sous build/tests/tmp/voxel/.
 #include "test.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -367,4 +368,73 @@ TEST(Game_AmbientChannelsCarryFades) {
 	CHECK_NEAR(sounds[2].fadeOut, 2.f, 1e-6f);
 	// Faute de frappe dans les options : refusée.
 	CHECK(game.Scripts().RunSource("game.ambient(\"vent\", {canal: \"x\"})").IsError());
+}
+
+TEST(Game_OffhandIsSwappedAndSaved) {
+	const String root = MakeMods("offhand");
+	{
+		Game game;
+		(void)game.LoadMods(Options(root));
+		REQUIRE(game.OpenWorld("mains", Some(uint32_t(4))).IsOk());
+		const ecs::Entity player = game.JoinPlayer("Gauche");
+		Run(game, 0.5f);
+		ItemStack *offhand = game.OffhandItem(player);
+		REQUIRE(offhand != nullptr);
+		CHECK(offhand->IsEmpty());
+		// Main droite : l'emplacement choisi ; échange vers la gauche.
+		*game.HeldItem(player) = ItemStack{"basic:stick", 3, 0, nullptr};
+		CHECK(game.SwapHands(player));
+		CHECK(game.HeldItem(player)->IsEmpty());
+		CHECK(offhand->item == "basic:stick");
+		CHECK_EQ(offhand->count, 3);
+		// Les scripts la voient.
+		CHECK(game.Scripts().RunSource(String("let p = entity.players()[0] assert(entity.offhand(p) == \"basic:stick\")")).IsOk());
+		REQUIRE(game.Save().IsOk());
+	}
+	Game game;
+	(void)game.LoadMods(Options(root));
+	REQUIRE(game.OpenWorld("mains").IsOk());
+	const ecs::Entity player = game.JoinPlayer("Gauche");
+	Run(game, 0.2f);
+	REQUIRE(game.OffhandItem(player) != nullptr);
+	CHECK(game.OffhandItem(player)->item == "basic:stick");
+	CHECK_EQ(game.OffhandItem(player)->count, 3);
+	// Deux mains vides : rien à échanger.
+	*game.OffhandItem(player) = ItemStack{};
+	CHECK(!game.SwapHands(player));
+	game.CloseWorld();
+}
+
+TEST(Behaviors_DefaultSpeedsComeFromTheBody) {
+	// Sans « speed », errer et fuir se règlent sur la vitesse max du corps —
+	// et la gardent (la vitesse de l'intention, réécrite à chaque pas, ne sert
+	// plus de base : elle tombait à 0 en errant, montait sans fin en fuyant).
+	const String root = MakeMods("behaviors");
+	Game game;
+	(void)game.LoadMods(Options(root));
+	REQUIRE(game.OpenWorld("ia", Some(uint32_t(9))).IsOk());
+	const ecs::Entity player = game.JoinPlayer("Cible");
+	Run(game, 0.5f);
+	ContentRegistry::LoadContext ctx;
+	ctx.mod = "basic";
+	REQUIRE(game.ReloadDefinition(json::Parse(String(R"({"type": "creature", "id": "walker", "physics": {"maxSpeed": 2},
+		"behaviors": [{"id": "wander", "pause": 1.5}]})")).Value(), ctx).IsOk());
+	REQUIRE(game.ReloadDefinition(json::Parse(String(R"({"type": "creature", "id": "coward", "physics": {"maxSpeed": 2},
+		"behaviors": [{"id": "flee", "range": 10}]})")).Value(), ctx).IsOk());
+	const math::FVector3 feet = game.Registry().GetComponent<Transform>(player).Unwrap()->position;
+	const ecs::Entity walker = game.SpawnEntity("basic:walker", feet + math::FVector3{20.f, 0.f, 0.f});
+	const ecs::Entity coward = game.SpawnEntity("basic:coward", feet + math::FVector3{3.f, 0.f, 0.f});
+	REQUIRE(walker.Valid() && coward.Valid());
+	const math::FVector3 start = game.Registry().GetComponent<Transform>(walker).Unwrap()->position;
+	float maxWander = 0.f, maxFlee = 0.f;
+	for (int i = 0; i < 900; ++i) {
+		game.Tick(1.f / 60.f);
+		maxWander = std::max(maxWander, game.Registry().GetComponent<MoveIntent>(walker).Unwrap()->speed);
+		maxFlee = std::max(maxFlee, game.Registry().GetComponent<MoveIntent>(coward).Unwrap()->speed);
+	}
+	const math::FVector3 end = game.Registry().GetComponent<Transform>(walker).Unwrap()->position;
+	CHECK((end - start).Length() > 1.f);       // elle erre vraiment
+	CHECK_NEAR(maxWander, 1.f, 1e-3f);          // la moitié de 2, stable
+	CHECK_NEAR(maxFlee, 2.8f, 1e-3f);           // 1,4 × 2, sans emballement
+	game.CloseWorld();
 }

@@ -30,13 +30,71 @@ namespace sdl3 {
 // Math — enveloppent les fonctions math libc-indépendantes de SDL
 // ============================================================================
 
-inline constexpr float PI_F = SDL_PI_F;
-inline constexpr double PI_D = SDL_PI_D;
+inline constexpr float  PI_F             = SDL_PI_F;
+inline constexpr double PI_D             = SDL_PI_D;
 
-[[nodiscard]] inline float DegToRad(float deg) noexcept { return deg * PI_F / 180.f; }
-[[nodiscard]] inline double DegToRad(double deg) noexcept { return deg * PI_D / 180.0; }
-[[nodiscard]] inline float RadToDeg(float rad) noexcept { return rad * 180.f / PI_F; }
-[[nodiscard]] inline double RadToDeg(double rad) noexcept { return rad * 180.0 / PI_D; }
+inline constexpr float  PI_HALF_F        = PI_F / 2.f;
+inline constexpr double PI_HALF_D        = PI_D / 2.0;
+
+inline constexpr float  PI_QUARTER_F     = PI_F / 4.f;
+inline constexpr double PI_QUARTER_D     = PI_D / 4.0;
+
+inline constexpr float  PI_DOUBLE_F      = PI_F * 2.f;
+inline constexpr double PI_DOUBLE_D      = PI_D * 2.0;
+
+inline constexpr float  PI_TRIPLE_F      = PI_F * 3.f;
+inline constexpr double PI_TRIPLE_D      = PI_D * 3.0;
+
+inline constexpr float  PI_QUADRUPLE_F   = PI_F * 4.f;
+inline constexpr double PI_QUADRUPLE_D   = PI_D * 4.0;
+
+inline constexpr float  PI_HALF_NEG_F    = -PI_HALF_F;
+inline constexpr double PI_HALF_NEG_D    = -PI_HALF_D;
+
+inline constexpr float  PI_NEG_F         = -PI_F;
+inline constexpr double PI_NEG_D         = -PI_D;
+
+inline constexpr float  PI_DOUBLE_NEG_F  = -PI_DOUBLE_F;
+inline constexpr double PI_DOUBLE_NEG_D  = -PI_DOUBLE_D;
+
+inline constexpr float  INV_PI_F         = 1.f / PI_F;
+inline constexpr double INV_PI_D         = 1.0 / PI_D;
+
+inline constexpr float  INV_PI_DOUBLE_F  = 1.f / PI_DOUBLE_F;
+inline constexpr double INV_PI_DOUBLE_D  = 1.0 / PI_DOUBLE_D;
+
+inline constexpr float  DEG_TO_RAD_F     = PI_F / 180.f;
+inline constexpr double DEG_TO_RAD_D     = PI_D / 180.0;
+
+inline constexpr float  RAD_TO_DEG_F     = 180.f / PI_F;
+inline constexpr double RAD_TO_DEG_D     = 180.0 / PI_D;
+
+[[nodiscard]] inline float DegToRad(float deg) noexcept { return deg * DEG_TO_RAD_F; }
+[[nodiscard]] inline double DegToRad(double deg) noexcept { return deg * DEG_TO_RAD_D; }
+[[nodiscard]] inline float RadToDeg(float rad) noexcept { return rad * RAD_TO_DEG_F; }
+[[nodiscard]] inline double RadToDeg(double rad) noexcept { return rad * RAD_TO_DEG_D; }
+
+// Ramène un angle en degrés dans ]-360; 360[
+[[nodiscard]] inline float NormalizeDeg(float deg) noexcept {
+    return SDL_fmodf(deg, 360.f);
+}
+
+[[nodiscard]] inline double NormalizeDeg(double deg) noexcept {
+    return SDL_fmod(deg, 360.0);
+}
+
+// Ramène un angle en radians dans [-PI; PI[
+[[nodiscard]] inline float NormalizeRad(float rad) noexcept {
+    rad = SDL_fmodf(rad + PI_F, PI_DOUBLE_F);
+    if (rad < 0.f) rad += PI_DOUBLE_F;
+    return rad - PI_F;
+}
+
+[[nodiscard]] inline double NormalizeRad(double rad) noexcept {
+    rad = SDL_fmod(rad + PI_D, PI_DOUBLE_D);
+    if (rad < 0.0) rad += PI_DOUBLE_D;
+    return rad - PI_D;
+}
 
 [[nodiscard]] inline float Sqrt(float x) noexcept { return SDL_sqrtf(x); }
 [[nodiscard]] inline double Sqrt(double x) noexcept { return SDL_sqrt(x); }

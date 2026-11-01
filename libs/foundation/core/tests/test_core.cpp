@@ -1,6 +1,7 @@
 #include "test.hpp"
 #include <core/core.hpp>
 
+#include <filesystem>
 #include <sstream>
 #include <unordered_map>
 
@@ -155,6 +156,17 @@ TEST(Transform) {
 	CHECK_EQ(String("hello").Remove(1, 3), "ho");
 	CHECK_EQ(String("helo").Insert(3, String("l")), "hello");
 	CHECK_EQ(String("hllo").Insert(1, 'e'), "hello");
+
+	CHECK_EQ(String("hello world").Replace(6, 5, "there"), "hello there");
+	CHECK_EQ(String("abc").Replace(1, 0, "XY"), "aXYbc");
+	CHECK_EQ(String("abc").Replace(1, String::NPOS, ""), "a");
+	CHECK_EQ(String("abc").Replace(9, 2, "d"), "abcd");
+	String inplace("[1, 2]");
+	inplace.ReplaceInplace(1, 1, "10");
+	CHECK_EQ(inplace, "[10, 2]");
+
+	CHECK_EQ(String("a\n\nb\n").IndentLines("  "), "  a\n\n  b\n");
+	CHECK_EQ(String("").IndentLines("  "), "");
 
 	CHECK_EQ(String("ab").Repeat(3), "ababab");
 	CHECK_EQ(String("ab").Repeat(0), "");
@@ -386,6 +398,21 @@ TEST(ToCharArray) {
 	String r;
 	r.Reserve(100);
 	CHECK(true);
+}
+
+TEST(Files) {
+	const char *path = "build/tests/tmp/core_string_file.txt";
+	const String content("ligne 1\n\0octet nul, é\n", 23);
+	std::filesystem::create_directories("build/tests/tmp");
+	REQUIRE(content.WriteFile(path));
+	const Option<String> read = String::ReadFile(path);
+	REQUIRE(read.IsSome());
+	CHECK_EQ(read.Unwrap(), content);
+	CHECK(String::ReadFile("build/tests/tmp/aucun_fichier_ici.txt").IsNone());
+	CHECK(!content.WriteFile("build/tests/tmp/dossier_absent/x.txt"));
+	CHECK(String("a//b").StartsWith("//", 1));
+	CHECK(!String("a//b").StartsWith("//", 2));
+	CHECK(!String("ab").StartsWith("b", 5));
 }
 
 TEST(EdgeCases) {

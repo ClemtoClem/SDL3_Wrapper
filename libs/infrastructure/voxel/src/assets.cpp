@@ -12,8 +12,10 @@
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <sstream>
 
+#include <dataio/documents/gltf.hpp>
 #include <sdl3/image.hpp>
 
 namespace voxel {
@@ -35,6 +37,23 @@ Result<Image, String> LoadImageFile(const String &path) {
 	for (int y = 0; y < s->h; ++y)
 		std::memcpy(&image.rgba[size_t(y * s->w * 4)], static_cast<const uint8_t *>(s->pixels) + size_t(y * s->pitch), size_t(s->w * 4));
 	return Ok(std::move(image));
+}
+
+Result<bool, String> SaveImageFile(const Image &image, const String &path, int jpgQuality) {
+	if (image.IsEmpty() || image.width <= 0 || image.height <= 0)
+		return Err(String::Format("%s : image vide", path.CStr()));
+	std::error_code ec;
+	if (const std::filesystem::path parent = std::filesystem::path(path.CStr()).parent_path(); !parent.empty())
+		std::filesystem::create_directories(parent, ec);
+	auto surface = sdl3::Surface::CreateFromPixels(image.width, image.height, sdl3::PixelFormat::RGBA32, image.rgba.data(), image.width * 4);
+	if (surface.IsError())
+		return Err(String::Format("%s : %s", path.CStr(), String(surface.Error()).CStr()));
+	const String lower = path.ToLower();
+	auto saved = lower.EndsWith(".jpg") || lower.EndsWith(".jpeg") ? sdl3::ImgSaveJpg(surface.Value(), path, std::clamp(jpgQuality, 0, 100))
+																	: sdl3::ImgSavePng(surface.Value(), path);
+	if (saved.IsError())
+		return Err(String::Format("%s : %s", path.CStr(), String(saved.Error()).CStr()));
+	return Ok(true);
 }
 
 namespace {
@@ -767,9 +786,113 @@ Result<ModelMesh, String> ModelFromJson(const NodePtr &data) {
 	return Ok(std::move(mesh));
 }
 
+Result<ModelMesh, String> LoadGltfMesh(const String &path, const String &nodeName) {
+	Result<dataio::gltf::Document, String> loaded = dataio::gltf::LoadFile(path, true);
+	if (loaded.IsError())
+		return Err(loaded.Error());
+	const dataio::gltf::Document &doc = loaded.Value();
+	ModelMesh mesh;
+	bool found = nodeName.IsEmpty();
+	auto emit = [&](int meshIndex, const math::FMatrix4 &world) -> Option<String> {
+		if (meshIndex < 0 || size_t(meshIndex) >= doc.meshes.size())
+			return NONE;
+		const math::FMatrix4 normalMatrix = world.Inverse().Transpose();
+		for (const dataio::gltf::Primitive &p : doc.meshes[size_t(meshIndex)].primitives) {
+			if (p.mode != 4)
+				continue; // triangles seulement
+			// Primitive::Find rend l'ACCESSEUR de l'attribut (pas sa position).
+			const int position = p.Find("POSITION");
+			if (position < 0)
+				continue;
+			Result<std::vector<float>, String> positions = doc.ReadFloats(position);
+			if (positions.IsError())
+				return Some(positions.Error());
+			const size_t count = positions.Value().size() / 3;
+			std::vector<float> normals, uvs;
+			if (const int n = p.Find("NORMAL"); n >= 0)
+				if (auto r = doc.ReadFloats(n); r.IsOk() && r.Value().size() == count * 3)
+					normals = std::move(r).Unwrap();
+			if (const int t = p.Find("TEXCOORD_0"); t >= 0)
+				if (auto r = doc.ReadFloats(t); r.IsOk() && r.Value().size() == count * 2)
+					uvs = std::move(r).Unwrap();
+			const uint32_t base = uint32_t(mesh.positions.size());
+			for (size_t i = 0; i < count; ++i) {
+				const std::vector<float> &v = positions.Value();
+				mesh.positions.push_back(world.TransformPoint({v[i * 3], v[i * 3 + 1], v[i * 3 + 2]}));
+				mesh.normals.push_back(normals.empty() ? math::FVector3{0.f, 1.f, 0.f}
+													   : normalMatrix.TransformDir({normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]}).Normalize());
+				mesh.uvs.push_back(uvs.empty() ? math::FVector2{0.f, 0.f} : math::FVector2{uvs[i * 2], uvs[i * 2 + 1]});
+			}
+			const uint32_t first = uint32_t(mesh.indices.size() / 3);
+			if (p.indices >= 0) {
+				Result<std::vector<uint32_t>, String> indices = doc.ReadIndices(p.indices);
+				if (indices.IsError())
+					return Some(indices.Error());
+				for (uint32_t index : indices.Value()) {
+					if (index >= count)
+						return Some(String::Format("glTF : indice %u hors des %zu sommets", index, count));
+					mesh.indices.push_back(base + index);
+				}
+			} else {
+				for (uint32_t i = 0; i < uint32_t(count); ++i)
+					mesh.indices.push_back(base + i);
+			}
+			String texture;
+			if (p.material >= 0 && size_t(p.material) < doc.materials.size()) {
+				const dataio::gltf::TextureRef &ref = doc.materials[size_t(p.material)].baseColorTexture;
+				if (ref.IsSet() && size_t(ref.index) < doc.textures.size()) {
+					const int source = doc.textures[size_t(ref.index)].source;
+					if (source >= 0 && size_t(source) < doc.images.size() && !doc.images[size_t(source)].uri.IsEmpty())
+						texture = doc.ResolveUri(doc.images[size_t(source)].uri);
+				}
+			}
+			mesh.groups.push_back({first, uint32_t(mesh.indices.size() / 3) - first, texture});
+		}
+		return NONE;
+	};
+	std::function<Option<String>(int, const math::FMatrix4 &)> visit = [&](int index, const math::FMatrix4 &parent) -> Option<String> {
+		if (index < 0 || size_t(index) >= doc.nodes.size())
+			return NONE;
+		const dataio::gltf::Node &n = doc.nodes[size_t(index)];
+		const math::FMatrix4 local = math::ComposeTRS({n.translation[0], n.translation[1], n.translation[2]},
+													  math::FQuaternion{n.rotation[0], n.rotation[1], n.rotation[2], n.rotation[3]},
+													  {n.scale[0], n.scale[1], n.scale[2]});
+		const math::FMatrix4 world = parent * local;
+		if (nodeName.IsEmpty()) {
+			if (Option<String> e = emit(n.mesh, world); e.IsSome())
+				return e;
+		} else if (n.name == nodeName) {
+			found = true;
+			return emit(n.mesh, math::FMatrix4::Identity()); // son propre repère
+		}
+		for (int child : n.children)
+			if (Option<String> e = visit(child, world); e.IsSome())
+				return e;
+		return NONE;
+	};
+	std::vector<int> roots;
+	if (doc.defaultScene >= 0 && size_t(doc.defaultScene) < doc.scenes.size())
+		roots = doc.scenes[size_t(doc.defaultScene)].nodes;
+	else if (!doc.scenes.empty())
+		roots = doc.scenes.front().nodes;
+	else
+		for (size_t i = 0; i < doc.nodes.size(); ++i)
+			roots.push_back(int(i));
+	for (int root : roots)
+		if (Option<String> e = visit(root, math::FMatrix4::Identity()); e.IsSome())
+			return Err(path + String(" : ") + e.Value());
+	if (!found)
+		return Err(String::Format("%s : nœud « %s » introuvable", path.CStr(), nodeName.CStr()));
+	if (mesh.indices.empty())
+		return Err(path + String(" : aucun triangle"));
+	return Ok(std::move(mesh));
+}
+
 Result<bool, String> ModelResource::DoLoad() {
 	Result<ModelMesh, String> mesh = Err(String());
-	if (m_format == "json") {
+	if (m_format == "gltf") {
+		mesh = LoadGltfMesh(m_path);
+	} else if (m_format == "json") {
 		NodePtr data = m_data;
 		if (!data && !m_path.IsEmpty()) {
 			Result<NodePtr, String> read = json::ReadFile(m_path);
@@ -804,6 +927,8 @@ String FormatOf(const String &path) {
 		return "b3d";
 	if (lower.EndsWith(".json"))
 		return "json";
+	if (lower.EndsWith(".gltf"))
+		return "gltf";
 	return "obj";
 }
 
@@ -837,22 +962,29 @@ AssetManager::AssetManager(size_t threads) : m_cache(String(), threads) {
 resources::AssetId AssetManager::TextureId(const String &id) { return resources::AssetId::FromKey((String("texture:") + id).View()); }
 resources::AssetId AssetManager::ModelId(const String &id) { return resources::AssetId::FromKey((String("model:") + id).View()); }
 
+namespace {
+
+resources::AssetRecord TextureRecord(const TextureDef &t) {
+	resources::AssetRecord record;
+	record.id = AssetManager::TextureId(t.id);
+	record.type = resources::AssetType::TEXTURE;
+	record.name = t.id;
+	record.key = t.id;
+	record.path = t.path;
+	record.params = t.procedural;
+	if (!t.compose.IsEmpty()) {
+		record.params = dataio::Node::MakeObject();
+		record.params->Set("compose", json::MakeBool(true));
+	}
+	return record;
+}
+
+} // namespace
+
 void AssetManager::Declare(const ContentRegistry &content) {
 	m_content = &content;
-	for (const TextureDef *t : content.Textures()) {
-		resources::AssetRecord record;
-		record.id = TextureId(t->id);
-		record.type = resources::AssetType::TEXTURE;
-		record.name = t->id;
-		record.key = t->id;
-		record.path = t->path;
-		record.params = t->procedural;
-		if (!t->compose.IsEmpty()) {
-			record.params = dataio::Node::MakeObject();
-			record.params->Set("compose", json::MakeBool(true));
-		}
-		(void)m_cache.Declare(record);
-	}
+	for (const TextureDef *t : content.Textures())
+		(void)m_cache.Declare(TextureRecord(*t));
 	for (const ModelDef *m : content.Models()) {
 		resources::AssetRecord record;
 		record.id = ModelId(m->id);
@@ -942,6 +1074,23 @@ Result<Image, String> AssetManager::ResolveImage(const String &name, const Textu
 	return Err(String::Format("image « %s » introuvable (mod %s)", name.CStr(), owner.mod.CStr()));
 }
 
+void AssetManager::ForgetRig(const String &id) { m_rigs.erase(id.CStr()); }
+
+bool AssetManager::ReloadTexture(const String &id) {
+	const TextureDef *t = m_content ? m_content->FindTexture(id) : nullptr;
+	if (!t)
+		return false;
+	const resources::AssetRecord record = TextureRecord(*t);
+	if (m_cache.Knows(record.id))
+		(void)m_cache.UpdateRecord(record);
+	else
+		(void)m_cache.Declare(record);
+	if (m_cache.IsResident(record.id))
+		if (std::shared_ptr<resources::Resource> resource = m_cache.Find(record.id, id.View()))
+			resource->Unload(); // relue au prochain Texture(id)
+	return true;
+}
+
 std::shared_ptr<const RigModel> AssetManager::Rig(const String &id) {
 	if (auto it = m_rigs.find(id.CStr()); it != m_rigs.end())
 		return it->second;
@@ -951,7 +1100,7 @@ std::shared_ptr<const RigModel> AssetManager::Rig(const String &id) {
 	if (!def) {
 		error = "modèle inconnu";
 	} else if (def->format == "rig") {
-		if (Result<RigModel, String> r = RigFromJson(def->data); r.IsOk())
+		if (Result<RigModel, String> r = RigFromJson(def->data, def->baseDir); r.IsOk())
 			rig = std::make_shared<RigModel>(std::move(r).Unwrap());
 		else
 			error = r.Error();

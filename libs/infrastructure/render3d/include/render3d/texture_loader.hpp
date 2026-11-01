@@ -24,4 +24,21 @@ namespace render3d {
 																		uint32_t height, std::span<const uint8_t> rgba,
 																		std::span<const std::span<const uint8_t>> mipmaps = {});
 
+/// Texture de données (sans mipmaps, échantillonnable), 2D (`depth` = 1) ou
+/// 3D (`depth` > 1), au format donné — grilles et tables lues par un shader
+/// (texelFetch). Son contenu est indéfini avant UploadTextureRegions.
+[[nodiscard]] Result<sdl3::GpuTexture, String> CreateDataTexture(sdl3::GpuDevice &device, SDL_GPUTextureFormat format,
+																  uint32_t width, uint32_t height, uint32_t depth = 1);
+
+/// Région d'une texture de données et ses octets (lignes puis tranches,
+/// serrées : `w × h × d × taille d'un texel`).
+struct TextureRegionData {
+	uint32_t x = 0, y = 0, z = 0, w = 0, h = 0, d = 1;
+	std::span<const uint8_t> bytes;
+};
+
+/// Envoie plusieurs régions d'une même texture en une seule passe de copie.
+Result<bool, String> UploadTextureRegions(sdl3::GpuDevice &device, sdl3::GpuTexture &texture,
+										  std::span<const TextureRegionData> regions);
+
 } // namespace render3d

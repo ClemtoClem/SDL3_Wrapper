@@ -99,20 +99,40 @@ public:
 	/// Plus petite taille de tuile (les textures plus fines sont agrandies).
 	[[nodiscard]] int TileSize() const noexcept { return m_tile; }
 	[[nodiscard]] size_t Count() const noexcept { return m_rects.size(); }
+	/// Tuiles rangées (id → rectangle), sans les alias (une texture à
+	/// variantes renvoie à sa première) : inventaire de l'atelier de textures.
+	[[nodiscard]] std::vector<std::pair<String, Rect>> Tiles() const;
+	/// Part de l'atlas occupée par des tuiles (0..1).
+	[[nodiscard]] float Occupancy() const;
+	/// Réflectivité (TextureDef::reflectivity, 0..255) de chaque texel, même
+	/// disposition que Pixels() ; vide si aucune texture ne réfléchit.
+	[[nodiscard]] const std::vector<uint8_t> &Reflectivity() const noexcept { return m_reflectivity; }
 
 private:
 	Image m_image;
+	std::vector<uint8_t> m_reflectivity;
 	std::vector<Image> m_mipmaps;
 	int m_tile = 16;
 	std::unordered_map<std::string, Rect> m_rects;
 	std::unordered_map<std::string, std::vector<std::string>> m_variants; ///< texture → ids de ses variantes
 };
 
+/// Variante (0..count-1) que le mailleur tire pour un bloc posé en `p`
+/// (textures « nom.N.png ») ; 0 si `count` ≤ 1.
+[[nodiscard]] size_t VariantIndex(const BlockPos &p, size_t count) noexcept;
+
 class ChunkMesher {
 public:
 	ChunkMesher(const ContentRegistry &content, const TextureAtlas &atlas, AssetManager *assets = nullptr);
 
 	[[nodiscard]] ChunkMesh Build(const World &world, const ChunkPos &chunk) const;
+
+	/// Table des blocs des rayons réfléchis (render3d::VoxelReflections::blocks,
+	/// R32G32B32A32_FLOAT) : par bloc, 8 lignes de 4 flottants — rectangle
+	/// d'atlas de chaque face, teinte (a : masque des faces teintées par le
+	/// biome), teinte de `biome` (a : 1 si lumineux) ; `perRow` blocs par
+	/// bande de 8 lignes. Rend la hauteur (lignes) dans `rows`.
+	[[nodiscard]] std::vector<float> RayBlockTable(int perRow, const BiomeDef *biome, int &rows) const;
 
 	/// Options de rendu (réglages graphiques).
 	struct Options {

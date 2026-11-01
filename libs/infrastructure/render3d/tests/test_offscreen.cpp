@@ -542,3 +542,127 @@ TEST(OffscreenSmokeTest, BakedLightingUsesVertexLightOnly) {
     const auto [open, openCount] = render({0.f, 0.f, 0.f, 1.f}, 1.f);
     EXPECT_TRUE(openCount > 400 && open[0] > 100.0);
 }
+
+// Réflexions par lancer de rayons (Material::voxelReflections) : un sol
+// miroir (réflectivité 1) regardé en biais renvoie ce que le rayon réfléchi
+// rencontre dans la grille de voxels — ici un mur rouge qui n'existe QUE
+// dans la grille (aucun maillage) ; sans grille, le sol (non éclairé) reste
+// noir ; grille vide : la couleur du ciel.
+TEST(OffscreenSmokeTest, VoxelReflectionsTraceTheGrid) {
+    auto windowResult = Window::Create(String("offscreen_reflections"), 64, 64, 0);
+    ASSERT_TRUE(windowResult.IsOk());
+    Window window = std::move(windowResult.Value());
+    auto canvasResult = Canvas::Create(window, 64, 64);
+    ASSERT_TRUE(canvasResult.IsOk());
+    Canvas canvas = std::move(canvasResult.Value());
+    canvas.SetBackgroundColor(Color(0, 255, 0, 255));
+    DirectionalLight sun;
+    sun.intensity = 0.f;
+    AmbientLight ambient;
+    ambient.color = Color(0, 0, 0, 255);
+    canvas.SetLighting(sun, ambient);
+    OffscreenTarget target;
+    ASSERT_TRUE(target.EnsureSize(canvas.Device(), 64, 64, OFFSCREEN_COLOR_FORMAT, OFFSCREEN_DEPTH_FORMAT).IsOk());
+
+    // Atlas 2 × 1 : gris (le sol), rouge (le mur) ; réflectivité : 1, 0.
+    const std::vector<uint8_t> atlasPixels{128, 128, 128, 255, 255, 0, 0, 255};
+    auto atlas = CreateTextureFromPixels(canvas.Device(), 2, 1, atlasPixels);
+    ASSERT_TRUE(atlas.IsOk());
+    auto reflectivity = CreateDataTexture(canvas.Device(), SDL_GPU_TEXTUREFORMAT_R8_UNORM, 2, 1);
+    ASSERT_TRUE(reflectivity.IsOk());
+    const std::vector<uint8_t> mirror{255, 0};
+    ASSERT_TRUE(UploadTextureRegions(canvas.Device(), reflectivity.Value(), std::array{TextureRegionData{0, 0, 0, 2, 1, 1, mirror}}).IsOk());
+    // Table des blocs : le bloc 1 (x = 1 avec 2 blocs par ligne) a toutes ses
+    // faces sur le texel rouge ; teintes blanches, sans face teintée par le biome.
+    std::vector<float> table(size_t(2 * 8 * 4), 1.f);
+    table[size_t((6 * 2 + 1) * 4 + 3)] = 0.f; // masque des faces du biome
+    table[size_t((7 * 2 + 1) * 4 + 3)] = 0.f; // pas lumineux
+    for (int row = 0; row < 6; ++row) {
+        float *rect = &table[size_t((row * 2 + 1) * 4)];
+        rect[0] = rect[2] = 0.75f;
+        rect[1] = rect[3] = 0.5f;
+    }
+    auto blocks = CreateDataTexture(canvas.Device(), SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, 2, 8);
+    ASSERT_TRUE(blocks.IsOk());
+    ASSERT_TRUE(UploadTextureRegions(canvas.Device(), blocks.Value(),
+                                     std::array{TextureRegionData{0, 0, 0, 2, 8, 1,
+                                                                  {reinterpret_cast<const uint8_t *>(table.data()), table.size() * 4}}})
+                    .IsOk());
+    // Grille 16³ au coin (−8, 0, −8) : un mur au plan z = 4 ; devant lui, les
+    // cellules reçoivent une forte lumière blanche des sources.
+    auto grid = CreateDataTexture(canvas.Device(), SDL_GPU_TEXTUREFORMAT_R16G16B16A16_UINT, 16, 16, 16);
+    ASSERT_TRUE(grid.IsOk());
+    auto fill = [&](bool wall) {
+        std::vector<uint16_t> cells(size_t(16 * 16 * 16 * 4), 0);
+        for (int z = -8; z < 8; ++z)
+            for (int y = 0; y < 16; ++y)
+                for (int x = -8; x < 8; ++x) {
+                    uint16_t *c = &cells[size_t((((z & 15) * 16 + (y & 15)) * 16 + (x & 15)) * 4)];
+                    if (wall && z == 4)
+                        c[0] = 1;
+                    else
+                        c[1] = 255, c[2] = 0xFFFF, c[3] = 255;
+                }
+        return UploadTextureRegions(canvas.Device(), grid.Value(),
+                                    std::array{TextureRegionData{0, 0, 0, 16, 16, 16,
+                                                                 {reinterpret_cast<const uint8_t *>(cells.data()), cells.size() * 2}}});
+    };
+
+    // Le sol : un carré horizontal en y = 0, texture du texel gris.
+    std::vector<Vertex3D> vertices;
+    for (const math::FVector3 &p : {math::FVector3{-4.f, 0.f, -4.f}, math::FVector3{4.f, 0.f, -4.f}, math::FVector3{4.f, 0.f, 4.f},
+                                    math::FVector3{-4.f, 0.f, 4.f}})
+        vertices.push_back(Vertex3D{p, {0.f, 1.f, 0.f}, {0.25f, 0.5f}, Color::WHITE(), {0.f, 0.f, 0.f, 1.f}});
+    auto mesh = std::make_shared<Mesh>(std::move(vertices), std::vector<uint32_t>{0, 1, 2, 0, 2, 3});
+    Material material = Material::Default();
+    material.bakedLighting = true;
+    material.voxelReflections = true;
+    material.doubleSided = true;
+    material.nearestFilter = true;
+    material.albedo = Some(MakeRef(atlas.Value()));
+    Shape floor(mesh, material);
+    render3d::Camera camera;
+    camera.position = {0.f, 3.f, -6.f};
+    camera.target = {0.f, 0.f, 0.f};
+    camera.aspect = 1.f;
+    // Moyenne du carré central (le sol, vu de près).
+    auto centre = [&]() {
+        std::vector<uint8_t> pixels;
+        EXPECT_TRUE(RenderObjectToTexture(canvas, floor, camera, target, pixels).IsOk());
+        std::array<double, 3> sum{0.0, 0.0, 0.0};
+        for (int y = 24; y < 40; ++y)
+            for (int x = 24; x < 40; ++x)
+                for (int k = 0; k < 3; ++k)
+                    sum[size_t(k)] += pixels[size_t((y * 64 + x) * 4 + k)] / 256.0;
+        return sum;
+    };
+    const auto plain = centre();
+    EXPECT_TRUE(plain[0] < 4.0 && plain[1] < 4.0 && plain[2] < 4.0); // sans grille : sol non éclairé, noir
+
+    VoxelReflections reflections{MakeRef(grid.Value()), MakeRef(blocks.Value()), MakeRef(reflectivity.Value())};
+    reflections.origin = {-8.f, 0.f, -8.f};
+    reflections.size = {16.f, 16.f, 16.f};
+    reflections.blocksPerRow = 2;
+    reflections.skyColor = {0.f, 0.f, 1.f};
+    canvas.SetVoxelReflections(Some(reflections));
+    ASSERT_TRUE(fill(true).IsOk());
+    const auto mirrored = centre();
+    EXPECT_TRUE(mirrored[0] > 150.0 && mirrored[1] < 20.0 && mirrored[2] < 20.0); // le mur rouge, vu dans le sol
+    ASSERT_TRUE(fill(false).IsOk());
+    const auto open = centre();
+    EXPECT_TRUE(open[2] > 150.0 && open[0] < 20.0); // rien sur le trajet : le ciel bleu
+    // Le mur devient miroir lui aussi : avec une seule réflexion permise, il
+    // n'est qu'éclairé (rouge) ; avec deux, le rayon repart vers le ciel.
+    const std::vector<uint8_t> mirrors{255, 255};
+    ASSERT_TRUE(UploadTextureRegions(canvas.Device(), reflectivity.Value(), std::array{TextureRegionData{0, 0, 0, 2, 1, 1, mirrors}}).IsOk());
+    ASSERT_TRUE(fill(true).IsOk());
+    reflections.maxBounces = 1;
+    canvas.SetVoxelReflections(Some(reflections));
+    const auto once = centre();
+    EXPECT_TRUE(once[0] > 150.0 && once[2] < 20.0);
+    reflections.maxBounces = 2;
+    canvas.SetVoxelReflections(Some(reflections));
+    const auto twice = centre();
+    EXPECT_TRUE(twice[2] > 150.0 && twice[0] < 20.0);
+    canvas.SetVoxelReflections(NONE);
+}

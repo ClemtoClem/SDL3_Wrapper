@@ -26,11 +26,13 @@ sdl3::Color Mix(const std::array<uint8_t, 3> &a, float k) {
 
 } // namespace
 
-WorldRenderer::WorldRenderer(Game &game, render3d::Canvas &canvas, int meshThreads) : m_game(game), m_canvas(canvas) {
+WorldRenderer::WorldRenderer(Game &game, render3d::Canvas &canvas, int meshThreads)
+	: m_game(game), m_canvas(canvas), m_reflections(canvas) {
 	m_chunkRoot = &m_root.Add(std::make_unique<render3d::Object3D>());
 	m_entityRoot = &m_root.Add(std::make_unique<render3d::Object3D>());
 	m_effectRoot = &m_root.Add(std::make_unique<render3d::Object3D>());
 	m_cloudRoot = &m_root.Add(std::make_unique<render3d::Object3D>());
+	m_ghostRoot = &m_root.Add(std::make_unique<render3d::Object3D>());
 	if (auto mutex = sdl3::Mutex::Create())
 		m_resultsMutex = Some(std::move(mutex.Value()));
 	const bool threaded = meshThreads > 0 && m_resultsMutex.IsSome();
@@ -40,6 +42,7 @@ WorldRenderer::WorldRenderer(Game &game, render3d::Canvas &canvas, int meshThrea
 
 WorldRenderer::~WorldRenderer() {
 	m_renderThreads.clear(); // maillages en cours terminés avant de défaire quoi que ce soit
+	m_canvas.SetVoxelReflections(NONE); // le Canvas ne garde que des références vers la grille
 	if (m_skyboxActive)
 		m_canvas.ClearSkybox(); // le Canvas ne garde qu'une référence vers nos cubemaps
 }
@@ -84,10 +87,9 @@ render3d::Mesh WorldRenderer::ToMesh(const MeshBuffer &buffer) {
 	return render3d::Mesh(std::move(vertices), buffer.indices);
 }
 
-Result<bool, String> WorldRenderer::Initialize() {
-	// Textures fines (papiers peints, néons… en 2048 px) gardées jusqu'à
-	// 256 px par bloc, avec leurs mipmaps (pas de moiré au loin).
-	m_atlas.Build(m_game.Assets(), m_game.Content(), 16, 256);
+Result<bool, String> WorldRenderer::BuildAtlas() {
+	const uint64_t start = sdl3::GetPerformanceCounter();
+	m_atlas.Build(m_game.Assets(), m_game.Content(), m_atlasStats.tileSize, m_atlasStats.maxTileSize);
 	(void)m_game.Assets().ReleaseUnused(); // les images sources, souvent grandes, ne servent plus
 	const Image &pixels = m_atlas.Pixels();
 	std::vector<std::span<const uint8_t>> mipmaps;
@@ -98,19 +100,48 @@ Result<bool, String> WorldRenderer::Initialize() {
 	if (texture.IsError())
 		return Err(texture.Error());
 	m_atlasTexture = Some(std::move(texture).Unwrap());
+	m_atlasStats.width = pixels.width;
+	m_atlasStats.height = pixels.height;
+	m_atlasStats.tiles = m_atlas.Tiles().size();
+	m_atlasStats.occupancy = m_atlas.Occupancy();
+	m_atlasStats.milliseconds =
+		float(double(sdl3::GetPerformanceCounter() - start) * 1000.0 / double(sdl3::GetPerformanceFrequency()));
+	return Ok(true);
+}
+
+Result<WorldRenderer::AtlasStats, String> WorldRenderer::RebuildAtlas(int tileSize, int maxTileSize) {
+	auto pow2 = [](int v) { return v >= 2 && v <= 2048 && (v & (v - 1)) == 0; };
+	if (!pow2(tileSize) || !pow2(maxTileSize) || maxTileSize < tileSize)
+		return Err(String("résolutions : puissances de deux de 2 à 2048, la maximale au moins égale à la base"));
+	m_atlasStats.tileSize = tileSize;
+	m_atlasStats.maxTileSize = maxTileSize;
+	if (Result<bool, String> r = ReloadContent(true); r.IsError())
+		return Err(r.Error());
+	return Ok(m_atlasStats);
+}
+
+Result<bool, String> WorldRenderer::Initialize() {
+	// Textures fines (papiers peints, néons… en 2048 px) gardées jusqu'à
+	// 256 px par bloc, avec leurs mipmaps (pas de moiré au loin).
+	if (Result<bool, String> atlas = BuildAtlas(); atlas.IsError())
+		return atlas;
 	m_mesher = std::make_unique<ChunkMesher>(m_game.Content(), m_atlas, &m_game.Assets());
 	for (size_t i = 0; i < m_renderThreads.size(); ++i)
 		m_jobMeshers.push_back(std::make_unique<ChunkMesher>(m_game.Content(), m_atlas, &m_game.Assets()));
+	if (Result<bool, String> grid = m_reflections.Initialize(m_atlas, *m_mesher); grid.IsError())
+		return Err(String("réflexions : ") + grid.Error());
 
 	m_opaque = render3d::Material::Default();
 	m_opaque.albedo = Some(MakeRef(m_atlasTexture.Value()));
 	m_opaque.nearestFilter = true;
 	m_opaque.roughness = 1.f; // pas de reflet spéculaire sur la pierre
 	m_opaque.bakedLighting = true; // lumière des sommets (voxel/lighting.hpp)
+	m_opaque.voxelReflections = true; // textures qui réfléchissent : rayons dans la grille
 	m_translucent = m_opaque;
 	m_translucent.blend = true;
 	m_translucent.doubleSided = true; // l'eau vue d'en dessous
 	m_entity = m_opaque;
+	m_entity.voxelReflections = false;
 	m_emissive = m_opaque;
 	m_emissive.lit = false; // une source de lumière n'est pas assombrie par la scène
 	m_entity.doubleSided = true;
@@ -342,6 +373,8 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 		m_frozen.clear();
 		m_inFlight.clear();
 		++m_meshSerial; // les maillages de l'ancien monde, s'il en revient, sont jetés
+		m_reflections.Reset();
+		SetGhost(nullptr, BlockPos{0, 0, 0});
 	}
 	// Chunks déchargés : leurs formes partent.
 	for (auto it = m_chunks.begin(); it != m_chunks.end();) {
@@ -436,6 +469,11 @@ void WorldRenderer::Update(const render3d::Camera &camera, float alpha, const Op
 	}
 	UpdateHighlights();
 	UpdateSky();
+	const DimensionDef *dim = m_game.CurrentDimensionDef();
+	const BiomeDef *biome = world.Generator() ? world.Generator()->BiomeAt(int(std::floor(camera.position.x)), int(std::floor(camera.position.z)))
+											  : nullptr;
+	m_reflections.Update(world, !dim || dim->skyLight, camera.position, m_settings.reflections, m_settings.reflectionBounces, m_skyLinear,
+						 biome, rebuildBudget);
 }
 
 void WorldRenderer::UpdateHighlights() {
@@ -570,6 +608,8 @@ void WorldRenderer::DropView(EntityView &view) {
 		(void)m_entityRoot->RemoveChild(view.rigRoot);
 	view.shape = nullptr;
 	view.rigRoot = nullptr;
+	view.held = {nullptr, nullptr}; // enfants des bras : partis avec eux
+	view.heldKey = {std::string(), std::string()};
 	view.parts.clear();
 	view.partShapes.clear();
 	view.rig.reset();
@@ -601,6 +641,54 @@ const WorldRenderer::Skin *WorldRenderer::SkinFor(const String &skin, bool trans
 	const Skin *out = entry.get();
 	m_skins[key] = std::move(entry);
 	return out;
+}
+
+void WorldRenderer::UpdateHeld(EntityView &view, int hand, const ItemStack *stack, const RigAnchor &anchor) {
+	const ItemDef *item = stack && !stack->IsEmpty() && anchor.IsSet() && size_t(anchor.part) < view.parts.size()
+							  ? m_game.Content().FindItem(stack->item)
+							  : nullptr;
+	const std::string key = item ? std::string(item->id.CStr()) : std::string();
+	render3d::Shape *&shape = view.held[size_t(hand)];
+	if (view.heldKey[size_t(hand)] == key && (shape || !item))
+		return;
+	if (shape)
+		(void)view.parts[size_t(anchor.part)]->RemoveChild(shape);
+	shape = nullptr;
+	view.heldKey[size_t(hand)] = key;
+	if (!item)
+		return;
+	// Un bloc plein : en miniature ; le reste (outil, torche, fleur…) : son
+	// image en plaque mince.
+	Visual visual;
+	visual.shape.kind = ShapeKind::CUBE;
+	if (!item->placesBlock.IsEmpty())
+		if (const BlockDef *block = m_game.Content().FindBlock(item->placesBlock); block && block->shape.kind == ShapeKind::CUBE)
+			visual.block = m_game.Content().BlockIdOf(item->placesBlock);
+	for (String &face : visual.look.faces)
+		face = item->icon;
+	const bool sprite = visual.block == AIR;
+	std::string meshKey;
+	std::shared_ptr<render3d::Mesh> mesh = EntityMesh(visual, item->mod, meshKey, sprite);
+	auto held = std::make_unique<render3d::Shape>(mesh, m_entity);
+	// Repère du bras : pivot à l'origine, la main vers le bas (−y), l'avant en +z.
+	const RigPart &part = view.rig->parts[size_t(anchor.part)];
+	const math::FVector3 at = (anchor.at - part.pivot) * view.rig->scale;
+	if (sprite) {
+		// De profil, la pointe vers l'avant ; la poignée (coin bas gauche de
+		// l'image) dans la main.
+		const float size = 0.55f;
+		const math::FQuaternion q = math::FQuaternion::FromAxisAngle({1.f, 0.f, 0.f}, 0.75f) *
+									math::FQuaternion::FromAxisAngle({0.f, 1.f, 0.f}, -1.5707963f);
+		held->SetRotation(q);
+		held->SetScale({size, size, size});
+		held->SetPosition(at - q.Rotate(math::FVector3{-0.3f, 0.15f, 0.f} * size));
+	} else {
+		const float size = 0.3f;
+		held->SetScale({size, size, size});
+		held->SetPosition(at + math::FVector3{0.f, -size * 0.6f, size * 0.25f});
+	}
+	shape = held.get();
+	view.parts[size_t(anchor.part)]->Add(std::move(held));
 }
 
 void WorldRenderer::UpdateRig(ecs::Entity e, EntityView &view, const Transform &t, const Visual &visual, const math::FVector3 &at,
@@ -656,11 +744,31 @@ void WorldRenderer::UpdateRig(ecs::Entity e, EntityView &view, const Transform &
 	view.walkPhase = std::fmod(view.walkPhase + speed * dt * 2.6f, 6.2831853f * 64.f);
 	const float amount = std::clamp(speed / 2.5f, 0.f, 1.f);
 	const float time = float(m_game.GameTime()) + float(e.id) * 0.37f;
+	RigPoseInput input;
+	input.walkPhase = view.walkPhase;
+	input.walkAmount = amount;
+	input.time = time;
+	input.lookPitch = t.pitch;
+	// Objets tenus : la main droite tient l'emplacement choisi (joueurs), la
+	// gauche celui de l'équipement ; le bras droit frappe pendant qu'on casse.
+	const ItemStack *right = registry.HasComponent<Player>(e) ? m_game.HeldItem(e) : nullptr;
+	const ItemStack *left = m_game.OffhandItem(e);
+	input.holdRight = right && !right->IsEmpty() && view.rig->rightHand.IsSet();
+	input.holdLeft = left && !left->IsEmpty() && view.rig->leftHand.IsSet();
+	if (auto player = registry.GetComponent<Player>(e); player.IsSome() && player.Unwrap()->breakProgress > 0.f)
+		input.swing = float(std::fmod(m_game.GameTime() * 2.5, 1.0));
+	UpdateHeld(view, 0, right, view.rig->rightHand);
+	UpdateHeld(view, 1, left, view.rig->leftHand);
 	for (size_t i = 0; i < view.parts.size(); ++i) {
-		const math::FVector3 r = PoseRigPart(view.rig->parts[i], view.walkPhase, amount, time, t.pitch) * (3.14159265f / 180.f);
-		view.parts[i]->SetRotation(math::FQuaternion::FromAxisAngle({0.f, 0.f, 1.f}, r.z) *
-								   math::FQuaternion::FromAxisAngle({0.f, 1.f, 0.f}, r.y) *
-								   math::FQuaternion::FromAxisAngle({1.f, 0.f, 0.f}, r.x));
+		const RigPartPose pose = PoseRig(*view.rig, i, input);
+		view.parts[i]->SetRotation(RigRotation(pose.rotation));
+		// Pivot (relatif au parent) + décalage des clips à images clés.
+		const RigPart &part = view.rig->parts[i];
+		const int parent = part.parent.IsEmpty() ? -1 : view.rig->Find(part.parent);
+		math::FVector3 pivot = part.pivot + pose.offset;
+		if (parent >= 0)
+			pivot = pivot - view.rig->parts[size_t(parent)].pivot;
+		view.parts[i]->SetPosition(pivot * view.rig->scale);
 	}
 	float scale = visual.scale * visual.rig.scale;
 	if (view.rig->unitHeight)
@@ -671,6 +779,10 @@ void WorldRenderer::UpdateRig(ecs::Entity e, EntityView &view, const Transform &
 	for (render3d::Shape *part : view.partShapes)
 		for (render3d::Material &m : part->Materials())
 			m.objectLight = light;
+	for (render3d::Shape *held : view.held)
+		if (held)
+			for (render3d::Material &m : held->Materials())
+				m.objectLight = light;
 	view.rigRoot->SetPosition(at);
 	view.rigRoot->SetRotation(math::FQuaternion::FromAxisAngle({0.f, 1.f, 0.f}, t.yaw + visual.rig.yaw * (3.14159265f / 180.f)));
 	view.rigRoot->SetScale({scale, scale, scale});
@@ -832,7 +944,11 @@ void WorldRenderer::UpdateSky() {
 	m_canvas.SetLighting(sun, ambient);
 	m_canvas.SetExposure(exposure);
 	m_canvas.SetBaseLight(base);
-	m_canvas.SetBackgroundColor(Mix(sky, dim && !dim->dayCycle ? std::min(1.f, daylight + 0.2f) : daylight));
+	const sdl3::Color background = Mix(sky, dim && !dim->dayCycle ? std::min(1.f, daylight + 0.2f) : daylight);
+	m_canvas.SetBackgroundColor(background);
+	// Ce que voit un rayon réfléchi qui ne touche rien.
+	const lighting::Rgb skyLinear = lighting::SrgbToLinear(background.r, background.g, background.b);
+	m_skyLinear = {skyLinear[0], skyLinear[1], skyLinear[2]};
 	// Ciel en cubemap : celui de nuit quand il fait sombre (s'il existe),
 	// assombri selon l'heure et l'obscurité.
 	const bool night = dim && !dim->nightCubemap.IsEmpty() && daylight < 0.32f;
@@ -849,6 +965,47 @@ void WorldRenderer::UpdateSky() {
 		m_canvas.ClearSkybox();
 		m_skyboxActive = false;
 	}
+}
+
+std::vector<WorldRenderer::MeshPart> WorldRenderer::StructureMeshes(const Schematic &structure) const {
+	std::vector<MeshPart> out;
+	if (!m_mesher || structure.Empty())
+		return out;
+	const ChunkMesh built = m_mesher->BuildStructure(structure);
+	for (const auto &[buffer, material] : {std::pair{&built.opaque, &m_opaque}, std::pair{&built.emissive, &m_emissive},
+										   std::pair{&built.translucent, &m_translucent}})
+		if (!buffer->IsEmpty()) {
+			render3d::Material m = *material;
+			m.voxelReflections = false; // hors du monde : pas dans la grille des rayons
+			out.push_back(MeshPart{std::make_shared<render3d::Mesh>(ToMesh(*buffer)), m});
+		}
+	return out;
+}
+
+void WorldRenderer::SetGhost(std::shared_ptr<const Schematic> structure, const BlockPos &corner) {
+	if (structure != m_ghost) {
+		while (!m_ghostRoot->Children().empty())
+			(void)m_ghostRoot->RemoveChild(m_ghostRoot->Children().front().get());
+		m_ghost = std::move(structure);
+		if (m_ghost)
+			for (MeshPart &part : StructureMeshes(*m_ghost)) {
+				// Translucide, vu des deux côtés, légèrement bleuté : ce n'est pas encore posé.
+				part.material.blend = true;
+				part.material.doubleSided = true;
+				part.material.baseColor = sdl3::Color{200, 220, 255, 140};
+				m_ghostRoot->Add(std::make_unique<render3d::Shape>(part.mesh, part.material));
+			}
+	}
+	m_ghostRoot->SetPosition(corner.ToVector());
+}
+
+std::shared_ptr<render3d::Mesh> WorldRenderer::BlockPreviewMesh(const BlockDef &block) const {
+	if (!m_mesher)
+		return nullptr;
+	const MeshBuffer buffer = m_mesher->BuildShape(block.shape, block.look, 0, block.mod);
+	if (buffer.IsEmpty())
+		return nullptr;
+	return std::make_shared<render3d::Mesh>(ToMesh(buffer));
 }
 
 void WorldRenderer::Quiesce() {
@@ -899,17 +1056,8 @@ Result<bool, String> WorldRenderer::ReloadContent(bool rebuildAtlas) {
 	if (rebuildAtlas) {
 		// L'ancienne texture peut encore servir à une image en vol.
 		(void)m_canvas.Device().WaitIdle();
-		m_atlas.Build(m_game.Assets(), m_game.Content(), 16, 256);
-		(void)m_game.Assets().ReleaseUnused();
-		const Image &pixels = m_atlas.Pixels();
-		std::vector<std::span<const uint8_t>> mipmaps;
-		for (const Image &level : m_atlas.Mipmaps())
-			mipmaps.emplace_back(level.rgba);
-		auto texture = render3d::CreateTextureFromPixels(m_canvas.Device(), uint32_t(pixels.width), uint32_t(pixels.height),
-														 pixels.rgba, mipmaps);
-		if (texture.IsError())
-			return Err(texture.Error());
-		m_atlasTexture = Some(std::move(texture).Unwrap());
+		if (Result<bool, String> atlas = BuildAtlas(); atlas.IsError())
+			return atlas;
 		for (render3d::Material *material : {&m_opaque, &m_translucent, &m_entity, &m_emissive})
 			material->albedo = Some(MakeRef(m_atlasTexture.Value()));
 	}
@@ -919,6 +1067,10 @@ Result<bool, String> WorldRenderer::ReloadContent(bool rebuildAtlas) {
 	m_mesher->options = options;
 	for (std::unique_ptr<ChunkMesher> &mesher : m_jobMeshers)
 		mesher = std::make_unique<ChunkMesher>(m_game.Content(), m_atlas, &m_game.Assets());
+	// Blocs (faces, teintes) et réflectivité des textures : la grille repart.
+	(void)m_canvas.Device().WaitIdle();
+	if (Result<bool, String> grid = m_reflections.Initialize(m_atlas, *m_mesher); grid.IsError())
+		return Err(String("réflexions : ") + grid.Error());
 	for (auto &[p, view] : m_chunks)
 		view.revision = 0; // remaillés au fil des images (les plus proches d'abord)
 	m_inFlight.clear();
@@ -927,6 +1079,7 @@ Result<bool, String> WorldRenderer::ReloadContent(bool rebuildAtlas) {
 	for (auto &[key, view] : m_entities)
 		DropView(view);
 	m_entities.clear();
+	SetGhost(nullptr, BlockPos{0, 0, 0}); // remaillé au prochain SetGhost
 	++m_contentReloads;
 	return Ok(true);
 }
@@ -986,20 +1139,28 @@ void WorldRenderer::UpdateLights(const render3d::Camera &camera) {
 	// par la géométrie, voxel/lighting.hpp). Reste celle de l'objet tenu en
 	// main (torche, lanterne) : à la place de l'œil, elle n'éclaire que ce que
 	// la caméra voit — pas d'occlusion à calculer, et elle suit sans délai.
+	// Main droite, sinon main gauche : la plus forte des deux.
 	LightDef held;
-	if (m_settings.dynamicLights > 0)
-		if (const ItemStack *stack = m_game.LocalPlayer().Valid() ? m_game.HeldItem(m_game.LocalPlayer()) : nullptr; stack && !stack->IsEmpty())
-			if (const ItemDef *item = m_game.Content().FindItem(stack->item)) {
-				if (!item->placesBlock.IsEmpty())
-					if (const BlockDef *block = m_game.Content().FindBlock(item->placesBlock))
-						held = block->look.light;
-				if (const int level = json::Int(item->raw, "light", 0); level > 0 && !held.Active()) {
-					held.enabled = true;
-					held.color = lighting::SrgbToLinear(lighting::LEGACY_COLOR[0], lighting::LEGACY_COLOR[1], lighting::LEGACY_COLOR[2]);
-					held.intensity = lighting::LegacyIntensity(level);
-					held.range = lighting::LegacyRange(level);
-				}
-			}
+	auto lightOf = [&](const ItemStack *stack) {
+		LightDef out;
+		const ItemDef *item = stack && !stack->IsEmpty() ? m_game.Content().FindItem(stack->item) : nullptr;
+		if (!item)
+			return out;
+		if (!item->placesBlock.IsEmpty())
+			if (const BlockDef *block = m_game.Content().FindBlock(item->placesBlock))
+				out = block->look.light;
+		if (const int level = json::Int(item->raw, "light", 0); level > 0 && !out.Active()) {
+			out.enabled = true;
+			out.color = lighting::SrgbToLinear(lighting::LEGACY_COLOR[0], lighting::LEGACY_COLOR[1], lighting::LEGACY_COLOR[2]);
+			out.intensity = lighting::LegacyIntensity(level);
+			out.range = lighting::LegacyRange(level);
+		}
+		return out;
+	};
+	if (m_settings.dynamicLights > 0 && m_game.LocalPlayer().Valid())
+		for (const ItemStack *stack : {m_game.HeldItem(m_game.LocalPlayer()), m_game.OffhandItem(m_game.LocalPlayer())})
+			if (const LightDef l = lightOf(stack); l.Active() && (!held.Active() || l.intensity > held.intensity))
+				held = l;
 	// Toujours une lumière (une seule variante de shader à compiler).
 	render3d::PointLight light;
 	light.position = camera.position + math::FVector3{0.f, -0.3f, 0.f};

@@ -193,3 +193,112 @@ TEST(Gltf, OutOfRangeAccessorIsAnErrorNotAnOverread) {
 	EXPECT_TRUE(document.ReadFloats(42).IsError());
 	EXPECT_TRUE(document.ReadFloats(-1).IsError());
 }
+
+// ── Écriture (gltf_writer.hpp) ───────────────────────────────────────────────
+
+#include <dataio/documents/gltf_writer.hpp>
+#include <dataio/documents/json.hpp>
+
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+
+TEST(GltfWriter, SceneRoundTripsThroughTheReader) {
+	gltf::SceneDescription scene;
+	scene.generator = "test";
+	gltf::MeshDescription tri;
+	tri.name = "triangle";
+	tri.positions = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 2.f, 0.f};
+	tri.normals = {0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 0.f, 0.f, 1.f};
+	tri.uvs = {0.f, 1.f, 1.f, 1.f, 0.f, 0.f};
+	tri.indices = {0, 1, 2};
+	tri.material = 0;
+	scene.meshes.push_back(tri);
+	gltf::MaterialDescription skin;
+	skin.name = "skin";
+	skin.baseColorUri = "skin.png";
+	scene.materials.push_back(skin);
+	gltf::NodeDescription body{"body", 0, -1, {0.f, 1.f, 0.f}};
+	gltf::NodeDescription head{"head", 0, 0, {0.f, 0.5f, 0.f}, {0.f, 0.7071068f, 0.f, 0.7071068f}};
+	scene.nodes = {body, head};
+	gltf::AnimationDescription nod{"nod", {}};
+	nod.channels.push_back({1, "rotation", {0.f, 1.f}, {0.f, 0.f, 0.f, 1.f, 0.f, 0.7071068f, 0.f, 0.7071068f}, "LINEAR"});
+	nod.channels.push_back({0, "translation", {0.f, 0.5f, 1.f}, {0.f, 1.f, 0.f, 0.f, 1.2f, 0.f, 0.f, 1.f, 0.f}, "STEP"});
+	scene.animations.push_back(nod);
+
+	const std::filesystem::path dir = std::filesystem::temp_directory_path() / "dataio_gltf_writer";
+	std::filesystem::remove_all(dir);
+	const String path((dir / "scene.gltf").string().c_str());
+	Option<String> error = gltf::SaveScene(path, scene);
+	if (error.IsSome())
+		test::ReportFailure(__FILE__, __LINE__, error.Value().CStr());
+	ASSERT_TRUE(error.IsNone());
+	EXPECT_TRUE(std::filesystem::exists(dir / "scene.bin"));
+
+	auto loaded = gltf::LoadFile(path, true);
+	if (loaded.IsError())
+		test::ReportFailure(__FILE__, __LINE__, loaded.Error().CStr());
+	ASSERT_TRUE(loaded.IsOk());
+	const gltf::Document &doc = loaded.Value();
+	EXPECT_EQ(doc.generator, "test");
+	ASSERT_TRUE(doc.meshes.size() == 1);
+	ASSERT_TRUE(doc.nodes.size() == 2);
+	EXPECT_EQ(doc.nodes[1].name, "head");
+	ASSERT_TRUE(doc.nodes[0].children.size() == 1);
+	EXPECT_EQ(doc.nodes[0].children[0], 1);
+	EXPECT_TRUE(std::fabs(doc.nodes[1].rotation[1] - 0.7071068f) < 1e-6f);
+	const gltf::Primitive &p = doc.meshes[0].primitives[0];
+	auto positions = doc.ReadFloats(p.Find("POSITION"));
+	ASSERT_TRUE(positions.IsOk());
+	EXPECT_TRUE(positions.Value() == tri.positions);
+	auto uvs = doc.ReadFloats(p.Find("TEXCOORD_0"));
+	ASSERT_TRUE(uvs.IsOk());
+	EXPECT_TRUE(uvs.Value() == tri.uvs);
+	auto indices = doc.ReadIndices(p.indices);
+	ASSERT_TRUE(indices.IsOk());
+	EXPECT_TRUE(indices.Value() == tri.indices);
+	ASSERT_TRUE(doc.materials.size() == 1);
+	ASSERT_TRUE(doc.images.size() == 1);
+	EXPECT_EQ(doc.images[0].uri, "skin.png");
+
+	// Animations (non lues par le lecteur) : contrôlées dans le JSON.
+	std::ifstream in((dir / "scene.gltf").string());
+	std::stringstream text;
+	text << in.rdbuf();
+	JsonDocument json;
+	ASSERT_TRUE(json.DecodeStr(String(text.str().c_str())).IsNone());
+	NodePtr animations = json.GetRoot()->Get("animations");
+	ASSERT_TRUE(animations && animations->GetSize() == 1);
+	NodePtr samplers = animations->At(0)->Get("samplers");
+	ASSERT_TRUE(samplers && samplers->GetSize() == 2);
+	EXPECT_EQ(samplers->At(1)->Get("interpolation")->stringValue, "STEP");
+	auto times = doc.ReadFloats(int(samplers->At(1)->Get("input")->intValue));
+	ASSERT_TRUE(times.IsOk());
+	EXPECT_TRUE(times.Value() == (std::vector<float>{0.f, 0.5f, 1.f}));
+	std::filesystem::remove_all(dir);
+}
+
+TEST(GltfWriter, RejectsInconsistentScenes) {
+	gltf::SceneDescription scene;
+	gltf::MeshDescription m;
+	m.positions = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+	m.indices = {0, 1, 3};
+	scene.meshes.push_back(m);
+	EXPECT_TRUE(gltf::ValidateScene(scene).Value().Contains("hors des"));
+	scene.meshes[0].indices = {0, 1, 2};
+	scene.meshes[0].uvs = {0.f, 0.f};
+	EXPECT_TRUE(gltf::ValidateScene(scene).Value().Contains("UV"));
+	scene.meshes[0].uvs.clear();
+	scene.nodes.push_back({"a", 0, 1});
+	EXPECT_TRUE(gltf::ValidateScene(scene).Value().Contains("précéder"));
+	scene.nodes[0].parent = -1;
+	gltf::AnimationDescription a{"x", {}};
+	a.channels.push_back({0, "rotation", {0.f, 1.f}, {0.f, 0.f, 0.f}, "LINEAR"});
+	scene.animations.push_back(a);
+	EXPECT_TRUE(gltf::ValidateScene(scene).Value().Contains("valeurs"));
+	scene.animations[0].channels[0].values = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f};
+	scene.animations[0].channels[0].interpolation = "CUBICSPLINE";
+	EXPECT_TRUE(gltf::ValidateScene(scene).Value().Contains("CUBICSPLINE"));
+	scene.animations[0].channels[0].interpolation = "LINEAR";
+	EXPECT_TRUE(gltf::ValidateScene(scene).IsNone());
+}

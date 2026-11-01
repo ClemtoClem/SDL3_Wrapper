@@ -337,4 +337,3 @@ fn el_command(sender, args) {
 }
 
 voxel.command("elevator", "/elevator build [style] [floors] [size] [height] [wide|multi] | verify | list", "ascenseurs", el_command)
-voxel.command("ascenseur", "/ascenseur demo [style] [étages] [taille] [hauteur] | verifier | liste", "ascenseurs", el_command)

@@ -61,6 +61,26 @@ TEST(Atlas_PacksTexturesAndMarksMissingOnes) {
 	CHECK(img.At(int(water.u0 * float(img.width)) + 2, int(water.v0 * float(img.height)) + 2)[3] < 200);
 }
 
+TEST(Atlas_TilesAndOccupancy) {
+	// Inventaire de l'atelier de textures : une entrée par tuile rangée, triée,
+	// taille réelle (rectangle rentré d'un demi-texel) ; occupation exacte.
+	Scene s;
+	const auto tiles = s.atlas.Tiles();
+	REQUIRE(tiles.size() >= size_t(3));
+	for (size_t i = 1; i < tiles.size(); ++i)
+		CHECK(tiles[i - 1].first < tiles[i].first);
+	const Image &img = s.atlas.Pixels();
+	double area = 0.0;
+	for (const auto &[id, r] : tiles) {
+		const int px = int(std::lround((r.u1 - r.u0) * float(img.width))) + 1;
+		CHECK_EQ(px, 16);
+		area += double(px * px);
+	}
+	CHECK_NEAR(s.atlas.Occupancy(), float(area / double(img.width * img.height)), 1e-3f);
+	CHECK(s.atlas.Occupancy() > 0.f && s.atlas.Occupancy() <= 1.f);
+	CHECK(TextureAtlas().Occupancy() == 0.f);
+}
+
 TEST(Mesher_CullsHiddenFacesAndSeparatesTranslucent) {
 	Scene s;
 	World world(s.content);

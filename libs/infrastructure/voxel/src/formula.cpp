@@ -1,6 +1,8 @@
 #include <voxel/formula.hpp>
 
+#include <algorithm>
 #include <cctype>
+#include <iterator>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -27,6 +29,9 @@ struct Function {
 	Formula::Op op;
 	int minArgs, maxArgs; ///< maxArgs < 0 : sans limite (min, max)
 };
+
+/// Opérateurs de deux caractères.
+constexpr const char *TWO_CHAR[] = {"<=", ">=", "==", "!=", "&&", "||", "**"};
 
 constexpr Function FUNCTIONS[] = {
 	{"sin", Formula::Op::SIN, 1, 1},	 {"cos", Formula::Op::COS, 1, 1},	  {"tan", Formula::Op::TAN, 1, 1},
@@ -91,7 +96,7 @@ private:
 			m_kind = Kind::NAME;
 			return;
 		}
-		static const char *TWO[] = {"<=", ">=", "==", "!=", "&&", "||", "**"};
+		const auto &TWO = TWO_CHAR;
 		for (const char *two : TWO)
 			if (std::strncmp(m_text + m_pos, two, 2) == 0) {
 				m_token = two;
@@ -437,6 +442,66 @@ double Formula::Eval(const double *values) const {
 		stack[top++] = r;
 	}
 	return top > 0 ? stack[top - 1] : std::numeric_limits<double>::quiet_NaN();
+}
+
+std::vector<String> FormulaFunctions() {
+	std::vector<String> out;
+	for (const Function &f : FUNCTIONS)
+		out.push_back(String(f.name));
+	return out;
+}
+
+std::vector<FormulaToken> TokenizeFormula(const String &text, const std::vector<String> &variables) {
+	using Kind = FormulaToken::Kind;
+	std::vector<FormulaToken> out;
+	const size_t n = text.GetSize();
+	auto isAlpha = [](char c) { return std::isalpha(static_cast<unsigned char>(c)) || c == '_'; };
+	auto isDigit = [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; };
+	for (size_t i = 0; i < n;) {
+		const char c = text[i];
+		if (std::isspace(static_cast<unsigned char>(c))) {
+			++i;
+			continue;
+		}
+		const size_t begin = i;
+		Kind kind = Kind::UNKNOWN;
+		if (isDigit(c) || (c == '.' && i + 1 < n && isDigit(text[i + 1]))) {
+			while (i < n && (isDigit(text[i]) || text[i] == '.'))
+				++i;
+			if (i < n && (text[i] == 'e' || text[i] == 'E') && i + 1 < n &&
+				(isDigit(text[i + 1]) || ((text[i + 1] == '-' || text[i + 1] == '+') && i + 2 < n && isDigit(text[i + 2])))) {
+				i += 2;
+				while (i < n && isDigit(text[i]))
+					++i;
+			}
+			kind = Kind::NUMBER;
+		} else if (isAlpha(c)) {
+			while (i < n && (isAlpha(text[i]) || isDigit(text[i])))
+				++i;
+			const String word = text.Substr(begin, i - begin);
+			if (word == "and" || word == "or" || word == "not")
+				kind = Kind::KEYWORD;
+			else if (std::find(variables.begin(), variables.end(), word) != variables.end())
+				kind = Kind::VARIABLE;
+			else if (word == "pi" || word == "e" || word == "tau")
+				kind = Kind::CONSTANT;
+			else if (std::any_of(std::begin(FUNCTIONS), std::end(FUNCTIONS), [&](const Function &f) { return word == f.name; }))
+				kind = Kind::FUNCTION;
+		} else if (c == '(' || c == ')' || c == ',') {
+			++i;
+			kind = Kind::PAREN;
+		} else if (String("+-*/%^<>=!&|").Contains(c)) {
+			const bool pair = i + 1 < n && std::any_of(std::begin(TWO_CHAR), std::end(TWO_CHAR), [&](const char *op) {
+								  return op[0] == c && op[1] == text[i + 1];
+							  });
+			i += pair ? 2 : 1;
+			kind = Kind::OPERATOR;
+		} else {
+			++i;
+		}
+		out.push_back(FormulaToken{kind, begin, i});
+	}
+	return out;
 }
 
 } // namespace voxel

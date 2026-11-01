@@ -304,27 +304,27 @@ std::vector<String> Schematic::ResolveNames(const ContentRegistry &content, cons
 			mods.push_back(b.mod);
 	std::vector<String> palette;
 	for (size_t i = 0; i < m_palette.size(); ++i) {
-		const String &name = m_palette[i];
+		const String &entry = m_palette[i];
 		String resolved;
-		if (content.FindBlock(name))
-			resolved = name;
-		else if (name == "air")
+		if (content.FindBlock(entry))
+			resolved = entry;
+		else if (entry == "air")
 			resolved = AIR_ID;
-		else if (name == "ignore")
+		else if (entry == "ignore")
 			resolved = String();
 		else {
 			if (aliases && aliases->IsObject())
-				if (NodePtr a = aliases->Get(name); a && a->IsString() && content.FindBlock(a->stringValue))
+				if (NodePtr a = aliases->Get(entry); a && a->IsString() && content.FindBlock(a->stringValue))
 					resolved = a->stringValue;
 			if (resolved.IsEmpty()) {
-				const size_t colon = name.Find(":");
-				const String bare = colon == String::NPOS ? name : name.Substring(colon + 1);
+				const size_t colon = entry.Find(":");
+				const String bare = colon == String::NPOS ? entry : entry.Substring(colon + 1);
 				for (const String &mod : mods)
 					if (resolved.IsEmpty() && content.FindBlock(mod + String(":") + bare))
 						resolved = mod + String(":") + bare;
 			}
 			if (resolved.IsEmpty())
-				unknown.push_back(name);
+				unknown.push_back(entry);
 		}
 		if (resolved.IsEmpty()) {
 			remap[i] = VOID;
@@ -687,9 +687,9 @@ std::vector<uint8_t> Schematic::ToMts() const {
 		names.push_back(String(AIR_ID));
 	u16(unsigned(names.size()));
 	for (const String &n : names) {
-		const String name = n == AIR_ID ? String("air") : n;
-		u16(unsigned(name.GetSize()));
-		out.insert(out.end(), name.CStr(), name.CStr() + name.GetSize());
+		const String written = n == AIR_ID ? String("air") : n;
+		u16(unsigned(written.GetSize()));
+		out.insert(out.end(), written.CStr(), written.CStr() + written.GetSize());
 	}
 	// Données : index (z * sy + y) * sx + x, z inversé.
 	const size_t volume = size_t(Volume());

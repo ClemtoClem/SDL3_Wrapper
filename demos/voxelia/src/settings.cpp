@@ -50,6 +50,7 @@ void Settings::ResetBindings() {
 		{"use", "Poser / utiliser", "Actions", {mouseRight, 0}, {}},
 		{"pick", "Choisir le bloc visé", "Actions", {mouseMiddle, 0}, {}},
 		{"drop", "Jeter l'objet", "Actions", {key(SDL_SCANCODE_Q), 0}, {}},
+		{"swapHands", "Échanger les mains", "Actions", {key(SDL_SCANCODE_X), 0}, {}},
 		{"nextSlot", "Objet suivant", "Actions", {WHEEL_DOWN, 0}, {}},
 		{"prevSlot", "Objet précédent", "Actions", {WHEEL_UP, 0}, {}},
 		{"inventory", "Inventaire", "Interface", {key(SDL_SCANCODE_E), key(SDL_SCANCODE_I)}, {}},
@@ -113,6 +114,10 @@ template <typename S, typename F> void VisitFields(S &s, F &&f) {
 	f("mouseSensitivity", s.mouseSensitivity);
 	f("invertY", s.invertY);
 	f("fov", s.fov);
+	f("cameraForward", s.cameraForward);
+	f("cameraUp", s.cameraUp);
+	f("cameraSide", s.cameraSide);
+	f("cameraTilt", s.cameraTilt);
 	f("viewBobbing", s.viewBobbing);
 	f("allowDualBinding", s.allowDualBinding);
 	f("toggleSprint", s.toggleSprint);
@@ -127,6 +132,8 @@ template <typename S, typename F> void VisitFields(S &s, F &&f) {
 	f("chunkUpdates", s.chunkUpdates);
 	f("shadows", s.shadows);
 	f("dynamicLights", s.dynamicLights);
+	f("reflections", s.reflections);
+	f("reflectionBounces", s.reflectionBounces);
 	f("brightness", s.brightness);
 	f("ambientOcclusion", s.ambientOcclusion);
 	f("clouds", s.clouds);
@@ -225,6 +232,7 @@ void Settings::FromJson(const NodePtr &node) {
 		else
 			value = json::Str(node, name, value);
 	});
+	reflectionBounces = std::clamp(reflectionBounces, REFLECTION_BOUNCES_MIN, REFLECTION_BOUNCES_MAX);
 	if (NodePtr keys = json::At(node, "bindings"); keys && keys->IsObject())
 		for (KeyBinding &b : bindings)
 			if (NodePtr pair = keys->Get(b.action); pair && pair->IsArray() && pair->GetSize() >= 2) {

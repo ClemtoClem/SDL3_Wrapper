@@ -88,6 +88,8 @@ public:
 
 	/// Comportement scripté (BehaviorDef "script" ou voxel.behavior) ; faux s'il n'existe pas.
 	bool RunBehavior(ecs::Entity entity, BehaviorState &state, float dt);
+	/// Comportements déclarés par les scripts (voxel.behavior), ids qualifiés.
+	[[nodiscard]] std::vector<String> BehaviorIds() const;
 	/// Générateur scripté pour le monde.
 	[[nodiscard]] TerrainGenerator::ScriptFn Generator() ;
 	/// Systèmes des mods (appelés chaque image).

@@ -4,6 +4,7 @@
 // (id numérique conservé, lumière et chunks invalidés).
 #include "test.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 
@@ -101,7 +102,11 @@ TEST(StudioBlocks_ValidateWithoutTouchingLiveContent) {
 	BlockDocument doc = BlockDocument::FromBlock(game.Content(), "backrooms:fluorescent").Unwrap();
 	const float liveRange = game.Content().FindBlock("backrooms:fluorescent")->look.light.range;
 
-	doc.SetField("states.on.light.innerAngle", json::MakeNum(90.0)); // > outerAngle (82)
+	// > outerAngle, quelle que soit la valeur réglée dans le mod.
+	const double outer = doc.FieldNumber("states.on.light.outerAngle");
+	REQUIRE(outer > 0.0);
+	doc.SetField("states.on.light.innerAngle", json::MakeNum(std::min(outer + 10.0, 179.0)));
+	doc.SetField("states.on.light.outerAngle", json::MakeNum(std::min(outer, 169.0)));
 	doc.SetField("states.on.light.color", json::MakeStr(String("pas une couleur")));
 	doc.SetField("states.on.interact.toggle", json::MakeStr(String("backrooms:nulle_part")));
 	doc.SetField("states.on.light.range", json::MakeNum(3.0));
@@ -158,7 +163,8 @@ TEST(StudioBlocks_SaveReplacesTheDefinitionInItsFile) {
 	const String file((dir / "blocks.json").string().c_str());
 	{
 		std::ofstream out(file.CStr());
-		out << "// En-tête du fichier : gardé.\n[{\"id\": \"a\", \"displayName\": \"A\"}, {\"id\": \"b\", \"displayName\": \"B\"}]";
+		out << "// En-tête du fichier : gardé.\n[\n    // Bloc a : intouché.\n    {\"id\": \"a\", \"displayName\": \"A\", /* note */ \"x\": 0.06},\n"
+			   "    // Bloc b.\n    {\"id\": \"b\", \"displayName\": \"B\"}\n]\n";
 	}
 	BlockDocument doc = BlockDocument::New("b", "test", dir.string().c_str(), file);
 	doc.SetField("displayName", json::MakeStr(String("B modifié")));
@@ -169,6 +175,11 @@ TEST(StudioBlocks_SaveReplacesTheDefinitionInItsFile) {
 	std::ifstream in(file.CStr());
 	const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 	CHECK(text.rfind("// En-tête du fichier : gardé.", 0) == 0);
+	// Le reste du fichier est gardé tel quel : commentaires, autres définitions.
+	CHECK(text.find("    // Bloc a : intouché.\n    {\"id\": \"a\", \"displayName\": \"A\", /* note */ \"x\": 0.06},") !=
+		  std::string::npos);
+	CHECK(text.find("    // Bloc b.\n    {") != std::string::npos);
+	CHECK(text.find("B modifié") != std::string::npos);
 	auto parsed = json::ReadFile(file);
 	REQUIRE(parsed.IsOk());
 	REQUIRE(parsed.Value()->IsArray());
@@ -226,4 +237,60 @@ TEST(StudioBlocks_HotReloadInALiveWorld) {
 	original.SetField("defaultState", json::MakeStr(String("fantome")));
 	CHECK(game.ReloadDefinition(original.Json(), original.Context()).IsError());
 	CHECK(game.Content().Block(numeric).look.light.Active());
+}
+
+TEST(StudioBlocks_NodeboxShapes) {
+	voxel::Game game;
+	(void)game.LoadMods(BlockOptions("build/tests/tmp/voxelia/studio_blocks_nodebox"));
+	BlockDocument doc = BlockDocument::New("table", "core", "demos/voxelia/mods/core", "build/tests/tmp/voxelia/nb.json");
+	CHECK(doc.NodeBoxes().empty());
+	// Plateau + un pied ; miroirs pour les trois autres pieds.
+	REQUIRE(doc.AddNodeBox({0.f, 14.f, 0.f, 16.f, 16.f, 16.f}).IsOk());
+	REQUIRE(doc.AddNodeBox({1.f, 0.f, 1.f, 3.f, 14.f, 3.f}).IsOk());
+	CHECK(doc.FieldText("type") == "nodebox");
+	REQUIRE(doc.MirrorNodeBox(1, 0).IsOk()); // x
+	REQUIRE(doc.MirrorNodeBox(1, 2).IsOk()); // z
+	REQUIRE(doc.MirrorNodeBox(3, 0).IsOk());
+	std::vector<BlockDocument::NodeBox> boxes = doc.NodeBoxes();
+	REQUIRE(boxes.size() == size_t(5));
+	CHECK(std::fabs(boxes[2][0] - 13.f) < 1e-4f && std::fabs(boxes[2][3] - 15.f) < 1e-4f);
+	// JSON : convention du moteur (−0,5 … 0,5).
+	CHECK(std::fabs(doc.FieldNumber("nodebox.0.1") - (14.0 / 16.0 - 0.5)) < 1e-6);
+	// Refus : boîte plate, hors bloc, indice inconnu, dernière boîte.
+	CHECK(doc.AddNodeBox({0.f, 0.f, 0.f, 0.f, 4.f, 4.f}).IsError());
+	CHECK(doc.AddNodeBox({0.f, 0.f, 0.f, 40.f, 4.f, 4.f}).IsError());
+	CHECK(doc.SetNodeBox(9, boxes[0]).IsError());
+	// Quart de tour autour de y : (x, z) → (16 − z, x).
+	REQUIRE(doc.SetNodeBox(1, {1.f, 0.f, 5.f, 3.f, 14.f, 7.f}).IsOk());
+	REQUIRE(doc.RotateNodeBoxes().IsOk());
+	boxes = doc.NodeBoxes();
+	CHECK(std::fabs(boxes[1][0] - 9.f) < 1e-4f && std::fabs(boxes[1][3] - 11.f) < 1e-4f);
+	CHECK(std::fabs(boxes[1][2] - 1.f) < 1e-4f && std::fabs(boxes[1][5] - 3.f) < 1e-4f);
+	// Le moteur charge la forme telle qu'éditée.
+	Option<voxel::BlockDef> loaded = doc.Loaded(game.Content());
+	REQUIRE(loaded.IsSome());
+	CHECK(loaded.Value().shape.kind == voxel::ShapeKind::NODEBOX);
+	CHECK_EQ(loaded.Value().shape.boxes.size(), size_t(5));
+	CHECK(std::fabs(loaded.Value().shape.boxes[0].min.y - 14.f / 16.f) < 1e-5f);
+	CHECK(doc.Validate(game.Content()).empty());
+	REQUIRE(doc.RemoveNodeBox(0).IsOk());
+	CHECK_EQ(doc.NodeBoxes().size(), size_t(4));
+}
+
+TEST(StudioBlocks_NodeboxPerState) {
+	voxel::Game game;
+	(void)game.LoadMods(BlockOptions("build/tests/tmp/voxelia/studio_blocks_nodebox_states"));
+	BlockDocument doc = BlockDocument::New("trappe", "core", "demos/voxelia/mods/core", "build/tests/tmp/voxelia/nb2.json");
+	REQUIRE(doc.AddNodeBox({0.f, 0.f, 0.f, 16.f, 3.f, 16.f}).IsOk()); // fermée : à plat
+	REQUIRE(doc.SetJson(doc.Text().Replace("\"type\"", "\"defaultState\": \"closed\", \"states\": {\"closed\": {}, \"open\": {}}, \"type\"")).IsOk());
+	// L'état « open » hérite des boîtes, puis a les siennes.
+	CHECK_EQ(doc.NodeBoxes("open").size(), size_t(1));
+	REQUIRE(doc.SetNodeBoxes({{0.f, 0.f, 13.f, 16.f, 16.f, 16.f}}, String("open")).IsOk());
+	CHECK(std::fabs(doc.NodeBoxes("open")[0][2] - 13.f) < 1e-4f);
+	CHECK(std::fabs(doc.NodeBoxes()[0][4] - 3.f) < 1e-4f); // le bloc commun n'a pas bougé
+	CHECK(doc.SetNodeBoxes({{0.f, 0.f, 0.f, 1.f, 1.f, 1.f}}, String("absent")).IsError());
+	Option<voxel::BlockDef> open = doc.Loaded(game.Content(), String("open"));
+	REQUIRE(open.IsSome());
+	REQUIRE(open.Value().shape.boxes.size() == size_t(1));
+	CHECK(std::fabs(open.Value().shape.boxes[0].min.z - 13.f / 16.f) < 1e-5f);
 }
