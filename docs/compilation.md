@@ -464,7 +464,7 @@ shaders, supprimez ce dossier ou modifiez une source GLSL.
 | `#include` d'un autre module introuvable | La dépendance manque dans le `module.toml`. `cpp-maker doctor` la détecte (`--no-fix` pour seulement la signaler) |
 | Un test « SKIP » sans GPU, ou une application sans fenêtre | Pas de périphérique Vulkan, ou pas d'affichage. Utilisez `SDL_VIDEO_DRIVER=offscreen` ; sans GPU, les vues 3D restent vides |
 | Ressources introuvables (`assets/…`, mods de voxelia) | L'application a été lancée hors de la racine du dépôt. Relancez depuis la racine |
-| `render3d_shadows_ibl_showcase` s'arrête aussitôt | `assets/textures/equirectangularmaps/procedural_sky.hdr` est absent du dépôt |
+| `render3d_shadows_ibl_showcase` s'arrête aussitôt (`LoadEnvironmentFromHdr: Couldn't open …`) | Le ciel HDR manque : `python3 assets/textures/equirectangularmaps/generate_procedural_sky.py` le recrée |
 | Fuites signalées dans `libX11` ou `libdbus` sous ASan | Fuites des bibliothèques tierces, ignorées par `tests/lsan_suppressions.txt` (automatique pour `cpp-maker test`) |
 | Comportement étrange depuis le terminal de VS Code | Variables `GTK_PATH` et `GTK_MODULES` du snap. Préfixez avec `env -u GTK_PATH -u GTK_MODULES` |
 | Un build attend ou refuse de démarrer | Un autre cpp-maker tient le verrou `.cpp-maker.lock` pendant toute sa compilation (`run` le relâche avant de lancer le programme). Attendez la fin du build en cours |

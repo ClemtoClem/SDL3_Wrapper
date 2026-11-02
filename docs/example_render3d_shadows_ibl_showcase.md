@@ -24,11 +24,17 @@ La démonstration la plus complète de [render3d](libs_infrastructure_render3d.m
 cpp-maker run -m render3d_shadows_ibl_showcase
 ```
 
-> **Fichier manquant** : l'exemple charge
-> `assets/textures/equirectangularmaps/procedural_sky.hdr`, qui **n'est pas
-> dans le dépôt**. Sans lui, il s'arrête avec
-> `LoadEnvironmentFromHdr: Couldn't open …` et le code 1. Placez une image
-> Radiance `.hdr` équirectangulaire à cet emplacement pour l'exécuter.
+> **Ciel HDR** : l'exemple charge
+> `assets/textures/equirectangularmaps/procedural_sky.hdr`. Cette image
+> (256 × 128, Radiance RGBE) est générée par
+> `assets/textures/equirectangularmaps/generate_procedural_sky.py`. Elle
+> contient un dégradé de ciel, un soleil HDR placé à l'opposé de la lumière
+> directionnelle de l'exemple, et un sol sous l'horizon. Pour la
+> régénérer, depuis la racine du dépôt :
+>
+> ```sh
+> python3 assets/textures/equirectangularmaps/generate_procedural_sky.py
+> ```
 
 Comme toutes les applications du dépôt, l'exemple se lance **depuis la
 racine du dépôt** : polices, shaders et ressources sont lus dans `assets/`.

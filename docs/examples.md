@@ -44,7 +44,7 @@ cpp-maker run -m <nom> -- --option      # arguments transmis au programme
 |---|---|
 | [render3d_cube](example_render3d_cube.md) | Premier rendu de bout en bout : `Canvas`, cube, lumières |
 | [render3d_showcase](example_render3d_showcase.md) | Hiérarchie d'objets, géométries, PBR, lumières ponctuelles et projecteur |
-| [render3d_shadows_ibl_showcase](example_render3d_shadows_ibl_showcase.md) | Ombres, éclairage par image (IBL), points, sprites, instances, squelettes, LOD (demande un fichier `.hdr` absent du dépôt) |
+| [render3d_shadows_ibl_showcase](example_render3d_shadows_ibl_showcase.md) | Ombres, éclairage par image (IBL), points, sprites, instances, squelettes, LOD |
 
 ## Audio (`audio`)
 
